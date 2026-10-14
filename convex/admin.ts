@@ -88,6 +88,13 @@ export const deleteTestGame = internalMutation({
       .withIndex("by_game", (q) => q.eq("gameId", game._id))
       .collect();
     for (const w of weapons) await ctx.db.delete(w._id);
+    for (const table of ["markers", "sealed"] as const) {
+      const rows = await ctx.db
+        .query(table)
+        .withIndex("by_game", (q) => q.eq("gameId", game._id))
+        .collect();
+      for (const r of rows) await ctx.db.delete(r._id);
+    }
     await ctx.db.delete(game._id);
     return { deleted: players.length };
   },

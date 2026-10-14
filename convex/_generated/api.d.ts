@@ -9,10 +9,17 @@
  */
 
 import type * as admin from "../admin.js";
+import type * as engine_build from "../engine/build.js";
+import type * as engine_fake from "../engine/fake.js";
+import type * as engine_rng from "../engine/rng.js";
+import type * as engine_text from "../engine/text.js";
+import type * as engine_types from "../engine/types.js";
+import type * as game from "../game.js";
 import type * as host from "../host.js";
 import type * as lib from "../lib.js";
 import type * as ping from "../ping.js";
 import type * as registration from "../registration.js";
+import type * as seal from "../seal.js";
 
 import type {
   ApiFromModules,
@@ -22,10 +29,17 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
+  "engine/build": typeof engine_build;
+  "engine/fake": typeof engine_fake;
+  "engine/rng": typeof engine_rng;
+  "engine/text": typeof engine_text;
+  "engine/types": typeof engine_types;
+  game: typeof game;
   host: typeof host;
   lib: typeof lib;
   ping: typeof ping;
   registration: typeof registration;
+  seal: typeof seal;
 }>;
 
 /**

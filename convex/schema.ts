@@ -31,6 +31,8 @@ export default defineSchema({
       roundMinutes: v.number(),
     }),
     createdAt: v.number(),
+    round: v.optional(v.number()), // 1-3 while playing
+    startedAt: v.optional(v.number()),
   })
     .index("by_slug", ["slug"])
     .index("by_active", ["isActive"]),
@@ -48,12 +50,32 @@ export default defineSchema({
     secret: v.optional(v.string()),
     killerOk: v.boolean(),
     checkedIn: v.boolean(),
+    exhibitLetter: v.optional(v.string()), // dealt at check-in from a shuffled pool
+    weaponIn: v.optional(v.boolean()), // guest confirmed the bagged weapon went in the box
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_token", ["token"])
     .index("by_game", ["gameId"])
     .index("by_game_charKey", ["gameId", "charKey"]),
+
+  // Numbered evidence markers placed around the house. The code goes in the QR card.
+  markers: defineTable({
+    gameId: v.id("games"),
+    number: v.number(),
+    roomKey: v.string(),
+    code: v.string(),
+  })
+    .index("by_game", ["gameId"])
+    .index("by_code", ["code"]),
+
+  // The whole case file (answer, clues, tips, briefings), encrypted with SEAL_KEY.
+  // Nothing in here is readable from the dashboard without the key.
+  sealed: defineTable({
+    gameId: v.id("games"),
+    iv: v.string(),
+    data: v.string(),
+  }).index("by_game", ["gameId"]),
 
   weapons: defineTable({
     gameId: v.id("games"),
