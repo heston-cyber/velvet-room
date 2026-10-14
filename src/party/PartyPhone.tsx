@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { api } from "../../convex/_generated/api";
@@ -310,50 +310,57 @@ function Late({ data }: { data: Phone }) {
   );
 }
 
-function Murder({ data, onDone }: { data: Phone; onDone: () => void }) {
-  // The role shows only while a finger (or key) is held down, and hides on release.
+/**
+ * Press and hold: the content shows only while a finger (or key) is held down, and hides on release.
+ * It looks the same for every guest, killer or not, so a glance at someone's phone gives nothing away.
+ */
+function useHold() {
   const [holding, setHolding] = useState(false);
   const [seenOnce, setSeenOnce] = useState(false);
-  const b = data.briefing;
-  const killer = b?.role === "killer";
   const show = () => {
     setHolding(true);
     setSeenOnce(true);
     navigator.vibrate?.(30);
   };
   const hide = () => setHolding(false);
+  const props = {
+    role: "button",
+    tabIndex: 0,
+    onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
+      e.preventDefault();
+      try {
+        e.currentTarget.setPointerCapture?.(e.pointerId);
+      } catch {
+        /* keep going: release still hides the card */
+      }
+      show();
+    },
+    onPointerUp: hide,
+    onPointerCancel: hide,
+    onLostPointerCapture: hide,
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === " " || e.key === "Enter") {
+        e.preventDefault();
+        show();
+      }
+    },
+    onKeyUp: hide,
+    onBlur: hide,
+  };
+  return { holding, seenOnce, props };
+}
+
+function Murder({ data, onDone }: { data: Phone; onDone: () => void }) {
+  const { holding, seenOnce, props } = useHold();
+  const b = data.briefing;
+  const killer = b?.role === "killer";
   return (
     <div className="screen center murder no-select">
       <span className="eyebrow">Lights down</span>
       <h1 className="title-xl">The Don is dead.</h1>
       <p className="lede">Don Carmine Velluto has been found in {mid(data.game.bodyRoom)}.</p>
-      <div
-        role="button"
-        tabIndex={0}
-        aria-label="Press and hold to see your role"
-        className={`hold-card${holding ? (killer ? " showing killer" : " showing") : ""}`}
-        onPointerDown={(e) => {
-          e.preventDefault();
-          try {
-            (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-          } catch {
-            /* keep going: release still hides the card */
-          }
-          show();
-        }}
-        onPointerUp={hide}
-        onPointerCancel={hide}
-        onLostPointerCapture={hide}
-        onContextMenu={(e) => e.preventDefault()}
-        onKeyDown={(e) => {
-          if (e.key === " " || e.key === "Enter") {
-            e.preventDefault();
-            show();
-          }
-        }}
-        onKeyUp={hide}
-        onBlur={hide}
-      >
+      <div {...props} aria-label="Press and hold to see your role" className={`hold-card${holding ? " showing" : ""}`}>
         {holding ? (
           killer ? (
             <>
@@ -419,29 +426,40 @@ function Pacing({ token, data }: { token: string; data: Phone }) {
 
 function CaseFile({ token, data }: { token: string; data: Phone }) {
   const b = data.briefing!;
-  const killer = b.role === "killer";
+  const { holding, props } = useHold();
+  // The card never grows: if the lines don't fit, the text shrinks until they do.
+  const card = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = card.current;
+    const list = el?.querySelector<HTMLElement>(".role-lines");
+    if (!el || !list) return;
+    let size = 16;
+    list.style.fontSize = `${size}px`;
+    while (el.scrollHeight > el.clientHeight + 1 && size > 11) {
+      size -= 0.5;
+      list.style.fontSize = `${size}px`;
+    }
+  }, [holding, b.lines]);
+  // One layout for every guest. The role lines sit behind press-and-hold in a card of fixed size,
+  // so neither the screen nor the card's shape tells anyone who the killer is.
   return (
     <div className="screen">
-      <h1 className="title-lg">{killer ? "Keep them guessing." : "Your case file"}</h1>
-      {killer ? (
-        <div className="file red">
-          <span className="lab">Only you can see this</span>
-          <ul>
+      <h1 className="title-lg">Your case file</h1>
+      <div {...props} ref={card} aria-label="Press and hold to read your role" className={`hold-card role-hold no-select${holding ? " showing" : ""}`}>
+        <span className="eyebrow">Your role</span>
+        {holding ? (
+          <ul className="role-lines">
             {b.lines.map((l) => (
               <li key={l}>{l}</li>
             ))}
           </ul>
-        </div>
-      ) : (
-        <div className="file">
-          <span className="lab">Your role</span>
-          <ul>
-            {b.lines.map((l) => (
-              <li key={l}>{l}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+        ) : (
+          <>
+            <span className="hold-hint">Press and hold to read it.</span>
+            <span className="help">Let go and it hides again. Keep your screen to yourself.</span>
+          </>
+        )}
+      </div>
       <div className="file private">
         <span className="lab">Your motive</span>
         <p>{b.motive}</p>

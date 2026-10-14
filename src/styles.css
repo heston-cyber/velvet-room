@@ -284,3 +284,7 @@ img { max-width: 100%; }
 .locked.pending { border-color: var(--rule); color: var(--muted); }
 .file.wifi p { margin: 0; overflow-wrap: anywhere; }
 .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-weight: 600; letter-spacing: 0.02em; }
+/* the case file's role card: one fixed size for everyone, held or not */
+.hold-card.role-hold { height: 360px; min-height: 0; align-content: start; overflow: hidden; }
+.hold-card.role-hold:not(.showing) { align-content: center; }
+.role-lines { margin: 0; padding-left: 18px; display: grid; gap: 6px; text-align: left; font-size: 15px; line-height: 1.35; }

@@ -165,13 +165,14 @@ export function validateCase(input: CaseInput, cf: CaseFile): Validation {
   }
   for (const n of markerNums) if (used.get(n) !== 1) problems.push(`Marker ${n} doesn't have exactly one clue.`);
 
-  // Tips: one per innocent, none for the killer, nothing the public clues won't also prove.
+  // Tips: one for every guest, the killer too, so having a tip gives nobody away.
+  // Every tip is a true clue the public evidence will prove later, so the killer's is harmless.
   const tipped = new Set(cf.tips.map((t) => t.playerId));
-  if (tipped.has(sol.killerId)) problems.push("The killer got a tip.");
   const hasTipPool = cf.clues.some((c) => c.round > 1 && c.kind !== "twist" && c.kind !== "herring" && c.kind !== "flavor");
   if (hasTipPool) {
-    for (const s of input.suspects) if (s.id !== sol.killerId && !tipped.has(s.id)) problems.push(`${s.name} has no tip.`);
+    for (const s of input.suspects) if (!tipped.has(s.id)) problems.push(`${s.name} has no tip.`);
   }
+  if (cf.tips.length !== tipped.size) problems.push("Someone got two tips.");
 
   // A herring must be cleared publicly no earlier than it appears.
   for (const c of cf.clues) {
@@ -322,7 +323,7 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
   if (pool.length) {
     const order = shuffle(rng, pool);
     let k = 0;
-    for (const s of shuffle(rng, innocents)) {
+    for (const s of shuffle(rng, input.suspects)) {
       let choice = order[k % order.length];
       for (let tries = 0; tries < order.length && choice.elim.suspects.includes(s.id); tries++) {
         k++;

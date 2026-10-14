@@ -44,7 +44,7 @@ describe("the draw, sealed", () => {
     }
   });
 
-  test("exactly one phone learns it's the killer; every innocent gets a tip; the killer gets none", async () => {
+  test("exactly one phone learns it's the killer; every guest gets a tip, the killer too", async () => {
     const { t, hostKey, tokens } = await setup();
     await t.mutation(api.game.startGame, { slug: "test-engine", hostKey });
     const briefs = await Promise.all(tokens.map((token) => t.query(api.game.myBriefing, { token })));
@@ -53,8 +53,8 @@ describe("the draw, sealed", () => {
     expect(roles.filter((r) => r === "innocent")).toHaveLength(8);
     for (const b of briefs) {
       if (!b || !("role" in b)) throw new Error("missing briefing");
+      expect(b.tip).toBeTruthy(); // a tip on every phone, so having one gives nobody away
       if (b.role === "killer") {
-        expect(b.tip).toBeNull();
         expect(b.lines[0]).toMatch(/^You did it\./);
       } else {
         expect(b.tip).toBeTruthy();

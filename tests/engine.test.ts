@@ -117,9 +117,11 @@ describe("the engine", () => {
           const bad = textMatchesLogic(input, c, cf.bodyRoomKey);
           if (bad) failures.push(`${tag}: ${bad}`);
         }
-        // tips: innocents only, and they never contradict the answer
+        // tips: every guest gets one (the killer too, so a tip gives nobody away), and none contradicts the answer
+        const pool = cf.clues.some((c) => c.round > 1 && ["suspect", "suspectPair", "exhibit", "exhibitPair", "room"].includes(c.kind));
+        if (pool && !cf.tips.some((t) => t.playerId === sol.killerId)) failures.push(`${tag}: the killer has no tip, so tips give them away`);
+        if (pool && new Set(cf.tips.map((t) => t.playerId)).size !== input.suspects.length) failures.push(`${tag}: not every guest has a tip`);
         for (const t of cf.tips) {
-          if (t.playerId === sol.killerId) failures.push(`${tag}: killer got a tip`);
           if (t.elim.suspects.includes(sol.killerId) || t.elim.exhibits.includes(sol.exhibitId) || t.elim.rooms.includes(sol.roomKey)) failures.push(`${tag}: tip contradicts the answer`);
         }
         // every marker has exactly one clue
