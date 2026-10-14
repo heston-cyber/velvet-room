@@ -40,18 +40,20 @@ function textMatchesLogic(input: CaseInput, c: PlacedClue): string | null {
   return null;
 }
 
-type Config = { guests: number; rooms: typeof ROOMS_5; markers: number; optIn: number };
+type Config = { guests: number; rooms: typeof ROOMS_5; markers: number; optIn: number; tone: "classic" | "adult" };
 const configs: Config[] = [];
-for (const guests of [4, 5, 6, 8, 9, 10, 12]) {
-  for (const rooms of [ROOMS_5, ROOMS_6]) {
-    for (const markers of [0, 5, 10, 15, 20]) {
-      configs.push({ guests, rooms, markers, optIn: 0.8 });
+for (const tone of ["classic", "adult"] as const) {
+  for (const guests of [4, 5, 6, 8, 9, 10, 12]) {
+    for (const rooms of [ROOMS_5, ROOMS_6]) {
+      for (const markers of [0, 5, 10, 15, 20]) {
+        configs.push({ guests, rooms, markers, optIn: 0.8, tone });
+      }
     }
   }
 }
 
 describe("the engine", () => {
-  test("1,050 simulated games are all solvable, fair and consistent", () => {
+  test("2,100 simulated games (both scripts) are all solvable, fair and consistent", () => {
     let games = 0;
     const failures: string[] = [];
     const attempts: number[] = [];
@@ -59,6 +61,7 @@ describe("the engine", () => {
       for (let seed = 1; seed <= 15; seed++) {
         const rng = seeded(seed * 7919 + cfg.guests * 31 + cfg.markers);
         const input = fakeCast({ rng, guests: cfg.guests, rooms: cfg.rooms, markers: cfg.markers, optInRate: cfg.optIn });
+        input.tone = cfg.tone;
         let cf: CaseFile;
         try {
           cf = buildCase(input, rng);
@@ -68,7 +71,7 @@ describe("the engine", () => {
         }
         games++;
         attempts.push(cf.attempts);
-        const tag = `${cfg.guests}g/${cfg.rooms.length}r/${cfg.markers}m/seed${seed}`;
+        const tag = `${cfg.tone}/${cfg.guests}g/${cfg.rooms.length}r/${cfg.markers}m/seed${seed}`;
         const sol = cf.solution;
 
         // killer only ever from eligible, checked-in guests
@@ -120,7 +123,7 @@ describe("the engine", () => {
       }
     }
     expect(failures.slice(0, 20)).toEqual([]);
-    expect(games).toBe(1050);
+    expect(games).toBe(2100);
     // the builder rarely needs more than a few tries
     expect(Math.max(...attempts)).toBeLessThan(50);
   });
@@ -194,5 +197,16 @@ describe("the engine", () => {
     expect(b.secret).toBe("I am the parrot.");
     const others = cf.briefings.filter((x) => x.playerId !== "p1");
     expect(new Set(others.map((x) => x.motive)).size).toBe(others.length); // game-written ones don't repeat
+  });
+
+  test("the adult script is used when the game menu picks it, and keeps every fact", () => {
+    const rng = seeded(21);
+    const input = fakeCast({ rng, guests: 8 });
+    input.tone = "adult";
+    const cf = buildCase(input, rng);
+    const killer = cf.briefings.find((b) => b.role === "killer")!;
+    expect(killer.lines[0]).toMatch(/^You did it\. You whacked Don Carmine Velluto/);
+    const classic = buildCase({ ...input, tone: "classic" }, seeded(21));
+    expect(classic.briefings.find((b) => b.role === "killer")!.lines[0]).toMatch(/You killed Don Carmine Velluto/);
   });
 });

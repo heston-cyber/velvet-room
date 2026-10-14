@@ -31,8 +31,11 @@ export default defineSchema({
       roundMinutes: v.number(),
     }),
     createdAt: v.number(),
-    round: v.optional(v.number()), // 1-3 while playing
+    round: v.optional(v.number()), // 1-3 evidence rounds, 4 = accusations
     startedAt: v.optional(v.number()),
+    roundEndsAt: v.optional(v.number()), // timer pacing only
+    paused: v.optional(v.boolean()),
+    tone: v.optional(v.union(v.literal("classic"), v.literal("adult"))),
   })
     .index("by_slug", ["slug"])
     .index("by_active", ["isActive"]),
@@ -52,6 +55,9 @@ export default defineSchema({
     checkedIn: v.boolean(),
     exhibitLetter: v.optional(v.string()), // dealt at check-in from a shuffled pool
     weaponIn: v.optional(v.boolean()), // guest confirmed the bagged weapon went in the box
+    inGame: v.optional(v.boolean()), // checked in when the draw happened
+    readyRound: v.optional(v.number()), // last round this guest tapped "ready" in
+    notebook: v.optional(v.array(v.string())), // the guest's own cross-offs
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -76,6 +82,34 @@ export default defineSchema({
     iv: v.string(),
     data: v.string(),
   }).index("by_game", ["gameId"]),
+
+  // Which markers each guest has found.
+  scans: defineTable({
+    gameId: v.id("games"),
+    playerId: v.id("players"),
+    markerNumber: v.number(),
+    at: v.number(),
+  }).index("by_player", ["playerId"]),
+
+  accusations: defineTable({
+    gameId: v.id("games"),
+    playerId: v.id("players"),
+    suspectId: v.string(),
+    exhibitId: v.string(),
+    roomKey: v.string(),
+    at: v.number(),
+  })
+    .index("by_game", ["gameId"])
+    .index("by_player", ["playerId"]),
+
+  votes: defineTable({
+    gameId: v.id("games"),
+    playerId: v.id("players"),
+    dressed: v.optional(v.id("players")),
+    liar: v.optional(v.id("players")),
+  })
+    .index("by_game", ["gameId"])
+    .index("by_player", ["playerId"]),
 
   weapons: defineTable({
     gameId: v.id("games"),

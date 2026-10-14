@@ -13,6 +13,7 @@ import type * as engine_build from "../engine/build.js";
 import type * as engine_fake from "../engine/fake.js";
 import type * as engine_rng from "../engine/rng.js";
 import type * as engine_text from "../engine/text.js";
+import type * as engine_textAdult from "../engine/textAdult.js";
 import type * as engine_types from "../engine/types.js";
 import type * as game from "../game.js";
 import type * as host from "../host.js";
@@ -33,6 +34,7 @@ declare const fullApi: ApiFromModules<{
   "engine/fake": typeof engine_fake;
   "engine/rng": typeof engine_rng;
   "engine/text": typeof engine_text;
+  "engine/textAdult": typeof engine_textAdult;
   "engine/types": typeof engine_types;
   game: typeof game;
   host: typeof host;

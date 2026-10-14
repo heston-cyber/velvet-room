@@ -44,6 +44,7 @@ export const roster = query({
         rooms: game.rooms,
         bodyRoomKey: game.bodyRoomKey,
         pacing: game.pacing,
+        tone: game.tone ?? "classic",
       },
       players: rows,
       counts: {
@@ -73,6 +74,7 @@ export const updateSettings = mutation({
         roundMinutes: v.number(),
       }),
     ),
+    tone: v.optional(v.union(v.literal("classic"), v.literal("adult"))),
   },
   handler: async (ctx, { slug, hostKey, ...patch }) => {
     const game = await requireHost(ctx, slug, hostKey);

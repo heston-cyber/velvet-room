@@ -1,5 +1,6 @@
 import { pick, shuffle } from "./rng";
-import * as T from "./text";
+import { CLASSIC, deckPicker, fill, mid, type Script } from "./text";
+import { ADULT } from "./textAdult";
 import type {
   Briefing,
   CaseFile,
@@ -149,22 +150,27 @@ export function validateCase(input: CaseInput, cf: CaseFile): Validation {
   };
 }
 
-function writeMotives(input: CaseInput, rng: Rng): Map<string, { motive: string; secret: string }> {
-  const motives = shuffle(rng, T.MOTIVES);
-  const secrets = shuffle(rng, T.SECRETS);
+export function scriptFor(input: CaseInput): Script {
+  return input.tone === "adult" ? ADULT : CLASSIC;
+}
+
+function writeMotives(input: CaseInput, rng: Rng, S: Script): Map<string, { motive: string; secret: string }> {
+  const motives = shuffle(rng, S.motives);
+  const secrets = shuffle(rng, S.secrets);
   const out = new Map<string, { motive: string; secret: string }>();
   input.suspects.forEach((s, i) => {
     const own = input.playerMotives?.[s.id];
     out.set(s.id, {
-      motive: own?.motive?.trim() || T.fill(motives[i % motives.length], s.signature),
-      secret: own?.secret?.trim() || T.fill(secrets[i % secrets.length], s.signature),
+      motive: own?.motive?.trim() || fill(motives[i % motives.length], s.signature),
+      secret: own?.secret?.trim() || fill(secrets[i % secrets.length], s.signature),
     });
   });
   return out;
 }
 
 function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
-  const say = T.deckPicker(rng);
+  const S = scriptFor(input);
+  const say = deckPicker(rng);
   const name = new Map(input.suspects.map((s) => [s.id, s.name]));
   const innocents = input.suspects.filter((s) => s.id !== sol.killerId);
   const wrongExhibits = input.exhibits.filter((e) => e.id !== sol.exhibitId);
@@ -177,10 +183,10 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
   for (let i = 0; i < sus.length; ) {
     if (i + 1 < sus.length && rng() < 0.35) {
       const [a, b] = [sus[i], sus[i + 1]];
-      suspectDrafts.push({ kind: "suspectPair", text: T.suspectPairClear(say, a.name, b.name), elim: { ...NONE, suspects: [a.id, b.id] } });
+      suspectDrafts.push({ kind: "suspectPair", text: S.suspectPairClear(say, a.name, b.name), elim: { ...NONE, suspects: [a.id, b.id] } });
       i += 2;
     } else {
-      suspectDrafts.push({ kind: "suspect", text: T.suspectClear(say, sus[i].name), elim: { ...NONE, suspects: [sus[i].id] } });
+      suspectDrafts.push({ kind: "suspect", text: S.suspectClear(say, sus[i].name), elim: { ...NONE, suspects: [sus[i].id] } });
       i += 1;
     }
   }
@@ -189,10 +195,10 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
   for (let i = 0; i < exs.length; ) {
     if (i + 1 < exs.length && rng() < 0.35) {
       const [a, b] = [exs[i], exs[i + 1]];
-      exhibitDrafts.push({ kind: "exhibitPair", text: T.exhibitPairClear(say, a.letter, b.letter), elim: { ...NONE, exhibits: [a.id, b.id] } });
+      exhibitDrafts.push({ kind: "exhibitPair", text: S.exhibitPairClear(say, a.letter, b.letter), elim: { ...NONE, exhibits: [a.id, b.id] } });
       i += 2;
     } else {
-      exhibitDrafts.push({ kind: "exhibit", text: T.exhibitClear(say, exs[i].letter, exs[i].name), elim: { ...NONE, exhibits: [exs[i].id] } });
+      exhibitDrafts.push({ kind: "exhibit", text: S.exhibitClear(say, exs[i].letter, exs[i].name), elim: { ...NONE, exhibits: [exs[i].id] } });
       i += 1;
     }
   }
@@ -201,16 +207,16 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
   let twist: Draft;
   let roomTargets = otherRooms;
   if (sol.roomKey !== body.key) {
-    twist = { kind: "twist", text: T.twistMoved(body.label), elim: { ...NONE, rooms: [body.key] } };
+    twist = { kind: "twist", text: S.twistMoved(body.label), elim: { ...NONE, rooms: [body.key] } };
     roomTargets = otherRooms.filter((r) => r.key !== body.key);
   } else {
     const held = pick(rng, otherRooms);
-    twist = { kind: "twist", text: T.twistStayed(body.label), elim: { ...NONE, rooms: otherRooms.map((r) => r.key) } };
+    twist = { kind: "twist", text: S.twistStayed(body.label), elim: { ...NONE, rooms: otherRooms.map((r) => r.key) } };
     roomTargets = otherRooms.filter((r) => r.key !== held.key);
   }
   const roomDrafts: Draft[] = shuffle(rng, roomTargets).map((r) => ({
     kind: "room",
-    text: T.roomClear(say, r.label),
+    text: S.roomClear(say, r.label),
     elim: { ...NONE, rooms: [r.key] },
     roomKey: r.key,
   }));
@@ -241,7 +247,7 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
   for (const d of r1.filter((d) => d.kind === "room")) {
     const m = takeMarker(d.roomKey);
     if (m) {
-      placed.push({ id: id(), kind: d.kind, text: T.roomClearHere(input.rooms.find((r) => r.key === d.roomKey)!.label), elim: d.elim, round: 1, channel: "marker", markerNumber: m.number });
+      placed.push({ id: id(), kind: d.kind, text: S.roomClearHere(input.rooms.find((r) => r.key === d.roomKey)!.label), elim: d.elim, round: 1, channel: "marker", markerNumber: m.number });
     } else overflow.push(d);
   }
   for (const d of [...r1.filter((d) => d.kind !== "room"), ...overflow]) {
@@ -261,12 +267,12 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
     const clearRound = placed.find((c) => c.elim.suspects.includes(h.id))!.round;
     const m = takeMarker();
     if (m) {
-      placed.push({ id: id(), kind: "herring", text: T.herring(say, h.signature), elim: NONE, round: 1, channel: "marker", markerNumber: m.number, pointsAt: h.id });
+      placed.push({ id: id(), kind: "herring", text: S.herring(say, h.signature), elim: NONE, round: 1, channel: "marker", markerNumber: m.number, pointsAt: h.id });
     } else if (clearRound === 3) {
-      placed.push({ id: id(), kind: "herring", text: T.herring(say, h.signature), elim: NONE, round: 2, channel: "tv", pointsAt: h.id });
+      placed.push({ id: id(), kind: "herring", text: S.herring(say, h.signature), elim: NONE, round: 2, channel: "tv", pointsAt: h.id });
     }
   }
-  const flavor = shuffle(rng, T.FLAVOR);
+  const flavor = shuffle(rng, S.flavor);
   let f = 0;
   while (freeMarkers.length) {
     const m = freeMarkers.shift()!;
@@ -288,43 +294,28 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
         choice = order[k % order.length];
       }
       k++;
-      tips.push({ playerId: s.id, clueId: choice.id, text: T.tipIntro(choice.text), elim: choice.elim });
+      tips.push({ playerId: s.id, clueId: choice.id, text: choice.text, elim: choice.elim });
     }
   }
 
   // 7. Briefings for every phone.
-  const motives = writeMotives(input, rng);
+  const motives = writeMotives(input, rng, S);
   const ex = input.exhibits.find((e) => e.id === sol.exhibitId)!;
   const room = input.rooms.find((r) => r.key === sol.roomKey)!;
   const herringClue = placed.find((c) => c.kind === "herring");
   const briefings: Briefing[] = input.suspects.map((s) => {
     const m = motives.get(s.id)!;
     if (s.id === sol.killerId) {
-      const lines = [
-        `You did it. You killed Don Carmine Velluto with Exhibit ${ex.letter} (${ex.name}) in ${T.mid(room.label)}.`,
-        ex.ownerId === s.id
-          ? `Exhibit ${ex.letter} is the weapon you brought. If anyone works that out, you'll need a good story.`
-          : `Exhibit ${ex.letter} isn't the weapon you brought. That's lucky for you.`,
-        "Over three rounds, the clues will clear the other guests one by one. Your job is to keep them guessing.",
-        ...(herringClue?.pointsAt
-          ? [`One clue points at ${name.get(herringClue.pointsAt)}. Lean on it.`]
-          : []),
-        "You may lie about anything tonight. Everyone else may only lie about their own secrets.",
-        "You win if most guests accuse someone else.",
-      ];
+      const lines = S.killerLines({
+        letter: ex.letter,
+        weapon: ex.name,
+        room: room.label,
+        ownWeapon: ex.ownerId === s.id,
+        herringName: herringClue?.pointsAt ? name.get(herringClue.pointsAt) : undefined,
+      });
       return { playerId: s.id, role: "killer", motive: m.motive, secret: m.secret, lines };
     }
-    return {
-      playerId: s.id,
-      role: "innocent",
-      motive: m.motive,
-      secret: m.secret,
-      lines: [
-        "You're innocent. You didn't kill the Don.",
-        "You may lie about your secret, but not about the murder. Only the killer may lie about that.",
-        "Find the markers, compare notes, and work out who did it, with which exhibit, and where.",
-      ],
-    };
+    return { playerId: s.id, role: "innocent", motive: m.motive, secret: m.secret, lines: S.innocentLines };
   });
 
   return { solution: sol, clues: placed, tips, briefings, attempts: 1 };

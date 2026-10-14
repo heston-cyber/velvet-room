@@ -29,6 +29,8 @@ export type CaseInput = {
   rooms: Room[];
   bodyRoomKey: string;
   markers: Marker[];
+  /** Which script writes the words: Classic or Adult (explicit). */
+  tone?: "classic" | "adult";
   /** Motives and secrets players wrote themselves, by suspect id. Blanks get written by the game. */
   playerMotives?: Record<string, { motive?: string; secret?: string }>;
 };

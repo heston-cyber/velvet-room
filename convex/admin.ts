@@ -80,6 +80,11 @@ export const deleteTestGame = internalMutation({
       .withIndex("by_game", (q) => q.eq("gameId", game._id))
       .collect();
     for (const p of players) {
+      const scans = await ctx.db
+        .query("scans")
+        .withIndex("by_player", (q) => q.eq("playerId", p._id))
+        .collect();
+      for (const sc of scans) await ctx.db.delete(sc._id);
       if (p.photoId) await ctx.storage.delete(p.photoId);
       await ctx.db.delete(p._id);
     }
@@ -88,7 +93,7 @@ export const deleteTestGame = internalMutation({
       .withIndex("by_game", (q) => q.eq("gameId", game._id))
       .collect();
     for (const w of weapons) await ctx.db.delete(w._id);
-    for (const table of ["markers", "sealed"] as const) {
+    for (const table of ["markers", "sealed", "accusations", "votes"] as const) {
       const rows = await ctx.db
         .query(table)
         .withIndex("by_game", (q) => q.eq("gameId", game._id))
