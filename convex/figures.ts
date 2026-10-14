@@ -7,7 +7,7 @@ import type { QueryCtx } from "./_generated/server";
 
 /** Grouped only so the sign-up gallery can show them in two rows. Anyone can pick any. */
 export const FIGURE_SETS: { label: string; keys: string[] }[] = [
-  { label: "Women", keys: ["flapper", "lady", "sleuth", "singer", "cigarette", "heiress", "dowager", "owner"] },
+  { label: "Women", keys: ["flapper", "lady", "sleuth", "singer", "cigarette", "heiress", "sweetheart", "owner"] },
   { label: "Men", keys: ["dapper", "bodyguard", "detective", "curls", "trumpet", "reporter", "gambler", "slick"] },
 ];
 export const FIGURE_KEYS = FIGURE_SETS.flatMap((s) => s.keys);
