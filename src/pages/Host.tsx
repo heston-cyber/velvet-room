@@ -220,6 +220,64 @@ function HostInner({ slug, hostKey }: { slug: string; hostKey: string }) {
               <span className="help">Anyone who signs up without one gets a motive and secret written by the game.</span>
             </div>
 
+            <div className="setting">
+              <span className="lab" id="lab-script">
+                Script
+              </span>
+              <div className="seg" role="group" aria-labelledby="lab-script">
+                <button type="button" aria-pressed={game.tone === "classic"} onClick={() => save({ tone: "classic" })}>
+                  Classic
+                </button>
+                <button type="button" aria-pressed={game.tone === "adult"} onClick={() => save({ tone: "adult" })}>
+                  Adult (explicit)
+                </button>
+              </div>
+              <span className="help">
+                Adult swaps every clue, motive, secret and briefing for a version with cussing and crude humor. Locks when the game starts.
+              </span>
+            </div>
+
+            <div className="setting">
+              <span className="lab" id="lab-pacing">
+                Pacing
+              </span>
+              <div className="seg" role="group" aria-labelledby="lab-pacing">
+                <button
+                  type="button"
+                  aria-pressed={game.pacing.mode === "ready"}
+                  onClick={() => save({ pacing: { mode: "ready", roundMinutes: game.pacing.roundMinutes } })}
+                >
+                  Players tap ready
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={game.pacing.mode === "timer"}
+                  onClick={() => save({ pacing: { mode: "timer", roundMinutes: game.pacing.roundMinutes } })}
+                >
+                  Round timer
+                </button>
+              </div>
+              {game.pacing.mode === "timer" ? (
+                <label className="help inline-num" htmlFor="set-minutes">
+                  Each round lasts
+                  <input
+                    id="set-minutes"
+                    type="number"
+                    min={3}
+                    max={60}
+                    defaultValue={game.pacing.roundMinutes}
+                    onBlur={(e) => {
+                      const n = Math.round(Number(e.target.value));
+                      if (n >= 3 && n <= 60 && n !== game.pacing.roundMinutes) save({ pacing: { mode: "timer", roundMinutes: n } });
+                    }}
+                  />
+                  minutes.
+                </label>
+              ) : (
+                <span className="help">Evidence drops once most guests tap "Ready" on their phones. No clock.</span>
+              )}
+            </div>
+
             <Toggle
               id="set-optin"
               checked={game.killerOptIn}

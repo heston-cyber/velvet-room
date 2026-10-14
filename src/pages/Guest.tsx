@@ -5,9 +5,11 @@ import ProfileForm from "../components/ProfileForm";
 import MemberCard, { Deco } from "../components/MemberCard";
 import Shell, { Loading } from "../components/Shell";
 import { saveToken } from "../lib/storage";
+import PartyPhone from "../party/PartyPhone";
 
 export default function Guest({ token }: { token: string }) {
   const me = useQuery(api.registration.me, { token });
+  const party = useQuery(api.game.phone, { token });
   const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState<"" | "Copied" | "Selected">("");
 
@@ -15,7 +17,8 @@ export default function Guest({ token }: { token: string }) {
     if (me) saveToken(me.game.slug, token);
   }, [me, token]);
 
-  if (me === undefined) return <Loading />;
+  if (me === undefined || party === undefined) return <Loading />;
+  if (party && party.game.status !== "registration") return <PartyPhone token={token} data={party} />;
   if (me === null) {
     return (
       <Shell>

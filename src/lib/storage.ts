@@ -21,7 +21,19 @@ export function saveToken(slug: string, token: string) {
     const all = load();
     all[slug] = token;
     localStorage.setItem(KEY, JSON.stringify(all));
+    localStorage.setItem(LAST, token);
   } catch {
     /* private mode or blocked storage: the link still works */
+  }
+}
+
+const LAST = "velvet-room:last-token";
+
+/** The most recent guest link opened on this phone. Marker QR pages use it. */
+export function lastToken(): string | null {
+  try {
+    return localStorage.getItem(LAST);
+  } catch {
+    return null;
   }
 }
