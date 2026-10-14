@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -p tsconfig.json && vite build",
-    "test": "vitest run"
+    "build": "tsc -p tsconfig.json && vite build && cp dist/index.html dist/404.html",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "convex": "^1.46.0",

@@ -1,11 +1,14 @@
-// Placeholder until registration opens. Replaced in Phase 1.
+import { useLocation } from "./lib/router";
+import Register from "./pages/Register";
+import Guest from "./pages/Guest";
+import Host from "./pages/Host";
+
 export default function App() {
-  return (
-    <main className="door">
-      <p className="eyebrow">Chicago · 1929</p>
-      <div className="deco" aria-hidden="true" />
-      <h1>The Velvet Room</h1>
-      <p className="lede">The doors are locked. Check back soon for the password.</p>
-    </main>
-  );
+  const { path, search } = useLocation();
+  const params = new URLSearchParams(search);
+  if (path.startsWith("/p/")) return <Guest token={decodeURIComponent(path.slice(3)).replace(/\/$/, "")} />;
+  if (path.replace(/\/$/, "") === "/host") {
+    return <Host slug={params.get("game") ?? ""} hostKey={params.get("key") ?? ""} />;
+  }
+  return <Register slug={params.get("game") ?? undefined} />;
 }
