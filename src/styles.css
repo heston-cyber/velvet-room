@@ -1,0 +1,29 @@
+:root {
+  --felt: #0d1613;
+  --brass: #c9a45c;
+  --paper: #ece4d0;
+  --muted: #a7a18f;
+  --display: "Limelight", Georgia, serif;
+  --body: "Crimson Pro", Georgia, serif;
+  --label: "Josefin Sans", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--felt); color: var(--paper); font-family: var(--body); }
+.door {
+  min-height: 100dvh; display: grid; place-content: center; justify-items: center;
+  gap: 16px; padding: 24px 16px; text-align: center;
+}
+.eyebrow { margin: 0; font-family: var(--label); font-size: 12px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--brass); }
+.deco {
+  width: min(280px, 80vw); height: 18px; position: relative;
+  background:
+    linear-gradient(var(--brass), var(--brass)) center 4px / 100% 1px no-repeat,
+    linear-gradient(var(--brass), var(--brass)) center 13px / 100% 1px no-repeat;
+}
+.deco::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 12px; height: 12px;
+  background: var(--felt); border: 1px solid var(--brass); transform: translate(-50%, -50%) rotate(45deg);
+}
+h1 { margin: 0; font-family: var(--display); font-weight: 400; font-size: clamp(44px, 13vw, 88px); line-height: .95; }
+.lede { margin: 0; max-width: 32ch; font-size: 20px; font-style: italic; color: var(--muted); }
