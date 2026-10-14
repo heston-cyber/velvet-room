@@ -49,6 +49,8 @@ export default function Guest({ token }: { token: string }) {
             weapon: me.weapon,
             weaponDesc: me.weaponDesc,
             killerOk: me.killerOk,
+            rumor: me.rumor,
+            sayAs: me.sayAs,
           }}
           initialPhotoUrl={me.photoUrl}
           onDone={() => setEditing(false)}

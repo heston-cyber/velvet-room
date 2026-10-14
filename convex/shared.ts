@@ -4,9 +4,16 @@
 export const INTRO_MS = 60_000;
 export const INTRO_BEATS = 4;
 
-/** The reveal on the TV: four beats, then it rests on the verdict while guests vote. */
-export const REVEAL_BEAT_MS = 6_000;
-export const REVEAL_BEATS = 4;
+/**
+ * The reveal on the TV, in ms from the moment it starts: the title card, "The killer is…",
+ * the name, the exhibit and room, then the verdict. Phones keep the answer hidden until the verdict.
+ */
+export const REVEAL = { card: 0, line: 4_300, name: 9_000, how: 14_000, verdict: 20_000 } as const;
+export const REVEAL_VERDICT_MS = REVEAL.verdict;
+
+/** The TV title cards are 4 seconds (Lights Out is 3). Scenes fade in after them. */
+export const CARD_MS = 4_000;
+export const LIGHTS_OUT_MS = 3_000;
 
 /** Accusations get a shorter clock than the evidence rounds. */
 export const ACCUSE_MAX_MINUTES = 5;

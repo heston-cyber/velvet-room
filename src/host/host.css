@@ -115,3 +115,21 @@
 .hx-mc .mc-round ul { margin: 6px 0 10px; padding-left: 18px; display: grid; gap: 6px; font-size: 15px; }
 .hx-mc .mc-round small { display: block; font-family: var(--label); font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 .hx-mc .mc-round li.twist small { color: var(--blood); }
+
+/* Phase 5: narrator, levels and the roll call */
+.hx-levels { display: grid; gap: 6px; }
+.hx-level { display: grid; grid-template-columns: 120px minmax(0, 1fr) 44px; gap: 10px; align-items: center; }
+.hx-level input[type="range"] { width: 100%; accent-color: var(--brass); }
+.hx-level b { font-family: var(--label); font-size: 13px; letter-spacing: .06em; text-align: right; font-variant-numeric: tabular-nums; }
+.hx-rollcall { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+.hx-rollcall li { background: var(--felt); padding: 10px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; }
+.hx-rollcall .main { display: grid; gap: 6px; min-width: 0; }
+.hx-rollcall .nm { font-family: var(--display); font-size: 18px; line-height: 1.1; overflow-wrap: anywhere; }
+.hx-rollcall .nm .sub { font-family: var(--body); font-size: 14px; color: var(--muted); }
+.hx .inp.area { height: auto; min-height: 58px; padding: 8px 10px; line-height: 1.35; resize: vertical; font-size: 16px; }
+.hx-rollcall .meta { display: flex; gap: 12px; align-items: center; min-height: 20px; }
+.hx-rollcall .st { font-family: var(--label); font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.hx-rollcall .st.ready { color: var(--ok); }
+.hx-rollcall .st.failed { color: var(--blood); }
+.hx-rollcall .st.pending { color: var(--brass); }
+.linkish { background: none; border: 0; padding: 0; color: var(--brass); font-family: var(--label); font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }

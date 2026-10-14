@@ -1,13 +1,13 @@
-import { Component, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { Component, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery } from "convex/react";
-import type { FunctionReturnType } from "convex/server";
 import { api } from "../../convex/_generated/api";
-import { INTRO_BEATS, INTRO_MS } from "../../convex/shared";
+import { HOSTS, captionText, type CueKey } from "../../convex/narration";
+import { INTRO_BEATS, INTRO_MS, REVEAL } from "../../convex/shared";
 import { Qr, wifiQrText } from "../lib/qr";
-import { line, type Cue } from "./script";
+import { CARD_MS, cardUrl, loopUrl, useMediaBank, type LoopKey } from "./media";
+import { SoundEngine } from "./sound";
+import { cardNow, due, plan, type Data, type Plan } from "./timeline";
 import "./tv.css";
-
-type Data = FunctionReturnType<typeof api.game.tv>;
 
 const mid = (l: string) => l.replace(/^The /, "the ");
 const initials = (n: string) => {
@@ -88,40 +88,32 @@ function useNow(ms: number) {
   return now;
 }
 
-/** A short chime for the sound check, made in the browser (the narration files arrive in Phase 5). */
-function chime(ctx: AudioContext) {
-  const t = ctx.currentTime;
-  [523.25, 659.25, 783.99].forEach((f, i) => {
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = "sine";
-    o.frequency.value = f;
-    g.gain.setValueAtTime(0.0001, t + i * 0.18);
-    g.gain.exponentialRampToValueAtTime(0.25, t + i * 0.18 + 0.03);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.18 + 0.9);
-    o.connect(g).connect(ctx.destination);
-    o.start(t + i * 0.18);
-    o.stop(t + i * 0.18 + 1);
-  });
-}
-
 function TvInner({ slug, tvKey }: { slug: string; tvKey: string }) {
   const data = useQuery(api.game.tv, { slug, tvKey });
-  const now = useNow(250);
-  const audio = useRef<AudioContext | null>(null);
+  const now = useNow(200);
+  const engine = useMemo(() => new SoundEngine(), []);
+  const bank = useMediaBank();
   const [soundOn, setSoundOn] = useState(false);
   const [chrome, setChrome] = useState(true);
-  const [checkUntil, setCheckUntil] = useState(0);
-  const lastCheck = useRef<number | null>(null);
+  const [, setManifest] = useState(0);
+  const fired = useRef(new Set<string>());
+  const [toast, setToast] = useState<{ text: string; at: number } | null>(null);
   const ping = useMutation(api.game.tvPing);
 
-  // Tell the host laptop this TV is open (and whether sound is allowed), every 20 seconds.
   useEffect(() => {
-    const send = () => void ping({ slug, tvKey, sound: soundOn }).catch(() => undefined);
+    void engine.ready.then(() => {
+      setManifest((n) => n + 1);
+      engine.preloadMedia();
+    });
+  }, [engine]);
+
+  // Tell the host laptop this TV is open, whether sound is allowed and the videos are in, every 20 seconds.
+  useEffect(() => {
+    const send = () => void ping({ slug, tvKey, sound: soundOn, media: bank.ready }).catch(() => undefined);
     send();
     const id = window.setInterval(send, 20_000);
     return () => window.clearInterval(id);
-  }, [ping, slug, tvKey, soundOn]);
+  }, [ping, slug, tvKey, soundOn, bank.ready]);
 
   // Controls show on mouse movement, then hide so the TV stays clean.
   useEffect(() => {
@@ -138,39 +130,14 @@ function TvInner({ slug, tvKey }: { slug: string; tvKey: string }) {
     };
   }, []);
 
-  // Sound check: plays when the host presses it (only checks pressed after this window opened).
-  const checkAt = data?.game.soundCheckAt ?? null;
-  useEffect(() => {
-    if (checkAt === null) return;
-    if (lastCheck.current === null) {
-      lastCheck.current = checkAt;
-      return;
-    }
-    if (checkAt !== lastCheck.current) {
-      lastCheck.current = checkAt;
-      setCheckUntil(Date.now() + 6000);
-      if (audio.current) chime(audio.current);
-    }
-  }, [checkAt]);
-  useEffect(() => {
-    if (data && lastCheck.current === null) lastCheck.current = data.game.soundCheckAt ?? 0;
-  }, [data]);
-
   // Browsers only allow sound after a click on the page. Any click works, even while the TV is loading.
-  const soundOnRef = useRef(false);
   const enableSound = useCallback(() => {
-    if (soundOnRef.current) return;
-    try {
-      const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      audio.current = audio.current ?? new Ctx();
-      void audio.current.resume();
-      chime(audio.current);
-      soundOnRef.current = true;
+    if (engine.unlocked) return;
+    if (engine.unlock()) {
+      engine.synthChime();
       setSoundOn(true);
-    } catch {
-      setSoundOn(false);
     }
-  }, []);
+  }, [engine]);
   useEffect(() => {
     window.addEventListener("pointerdown", enableSound);
     window.addEventListener("keydown", enableSound);
@@ -184,7 +151,90 @@ function TvInner({ slug, tvKey }: { slug: string; tvKey: string }) {
     else void document.documentElement.requestFullscreen?.().catch(() => undefined);
   }
 
-  if (data === undefined) {
+  const g = data?.game;
+  const voice = data?.voice.voice ?? "ivy";
+  const tone = g?.tone ?? "classic";
+  const host = g?.narrator.host ?? "ivy";
+  const secs = useCallback(
+    (cue: CueKey) => engine.narrationSecs(voice, tone, cue) ?? captionText(cue, tone, host).length / 14 + 0.4,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [engine, voice, tone, host, engine.manifest],
+  );
+  const p: Plan | null = data ? plan(data, now, secs) : null;
+
+  // Levels, the music bed, room tone and friends follow the game.
+  const levels = g?.levels;
+  useEffect(() => {
+    if (levels) engine.setLevels(levels);
+  }, [engine, levels?.voice, levels?.music, levels?.sfx]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => engine.dim(!!g?.paused && g.status === "playing"), [engine, g?.paused, g?.status]);
+  const music = p?.music ?? null;
+  const amb = p?.ambience.join(",") ?? "";
+  useEffect(() => void engine.music(music), [engine, music, soundOn]);
+  useEffect(() => void engine.ambience(amb ? (amb.split(",") as Plan["ambience"]) : []), [engine, amb, soundOn]);
+
+  // The narrator's lines for this voice, fetched ahead.
+  useEffect(() => {
+    if (!data) return;
+    const cues = Object.keys(engine.manifest[voice]?.[tone] ?? {});
+    engine.preload(cues.map((c) => engine.narrationUrl(voice, tone, c)));
+  }, [engine, voice, tone, !!data, engine.manifest]); // eslint-disable-line react-hooks/exhaustive-deps
+  const clipUrls = data ? partyClipUrls(data) : [];
+  useEffect(() => engine.preload(clipUrls), [engine, clipUrls.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fire what's due: once each, only while fresh.
+  useEffect(() => {
+    if (!p) return;
+    for (const e of due(p, now, fired.current)) {
+      fired.current.add(e.id);
+      if (!engine.unlocked) continue;
+      if (e.sfx) void engine.sfx(e.sfx);
+      else if (e.clip) void engine.voice(e.clip.url, 0.9);
+      else if (e.cue) void engine.voice(engine.narrationUrl(voice, tone, e.cue));
+    }
+  });
+
+  // Sound check: the chime and the narrator, when the host presses it (only checks pressed after this window opened).
+  const checkAt = g?.soundCheckAt ?? null;
+  const [checkUntil, setCheckUntil] = useState(0);
+  const lastCheck = useRef<number | null | undefined>(undefined);
+  useEffect(() => {
+    if (!data) return;
+    if (lastCheck.current === undefined) {
+      lastCheck.current = checkAt;
+      return;
+    }
+    if (checkAt !== lastCheck.current) {
+      lastCheck.current = checkAt;
+      setCheckUntil(Date.now() + 7000);
+      void engine.sfx("chime");
+      window.setTimeout(() => void engine.voice(engine.narrationUrl(voice, tone, "soundCheck")), 900);
+    }
+  }, [checkAt, !!data]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Arrivals chime in the lobby; each accusation gets a stamp.
+  const here = data ? data.guests.filter((x) => x.here).map((x) => x.id as string) : null;
+  const seenHere = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (!data || !here) return;
+    if (!seenHere.current) {
+      seenHere.current = new Set(here);
+      return;
+    }
+    const fresh = data.guests.filter((x) => x.here && !seenHere.current!.has(x.id));
+    seenHere.current = new Set(here);
+    if (data.game.status !== "lobby" || !fresh.length) return;
+    void engine.sfx("chime", 0.7);
+    setToast({ text: `${fresh.map((x) => x.charName).join(" & ")} ${fresh.length > 1 ? "have" : "has"} arrived`, at: Date.now() });
+  }, [here?.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
+  const accused = data?.counts.accused ?? 0;
+  const lastAccused = useRef<number | null>(null);
+  useEffect(() => {
+    if (lastAccused.current !== null && accused > lastAccused.current && g?.status === "playing" && g.round >= 4) void engine.sfx("stamp", 0.8);
+    lastAccused.current = accused;
+  }, [accused]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!data || !p || !g) {
     return (
       <div className="tv-page">
         <div className="tv-stage">
@@ -196,37 +246,51 @@ function TvInner({ slug, tvKey }: { slug: string; tvKey: string }) {
     );
   }
 
-  const { scene, cue } = sceneFor(data, now);
+  const { scene } = sceneFor(data, p, now);
+  const card = cardNow(p, now);
+  const held = now < p.holdUntil;
   const showCheck = now < checkUntil;
-  const say = showCheck ? line("soundCheck", data.game.tone) : cue ? line(cue, data.game.tone) : null;
+  const speaking = showCheck ? null : captionNow(p, now);
+  const say = showCheck ? captionText("soundCheck", tone, host) : speaking ? (speaking.cue ? captionText(speaking.cue, tone, host) : speaking.clip?.caption ?? "") : null;
+  const who = g.mode === "mc" ? "MC" : HOSTS[host].name;
 
   return (
     <div className={`tv-page ${chrome ? "" : "hide-cursor"}`}>
       <div className="tv-stage" data-scene={scene.key}>
-        {scene.node}
-        {data.game.paused && data.game.status === "playing" && (
+        <Backdrop loop={p.loop} src={bank.src} />
+        <div className={`tv-content ${held ? "held" : ""}`} key={`${scene.key}:${held ? "hold" : "go"}`}>
+          {scene.node}
+        </div>
+        {card && <TitleCard key={`${card.key}:${card.at}`} cardKey={card.key} at={card.at} src={bank.src} />}
+        {g.paused && g.status === "playing" && (
           <div className="tv-overlay">
             <span className="tv-kick">Paused</span>
             <h2 className="tv-h2">Hold everything.</h2>
             <p className="tv-sub">The host paused the game. The clock is stopped.</p>
           </div>
         )}
-        {data.game.tvShowAll && data.game.status === "playing" && <AllEvidence data={data} />}
+        {g.tvShowAll && g.status === "playing" && <AllEvidence data={data} />}
         {say && (
-          <div className="tv-caption" key={say.text}>
-            <span className="who">{data.game.mode === "mc" ? "MC" : "Narrator"}</span>
-            <span className="line">{say.text}</span>
+          <div className="tv-caption" key={say}>
+            <span className="who">{who}</span>
+            <span className="line">{say}</span>
           </div>
         )}
-        {data.game.isTest && <span className="tv-test">Test game</span>}
-        {data.game.mode === "mc" && data.game.status === "playing" && <span className="tv-mc">Self MC</span>}
-        {data.game.lastRescue && now - data.game.lastRescue.at < 12_000 && (
-          <div className="tv-toast" key={data.game.lastRescue.at}>
-            New link for <b>{data.game.lastRescue.name}</b>. Their old link no longer works.
+        {g.isTest && <span className="tv-test">Test game</span>}
+        {g.mode === "mc" && g.status === "playing" && <span className="tv-mc">Self MC</span>}
+        {g.lastRescue && now - g.lastRescue.at < 12_000 && (
+          <div className="tv-toast" key={g.lastRescue.at}>
+            New link for <b>{g.lastRescue.name}</b>. Their old link no longer works.
+          </div>
+        )}
+        {toast && now - toast.at < 6000 && !(g.lastRescue && now - g.lastRescue.at < 12_000) && (
+          <div className="tv-toast" key={toast.at}>
+            {toast.text}
           </div>
         )}
       </div>
       <div className={`tv-controls ${chrome ? "" : "gone"}`}>
+        <span className="tv-load">{bank.ready ? "Videos ready" : `Loading videos ${bank.loaded} of ${bank.total}`}</span>
         <button type="button" onClick={(e) => { e.stopPropagation(); fullScreen(); }}>
           Full screen
         </button>
@@ -238,13 +302,89 @@ function TvInner({ slug, tvKey }: { slug: string; tvKey: string }) {
   );
 }
 
+/** The narrator line on screen now (rules and roll-call lines show on their own cards). */
+function captionNow(p: Plan, now: number) {
+  let best: Plan["events"][number] | null = null;
+  for (const e of p.events) {
+    if (e.quiet || e.sfx || !(e.cue || e.clip)) continue;
+    if (e.at <= now && now < e.at + e.secs * 1000 + 1200 && (!best || e.at > best.at)) best = e;
+  }
+  return best;
+}
+
+function partyClipUrls(d: Data): string[] {
+  const v = d.voice;
+  const out: (string | undefined)[] = [];
+  for (const i of v.rollCall?.items ?? []) out.push(i.clip?.url);
+  out.push(v.body?.url);
+  for (const c of Object.values(v.rooms)) out.push(c?.url);
+  out.push(v.reveal?.killer?.url, v.reveal?.exhibit?.url, v.reveal?.room?.url);
+  out.push(v.winners?.detective?.url, v.winners?.dressed?.url, v.winners?.liar?.url);
+  return out.filter((u): u is string => !!u);
+}
+
+/** The background loop, crossfaded when the scene changes. The velvet CSS shows if a video can't play. */
+function Backdrop({ loop, src }: { loop: LoopKey; src: (path: string) => string }) {
+  // Each layer keeps the address it started with, so a video never reloads when the in-memory copy arrives.
+  const [layers, setLayers] = useState<{ key: LoopKey; n: number; url: string }[]>(() => [{ key: loop, n: 0, url: src(loopUrl(loop)) }]);
+  useEffect(() => {
+    setLayers((ls) => (ls[ls.length - 1].key === loop ? ls : [...ls.slice(-1), { key: loop, n: ls[ls.length - 1].n + 1, url: src(loopUrl(loop)) }]));
+  }, [loop]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (layers.length < 2) return;
+    const id = window.setTimeout(() => setLayers((ls) => ls.slice(-1)), 1400);
+    return () => window.clearTimeout(id);
+  }, [layers]);
+  return (
+    <div className="tv-backdrop" aria-hidden="true">
+      {layers.map((l, i) => (
+        <video
+          key={l.n}
+          className={i === layers.length - 1 && layers.length > 1 ? "in" : ""}
+          src={l.url}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          onError={(e) => ((e.target as HTMLVideoElement).style.display = "none")}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** A full-screen title card. It plays once and fades away to the scene underneath. */
+function TitleCard({ cardKey, at, src }: { cardKey: keyof typeof CARD_MS; at: number; src: (path: string) => string }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const ms = CARD_MS[cardKey];
+  // A TV that opens mid-card picks the card up where it is.
+  const [late] = useState(() => Math.max(0, Date.now() - at));
+  const [url] = useState(() => src(cardUrl(cardKey)));
+  return (
+    <div className="tv-card" style={{ animationDuration: `${ms}ms`, animationDelay: `-${late}ms` }} aria-hidden="true">
+      <video
+        ref={ref}
+        src={url}
+        autoPlay
+        muted
+        playsInline
+        preload="auto"
+        onLoadedMetadata={() => {
+          if (ref.current && late > 200) ref.current.currentTime = late / 1000;
+        }}
+        onError={(e) => ((e.target as HTMLVideoElement).style.display = "none")}
+      />
+    </div>
+  );
+}
+
 type Scene = { key: string; node: ReactNode };
 
-function sceneFor(d: Data, now: number): { scene: Scene; cue: Cue | null } {
+function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
   const g = d.game;
   if (g.endedAt) {
     return {
-      cue: "goodnight",
       scene: {
         key: "goodnight",
         node: (
@@ -258,31 +398,82 @@ function sceneFor(d: Data, now: number): { scene: Scene; cue: Cue | null } {
       },
     };
   }
-  if (g.status === "registration") {
-    return {
-      cue: null,
-      scene: {
-        key: "waiting",
-        node: (
-          <>
+  if (g.status === "registration" || g.status === "lobby") {
+    // The house rules and the roll call play over the doors.
+    if (p.rules && now < p.rules.end) {
+      const i = Math.max(0, p.rules.steps.findIndex((s) => now < s.until));
+      const step = p.rules.steps[i];
+      return {
+        scene: {
+          key: `rules${i}`,
+          node: (
             <div className="tv-scene">
-              <span className="tv-kick">Chicago · October 31, 1929</span>
-              <div className="tv-deco" />
-              <h2 className="tv-h2">The Velvet Room</h2>
-              <p className="tv-sub">The doors open soon.</p>
+              <span className="tv-kick fade">House rule {i + 1} of {p.rules.steps.length}</span>
+              <div className="tv-rule fade">{captionText(step.cue, g.tone, g.narrator.host)}</div>
             </div>
-            {g.wifi && <WifiCorner wifi={g.wifi} />}
-            <div className="tv-corner br">
-              <b>{d.counts.registered}</b> on the guest list
+          ),
+        },
+      };
+    }
+    if (p.roll && now < p.roll.end) {
+      const i = p.roll.steps.findIndex((s) => now >= s.at && now < s.until);
+      if (i >= 0) {
+        const it = p.roll.steps[i].item;
+        return {
+          scene: {
+            key: `roll${it.id}`,
+            node: (
+              <div className="tv-scene roll">
+                <div className="tv-roll">
+                  <div className="tv-frame fade">{it.photoUrl ? <img src={it.photoUrl} alt="" /> : <span>{initials(it.charName)}</span>}</div>
+                  <div className="tv-roll-text">
+                    <span className="tv-kick fade">Roll call · {i + 1} of {p.roll.steps.length}</span>
+                    <h2 className="tv-h2 fade" style={{ animationDelay: ".25s" }}>{it.charName}</h2>
+                    <span className="tv-played fade" style={{ animationDelay: ".45s" }}>Played by {it.realName}</span>
+                    <p className="tv-sub fade" style={{ animationDelay: "1s" }}>{it.line}</p>
+                  </div>
+                </div>
+              </div>
+            ),
+          },
+        };
+      }
+      const done = now >= (p.roll.steps[p.roll.steps.length - 1]?.until ?? 0);
+      return {
+        scene: {
+          key: done ? "roll-end" : "roll-open",
+          node: (
+            <div className="tv-scene">
+              <span className="tv-kick fade">{done ? "Remember these faces" : "Roll call"}</span>
+              <h2 className="tv-h2 fade" style={{ fontSize: "5.4cqw" }}>{done ? "Tonight's guests" : "Meet tonight's guests"}</h2>
+              {done && <Guests guests={d.guests} mark="here" />}
             </div>
-          </>
-        ),
-      },
-    };
-  }
-  if (g.status === "lobby") {
+          ),
+        },
+      };
+    }
+    if (g.status === "registration") {
+      return {
+        scene: {
+          key: "waiting",
+          node: (
+            <>
+              <div className="tv-scene">
+                <span className="tv-kick">Chicago · October 31, 1929</span>
+                <div className="tv-deco" />
+                <h2 className="tv-h2">The Velvet Room</h2>
+                <p className="tv-sub">The doors open soon.</p>
+              </div>
+              {g.wifi && <WifiCorner wifi={g.wifi} />}
+              <div className="tv-corner br">
+                <b>{d.counts.registered}</b> on the guest list
+              </div>
+            </>
+          ),
+        },
+      };
+    }
     return {
-      cue: "doors",
       scene: {
         key: "doors",
         node: (
@@ -321,18 +512,17 @@ function sceneFor(d: Data, now: number): { scene: Scene; cue: Cue | null } {
           <Exhibits letters={d.exhibits} />
           <p className="tv-sub fade">The weapons are on the table. Only the game knows whose is whose.</p>
         </div>,
-        <div className="tv-scene" key="i3">
+        <div className="tv-scene dark" key="i3">
           <span className="tv-kick fade">Check your phone</span>
           <h2 className="tv-h2 fade" style={{ fontSize: "5.4cqw" }}>Press and hold your card.</h2>
           <p className="tv-sub fade">Keep your screen to yourself. Round 1 starts in a moment.</p>
         </div>,
       ];
-      return { cue: (["intro1", "intro2", "intro3", "intro4"] as const)[beat], scene: { key: `intro${beat}`, node: frames[beat] } };
+      return { scene: { key: `intro${beat}`, node: frames[beat] } };
     }
     const waves = g.search === "waves";
     if (round === 1) {
       return {
-        cue: waves ? "round1Waves" : "round1",
         scene: {
           key: "r1",
           node: (
@@ -349,10 +539,12 @@ function sceneFor(d: Data, now: number): { scene: Scene; cue: Cue | null } {
     }
     if (round === 2 || round === 3) {
       const cards = d.evidence.filter((e) => e.round === round);
-      const ordered = [...cards.filter((c) => !c.twist), ...cards.filter((c) => c.twist)];
-      const size = ordered.length <= 4 ? "l" : ordered.length <= 8 ? "m" : "s";
+      const plain = cards.filter((c) => !c.twist);
+      const twist = cards.filter((c) => c.twist);
+      const twistIn = p.twistAt === null || now >= p.twistAt;
+      const total = plain.length + twist.length;
+      const size = total <= 4 ? "l" : total <= 8 ? "m" : "s";
       return {
-        cue: round === 2 ? "round2" : "round3",
         scene: {
           key: `r${round}`,
           node: (
@@ -360,13 +552,20 @@ function sceneFor(d: Data, now: number): { scene: Scene; cue: Cue | null } {
               <RoundBar d={d} now={now} label={round === 2 ? "Fresh evidence" : "Last evidence"} />
               {waves && <OpenRooms d={d} compact />}
               <div className={`tv-cards ${size}`}>
-                {ordered.map((c, i) => (
-                  <div className={`tv-ev fade ${c.twist ? "twist" : ""}`} style={{ animationDelay: `${c.twist ? ordered.length * 0.35 + 0.8 : i * 0.35}s` }} key={i}>
-                    <small>{c.twist ? "The twist" : "New evidence"}</small>
+                {plain.map((c, i) => (
+                  <div className="tv-ev fade" style={{ animationDelay: `${i * 0.35}s` }} key={`p${i}`}>
+                    <small>New evidence</small>
                     {c.text}
                   </div>
                 ))}
-                {!ordered.length && <p className="tv-sub">No new evidence this round. Keep digging.</p>}
+                {twistIn &&
+                  twist.map((c, i) => (
+                    <div className="tv-ev fade twist" key={`t${i}`}>
+                      <small>The twist</small>
+                      {c.text}
+                    </div>
+                  ))}
+                {!cards.length && <p className="tv-sub">No new evidence this round. Keep digging.</p>}
               </div>
             </div>
           ),
@@ -375,7 +574,6 @@ function sceneFor(d: Data, now: number): { scene: Scene; cue: Cue | null } {
     }
     // Round 4: accusations
     return {
-      cue: "accuse",
       scene: {
         key: "accuse",
         node: (
@@ -401,21 +599,22 @@ function sceneFor(d: Data, now: number): { scene: Scene; cue: Cue | null } {
   }
   if (g.status === "reveal" && d.results) {
     const r = d.results;
-    const beat = Math.min(d.reveal.beats - 1, Math.max(0, Math.floor((now - (g.revealAt ?? now)) / d.reveal.beatMs)));
+    const t = g.revealAt ?? 0;
+    const step = now < t + REVEAL.name ? 0 : now < t + REVEAL.how ? 1 : now < t + REVEAL.verdict ? 2 : 3;
     const frames = [
-      <div className="tv-scene dark" key="v0">
+      <div className="tv-scene" key="v0">
         <span className="tv-kick fade">The killer of Don Carmine Velluto is</span>
         <h2 className="tv-h2 fade" style={{ fontSize: "9cqw" }}>…</h2>
       </div>,
-      <div className="tv-scene dark" key="v1">
+      <div className="tv-scene" key="v1">
         <span className="tv-kick">The killer is</span>
         <span className="tv-av xl blood fade">{r.killerPhoto ? <img src={r.killerPhoto} alt="" /> : initials(r.killer)}</span>
         <span className="tv-reveal-name fade">{r.killer}</span>
       </div>,
-      <div className="tv-scene dark" key="v2">
+      <div className="tv-scene" key="v2">
         <span className="tv-kick">{r.killer} did it</span>
         {r.exhibit && <h3 className="tv-h3 fade">with Exhibit {r.exhibit.letter}, the {r.exhibit.name.toLowerCase()}</h3>}
-        <h3 className="tv-h3 fade" style={{ animationDelay: ".8s" }}>in {mid(r.room)}</h3>
+        <h3 className="tv-h3 fade" style={{ animationDelay: "1.4s" }}>in {mid(r.room)}</h3>
       </div>,
       <div className="tv-scene" key="v3">
         <span className="tv-kick">The verdict</span>
@@ -430,8 +629,7 @@ function sceneFor(d: Data, now: number): { scene: Scene; cue: Cue | null } {
         </p>
       </div>,
     ];
-    const cue: Cue = beat < 3 ? (["reveal1", "reveal2", "reveal3"] as const)[beat] : r.killerWins ? "verdictKiller" : "verdictDetectives";
-    return { cue, scene: { key: `reveal${beat}`, node: frames[beat] } };
+    return { scene: { key: `reveal${step}`, node: frames[step] } };
   }
   if (g.status === "done" && d.results?.awards) {
     const a = d.results.awards;
@@ -441,7 +639,6 @@ function sceneFor(d: Data, now: number): { scene: Scene; cue: Cue | null } {
       ["Best Liar", names(a.bestLiar), a.bestLiar.length ? `${a.bestLiar[0].votes} vote${a.bestLiar[0].votes === 1 ? "" : "s"}` : "No votes"],
     ];
     return {
-      cue: "awards",
       scene: {
         key: "awards",
         node: (
@@ -449,14 +646,17 @@ function sceneFor(d: Data, now: number): { scene: Scene; cue: Cue | null } {
             <span className="tv-kick">The Velvet Room awards</span>
             <h2 className="tv-h2" style={{ fontSize: "5cqw" }}>To the winners</h2>
             <div className="tv-awards">
-              {list.map(([title, who, sub], i) => (
-                <div className="tv-award fade" style={{ animationDelay: `${i * 0.6}s` }} key={title}>
-                  <span className="tv-kick">{title}</span>
-                  <span className="tv-av">{who ? initials(who) : "–"}</span>
-                  <span className="n">{who || "—"}</span>
-                  <span className="sub">{sub}</span>
-                </div>
-              ))}
+              {list.map(([title, who, sub], i) => {
+                const shown = !p.awardsAt.length || now >= p.awardsAt[i];
+                return (
+                  <div className={`tv-award ${shown ? "fade" : "waiting"}`} key={`${title}:${shown}`}>
+                    <span className="tv-kick">{title}</span>
+                    <span className="tv-av">{shown ? (who ? initials(who) : "–") : "?"}</span>
+                    <span className="n">{shown ? who || "—" : "…"}</span>
+                    <span className="sub">{shown ? sub : " "}</span>
+                  </div>
+                );
+              })}
             </div>
             <p className="tv-sub">The bar is open. Settle your debts in chips.</p>
           </div>
@@ -464,7 +664,7 @@ function sceneFor(d: Data, now: number): { scene: Scene; cue: Cue | null } {
       },
     };
   }
-  return { cue: null, scene: { key: "blank", node: <div className="tv-scene"><h2 className="tv-h2">The Velvet Room</h2></div> } };
+  return { scene: { key: "blank", node: <div className="tv-scene"><h2 className="tv-h2">The Velvet Room</h2></div> } };
 }
 
 function RoundBar({ d, now, label }: { d: Data; now: number; label: string }) {

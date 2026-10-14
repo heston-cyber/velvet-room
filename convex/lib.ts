@@ -11,6 +11,8 @@ export const LIMITS = {
   secret: 280,
   weapon: 80,
   weaponDesc: 280,
+  rumor: 140,
+  sayAs: 80,
 } as const;
 
 export const DEFAULT_ROOMS = [

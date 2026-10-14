@@ -5,6 +5,7 @@ import type { Id } from "../../convex/_generated/dataModel";
 import MemberCard, { Deco } from "./MemberCard";
 import { shrinkPhoto, uploadPhoto } from "../lib/photo";
 import { friendlyError } from "../lib/errors";
+import { ROLL_PROMPT } from "../../convex/narration";
 
 export type GameInfo = {
   slug: string;
@@ -25,6 +26,8 @@ export type ProfileValues = {
   weapon: string;
   weaponDesc: string;
   killerOk: boolean;
+  rumor: string;
+  sayAs: string;
 };
 
 export const EMPTY_PROFILE: ProfileValues = {
@@ -37,6 +40,8 @@ export const EMPTY_PROFILE: ProfileValues = {
   weapon: "",
   weaponDesc: "",
   killerOk: true,
+  rumor: "",
+  sayAs: "",
 };
 
 const MAX: Record<keyof Omit<ProfileValues, "killerOk">, number> = {
@@ -48,6 +53,8 @@ const MAX: Record<keyof Omit<ProfileValues, "killerOk">, number> = {
   secret: 280,
   weapon: 80,
   weaponDesc: 280,
+  rumor: 140,
+  sayAs: 80,
 };
 
 type StepId = "door" | "you" | "character" | "motive" | "weapon" | "review";
@@ -261,9 +268,19 @@ export default function ProfileForm(props: {
           <h2>Who are you tonight?</h2>
           <p className="lede">Anyone at all. Random and funny is welcome.</p>
           {field("charName", "Character name", { ph: "e.g. Velma “Two-Bits” Kowalski" })}
+          {field("sayAs", "Say it like · optional", {
+            ph: "e.g. VEL-muh too-BITS koh-WAL-skee",
+            help: "Only if the name is tricky. It's how the narrator will pronounce it.",
+          })}
           {field("who", "Who they are, in a line or two", {
             area: true,
             ph: "e.g. Cigarette girl who knows every secret in the joint and sells them by the pack.",
+          })}
+          {field("rumor", ROLL_PROMPT.label, {
+            area: true,
+            ph: ROLL_PROMPT.placeholder,
+            help: ROLL_PROMPT.help,
+            publicHelp: true,
           })}
           {field("signature", "Signature item or habit", {
             ph: "e.g. A silver cigarette case she never opens",

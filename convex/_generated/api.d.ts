@@ -19,10 +19,13 @@ import type * as engine_types from "../engine/types.js";
 import type * as game from "../game.js";
 import type * as host from "../host.js";
 import type * as lib from "../lib.js";
+import type * as narration from "../narration.js";
 import type * as ping from "../ping.js";
 import type * as registration from "../registration.js";
 import type * as seal from "../seal.js";
 import type * as shared from "../shared.js";
+import type * as voice from "../voice.js";
+import type * as voiceLines from "../voiceLines.js";
 
 import type {
   ApiFromModules,
@@ -42,10 +45,13 @@ declare const fullApi: ApiFromModules<{
   game: typeof game;
   host: typeof host;
   lib: typeof lib;
+  narration: typeof narration;
   ping: typeof ping;
   registration: typeof registration;
   seal: typeof seal;
   shared: typeof shared;
+  voice: typeof voice;
+  voiceLines: typeof voiceLines;
 }>;
 
 /**

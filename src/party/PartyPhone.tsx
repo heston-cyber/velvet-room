@@ -7,6 +7,7 @@ import { Deco, initials } from "../components/MemberCard";
 import { friendlyError } from "../lib/errors";
 import { codeFromScan } from "../lib/scan";
 import { Swap } from "../lib/Swap";
+import { REVEAL_VERDICT_MS } from "../../convex/shared";
 
 type Phone = NonNullable<FunctionReturnType<typeof api.game.phone>>;
 type Tab = "case" | "scan" | "evidence" | "notebook";
@@ -789,6 +790,23 @@ function Accuse({ token, data }: { token: string; data: Phone }) {
 }
 
 function Reveal({ token, data }: { token: string; data: Phone }) {
+  // The TV reveals the killer step by step. The phone waits for the verdict, so nobody reads it here first.
+  const verdictAt = data.game.status === "reveal" && data.game.revealAt ? data.game.revealAt + REVEAL_VERDICT_MS : 0;
+  const now = useNow(Date.now() < verdictAt);
+  if (now < verdictAt) {
+    return (
+      <div className="screen center">
+        <span className="eyebrow">The reveal</span>
+        <Deco />
+        <h1 className="title-lg">Eyes on the TV.</h1>
+        <p className="lede">The killer is about to be named.</p>
+      </div>
+    );
+  }
+  return <RevealVotes token={token} data={data} />;
+}
+
+function RevealVotes({ token, data }: { token: string; data: Phone }) {
   const vote = useMutation(api.game.vote);
   const r = data.results;
   const others = useMemo(() => (data.board?.suspects ?? []).filter((s) => s.id !== data.me.id), [data.board, data.me.id]);

@@ -8,6 +8,7 @@ import { randomCode, registrationIsOpen, requireHost } from "./lib";
 import { ensureAllCards } from "./cards";
 import { MAX_CARDS } from "./shared";
 import { unseal } from "./seal";
+import { levelsOf, narratorOf } from "./voiceLines";
 
 const started = (g: Doc<"games">) => g.status !== "registration" && g.status !== "lobby";
 
@@ -80,6 +81,12 @@ export const roster = query({
         mcPlayerId: game.mcPlayerId ?? null,
         search: game.search ?? "all",
         wifi: game.wifi ?? { name: "", password: "" },
+        narrator: narratorOf(game),
+        levels: levelsOf(game),
+        rulesAt: game.rulesAt ?? null,
+        rollCallAt: game.rollCallAt ?? null,
+        doorsAt: game.doorsAt ?? null,
+        tvMedia: !!game.tvMedia,
         round,
         paused: !!game.paused,
         roundEndsAt: game.roundEndsAt ?? null,
@@ -131,11 +138,14 @@ export const updateSettings = mutation({
     mcPlayerId: v.optional(v.union(v.id("players"), v.null())),
     search: v.optional(v.union(v.literal("all"), v.literal("waves"))),
     wifi: v.optional(v.object({ name: v.string(), password: v.string() })),
+    narrator: v.optional(v.object({ host: v.union(v.literal("ivy"), v.literal("duke")), unstable: v.boolean() })),
+    levels: v.optional(v.object({ voice: v.number(), music: v.number(), sfx: v.number() })),
   },
   handler: async (ctx, { slug, hostKey, mcPlayerId, ...patch }) => {
     const game = await requireHost(ctx, slug, hostKey);
-    // Guest Wi-Fi can be fixed any time (a typo shouldn't wait); everything else locks at Start.
-    const onlyWifi = mcPlayerId === undefined && Object.entries(patch).every(([k, val]) => k === "wifi" || val === undefined);
+    // Guest Wi-Fi and the volume levels can change any time (a typo shouldn't wait); everything else locks at Start.
+    const anyTime = ["wifi", "levels"];
+    const onlyWifi = mcPlayerId === undefined && Object.entries(patch).every(([k, val]) => anyTime.includes(k) || val === undefined);
     if (started(game) && !onlyWifi) throw new ConvexError("The game has started, so settings are locked.");
     const update: Partial<Doc<"games">> = {};
     if (patch.rooms) {
@@ -167,6 +177,11 @@ export const updateSettings = mutation({
       if (password.length > 63) throw new ConvexError("Wi-Fi passwords are 63 characters at most.");
       update.wifi = { name, password };
     }
+    if (patch.levels) {
+      const lv = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
+      update.levels = { voice: lv(patch.levels.voice), music: lv(patch.levels.music), sfx: lv(patch.levels.sfx) };
+    }
+    if (patch.narrator) update.narrator = { host: patch.narrator.host, unstable: patch.narrator.unstable };
     if (mcPlayerId !== undefined) {
       const nextMode = patch.mode ?? game.mode ?? "play";
       if (mcPlayerId !== null && nextMode !== "mc") throw new ConvexError("Pick Self MC first, then choose the MC.");

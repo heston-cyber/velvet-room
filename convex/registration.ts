@@ -23,6 +23,8 @@ const profileArgs = {
   weaponDesc: v.string(),
   killerOk: v.boolean(),
   photoId: v.optional(v.id("_storage")),
+  rumor: v.optional(v.string()),
+  sayAs: v.optional(v.string()),
 };
 
 type ProfileInput = {
@@ -35,6 +37,8 @@ type ProfileInput = {
   weapon: string;
   weaponDesc: string;
   killerOk: boolean;
+  rumor?: string;
+  sayAs?: string;
 };
 
 function validateProfile(game: Doc<"games">, input: ProfileInput) {
@@ -47,6 +51,8 @@ function validateProfile(game: Doc<"games">, input: ProfileInput) {
     weaponDesc: required(input.weaponDesc, LIMITS.weaponDesc, "Weapon description"),
     motive: clean(input.motive, LIMITS.motive),
     secret: clean(input.secret, LIMITS.secret),
+    rumor: clean(input.rumor, LIMITS.rumor),
+    sayAs: clean(input.sayAs, LIMITS.sayAs),
     // When the game menu turns the opt-in off, everyone is eligible.
     killerOk: game.killerOptIn ? input.killerOk : true,
   };
@@ -129,6 +135,8 @@ export const register = mutation({
       photoId: args.photoId,
       motive: p.motive || undefined,
       secret: p.secret || undefined,
+      rumor: p.rumor || undefined,
+      sayAs: p.sayAs || undefined,
       killerOk: p.killerOk,
       checkedIn: false,
       createdAt: now,
@@ -177,6 +185,8 @@ export const me = query({
       photoUrl: player.photoId ? await ctx.storage.getUrl(player.photoId) : null,
       motive: player.motive ?? "",
       secret: player.secret ?? "",
+      rumor: player.rumor ?? "",
+      sayAs: player.sayAs ?? "",
       killerOk: player.killerOk,
       weapon: weapon?.name ?? "",
       weaponDesc: weapon?.description ?? "",
@@ -219,6 +229,9 @@ export const update = mutation({
       photoId,
       motive: p.motive || undefined,
       secret: p.secret || undefined,
+      // Older pages don't send these: leave what's there.
+      ...(args.rumor !== undefined ? { rumor: p.rumor || undefined } : {}),
+      ...(args.sayAs !== undefined ? { sayAs: p.sayAs || undefined } : {}),
       killerOk: p.killerOk,
       updatedAt: Date.now(),
     });

@@ -55,6 +55,20 @@ export default defineSchema({
     lastRescue: v.optional(v.object({ name: v.string(), at: v.number() })),
     tvSeenAt: v.optional(v.number()), // the TV window checks in every 20 seconds
     tvSound: v.optional(v.boolean()), // and says whether sound is allowed
+    tvMedia: v.optional(v.boolean()), // and whether all the videos have loaded
+    // When each turn of the night began, so the TV can play its title card and sounds on time.
+    doorsAt: v.optional(v.number()),
+    roundStartedAt: v.optional(v.number()), // rounds 2 to 4 (Round 1 starts when the intro ends)
+    pausedAt: v.optional(v.number()),
+    resumedAt: v.optional(v.number()),
+    doneAt: v.optional(v.number()),
+    // Before the murder: the host plays the house rules and the roll call on the TV.
+    rulesAt: v.optional(v.number()),
+    rollCallAt: v.optional(v.number()),
+    rollCallOrder: v.optional(v.array(v.id("players"))),
+    // The narrator: Ivy or Duke, steady or Unstable. Volume levels 0 to 100 (0 is off).
+    narrator: v.optional(v.object({ host: v.union(v.literal("ivy"), v.literal("duke")), unstable: v.boolean() })),
+    levels: v.optional(v.object({ voice: v.number(), music: v.number(), sfx: v.number() })),
   })
     .index("by_slug", ["slug"])
     .index("by_active", ["isActive"]),
@@ -77,6 +91,9 @@ export default defineSchema({
     inGame: v.optional(v.boolean()), // checked in when the draw happened
     readyRound: v.optional(v.number()), // last round this guest tapped "ready" in
     notebook: v.optional(v.array(v.string())), // the guest's own cross-offs
+    rumor: v.optional(v.string()), // roll call: the word on the street about their character
+    sayAs: v.optional(v.string()), // how the narrator should say the character's name
+    rollLine: v.optional(v.string()), // the host's edit of the roll-call line
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -137,6 +154,23 @@ export default defineSchema({
   })
     .index("by_game", ["gameId"])
     .index("by_player", ["playerId"]),
+
+  // Lines recorded for this party with ElevenLabs: roll call intros, and names for the
+  // intro, waves and reveal. One row per purpose ("roll:<player>", "killer:<player>", "room:<key>"…).
+  // A clip only counts while its text and voice still match what the game wants to say.
+  clips: defineTable({
+    gameId: v.id("games"),
+    purpose: v.string(),
+    text: v.string(), // exactly what was sent, delivery tags included
+    voice: v.string(), // ivy, ivy-unstable, duke, duke-unstable
+    status: v.union(v.literal("pending"), v.literal("ready"), v.literal("failed")),
+    storageId: v.optional(v.id("_storage")),
+    seconds: v.optional(v.number()),
+    error: v.optional(v.string()),
+    updatedAt: v.number(),
+  })
+    .index("by_game", ["gameId"])
+    .index("by_game_purpose", ["gameId", "purpose"]),
 
   weapons: defineTable({
     gameId: v.id("games"),

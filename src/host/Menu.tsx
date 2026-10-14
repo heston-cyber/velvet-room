@@ -8,6 +8,7 @@ import { friendlyError } from "../lib/errors";
 import { Swap } from "../lib/Swap";
 import { TZ, initials, openTvWindow, useConfirm, type Roster } from "./common";
 import { downloadCardsPdf } from "./printCards";
+import { NarratorSection, RollCallSection } from "./Voice";
 
 export type SettingsPatch = Omit<FunctionArgs<typeof api.host.updateSettings>, "slug" | "hostKey">;
 
@@ -40,7 +41,7 @@ export function Seg<T extends string>(props: { value: T; options: [T, string][];
   );
 }
 
-function Toggle(props: { id: string; checked: boolean; onChange: (v: boolean) => void; label: string; help: string; disabled?: boolean }) {
+export function Toggle(props: { id: string; checked: boolean; onChange: (v: boolean) => void; label: string; help: string; disabled?: boolean }) {
   return (
     <label className="toggle" htmlFor={props.id}>
       <input type="checkbox" id={props.id} checked={props.checked} disabled={props.disabled} onChange={(e) => props.onChange(e.target.checked)} />
@@ -169,7 +170,11 @@ export default function Menu(props: { data: Roster; slug: string; hostKey: strin
           <span className="help">Drag the TV window onto the big screen, click Full screen, then click it once to allow sound.</span>
         </Sec>
 
+        <NarratorSection game={game} locked={locked} save={save} />
+
         <Guests data={data} slug={slug} hostKey={hostKey} locked={locked} onError={onError} />
+
+        <RollCallSection slug={slug} hostKey={hostKey} locked={locked} onError={onError} />
       </div>
     </div>
   );

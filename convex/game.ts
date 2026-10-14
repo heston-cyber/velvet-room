@@ -10,7 +10,10 @@ import type { CaseFile, CaseInput } from "./engine/types";
 import { randomCode, registrationIsOpen, requireHost, requireTv } from "./lib";
 import { seal, unseal } from "./seal";
 import { ensureAllCards, markerForCode } from "./cards";
-import { ACCUSE_MAX_MINUTES, INTRO_MS, MAX_CARDS, REVEAL_BEAT_MS, REVEAL_BEATS } from "./shared";
+import { ACCUSE_MAX_MINUTES, INTRO_MS, MAX_CARDS, REVEAL } from "./shared";
+import { scheduleRecording } from "./voice";
+import { clipMatches, levelsOf, narratorOf, rollWanted, startWanted, voiceOf, type Wanted } from "./voiceLines";
+import { rollLineFor } from "./narration";
 
 // ---------- shared helpers ----------
 
@@ -122,7 +125,7 @@ async function advance(ctx: MutationCtx, game: Doc<"games">) {
   const minutes = next === 4 ? Math.min(game.pacing.roundMinutes, ACCUSE_MAX_MINUTES) : game.pacing.roundMinutes;
   const endsAt = timed ? Date.now() + minutes * 60_000 : undefined;
   // Skipping ahead also cuts the intro short.
-  await ctx.db.patch(game._id, { round: next, roundEndsAt: endsAt, paused: false, introEndsAt: Math.min(game.introEndsAt ?? 0, Date.now()) });
+  await ctx.db.patch(game._id, { round: next, roundStartedAt: Date.now(), roundEndsAt: endsAt, paused: false, introEndsAt: Math.min(game.introEndsAt ?? 0, Date.now()) });
   await scheduleTimer(ctx, game._id, next, endsAt);
 }
 
@@ -341,6 +344,7 @@ export const phone = query({
         wifi: game.wifi?.name ? game.wifi : null,
         mode: game.mode ?? "play",
         introEndsAt: game.introEndsAt ?? null,
+        revealAt: game.revealAt ?? null,
       },
       me: {
         id: player._id,
@@ -527,7 +531,7 @@ export const openDoors = mutation({
   handler: async (ctx, { slug, hostKey }) => {
     const game = await requireHost(ctx, slug, hostKey);
     if (game.status !== "registration") throw new ConvexError("The doors are already open.");
-    await ctx.db.patch(game._id, { status: "lobby" });
+    await ctx.db.patch(game._id, { status: "lobby", doorsAt: Date.now() });
     return { ok: true };
   },
 });
@@ -570,8 +574,12 @@ export const startGame = mutation({
       // Public from now on: where the body turned up, and the order rooms open in.
       bodyRoomKey: file.bodyRoomKey,
       roomOrder: file.roomOrder,
+      rulesAt: undefined,
+      rollCallAt: undefined,
     });
     await scheduleTimer(ctx, game._id, 1, endsAt);
+    // The names for the intro, the waves and the reveal: one clip for every guest, exhibit and room.
+    await scheduleRecording(ctx, game._id, "start");
     return { suspects: input.suspects.length, exhibits: input.exhibits.length, markers: input.markers.length };
   },
 });
@@ -611,10 +619,10 @@ export const setPaused = mutation({
     if (paused) {
       const left = game.roundEndsAt ? Math.max(0, game.roundEndsAt - Date.now()) : undefined;
       // store the remaining time in roundEndsAt as a negative number while paused
-      await ctx.db.patch(game._id, { paused: true, roundEndsAt: left !== undefined ? -left : undefined });
+      await ctx.db.patch(game._id, { paused: true, pausedAt: Date.now(), roundEndsAt: left !== undefined ? -left : undefined });
     } else {
       const endsAt = game.roundEndsAt !== undefined && game.roundEndsAt <= 0 ? Date.now() - game.roundEndsAt : undefined;
-      await ctx.db.patch(game._id, { paused: false, roundEndsAt: endsAt });
+      await ctx.db.patch(game._id, { paused: false, resumedAt: Date.now(), roundEndsAt: endsAt });
       await scheduleTimer(ctx, game._id, game.round ?? 1, endsAt);
       await maybeAdvanceOnReady(ctx, (await ctx.db.get(game._id))!);
       await maybeRevealOnAccusations(ctx, (await ctx.db.get(game._id))!);
@@ -629,7 +637,7 @@ export const finish = mutation({
   handler: async (ctx, { slug, hostKey }) => {
     const game = await requireHost(ctx, slug, hostKey);
     if (game.status !== "reveal") throw new ConvexError("Finish after the reveal.");
-    await ctx.db.patch(game._id, { status: "done", tvShowAll: false });
+    await ctx.db.patch(game._id, { status: "done", doneAt: Date.now(), tvShowAll: false });
     return { ok: true };
   },
 });
@@ -747,6 +755,89 @@ export const results = query({
 
 // ---------- the TV ----------
 
+type Clip = { url: string; caption: string; seconds: number } | null;
+
+/**
+ * The party's own recorded lines the TV may play right now. The roll call before the game; the body
+ * room and the waves after Start; the killer, exhibit and room only once the reveal starts; the
+ * winners only at the awards. A clip that no longer matches its line is left out (the TV falls back).
+ */
+async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[], input: CaseInput | null, cf: CaseFile | null) {
+  const rows = await ctx.db
+    .query("clips")
+    .withIndex("by_game", (q) => q.eq("gameId", game._id))
+    .collect();
+  const byPurpose = new Map(rows.map((r) => [r.purpose, r]));
+  const clip = async (w: Wanted | undefined): Promise<Clip> => {
+    if (!w) return null;
+    const row = byPurpose.get(w.purpose);
+    if (!clipMatches(row, w) || !row!.storageId) return null;
+    const url = await ctx.storage.getUrl(row!.storageId);
+    return url ? { url, caption: w.caption, seconds: row!.seconds ?? 0 } : null;
+  };
+  const tone = game.tone ?? "classic";
+  const n = narratorOf(game);
+  const beforeStart = game.status === "registration" || game.status === "lobby";
+  let rollCall = null;
+  if (beforeStart && game.rollCallAt && game.rollCallOrder) {
+    const byId = new Map(all.map((p) => [p._id as string, p]));
+    const items = [];
+    for (const id of game.rollCallOrder) {
+      const p = byId.get(id);
+      if (!p) continue;
+      const w = rollWanted(tone, n, { id: p._id, charName: p.charName, sayAs: p.sayAs, realName: p.realName, rumor: p.rumor, rollLine: p.rollLine, who: p.who });
+      items.push({
+        id: p._id,
+        charName: p.charName,
+        realName: p.realName,
+        photoUrl: p.photoId ? await ctx.storage.getUrl(p.photoId) : null,
+        line: rollLineFor(p),
+        clip: await clip(w),
+      });
+    }
+    rollCall = { at: game.rollCallAt, items };
+  }
+  if (beforeStart || !input) return { voice: voiceOf(n), rollCall, body: null, rooms: {} as Record<string, Clip>, reveal: null, winners: null };
+  const wanted = startWanted(tone, n, {
+    players: all.filter((p) => p.inGame).map((p) => ({ id: p._id, charName: p.charName, sayAs: p.sayAs })),
+    exhibits: input.exhibits.map((e) => ({ id: e.id, letter: e.letter, name: e.name })),
+    rooms: game.rooms,
+    bodyRoomKey: game.bodyRoomKey,
+    roomOrder: game.roomOrder,
+    search: game.search ?? "all",
+  });
+  const get = (purpose: string) => clip(wanted.find((w) => w.purpose === purpose));
+  const rooms: Record<string, Clip> = {};
+  for (const r of [1, 2, 3]) if (r <= (game.round ?? 0)) rooms[r] = await get(`rooms:${r}`);
+  let reveal = null;
+  let winners = null;
+  if ((game.status === "reveal" || game.status === "done") && cf) {
+    reveal = { killer: await get(`killer:${cf.solution.killerId}`), exhibit: await get(`exhibit:${cf.solution.exhibitId}`), room: await get(`room:${cf.solution.roomKey}`) };
+  }
+  if (game.status === "done" && cf) {
+    const scored = await scoreGame(ctx, game, cf);
+    const votes = await ctx.db
+      .query("votes")
+      .withIndex("by_game", (q) => q.eq("gameId", game._id))
+      .collect();
+    const top = (key: "dressed" | "liar") => {
+      const c = new Map<string, number>();
+      for (const vt of votes) if (vt[key]) c.set(vt[key]!, (c.get(vt[key]!) ?? 0) + 1);
+      const best = Math.max(0, ...c.values());
+      return best ? [...c.entries()].find(([, k]) => k === best)![0] : null;
+    };
+    const det = scored.bestDetective?.playerId ?? null;
+    const dressed = top("dressed");
+    const liar = top("liar");
+    winners = {
+      detective: det ? await get(`winner:${det}`) : null,
+      dressed: dressed ? await get(`winner:${dressed}`) : null,
+      liar: liar ? await get(`winner:${liar}`) : null,
+    };
+  }
+  return { voice: voiceOf(n), rollCall, body: await get("body"), rooms, reveal, winners };
+}
+
 /**
  * Everything the TV shows, and only what the whole room may see: guests, counts,
  * evidence released so far, where the body turned up, open rooms, and the answer
@@ -818,7 +909,15 @@ export const tv = query({
         introEndsAt: game.introEndsAt ?? null,
         revealAt: game.revealAt ?? null,
         endedAt: game.endedAt ?? null,
+        doorsAt: game.doorsAt ?? null,
+        roundStartedAt: game.roundStartedAt ?? null,
+        pausedAt: game.pausedAt ?? null,
+        resumedAt: game.resumedAt ?? null,
+        doneAt: game.doneAt ?? null,
+        rulesAt: started ? null : game.rulesAt ?? null,
         tone: game.tone ?? "classic",
+        narrator: narratorOf(game),
+        levels: levelsOf(game),
         mode: game.mode ?? "play",
         search: game.search ?? "all",
         wifi: game.wifi?.name ? game.wifi : null,
@@ -855,19 +954,20 @@ export const tv = query({
             .map((c) => ({ round: c.round, text: c.text, twist: c.kind === "twist" }))
         : [],
       results,
-      reveal: { beatMs: REVEAL_BEAT_MS, beats: REVEAL_BEATS },
+      reveal: REVEAL,
+      voice: await tvVoice(ctx, game, all, input, cf),
     };
   },
 });
 
 /** The TV window checks in, so the host laptop can show "TV connected" and whether sound is on. */
 export const tvPing = mutation({
-  args: { slug: v.string(), tvKey: v.string(), sound: v.boolean() },
-  handler: async (ctx, { slug, tvKey, sound }) => {
+  args: { slug: v.string(), tvKey: v.string(), sound: v.boolean(), media: v.optional(v.boolean()) },
+  handler: async (ctx, { slug, tvKey, sound, media }) => {
     const game = await requireTv(ctx, slug, tvKey);
     const now = Date.now();
-    if (game.tvSound === sound && game.tvSeenAt && now - game.tvSeenAt < 15_000) return { ok: true };
-    await ctx.db.patch(game._id, { tvSeenAt: now, tvSound: sound });
+    if (game.tvSound === sound && !!game.tvMedia === !!media && game.tvSeenAt && now - game.tvSeenAt < 15_000) return { ok: true };
+    await ctx.db.patch(game._id, { tvSeenAt: now, tvSound: sound, tvMedia: !!media });
     return { ok: true };
   },
 });
@@ -965,6 +1065,14 @@ export const resetTestGame = internalMutation({
       revealAt: undefined,
       tvShowAll: false,
       endedAt: undefined,
+      doorsAt: status === "lobby" ? Date.now() : undefined,
+      roundStartedAt: undefined,
+      pausedAt: undefined,
+      resumedAt: undefined,
+      doneAt: undefined,
+      rulesAt: undefined,
+      rollCallAt: undefined,
+      rollCallOrder: undefined,
     });
     return { ok: true };
   },

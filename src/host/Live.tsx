@@ -5,9 +5,10 @@ import type { Id } from "../../convex/_generated/dataModel";
 import { friendlyError } from "../lib/errors";
 import { Qr } from "../lib/qr";
 import { Swap } from "../lib/Swap";
-import { line } from "../tv/script";
+import { captionText, type CueKey } from "../../convex/narration";
 import { clock, openTvWindow, timeLeft, useBusy, useConfirm, useNow, type Roster } from "./common";
 import { Sec, SoundCheck } from "./Menu";
+import { Segments } from "./Voice";
 
 const mid = (l: string) => l.replace(/^The /, "the ");
 
@@ -137,9 +138,12 @@ export default function Live({ data, slug, hostKey, onError }: { data: Roster; s
             </li>
             <li className={tvOk ? "" : "no"}>{tvOk ? "TV window open" : "TV window not open yet"}</li>
             <li className={tvOk && g.tvSound ? "" : "no"}>{tvOk && g.tvSound ? "Sound allowed on the TV" : "Sound not allowed on the TV yet (click the TV once)"}</li>
+            <li className={tvOk && g.tvMedia ? "" : "no"}>{tvOk && g.tvMedia ? "TV videos loaded" : "TV videos not loaded yet"}</li>
             {g.mode === "mc" && <li>Self MC: {mcName ?? "someone who isn't signed up"} runs the night</li>}
           </ul>
         )}
+
+        <Segments data={data} slug={slug} hostKey={hostKey} onError={onError} />
 
         <NextButton data={data} slug={slug} hostKey={hostKey} onError={onError} />
 
@@ -192,7 +196,7 @@ export default function Live({ data, slug, hostKey, onError }: { data: Roster; s
           started ? (
             <McSheet data={data} slug={slug} hostKey={hostKey} now={now} />
           ) : (
-            <p className="hx-note">Self MC: the MC sheet (the answer, every clue and the lines to read) appears here when the game starts.</p>
+            <p className="hx-note">Self MC: the MC sheet (the answer, every clue and the lines to read) appears here when the game starts. The TV narrator reads the lines too; set Voice to 0 in the game menu if the MC would rather read them.</p>
           )
         ) : (
           <>
@@ -308,7 +312,7 @@ function McSheet({ data, slug, hostKey, now }: { data: Roster; slug: string; hos
   const g = data.game;
   if (!sheet) return <p className="hx-note">Opening the MC sheet…</p>;
   const tone = g.tone;
-  const say = (cue: Parameters<typeof line>[0]) => line(cue, tone).text;
+  const say = (cue: CueKey) => captionText(cue, tone, g.narrator.host);
   const tv = (round: number) => sheet.clues.filter((x) => x.onTv && x.round === round);
   let lines: string[] = [];
   if (g.status === "playing" && g.round === 1 && g.introEndsAt && g.introEndsAt > now) {

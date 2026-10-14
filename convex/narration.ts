@@ -81,6 +81,19 @@ export const CUES = {
     adult: "When the evidence runs dry, accuse somebody: who, with what, and where. Nail all three and you're an Ace Detective. Screw it up, and the killer walks.",
     wild: ["[building to a frenzy]", "[maniacal laughter]"],
   },
+  // ---- roll call (before the murder) ----
+  rollCallOpen: {
+    when: "Roll call begins",
+    classic: "[warm, conspiratorial] Before the lights go down, let's meet tonight's guests.",
+    adult: "[warm, conspiratorial] Before somebody ends up dead, let's meet the lowlifes in this room.",
+    wild: ["[way too excited, like a game show host]", "[cackles]"],
+  },
+  rollCallClose: {
+    when: "Roll call ends",
+    classic: "That's everyone. [short pause] Remember these faces.",
+    adult: "That's the whole sorry bunch. [short pause] Remember their faces.",
+    wild: ["[suddenly sinister]", "[evil laugh]"],
+  },
   // ---- intro ----
   intro1: {
     when: "Start: lights down",
@@ -286,10 +299,10 @@ const pickWild = (seed: string) => WILD_POOL[[...seed].reduce((h, ch) => (h * 31
 const list = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 const mid = (l: string) => l.replace(/^The /, "the ");
 
-export type CustomKind = "arrival" | "body" | "rooms" | "killer" | "exhibit" | "room" | "winner";
+export type CustomKind = "arrival" | "body" | "rooms" | "killer" | "exhibit" | "room" | "winner" | "roll";
 
 /** The words for a custom line. Pass a name as it should sound (the guest's "say it like", when they gave one). */
-export function customText(kind: CustomKind, tone: Tone, v: { name?: string; who?: string; room?: string; rooms?: string[]; letter?: string; weapon?: string }): string {
+export function customText(kind: CustomKind, tone: Tone, v: { name?: string; who?: string; room?: string; rooms?: string[]; letter?: string; weapon?: string; real?: string; line?: string }): string {
   const adult = tone === "adult";
   switch (kind) {
     case "arrival":
@@ -306,7 +319,42 @@ export function customText(kind: CustomKind, tone: Tone, v: { name?: string; who
       return `in ${mid(v.room!)}.`;
     case "winner":
       return `${v.name}!`;
+    case "roll":
+      return `${rollIntro(tone, v.name ?? "", v.real ?? "")} ${v.line ?? ""}`.trim();
   }
+}
+
+// ---------- roll call ----------
+
+/** The question guests answer at sign-up. The narrator reads the answer at the roll call. */
+export const ROLL_PROMPT = {
+  label: "Roll call: what's the word on the street about you?",
+  placeholder: "e.g. Once cheated a priest at cards, and won.",
+  help: "Before the murder, the narrator introduces every guest on the TV. Keep it short and funny. Everyone will hear it.",
+};
+
+const ROLL_INTROS: Record<Tone, string[]> = {
+  classic: ["Introducing {char}, played by {real}.", "Next, {char}. Better known as {real}.", "Say hello to {char}, played by {real}."],
+  adult: ["Introducing {char}, played by {real}, God help us.", "Next up, {char}, a.k.a. {real}.", "Look who crawled in: {char}, played by {real}."],
+};
+
+const hashOf = (s: string) => [...s].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
+
+/** "Introducing Velma, played by Jordan." Varied per guest so the roll call doesn't drone. */
+export function rollIntro(tone: Tone, char: string, real: string): string {
+  const list = ROLL_INTROS[tone];
+  const real1 = real.trim() || "a mystery guest";
+  // Picked by the real name, so the caption and the recording (which may spell the name the guest's way) match.
+  return list[hashOf(real1) % list.length].replace("{char}", char).replace("{real}", real1);
+}
+
+const endStop = (s: string) => (/[.!?…"'”]$/.test(s) ? s : `${s}.`);
+
+/** The funny line under a guest's roll-call card: the host's edit, else their rumor, else who they are. */
+export function rollLineFor(p: { rollLine?: string; rumor?: string; who: string }): string {
+  if (p.rollLine?.trim()) return endStop(p.rollLine.trim());
+  if (p.rumor?.trim()) return `Word on the street: ${endStop(p.rumor.trim())}`;
+  return endStop(p.who.trim());
 }
 
 /** The text sent to ElevenLabs for a custom line; Unstable adds a wild direction. */
