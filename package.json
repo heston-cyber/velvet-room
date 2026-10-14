@@ -1,0 +1,14 @@
+{
+  "name": "velvet-room",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "convex": "^1.46.0"
+  }
+}
