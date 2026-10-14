@@ -57,6 +57,7 @@ export const roster = query({
           ready: !!round && p.readyRound === round,
           accused: accused.has(p._id),
           isMC: game.mcPlayerId === p._id,
+          claimed: !!p.claimedAt,
           registeredAt: p.createdAt,
         })),
     );
@@ -87,6 +88,7 @@ export const roster = query({
         rollCallAt: game.rollCallAt ?? null,
         doorsAt: game.doorsAt ?? null,
         tvMedia: !!game.tvMedia,
+        roomCode: game.roomCode ?? null,
         round,
         paused: !!game.paused,
         roundEndsAt: game.roundEndsAt ?? null,
@@ -238,7 +240,8 @@ export const rescuePhone = mutation({
         .withIndex("by_token", (q) => q.eq("token", token))
         .first()
     ) token = randomCode(10);
-    await ctx.db.patch(p._id, { token, updatedAt: Date.now() });
+    // The name is free again: the guest can join with the room code, or scan the new link.
+    await ctx.db.patch(p._id, { token, updatedAt: Date.now(), claimedAt: undefined });
     await ctx.db.patch(game._id, { lastRescue: { name: p.charName, at: Date.now() } });
     return { charName: p.charName, token };
   },

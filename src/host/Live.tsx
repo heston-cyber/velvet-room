@@ -122,6 +122,11 @@ export default function Live({ data, slug, hostKey, onError }: { data: Roster; s
           <span className="eyebrow">Right now</span>
           <span className="now">{status}</span>
           <span className="help">{sub}</span>
+          {g.roomCode && g.status !== "registration" && (
+            <span className="help">
+              Room code <b>{g.roomCode}</b> · guests join at {window.location.host}/join
+            </span>
+          )}
           {running && g.round <= 3 && (
             <span className="help">{g.search === "waves" && g.openRooms.length < g.rooms.length ? `Open for searching: ${g.openRooms.join(", ")}` : "Every room is open for searching."}</span>
           )}
@@ -181,6 +186,7 @@ export default function Live({ data, slug, hostKey, onError }: { data: Roster; s
                   {p.charName}
                   {p.isMC && <em> · MC</em>}
                   {started && !p.inGame && !p.isMC && <em> · late</em>}
+                  {!started && p.claimed && !p.checkedIn && <em> · joined</em>}
                 </span>
               );
             })}
@@ -230,7 +236,8 @@ function Rescue({ data, slug, hostKey }: { data: Roster; slug: string; hostKey: 
   return (
     <Sec title="Rescue a phone">
       <span className="help">
-        A guest's phone died or they lost their link? This makes them a new link to scan with any phone. Their old link stops working, and the TV says so.
+        A guest's phone died, they lost their link, or someone else joined as them? This frees their name and makes a new link. Their old link stops working,
+        and the TV says so. They scan the new link below, or join again with the room code.
       </span>
       <div className="hx-fields">
         <select

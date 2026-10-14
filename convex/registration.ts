@@ -93,6 +93,8 @@ export const publicGame = query({
       deadlineLabel: game.deadlineLabel,
       motiveMode: game.motiveMode,
       killerOptIn: game.killerOptIn,
+      // Party night: the landing page offers "Join with the room code".
+      partyOn: game.status !== "registration" && !game.endedAt,
     };
   },
 });

@@ -227,6 +227,19 @@ function TvInner({ slug, tvKey }: { slug: string; tvKey: string }) {
     void engine.sfx("chime", 0.7);
     setToast({ text: `${fresh.map((x) => x.charName).join(" & ")} ${fresh.length > 1 ? "have" : "has"} arrived`, at: Date.now() });
   }, [here?.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Each name claimed with the room code is announced, so nobody can quietly join as someone else.
+  const joinAt = data?.game.lastJoin?.at ?? null;
+  const lastJoinSeen = useRef<number | null | undefined>(undefined);
+  useEffect(() => {
+    if (!data) return;
+    if (lastJoinSeen.current === undefined || joinAt === null || joinAt === lastJoinSeen.current) {
+      lastJoinSeen.current = joinAt;
+      return;
+    }
+    lastJoinSeen.current = joinAt;
+    if (data.game.status === "lobby") void engine.sfx("chime", 0.5);
+    setToast({ text: `${data.game.lastJoin!.name} joined on a phone`, at: Date.now() });
+  }, [joinAt, !!data]); // eslint-disable-line react-hooks/exhaustive-deps
   const accused = data?.counts.accused ?? 0;
   const lastAccused = useRef<number | null>(null);
   useEffect(() => {
@@ -276,7 +289,14 @@ function TvInner({ slug, tvKey }: { slug: string; tvKey: string }) {
             <span className="line">{say}</span>
           </div>
         )}
-        {g.isTest && <span className="tv-test">Test game</span>}
+        <div className="tv-foot">
+          {g.isTest && <span className="tv-test">Test game</span>}
+          {g.roomCode && !card && scene.key !== "doors" && (g.status === "lobby" || (g.status === "playing" && !(g.introEndsAt && now < g.introEndsAt))) && (
+            <span className="tv-room">
+              Room code <b>{g.roomCode}</b> · {window.location.host}/join
+            </span>
+          )}
+        </div>
         {g.mode === "mc" && g.status === "playing" && <span className="tv-mc">Self MC</span>}
         {g.lastRescue && now - g.lastRescue.at < 12_000 && (
           <div className="tv-toast" key={g.lastRescue.at}>
@@ -481,11 +501,14 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
             <div className="tv-scene">
               <span className="tv-kick">The doors are open</span>
               <h2 className="tv-h2" style={{ fontSize: "5.4cqw" }}>The Velvet Room</h2>
-              <p className="tv-sub">Open your personal link and tap check in. Bag your weapon. Mingle in character.</p>
+              <p className="tv-sub">
+                {g.roomCode ? "Scan the code or open your personal link, then tap check in." : "Open your personal link and tap check in."} Bag your weapon. Mingle in character.
+              </p>
               <Guests guests={d.guests} mark="here" />
             </div>
             {g.wifi && <WifiCorner wifi={g.wifi} />}
             <div className="tv-corner tr">
+              {g.roomCode && <JoinPanel code={g.roomCode} />}
               <span>
                 <b>{d.counts.here}</b> of {d.counts.registered} here
               </span>
@@ -724,6 +747,21 @@ function OpenRooms({ d, compact }: { d: Data; compact?: boolean }) {
         ))}
       </div>
       <p className="tv-sub small">{open.size === d.game.rooms.length ? "Every room is open" : "Open for searching this round"}</p>
+    </div>
+  );
+}
+
+/** Jackbox style: scan, or go to the site and type the code, then tap your name. */
+function JoinPanel({ code }: { code: string }) {
+  const host = window.location.host;
+  return (
+    <div className="tv-join">
+      <Qr className="qr" text={`${window.location.origin}/join?code=${code}`} label={`Scan to join room ${code}`} />
+      <div className="tv-join-text">
+        <span className="tiny">Join on your phone</span>
+        <b className="tv-code">{code}</b>
+        <span className="tiny">{host}/join</span>
+      </div>
     </div>
   );
 }

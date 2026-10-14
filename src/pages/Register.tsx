@@ -39,6 +39,11 @@ export default function Register({ slug }: { slug?: string }) {
             <button type="button" className="primary" onClick={() => navigate(`/p/${saved}`)}>
               Open my card
             </button>
+            {game.partyOn && (
+              <button type="button" className="ghost-btn" onClick={() => navigate("/join")}>
+                Join as someone else with the room code
+              </button>
+            )}
             {game.open && (
               <button type="button" className="back center-text" onClick={() => setAnother(true)}>
                 Sign up someone else on this phone
@@ -56,8 +61,19 @@ export default function Register({ slug }: { slug?: string }) {
         <div className="screen center">
           <span className="eyebrow">Chicago · 1929</span>
           <Deco />
-          <h1 className="title-lg">The guest list is closed</h1>
-          <p className="lede">If you already signed up, open the personal link you saved. Your host can resend it.</p>
+          <h1 className="title-lg">{game.partyOn ? "The party's on" : "The guest list is closed"}</h1>
+          {game.partyOn ? (
+            <>
+              <p className="lede">Signed up? Type the room code from the TV and tap your name.</p>
+              <div className="actions wide">
+                <button type="button" className="primary" onClick={() => navigate("/join")}>
+                  Join with the room code
+                </button>
+              </div>
+            </>
+          ) : (
+            <p className="lede">If you already signed up, open the personal link you saved. Your host can resend it.</p>
+          )}
         </div>
       </Shell>
     );
@@ -65,6 +81,14 @@ export default function Register({ slug }: { slug?: string }) {
 
   return (
     <Shell>
+      {game.partyOn && !another && (
+        <div className="sealed join-offer">
+          <p className="help">Already signed up? Type the room code from the TV and tap your name.</p>
+          <button type="button" className="primary" onClick={() => navigate("/join")}>
+            Join with the room code
+          </button>
+        </div>
+      )}
       <ProfileForm
         game={game}
         mode="new"

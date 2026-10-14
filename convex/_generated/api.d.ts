@@ -18,6 +18,7 @@ import type * as engine_textAdult from "../engine/textAdult.js";
 import type * as engine_types from "../engine/types.js";
 import type * as game from "../game.js";
 import type * as host from "../host.js";
+import type * as join from "../join.js";
 import type * as lib from "../lib.js";
 import type * as narration from "../narration.js";
 import type * as ping from "../ping.js";
@@ -44,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   "engine/types": typeof engine_types;
   game: typeof game;
   host: typeof host;
+  join: typeof join;
   lib: typeof lib;
   narration: typeof narration;
   ping: typeof ping;

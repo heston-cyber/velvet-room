@@ -12,6 +12,7 @@ import { seal, unseal } from "./seal";
 import { ensureAllCards, markerForCode } from "./cards";
 import { ACCUSE_MAX_MINUTES, INTRO_MS, MAX_CARDS, REVEAL } from "./shared";
 import { scheduleRecording } from "./voice";
+import { ensureRoomCode } from "./join";
 import { clipMatches, levelsOf, narratorOf, rollWanted, startWanted, voiceOf, type Wanted } from "./voiceLines";
 import { rollLineFor } from "./narration";
 
@@ -182,7 +183,8 @@ export const checkIn = mutation({
       throw new ConvexError("The game has already started, so new check-ins can't join.");
     }
     const letter = player.exhibitLetter ?? (weaponIn ? await dealLetter(ctx, game) : undefined);
-    await ctx.db.patch(player._id, { checkedIn: true, weaponIn: weaponIn || !!player.weaponIn, exhibitLetter: letter });
+    // Checking in claims the name too, so nobody else can join as this guest with the room code.
+    await ctx.db.patch(player._id, { checkedIn: true, weaponIn: weaponIn || !!player.weaponIn, exhibitLetter: letter, claimedAt: player.claimedAt ?? Date.now() });
     return { exhibitLetter: letter ?? null };
   },
 });
@@ -532,6 +534,7 @@ export const openDoors = mutation({
     const game = await requireHost(ctx, slug, hostKey);
     if (game.status !== "registration") throw new ConvexError("The doors are already open.");
     await ctx.db.patch(game._id, { status: "lobby", doorsAt: Date.now() });
+    await ensureRoomCode(ctx, game);
     return { ok: true };
   },
 });
@@ -578,6 +581,7 @@ export const startGame = mutation({
       rollCallAt: undefined,
     });
     await scheduleTimer(ctx, game._id, 1, endsAt);
+    await ensureRoomCode(ctx, game); // started straight from sign-ups: late guests still need the code
     // The names for the intro, the waves and the reveal: one clip for every guest, exhibit and room.
     await scheduleRecording(ctx, game._id, "start");
     return { suspects: input.suspects.length, exhibits: input.exhibits.length, markers: input.markers.length };
@@ -924,6 +928,8 @@ export const tv = query({
         tvShowAll: !!game.tvShowAll,
         soundCheckAt: game.soundCheckAt ?? null,
         lastRescue: game.lastRescue ?? null,
+        lastJoin: game.lastJoin ?? null,
+        roomCode: game.status !== "registration" && !game.endedAt ? game.roomCode ?? null : null,
         bodyRoom: started ? label(game.bodyRoomKey) : "",
         rooms: game.rooms.map((r) => r.label),
         openRooms: started && game.roomOrder ? openRoomsIn(round, game.roomOrder, game.search).map(label) : game.rooms.map((r) => r.label),
@@ -966,6 +972,8 @@ export const tvPing = mutation({
   handler: async (ctx, { slug, tvKey, sound, media }) => {
     const game = await requireTv(ctx, slug, tvKey);
     const now = Date.now();
+    // Games whose doors opened before room codes existed get one as soon as the TV is up.
+    if (!game.roomCode && game.status !== "registration" && !game.endedAt) await ensureRoomCode(ctx, game);
     if (game.tvSound === sound && !!game.tvMedia === !!media && game.tvSeenAt && now - game.tvSeenAt < 15_000) return { ok: true };
     await ctx.db.patch(game._id, { tvSeenAt: now, tvSound: sound, tvMedia: !!media });
     return { ok: true };
@@ -1010,7 +1018,7 @@ export const seedFakeCast = internalMutation({
       let i = 0;
       for (const p of players) {
         if (p.checkedIn) continue;
-        await ctx.db.patch(p._id, { checkedIn: true, weaponIn: true, exhibitLetter: p.exhibitLetter ?? free[i++] });
+        await ctx.db.patch(p._id, { checkedIn: true, weaponIn: true, exhibitLetter: p.exhibitLetter ?? free[i++], claimedAt: p.claimedAt ?? now });
       }
     }
     const old = await ctx.db
@@ -1073,7 +1081,9 @@ export const resetTestGame = internalMutation({
       rulesAt: undefined,
       rollCallAt: undefined,
       rollCallOrder: undefined,
+      lastJoin: undefined,
     });
+    if (status === "lobby") await ensureRoomCode(ctx, game);
     return { ok: true };
   },
 });

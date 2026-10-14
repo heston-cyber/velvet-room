@@ -53,6 +53,9 @@ export default defineSchema({
     tvKey: v.optional(v.string()),
     // The last "rescue a phone": that guest got a new link and the old one stopped working. The TV says so.
     lastRescue: v.optional(v.object({ name: v.string(), at: v.number() })),
+    // Jackbox-style joining: a 4-letter code on the TV. Made when the doors open.
+    roomCode: v.optional(v.string()),
+    lastJoin: v.optional(v.object({ name: v.string(), at: v.number() })), // the TV announces each name claimed with the code
     tvSeenAt: v.optional(v.number()), // the TV window checks in every 20 seconds
     tvSound: v.optional(v.boolean()), // and says whether sound is allowed
     tvMedia: v.optional(v.boolean()), // and whether all the videos have loaded
@@ -71,7 +74,8 @@ export default defineSchema({
     levels: v.optional(v.object({ voice: v.number(), music: v.number(), sfx: v.number() })),
   })
     .index("by_slug", ["slug"])
-    .index("by_active", ["isActive"]),
+    .index("by_active", ["isActive"])
+    .index("by_roomCode", ["roomCode"]),
 
   players: defineTable({
     gameId: v.id("games"),
@@ -91,6 +95,7 @@ export default defineSchema({
     inGame: v.optional(v.boolean()), // checked in when the draw happened
     readyRound: v.optional(v.number()), // last round this guest tapped "ready" in
     notebook: v.optional(v.array(v.string())), // the guest's own cross-offs
+    claimedAt: v.optional(v.number()), // a phone has this guest: claimed with the room code, or checked in
     rumor: v.optional(v.string()), // roll call: the word on the street about their character
     sayAs: v.optional(v.string()), // how the narrator should say the character's name
     rollLine: v.optional(v.string()), // the host's edit of the roll-call line

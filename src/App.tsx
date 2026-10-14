@@ -3,6 +3,7 @@ import Register from "./pages/Register";
 import Guest from "./pages/Guest";
 import Host from "./pages/Host";
 import Marker from "./pages/Marker";
+import Join from "./pages/Join";
 import Tv from "./tv/Tv";
 
 export default function App() {
@@ -10,6 +11,7 @@ export default function App() {
   const params = new URLSearchParams(search);
   if (path.startsWith("/m/")) return <Marker code={decodeURIComponent(path.slice(3)).replace(/\/$/, "")} />;
   if (path.startsWith("/p/")) return <Guest token={decodeURIComponent(path.slice(3)).replace(/\/$/, "")} />;
+  if (path.replace(/\/$/, "") === "/join") return <Join initialCode={params.get("code") ?? ""} />;
   if (path.replace(/\/$/, "") === "/tv") {
     return <Tv slug={params.get("game") ?? ""} tvKey={params.get("key") ?? ""} />;
   }
