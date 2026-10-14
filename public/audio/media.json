@@ -1,4 +1,30 @@
 {
- "sfx": [],
- "music": []
+ "sfx": [
+  "roomTone",
+  "chime",
+  "cardFlip",
+  "lightsCut",
+  "needleScratch",
+  "scream",
+  "bodyFall",
+  "swell",
+  "heartbeat",
+  "telegraph",
+  "clockTick",
+  "thunder",
+  "drumroll",
+  "stamp",
+  "lastCall",
+  "cymbal",
+  "brassSting",
+  "fanfare",
+  "sinisterBrass",
+  "applause"
+ ],
+ "music": [
+  "lobby",
+  "intro",
+  "rounds",
+  "awards"
+ ]
 }

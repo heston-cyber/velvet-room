@@ -240,6 +240,10 @@ with sync_playwright() as p:
     tv.wait_for_timeout(5000)
     shot(tv, "28-tv-goodnight.png")
 
+    sfx = [u for u in audio if "/audio/sfx/" in u]
+    music = [u for u in audio if "/audio/music/" in u]
+    ok(len(set(sfx)) >= 15, f"the TV loaded the sound effects ({len(set(sfx))} files)")
+    ok(len(set(music)) == 4, f"the TV loaded all four music beds ({len(set(music))})")
     narr = [u for u in audio if "/audio/narration/" in u]
     clips = [u for u in audio if "/api/storage/" in u]
     ok(len(narr) >= 20, f"the TV fetched the narrator's lines ({len(narr)} requests)")

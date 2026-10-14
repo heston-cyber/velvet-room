@@ -49,7 +49,7 @@ export class SoundEngine {
   private bed: { key: MusicKey; src: AudioBufferSourceNode; gain: GainNode } | null = null;
   private bedWant: MusicKey | null = null;
   private talking = 0;
-  private levels: Levels = { voice: 100, music: 55, sfx: 80 };
+  private levels: Levels = { voice: 100, music: 70, sfx: 80 };
   private dimmed = false;
   ready: Promise<void>;
 

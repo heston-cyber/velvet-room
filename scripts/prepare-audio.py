@@ -26,19 +26,20 @@ SFX = {
     "heartbeat": ("84364", "Real Heartbeats Slow Pulse Loop 69 BPM", "raw", 0, 0),
     "telegraph": ("71598", "Filmmaking Props Telegraph Beeps Morse Code", "shot", 0, 1.6),
     "clockTick": ("120899", "Antique Clocks Pocket Watch Ticking", "loop", 0, 12),
-    "thunder": ("39191", "Thunder Bursting Booming and Rumbling Moderate Rainfall", "shot", 38, 6),
-    "drumroll": ("87869", "Flourish Short Snare Drum Roll", "loop", 0, 2.6),
+    "thunder": ("39191", "Thunder Bursting Booming and Rumbling Moderate Rainfall", "shot", 42.9, 6),  # the big crack is at 43.2 s
+    "drumroll": ("87869", "Flourish Short Snare Drum Roll", "loop", 0.5, 1.4),  # the steady roll, before the end hit
     "stamp": ("118168", "Bureaucracy Rubber Stamp", "shot", 0, 1.2),
-    "lastCall": ("47780", "Small Hand Bell Ringing Pitch D7", "shot", 7, 4),
+    "lastCall": ("47780", "Small Hand Bell Ringing Pitch D7", "shot", 10.8, 4),  # the loudest ringing is at 11.75 s
     "cymbal": ("57286", "Marching Drums Orchestral Cymbals Single Crash", "shot", 0, 5),
     "brassSting": ("69219", "Big Band Brass Cartoonish Beware Danger Ahead Lick", "shot", 0, 2.5),
-    "fanfare": ("36879", "Cinematic Logos Trumpet Phrase Victory Fanfare", "shot", 0, 5),
+    "fanfare": ("36879", "Cinematic Logos Trumpet Phrase Victory Fanfare", "shot", 0, 5.3),
     "sinisterBrass": ("112023", "Jump Scares Quick Orchestra Impact", "shot", 0, 5),
     "applause": ("69847", "Energetic Crowds Small Audience Applause Moderate Cheering Shouts Clapping", "shot", 0, 8),
 }
 MUSIC = {
     "lobby": [("114812", "Hesitation Blues"), ("6001832", "Julies Corner")],
-    "intro": [("6001878", "In Darkness Creative Cut Strings")],
+    # In Darkness (Strings cut) was pulled from Artlist; Heston picked Fog Choke instead (Oct 14).
+    "intro": [("6001862", "Rick Abbott Fog Choke"), ("6001878", "In Darkness Creative Cut Strings")],
     "rounds": [("127840", "Keep Your Head Down")],
     "awards": [("137875", "Swing Force")],
 }
@@ -72,26 +73,42 @@ def secs(f):
     return float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f], capture_output=True, text=True).stdout.strip() or 0)
 
 
+def measure(f):
+    """Integrated loudness (LUFS) and true peak (dBTP) of a file."""
+    r = subprocess.run(["ffmpeg", "-nostats", "-i", f, "-af", "ebur128=peak=true", "-f", "null", "-"], capture_output=True, text=True).stderr
+    i = re.findall(r"I:\s+(-?[\d.]+) LUFS", r)
+    pk = re.findall(r"Peak:\s+(-?[\d.inf]+) dBFS", r)
+    return (float(i[-1]) if i else -70.0), (float(pk[-1]) if pk and pk[-1] != "-inf" else -70.0)
+
+
+def level(src_wav, dst, loud, enc):
+    """Linear gain to the target loudness, never past -2 dBTP (short sounds can't always reach the target)."""
+    lufs, peak = measure(src_wav)
+    gain = min(loud - lufs, -2.0 - peak)  # 2 dB of room: MP3 encoding can overshoot a little
+    run(["-i", src_wav, "-af", f"volume={gain:.2f}dB", *enc, dst])
+
+
 def make(src, dst, kind, start, length, loud):
     enc = ["-ac", "2", "-ar", "44100", "-c:a", "libmp3lame", "-b:a", "160k"]
-    norm = f"loudnorm=I={loud}:TP=-1.5:LRA=11"
-    if kind == "raw":
-        run(["-i", src, "-af", norm, *enc, dst])
-    elif kind == "shot":
-        fade = min(0.4, length / 4)
-        run(["-ss", str(start), "-t", str(length), "-i", src, "-af",
-             f"silenceremove=start_periods=1:start_threshold=-50dB,{norm},afade=t=out:st={max(0, length - fade - 0.05)}:d={fade}", *enc, dst])
-    else:  # seamless loop: the last X seconds crossfade into the first X
-        total = secs(src)
-        length = min(length or total, total - start)
-        x = min(2.0, length / 4)
-        with tempfile.TemporaryDirectory() as tmp:
+    with tempfile.TemporaryDirectory() as tmp:
+        cut = os.path.join(tmp, "cut.wav")
+        if kind == "raw":
+            run(["-i", src, "-ac", "2", "-ar", "44100", cut])
+        elif kind == "shot":
+            fade = min(0.4, length / 4)
+            run(["-ss", str(start), "-t", str(length), "-i", src, "-af",
+                 f"silenceremove=start_periods=1:start_threshold=-50dB,afade=t=out:st={max(0, length - fade - 0.05)}:d={fade}", "-ac", "2", "-ar", "44100", cut])
+        else:  # seamless loop: the last X seconds crossfade into the first X
+            total = secs(src)
+            length = min(length or total, total - start)
+            x = min(2.0, length / 4)
             seg = os.path.join(tmp, "seg.wav")
-            run(["-ss", str(start), "-t", str(length + x), "-i", src, "-af", norm, seg])
+            run(["-ss", str(start), "-t", str(length + x), "-i", src, "-ac", "2", "-ar", "44100", seg])
             # (two inputs, not asplit: acrossfade reads all of the first before the second)
             run(["-i", seg, "-i", seg, "-filter_complex",
                  f"[0:a]atrim=start={x},asetpts=PTS-STARTPTS[body];[1:a]atrim=0:{x},asetpts=PTS-STARTPTS[head];"
-                 f"[body][head]acrossfade=d={x}:c1=tri:c2=tri[o]", "-map", "[o]", *enc, dst])
+                 f"[body][head]acrossfade=d={x}:c1=tri:c2=tri[o]", "-map", "[o]", cut])
+        level(cut, dst, loud, enc)
 
 
 def main():

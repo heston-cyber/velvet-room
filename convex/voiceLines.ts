@@ -9,7 +9,7 @@ export type Narrator = { host: HostKey; unstable: boolean };
 export type Levels = { voice: number; music: number; sfx: number };
 
 export const DEFAULT_NARRATOR: Narrator = { host: "ivy", unstable: false };
-export const DEFAULT_LEVELS: Levels = { voice: 100, music: 55, sfx: 80 };
+export const DEFAULT_LEVELS: Levels = { voice: 100, music: 70, sfx: 80 };
 
 export const narratorOf = (g: { narrator?: Narrator }): Narrator => g.narrator ?? DEFAULT_NARRATOR;
 export const levelsOf = (g: { levels?: Levels }): Levels => g.levels ?? DEFAULT_LEVELS;

@@ -152,7 +152,7 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
       fx(`intro:${t}:fall`, "bodyFall", t + 1.6 * S);
       fx(`intro:${t}:scream`, "scream", t + 2.3 * S);
       vo(`intro:${t}:1`, "intro1", t + 3.4 * S);
-      fx(`intro:${t}:swell`, "swell", t + beat - 4.8 * S); // a 5 s riser that peaks on "The Don is dead"
+      fx(`intro:${t}:swell`, "swell", t + beat - 4.3 * S); // the riser peaks 4.25 s in, on "The Don is dead"
       const e2 = vo(`intro:${t}:2`, "intro2", t + beat + 1.2 * S);
       clip(`intro:${t}:body`, d.voice.body ?? undefined, e2 + 0.3 * S);
       vo(`intro:${t}:3`, "intro3", t + 2 * beat + 0.8 * S);
