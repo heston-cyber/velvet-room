@@ -24,7 +24,7 @@ async function fontsReady() {
   }
 }
 
-function drawCard(card: Card, url: string, qr: { size: number; get: (r: number, c: number) => number | boolean }): HTMLCanvasElement {
+function drawCard(card: Card, _url: string, qr: { size: number; get: (r: number, c: number) => number | boolean }): HTMLCanvasElement {
   const c = document.createElement("canvas");
   c.width = PX;
   c.height = PX;
@@ -41,23 +41,21 @@ function drawCard(card: Card, url: string, qr: { size: number; get: (r: number, 
   g.textAlign = "center";
   g.fillStyle = RED;
   g.font = `700 26px "Josefin Sans", Futura, sans-serif`;
-  const label = "EVIDENCE MARKER";
   // letter-spaced label
-  const spaced = label.split("").join("  ");
-  g.fillText(spaced, PX / 2, 108);
+  g.fillText("EVIDENCE MARKER".split("").join("\u200a\u200a"), PX / 2, 104);
 
   g.fillStyle = INK;
-  g.font = `120px "Limelight", Didot, Georgia, serif`;
-  g.fillText(String(card.number), PX / 2, 228);
+  g.font = `112px "Limelight", Didot, Georgia, serif`;
+  g.fillText(String(card.number), PX / 2, 214);
 
   // the QR code, drawn module by module so it stays crisp
-  const box = 380;
+  const box = 350;
   const n = qr.size;
   const quiet = 2;
   const cell = Math.floor(box / (n + quiet * 2));
   const real = cell * (n + quiet * 2);
   const x0 = Math.round((PX - real) / 2);
-  const y0 = 262;
+  const y0 = 236;
   g.fillStyle = "#ffffff";
   g.fillRect(x0, y0, real, real);
   g.fillStyle = "#000000";
@@ -67,12 +65,14 @@ function drawCard(card: Card, url: string, qr: { size: number; get: (r: number, 
     }
   }
 
+  // Everything stays inside the inner frame (which ends at y = 700).
   g.fillStyle = INK;
-  g.font = `italic 30px "Crimson Pro", Georgia, serif`;
-  g.fillText("Scan with your Velvet Room phone", PX / 2, y0 + real + 50);
-  g.fillStyle = "#7a5a5a";
-  g.font = `600 17px "Josefin Sans", Futura, sans-serif`;
-  g.fillText(url.replace(/^https?:\/\//, ""), PX / 2, y0 + real + 84);
+  g.font = `italic 28px "Crimson Pro", Georgia, serif`;
+  g.fillText("Scan with your Velvet Room phone", PX / 2, y0 + real + 46);
+  // The code a guest types on the Scan screen if the camera won't read the card.
+  g.fillStyle = RED;
+  g.font = `700 24px "Josefin Sans", Futura, sans-serif`;
+  g.fillText(`CODE  ${card.code.toUpperCase().split("").join("\u200a")}`, PX / 2, y0 + real + 90);
   return c;
 }
 
