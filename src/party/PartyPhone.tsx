@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { Deco, initials } from "../components/MemberCard";
 import { friendlyError } from "../lib/errors";
+import { codeFromScan } from "../lib/scan";
 
 type Phone = NonNullable<FunctionReturnType<typeof api.game.phone>>;
 type Tab = "case" | "scan" | "evidence" | "notebook";
@@ -270,45 +271,72 @@ function Late() {
 }
 
 function Murder({ data, onDone }: { data: Phone; onDone: () => void }) {
-  const [held, setHeld] = useState(false);
+  // The role shows only while a finger (or key) is held down, and hides on release.
+  const [holding, setHolding] = useState(false);
+  const [seenOnce, setSeenOnce] = useState(false);
   const b = data.briefing;
   const killer = b?.role === "killer";
+  const show = () => {
+    setHolding(true);
+    setSeenOnce(true);
+    navigator.vibrate?.(30);
+  };
+  const hide = () => setHolding(false);
   return (
-    <div className="screen center murder">
+    <div className="screen center murder no-select">
       <span className="eyebrow">Lights down</span>
       <h1 className="title-xl">The Don is dead.</h1>
       <p className="lede">Don Carmine Velluto has been found in {mid(data.game.bodyRoom)}.</p>
-      {!held ? (
-        <button
-          type="button"
-          className="hold"
-          onPointerDown={(e) => {
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label="Press and hold to see your role"
+        className={`hold-card${holding ? (killer ? " showing killer" : " showing") : ""}`}
+        onPointerDown={(e) => {
+          e.preventDefault();
+          try {
+            (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+          } catch {
+            /* keep going: release still hides the card */
+          }
+          show();
+        }}
+        onPointerUp={hide}
+        onPointerCancel={hide}
+        onLostPointerCapture={hide}
+        onContextMenu={(e) => e.preventDefault()}
+        onKeyDown={(e) => {
+          if (e.key === " " || e.key === "Enter") {
             e.preventDefault();
-            setHeld(true);
-          }}
-          onClick={() => setHeld(true)}
-        >
-          <span className="eyebrow">Your role</span>
-          <span>
-            Press and hold to read it.
-            <br />
-            Keep your screen to yourself.
-          </span>
-        </button>
-      ) : killer ? (
-        <div className="role killer">
-          <span className="eyebrow">Your role</span>
-          <span className="big">You did it.</span>
-          <p>{b!.lines[0].replace(/^You did it\. /, "")}</p>
-        </div>
-      ) : (
-        <div className="role">
-          <span className="eyebrow">Your role</span>
-          <span className="big">Innocent.</span>
-          <p>You didn't kill the Don. Now prove who did.</p>
-        </div>
-      )}
-      {held && (
+            show();
+          }
+        }}
+        onKeyUp={hide}
+        onBlur={hide}
+      >
+        {holding ? (
+          killer ? (
+            <>
+              <span className="eyebrow">Your role</span>
+              <span className="big">You did it.</span>
+              <p>{b!.lines[0].replace(/^You did it\. /, "")}</p>
+            </>
+          ) : (
+            <>
+              <span className="eyebrow">Your role</span>
+              <span className="big">Innocent.</span>
+              <p>You didn't kill the Don. Now prove who did.</p>
+            </>
+          )
+        ) : (
+          <>
+            <span className="eyebrow">Your role</span>
+            <span className="hold-hint">Press and hold to read it.</span>
+            <span className="help">Let go and it hides again. Keep your screen to yourself.</span>
+          </>
+        )}
+      </div>
+      {seenOnce && !holding && (
         <div className="actions wide">
           <button type="button" className="primary" onClick={onDone}>
             Open my case file
@@ -391,20 +419,82 @@ function CaseFile({ token, data }: { token: string; data: Phone }) {
   );
 }
 
+function CameraScanner({ onCode, onClose }: { onCode: (code: string) => void; onClose: () => void }) {
+  const video = useRef<HTMLVideoElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let scanner: { start: () => Promise<void>; stop: () => void; destroy: () => void } | null = null;
+    let done = false;
+    (async () => {
+      try {
+        const { default: QrScanner } = await import("qr-scanner");
+        if (!video.current) return;
+        scanner = new QrScanner(
+          video.current,
+          (result: { data: string }) => {
+            const code = codeFromScan(result.data);
+            if (code && !done) {
+              done = true;
+              navigator.vibrate?.(40);
+              onCode(code);
+            }
+          },
+          {
+            preferredCamera: "environment",
+            highlightScanRegion: true,
+            highlightCodeOutline: true,
+            returnDetailedScanResult: true,
+            maxScansPerSecond: 15,
+            onDecodeError: (e: unknown) => {
+              if (String(e) !== "No QR code found") console.warn("[velvet] scanner:", e);
+            },
+            // Read almost the whole picture, so a card doesn't have to be framed perfectly.
+            calculateScanRegion: (v: HTMLVideoElement) => {
+              const side = Math.round(Math.min(v.videoWidth, v.videoHeight) * 0.92);
+              const size = Math.min(side, 800);
+              return { x: Math.round((v.videoWidth - side) / 2), y: Math.round((v.videoHeight - side) / 2), width: side, height: side, downScaledWidth: size, downScaledHeight: size };
+            },
+          },
+        );
+        await scanner.start();
+      } catch {
+        setError("The camera didn't open. Allow camera access for this site in your browser settings, or type the code below.");
+      }
+    })();
+    return () => {
+      scanner?.stop();
+      scanner?.destroy();
+    };
+  }, [onCode]);
+  return (
+    <div className="camera">
+      {error ? <div className="errbox">{error}</div> : <video ref={video} playsInline muted aria-label="Camera view" />}
+      <button type="button" className="ghost-btn" onClick={onClose}>
+        Close camera
+      </button>
+    </div>
+  );
+}
+
 function Scan({ token, data, onNotebook }: { token: string; data: Phone; onNotebook: () => void }) {
   const scanMarker = useMutation(api.game.scanMarker);
   const [code, setCode] = useState("");
+  const [camera, setCamera] = useState(false);
   const [clue, setClue] = useState<{ number: number; room: string; text: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  async function read() {
-    setError(null);
-    try {
-      setClue(await scanMarker({ token, code }));
-      setCode("");
-    } catch (e) {
-      setError(friendlyError(e));
-    }
-  }
+  const read = useCallback(
+    async (c: string) => {
+      setError(null);
+      setCamera(false);
+      try {
+        setClue(await scanMarker({ token, code: c }));
+        setCode("");
+      } catch (e) {
+        setError(friendlyError(e));
+      }
+    },
+    [scanMarker, token],
+  );
   if (clue) {
     return (
       <div className="screen">
@@ -416,7 +506,14 @@ function Scan({ token, data, onNotebook }: { token: string; data: Phone; onNoteb
           <p>{clue.text}</p>
         </div>
         <p className="help">Saved to your evidence. Anyone who finds this marker reads the same thing.</p>
-        <button type="button" className="ghost-btn" onClick={() => setClue(null)}>
+        <button
+          type="button"
+          className="primary"
+          onClick={() => {
+            setClue(null);
+            setCamera(true);
+          }}
+        >
           Scan another
         </button>
         <button type="button" className="ghost-btn" onClick={onNotebook}>
@@ -428,15 +525,24 @@ function Scan({ token, data, onNotebook }: { token: string; data: Phone; onNoteb
   return (
     <div className="screen">
       <h1 className="title-lg">Find a marker</h1>
-      <p className="lede">
-        Markers are hidden around the house. Point your phone's camera at a marker's QR card and tap the link it shows.
-      </p>
+      {camera ? (
+        <CameraScanner onCode={read} onClose={() => setCamera(false)} />
+      ) : (
+        <>
+          <p className="lede">Markers are hidden around the house. When you find one, scan its QR card.</p>
+          <button type="button" className="primary" onClick={() => setCamera(true)}>
+            Scan a marker
+          </button>
+        </>
+      )}
       <span className="help">Camera won't read it? Type the code printed under the QR.</span>
       <form
         className="code"
         onSubmit={(e) => {
           e.preventDefault();
-          if (code.trim()) read();
+          const c = codeFromScan(code);
+          if (c) read(c);
+          else setError("Codes are 6 letters and numbers, like k7qx2m.");
         }}
       >
         <input

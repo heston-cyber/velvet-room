@@ -75,10 +75,11 @@ with sync_playwright() as p:
     for i, pg in enumerate(pages):
         expect(pg.get_by_text("The Don is dead.")).to_be_visible(timeout=10000)
         if i == 0: pg.screenshot(path=f"{OUT}/03-murder.png")
-        pg.locator(".hold").dispatch_event("pointerdown")
-        role = "killer" if pg.locator(".role.killer").count() else "innocent"
+        pg.locator(".hold-card").dispatch_event("pointerdown")
+        role = "killer" if pg.locator(".hold-card.killer").count() else "innocent"
         roles.append(role)
         if i == 0: pg.screenshot(path=f"{OUT}/04-role.png")
+        pg.locator(".hold-card").dispatch_event("pointerup")
         pg.get_by_role("button", name="Open my case file").click()
     check("every phone got a role on start", len(roles) == 4, ",".join(roles))
 

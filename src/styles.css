@@ -263,3 +263,15 @@ img { max-width: 100%; }
 .locked { border: 1px solid var(--ok); color: var(--ok); padding: 10px 12px; font-size: 16px; }
 .inline-num { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .inline-num input { width: 64px; background: var(--well); border: 0; border-bottom: 1px solid var(--brass-dim); padding: 6px 8px; color: var(--paper); font-size: 16px; }
+
+/* press-and-hold role card: no text selection, no long-press menu */
+.no-select, .no-select * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.hold-card { width: 100%; min-height: 170px; border: 1px dashed var(--brass); background: var(--well); padding: 22px 16px; display: grid; gap: 8px; align-content: center; justify-items: center; text-align: center;
+  cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent; transition: background 0.12s, border-color 0.12s; }
+.hold-card .hold-hint { font-size: 20px; }
+.hold-card.showing { border-style: solid; background: var(--panel); }
+.hold-card.showing .big { font-family: var(--display); font-size: 40px; line-height: 1; }
+.hold-card.killer { border-color: var(--blood); background: linear-gradient(160deg, #5e1020, #2a0a13); }
+.hold-card.killer .big, .hold-card.killer .eyebrow { color: var(--blood); }
+.camera { display: grid; gap: 10px; }
+.camera video { width: 100%; aspect-ratio: 1; object-fit: cover; background: #000; border: 1px solid var(--brass-dim); }
