@@ -128,7 +128,7 @@ with sync_playwright() as p:
     ctx = browser.new_context(viewport={"width": 1280, "height": 900})
     pg = ctx.new_page()
     pg.goto(f"{BASE}/host?game={SLUG}&key={HOST_KEY}")
-    expect(pg.locator(".roster li")).to_have_count(3, timeout=10000)
+    expect(pg.locator(".hx-roster li")).to_have_count(3, timeout=10000)
     pg.wait_for_timeout(600)
     pg.screenshot(path=f"{OUT}/06-host.png", full_page=True)
     text = pg.inner_text("body")

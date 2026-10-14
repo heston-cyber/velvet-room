@@ -35,6 +35,7 @@ export const createGame = internalMutation({
       isTest: args.isTest,
       isActive: args.makeActive,
       hostKey,
+      tvKey: randomCode(16),
       status: "registration",
       registrationOpen: true,
       registrationClosesAt: args.registrationClosesAt,
@@ -42,8 +43,9 @@ export const createGame = internalMutation({
       motiveMode: args.motiveMode ?? "game",
       killerOptIn: true,
       rooms: DEFAULT_ROOMS,
-      bodyRoomKey: "lounge",
-      pacing: { mode: "ready", roundMinutes: 15 },
+      pacing: { mode: "ready", roundMinutes: 12 },
+      search: "all",
+      mode: "play",
       createdAt: Date.now(),
     });
     return { slug: args.slug, hostKey };
@@ -102,5 +104,22 @@ export const deleteTestGame = internalMutation({
     }
     await ctx.db.delete(game._id);
     return { deleted: players.length };
+  },
+});
+
+/** Test games only: fake guests' personal links, so automated tests can open their phones. */
+export const testPlayers = internalQuery({
+  args: { slug: v.string() },
+  handler: async (ctx, { slug }) => {
+    const game = await ctx.db
+      .query("games")
+      .withIndex("by_slug", (q) => q.eq("slug", slug))
+      .unique();
+    if (!game || !game.isTest) throw new ConvexError("Test games only.");
+    const players = await ctx.db
+      .query("players")
+      .withIndex("by_game", (q) => q.eq("gameId", game._id))
+      .collect();
+    return players.sort((a, b) => a.createdAt - b.createdAt).map((p) => ({ id: p._id, charName: p.charName, token: p.token }));
   },
 });

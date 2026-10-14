@@ -58,7 +58,7 @@ describe("registration", () => {
     }
     expect(json).not.toContain("killerOk");
     expect(json).not.toContain("token");
-    expect(roster.counts).toEqual({ total: 3, optedIn: 2 });
+    expect(roster.counts).toMatchObject({ total: 3, optedIn: 2 });
   });
 
   test("a wrong host key is refused", async () => {
@@ -124,12 +124,25 @@ describe("registration", () => {
     await expect(
       t.mutation(api.host.updateSettings, { slug: "test-unit", hostKey, rooms: [{ key: "bar", label: "The Bar", houseName: "Kitchen" }] }),
     ).rejects.toThrow(/at least 2/);
+    const nine = Array.from({ length: 9 }, (_, i) => ({ key: `r${i}`, label: `Room ${i}`, houseName: "" }));
+    await expect(t.mutation(api.host.updateSettings, { slug: "test-unit", hostKey, rooms: nine })).rejects.toThrow(/at most 8/);
     await expect(
       t.mutation(api.host.updateSettings, {
         slug: "test-unit", hostKey,
-        rooms: [{ key: "bar", label: "The Bar", houseName: "Kitchen" }, { key: "office", label: "The Back Office", houseName: "Office" }],
+        rooms: [{ key: "bar", label: "The Bar", houseName: "Kitchen" }, { key: "x", label: "  ", houseName: "" }],
       }),
-    ).rejects.toThrow(/body is found/);
+    ).rejects.toThrow(/needs a name/);
+    await expect(
+      t.mutation(api.host.updateSettings, {
+        slug: "test-unit", hostKey,
+        rooms: [{ key: "bar", label: "The Bar", houseName: "Kitchen" }, { key: "x", label: "the bar", houseName: "" }],
+      }),
+    ).rejects.toThrow(/same name/);
+    // Two rooms is fine, and the body room is no longer a setting: it's drawn at Start.
+    await t.mutation(api.host.updateSettings, {
+      slug: "test-unit", hostKey,
+      rooms: [{ key: "bar", label: "The Bar", houseName: "Kitchen" }, { key: "office", label: "The Back Office", houseName: "Office" }],
+    });
   });
 
   test("real games can't be deleted by the test cleanup", async () => {

@@ -23,12 +23,20 @@ export type Room = { key: string; label: string };
 
 export type Marker = { number: number; roomKey: string };
 
+/** All rooms open from Round 1, or rooms open a few at a time ("waves"). */
+export type SearchMode = "all" | "waves";
+
 export type CaseInput = {
   suspects: Suspect[]; // guests who checked in
   exhibits: Exhibit[]; // weapons handed in
   rooms: Room[];
-  bodyRoomKey: string;
+  /** Where the body is found. Drawn at Start unless given (tests). Public once the game starts. */
+  bodyRoomKey?: string;
   markers: Marker[];
+  /** Searching: every room open from Round 1, or rooms opening in waves. */
+  search?: SearchMode;
+  /** The order rooms open in when searching in waves. Drawn at Start unless given. */
+  roomOrder?: string[];
   /** Which script writes the words: Classic or Adult (explicit). */
   tone?: "classic" | "adult";
   /** Motives and secrets players wrote themselves, by suspect id. Blanks get written by the game. */
@@ -75,6 +83,9 @@ export type Briefing = {
 
 export type CaseFile = {
   solution: Solution;
+  /** Public from the moment the game starts: where the body was found, and the order rooms open in. */
+  bodyRoomKey: string;
+  roomOrder: string[];
   clues: PlacedClue[];
   tips: Tip[];
   briefings: Briefing[];

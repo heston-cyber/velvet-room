@@ -71,6 +71,18 @@ export async function gameBySlugOrActive(
     .first();
 }
 
+/** The TV screen: its own key (or the host key). The TV key can't run anything but the TV. */
+export async function requireTv(ctx: QueryCtx, slug: string, key: string): Promise<Doc<"games">> {
+  const game = await ctx.db
+    .query("games")
+    .withIndex("by_slug", (q) => q.eq("slug", slug))
+    .unique();
+  if (!game || !key || (key !== game.tvKey && key !== game.hostKey)) {
+    throw new ConvexError("That TV link isn't valid.");
+  }
+  return game;
+}
+
 export async function requireHost(
   ctx: QueryCtx,
   slug: string,

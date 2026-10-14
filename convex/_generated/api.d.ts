@@ -9,6 +9,7 @@
  */
 
 import type * as admin from "../admin.js";
+import type * as cards from "../cards.js";
 import type * as engine_build from "../engine/build.js";
 import type * as engine_fake from "../engine/fake.js";
 import type * as engine_rng from "../engine/rng.js";
@@ -21,6 +22,7 @@ import type * as lib from "../lib.js";
 import type * as ping from "../ping.js";
 import type * as registration from "../registration.js";
 import type * as seal from "../seal.js";
+import type * as shared from "../shared.js";
 
 import type {
   ApiFromModules,
@@ -30,6 +32,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
+  cards: typeof cards;
   "engine/build": typeof engine_build;
   "engine/fake": typeof engine_fake;
   "engine/rng": typeof engine_rng;
@@ -42,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   ping: typeof ping;
   registration: typeof registration;
   seal: typeof seal;
+  shared: typeof shared;
 }>;
 
 /**

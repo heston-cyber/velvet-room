@@ -34,15 +34,20 @@ export function eligibleKillers(input: CaseInput): Suspect[] {
   return ok.length >= MIN_OPT_INS ? ok : input.suspects;
 }
 
+export const MIN_ROOMS = 2;
+export const MAX_ROOMS = 8;
+
 export function checkInput(input: CaseInput): string[] {
   const problems: string[] = [];
   if (input.suspects.length < 3) problems.push("At least 3 guests have to be checked in.");
   if (input.exhibits.length < 1) problems.push("At least one weapon has to be handed in.");
-  if (input.rooms.length < 2) problems.push("Play with at least 2 rooms.");
-  if (!input.rooms.some((r) => r.key === input.bodyRoomKey)) problems.push("The body room must be in play.");
+  if (input.rooms.length < MIN_ROOMS) problems.push("Play with at least 2 rooms.");
+  if (input.rooms.length > MAX_ROOMS) problems.push(`Play with at most ${MAX_ROOMS} rooms.`);
+  if (input.bodyRoomKey !== undefined && !input.rooms.some((r) => r.key === input.bodyRoomKey)) problems.push("The body room must be in play.");
   const roomKeys = new Set(input.rooms.map((r) => r.key));
   for (const m of input.markers) {
-    if (!roomKeys.has(m.roomKey)) problems.push(`Marker ${m.number} is in a room that isn't in play.`);
+    if (!m.roomKey) problems.push(`Marker ${m.number} needs a room.`);
+    else if (!roomKeys.has(m.roomKey)) problems.push(`Marker ${m.number} is in a room that isn't in play.`);
   }
   return problems;
 }
@@ -55,6 +60,40 @@ export function draw(input: CaseInput, rng: Rng): Solution {
     exhibitId: pick(rng, input.exhibits).id,
     roomKey: pick(rng, input.rooms).key,
   };
+}
+
+// ---------- searching in waves ----------
+
+/** How many rooms are open in Rounds 1, 2 and 3: about 40%, then 75%, then all. Opened rooms stay open. */
+export function waveSizes(n: number): [number, number, number] {
+  const w1 = Math.max(1, Math.ceil(n * 0.4));
+  const w2 = Math.max(w1, Math.ceil(n * 0.75));
+  return [w1, w2, n];
+}
+
+/** The round a room opens for searching. With every room open, that's Round 1. */
+export function openRound(roomKey: string, order: string[], search: CaseInput["search"]): Round {
+  if (search !== "waves") return 1;
+  const i = order.indexOf(roomKey);
+  if (i < 0) return 1;
+  const [w1, w2] = waveSizes(order.length);
+  return i < w1 ? 1 : i < w2 ? 2 : 3;
+}
+
+/** Room keys open for searching in a round (accusations and later: all of them). */
+export function openRoomsIn(round: number, order: string[], search: CaseInput["search"]): string[] {
+  if (search !== "waves" || round >= 3) return order;
+  return order.slice(0, waveSizes(order.length)[Math.max(1, round) - 1]);
+}
+
+/**
+ * Drawn at Start, independent of the answer: where the body turns up, and the order rooms open in.
+ * The body's room always opens first, since that's where everyone runs.
+ */
+export function drawScene(input: CaseInput, rng: Rng): { bodyRoomKey: string; roomOrder: string[] } {
+  const body = input.bodyRoomKey ?? pick(rng, input.rooms).key;
+  const rest = shuffle(rng, input.rooms.filter((r) => r.key !== body)).map((r) => r.key);
+  return { bodyRoomKey: body, roomOrder: input.roomOrder ?? [body, ...rest] };
 }
 
 /** Public clues released up to and including a round, and what's still possible after them. */
@@ -113,11 +152,14 @@ export function validateCase(input: CaseInput, cf: CaseFile): Validation {
   if (stages[1].combos < 2) problems.push("Solved before Round 3.");
 
   // Every marker carries exactly one clue, and only real markers are used.
+  // A marker's clue counts from the round its room opens (Round 1 unless searching in waves).
   const markerNums = new Set(input.markers.map((m) => m.number));
+  const markerRoom = new Map(input.markers.map((m) => [m.number, m.roomKey]));
   const used = new Map<number, number>();
   for (const c of cf.clues) {
     if (c.channel !== "marker") continue;
-    if (c.round !== 1) problems.push(`Marker clue ${c.id} isn't in Round 1.`);
+    const opens = c.markerNumber === undefined ? 1 : openRound(markerRoom.get(c.markerNumber) ?? "", cf.roomOrder, input.search);
+    if (c.round !== opens) problems.push(`Marker clue ${c.id} isn't in the round its room opens.`);
     if (c.markerNumber === undefined || !markerNums.has(c.markerNumber)) problems.push(`Clue ${c.id} is on a marker that doesn't exist.`);
     else used.set(c.markerNumber, (used.get(c.markerNumber) ?? 0) + 1);
   }
@@ -176,6 +218,9 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
   const wrongExhibits = input.exhibits.filter((e) => e.id !== sol.exhibitId);
   const otherRooms = input.rooms.filter((r) => r.key !== sol.roomKey);
   const body = input.rooms.find((r) => r.key === input.bodyRoomKey)!;
+  const order = input.roomOrder ?? input.rooms.map((r) => r.key);
+  // A clue on a marker can only be read once that marker's room is open.
+  const roundOf = (m: { roomKey: string }) => openRound(m.roomKey, order, input.search);
 
   // 1. Turn every wrong answer into clues, sometimes two to a clue.
   const suspectDrafts: Draft[] = [];
@@ -233,26 +278,16 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
   const r2: Draft[] = [...take(sQ, 0.35, 1), ...take(eQ, 0.35, 1), ...take(rQ, 0.3, 0)];
   let r1: Draft[] = shuffle(rng, [...sQ, ...eQ, ...rQ]);
 
-  // 4. Markers carry Round 1. Room clears go on a marker in that same room when one is free.
+  // 4. Markers carry Round 1, on random markers. Room clears never sit in their own room: if they
+  // did, a fully searched room with no "clean" card would hint it's the murder room.
   const placed: PlacedClue[] = [];
   let n = 0;
   const id = () => `c${++n}`;
   const freeMarkers = shuffle(rng, input.markers);
-  const takeMarker = (roomKey?: string) => {
-    const idx = roomKey ? freeMarkers.findIndex((m) => m.roomKey === roomKey) : 0;
-    if (idx < 0 || !freeMarkers.length) return undefined;
-    return freeMarkers.splice(idx, 1)[0];
-  };
-  const overflow: Draft[] = [];
-  for (const d of r1.filter((d) => d.kind === "room")) {
-    const m = takeMarker(d.roomKey);
-    if (m) {
-      placed.push({ id: id(), kind: d.kind, text: S.roomClearHere(input.rooms.find((r) => r.key === d.roomKey)!.label), elim: d.elim, round: 1, channel: "marker", markerNumber: m.number });
-    } else overflow.push(d);
-  }
-  for (const d of [...r1.filter((d) => d.kind !== "room"), ...overflow]) {
+  const takeMarker = () => freeMarkers.shift();
+  for (const d of r1) {
     const m = takeMarker();
-    if (m) placed.push({ id: id(), kind: d.kind, text: d.text, elim: d.elim, round: 1, channel: "marker", markerNumber: m.number });
+    if (m) placed.push({ id: id(), kind: d.kind, text: d.text, elim: d.elim, round: roundOf(m), channel: "marker", markerNumber: m.number });
     else r2.push(d); // more Round 1 clues than markers: they move to the first TV drop
   }
   r1 = [];
@@ -267,7 +302,7 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
     const clearRound = placed.find((c) => c.elim.suspects.includes(h.id))!.round;
     const m = takeMarker();
     if (m) {
-      placed.push({ id: id(), kind: "herring", text: S.herring(say, h.signature), elim: NONE, round: 1, channel: "marker", markerNumber: m.number, pointsAt: h.id });
+      placed.push({ id: id(), kind: "herring", text: S.herring(say, h.signature), elim: NONE, round: roundOf(m), channel: "marker", markerNumber: m.number, pointsAt: h.id });
     } else if (clearRound === 3) {
       placed.push({ id: id(), kind: "herring", text: S.herring(say, h.signature), elim: NONE, round: 2, channel: "tv", pointsAt: h.id });
     }
@@ -276,7 +311,7 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
   let f = 0;
   while (freeMarkers.length) {
     const m = freeMarkers.shift()!;
-    placed.push({ id: id(), kind: "flavor", text: flavor[f++ % flavor.length], elim: NONE, round: 1, channel: "marker", markerNumber: m.number });
+    placed.push({ id: id(), kind: "flavor", text: flavor[f++ % flavor.length], elim: NONE, round: roundOf(m), channel: "marker", markerNumber: m.number });
   }
   // The twist reads last on the final drop.
   placed.push({ id: id(), kind: "twist", text: twist.text, elim: twist.elim, round: 3, channel: "tv" });
@@ -318,16 +353,22 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
     return { playerId: s.id, role: "innocent", motive: m.motive, secret: m.secret, lines: S.innocentLines };
   });
 
-  return { solution: sol, clues: placed, tips, briefings, attempts: 1 };
+  return { solution: sol, bodyRoomKey: body.key, roomOrder: order, clues: placed, tips, briefings, attempts: 1 };
 }
 
-/** Draws the answer (unless given) and builds a case that passes every solvability rule. */
+/**
+ * Draws the answer (unless given), where the body turns up and the order rooms open in,
+ * then builds a case that passes every solvability rule.
+ */
 export function buildCase(input: CaseInput, rng: Rng, solution?: Solution): CaseFile & { validation: Validation } {
-  const sol = solution ?? draw(input, rng);
+  const problems = checkInput(input);
+  if (problems.length) throw new Error(problems.join(" "));
+  const full: CaseInput = { ...input, ...drawScene(input, rng) };
+  const sol = solution ?? draw(full, rng);
   let last: Validation | null = null;
   for (let attempt = 1; attempt <= 200; attempt++) {
-    const cf = tryBuild(input, rng, sol);
-    const v = validateCase(input, cf);
+    const cf = tryBuild(full, rng, sol);
+    const v = validateCase(full, cf);
     if (v.ok) return { ...cf, attempts: attempt, validation: v };
     last = v;
   }

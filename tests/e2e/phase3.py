@@ -71,6 +71,7 @@ with sync_playwright() as p:
     check("lobby updates live as guests check in", True)
 
     convex("game:startGame", {"slug": SLUG, "hostKey": HK})
+    convex("game:skipIntro", {"slug": SLUG, "hostKey": HK})  # Phase 4 added a TV intro; the host's "Begin Round 1" skips it
     roles = []
     for i, pg in enumerate(pages):
         expect(pg.get_by_text("The Don is dead.")).to_be_visible(timeout=10000)
@@ -149,7 +150,7 @@ with sync_playwright() as p:
             pg.locator(".pick").filter(has_text=sec).locator(".opts button").first.click()
         if i == 0: pg.screenshot(path=f"{OUT}/09-accuse.png", full_page=True)
         pg.get_by_role("button", name="Lock in my accusation").click()
-        expect(pg.locator(".locked")).to_be_visible(timeout=10000)
+        expect(pg.locator(".locked:not(.pending)")).to_be_visible(timeout=10000)
     convex("game:fakeGuestsAct", {"slug": SLUG, "action": "accuse"})
     for pg in pages:
         expect(pg.get_by_text("Eyes on the TV")).to_be_visible(timeout=10000)
@@ -158,7 +159,7 @@ with sync_playwright() as p:
     for pg in pages:
         pg.locator(".pick").filter(has_text="Best Dressed").locator(".opts button").first.click()
         pg.get_by_role("button", name="Cast my votes").click()
-        expect(pg.locator(".locked")).to_be_visible(timeout=10000)
+        expect(pg.locator(".locked:not(.pending)")).to_be_visible(timeout=10000)
     convex("game:finish", {"slug": SLUG, "hostKey": HK})
     for pg in pages:
         expect(pg.get_by_text("Awards are on the TV.")).to_be_visible(timeout=10000)

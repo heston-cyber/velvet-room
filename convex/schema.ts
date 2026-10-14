@@ -25,7 +25,15 @@ export default defineSchema({
     rooms: v.array(
       v.object({ key: v.string(), label: v.string(), houseName: v.string() }),
     ),
-    bodyRoomKey: v.string(),
+    // Where the body turns up: drawn at Start, public from then on. (Older games stored a default here.)
+    bodyRoomKey: v.optional(v.string()),
+    // The order rooms open in when searching in waves. Drawn at Start, independent of the answer.
+    roomOrder: v.optional(v.array(v.string())),
+    search: v.optional(v.union(v.literal("all"), v.literal("waves"))),
+    // "play": the game runs itself and the host plays. "mc": one person runs the night and sees the answer.
+    mode: v.optional(v.union(v.literal("play"), v.literal("mc"))),
+    mcPlayerId: v.optional(v.id("players")), // a signed-up guest who is the MC (not a suspect)
+    wifi: v.optional(v.object({ name: v.string(), password: v.string() })),
     pacing: v.object({
       mode: v.union(v.literal("ready"), v.literal("timer")),
       roundMinutes: v.number(),
@@ -36,6 +44,17 @@ export default defineSchema({
     roundEndsAt: v.optional(v.number()), // timer pacing only
     paused: v.optional(v.boolean()),
     tone: v.optional(v.union(v.literal("classic"), v.literal("adult"))),
+    introEndsAt: v.optional(v.number()), // the TV intro plays until then; Round 1's timer starts after it
+    revealAt: v.optional(v.number()), // when the reveal sequence started on the TV
+    tvShowAll: v.optional(v.boolean()), // TV shows every piece of evidence released so far
+    soundCheckAt: v.optional(v.number()), // bumps when the host presses Sound check
+    endedAt: v.optional(v.number()), // the host closed the night
+    // The TV's own key: it can only run the TV, so it's safe in the TV window's address bar.
+    tvKey: v.optional(v.string()),
+    // The last "rescue a phone": that guest got a new link and the old one stopped working. The TV says so.
+    lastRescue: v.optional(v.object({ name: v.string(), at: v.number() })),
+    tvSeenAt: v.optional(v.number()), // the TV window checks in every 20 seconds
+    tvSound: v.optional(v.boolean()), // and says whether sound is allowed
   })
     .index("by_slug", ["slug"])
     .index("by_active", ["isActive"]),
@@ -69,10 +88,18 @@ export default defineSchema({
   markers: defineTable({
     gameId: v.id("games"),
     number: v.number(),
-    roomKey: v.string(),
+    roomKey: v.string(), // "" until the host logs which room it's in
     code: v.string(),
   })
     .index("by_game", ["gameId"])
+    .index("by_code", ["code"]),
+
+  // The printed QR cards: one set of codes for every game. Card N always has the same code.
+  cards: defineTable({
+    number: v.number(),
+    code: v.string(),
+  })
+    .index("by_number", ["number"])
     .index("by_code", ["code"]),
 
   // The whole case file (answer, clues, tips, briefings), encrypted with SEAL_KEY.

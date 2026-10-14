@@ -275,3 +275,12 @@ img { max-width: 100%; }
 .hold-card.killer .big, .hold-card.killer .eyebrow { color: var(--blood); }
 .camera { display: grid; gap: 10px; }
 .camera video { width: 100%; aspect-ratio: 1; object-fit: cover; background: #000; border: 1px solid var(--brass-dim); }
+
+/* Phase 4: fixed sizes on the phone too, Wi-Fi card */
+.swap { display: grid; }
+.swap > * { grid-area: 1 / 1; min-width: 0; }
+.swap > .off { visibility: hidden; }
+.ghost-btn.full { width: 100%; }
+.locked.pending { border-color: var(--rule); color: var(--muted); }
+.file.wifi p { margin: 0; overflow-wrap: anywhere; }
+.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-weight: 600; letter-spacing: 0.02em; }

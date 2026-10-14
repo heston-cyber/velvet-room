@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { buildCase, draw, eligibleKillers } from "../convex/engine/build";
-import { fakeCast, ROOMS_5, ROOMS_6 } from "../convex/engine/fake";
+import { buildCase, draw, eligibleKillers, openRound, openRoomsIn, waveSizes } from "../convex/engine/build";
+import { fakeCast, roomsN, ROOMS_5, ROOMS_6 } from "../convex/engine/fake";
 import { seeded } from "../convex/engine/rng";
 import { mid } from "../convex/engine/text";
 import type { CaseFile, CaseInput, PlacedClue } from "../convex/engine/types";
@@ -20,7 +20,7 @@ function candidates(input: CaseInput, clues: PlacedClue[], upToRound: number) {
 }
 
 // Every clue's words must name exactly what it rules out.
-function textMatchesLogic(input: CaseInput, c: PlacedClue): string | null {
+function textMatchesLogic(input: CaseInput, c: PlacedClue, bodyRoomKey: string): string | null {
   for (const id of c.elim.suspects) {
     const n = input.suspects.find((s) => s.id === id)!.name;
     if (c.kind !== "twist" && !c.text.includes(n)) return `${c.id} doesn't name ${n}`;
@@ -34,34 +34,38 @@ function textMatchesLogic(input: CaseInput, c: PlacedClue): string | null {
     if (!c.text.includes(label) && !c.text.includes(mid(label))) return `${c.id} doesn't name ${label}`;
   }
   if (c.kind === "twist") {
-    const body = input.rooms.find((r) => r.key === input.bodyRoomKey)!.label;
+    const body = input.rooms.find((r) => r.key === bodyRoomKey)!.label;
     if (!c.text.includes(mid(body))) return `${c.id} twist doesn't name the body room`;
   }
   return null;
 }
 
-type Config = { guests: number; rooms: typeof ROOMS_5; markers: number; optIn: number; tone: "classic" | "adult" };
+type Config = { guests: number; rooms: typeof ROOMS_5; markers: number; optIn: number; tone: "classic" | "adult"; search: "all" | "waves" };
 const configs: Config[] = [];
 for (const tone of ["classic", "adult"] as const) {
-  for (const guests of [4, 5, 6, 8, 9, 10, 12]) {
-    for (const rooms of [ROOMS_5, ROOMS_6]) {
-      for (const markers of [0, 5, 10, 15, 20]) {
-        configs.push({ guests, rooms, markers, optIn: 0.8, tone });
+  for (const search of ["all", "waves"] as const) {
+    for (const guests of [4, 5, 6, 8, 9, 10, 12]) {
+      for (const n of [2, 3, 5, 6, 8]) {
+        for (const markers of [0, 5, 10, 15, 20, 30, 36]) {
+          configs.push({ guests, rooms: roomsN(n), markers, optIn: 0.8, tone, search });
+        }
       }
     }
   }
 }
+const SEEDS = 5; // 980 setups x 5 = 4,900 games
 
 describe("the engine", () => {
-  test("2,100 simulated games (both scripts) are all solvable, fair and consistent", () => {
+  test("4,900 simulated games (2 to 8 rooms, 0 to 36 markers, both scripts, both search modes) are all solvable, fair and consistent", () => {
     let games = 0;
     const failures: string[] = [];
     const attempts: number[] = [];
     for (const cfg of configs) {
-      for (let seed = 1; seed <= 15; seed++) {
-        const rng = seeded(seed * 7919 + cfg.guests * 31 + cfg.markers);
+      for (let seed = 1; seed <= SEEDS; seed++) {
+        const rng = seeded(seed * 7919 + cfg.guests * 31 + cfg.markers + cfg.rooms.length * 101);
         const input = fakeCast({ rng, guests: cfg.guests, rooms: cfg.rooms, markers: cfg.markers, optInRate: cfg.optIn });
         input.tone = cfg.tone;
+        input.search = cfg.search;
         let cf: CaseFile;
         try {
           cf = buildCase(input, rng);
@@ -71,8 +75,21 @@ describe("the engine", () => {
         }
         games++;
         attempts.push(cf.attempts);
-        const tag = `${cfg.tone}/${cfg.guests}g/${cfg.rooms.length}r/${cfg.markers}m/seed${seed}`;
+        const tag = `${cfg.tone}/${cfg.search}/${cfg.guests}g/${cfg.rooms.length}r/${cfg.markers}m/seed${seed}`;
         const sol = cf.solution;
+
+        // the body room is drawn at Start, is a real room, and opens first
+        if (!input.rooms.some((r) => r.key === cf.bodyRoomKey)) failures.push(`${tag}: body room isn't in play`);
+        if (cf.roomOrder[0] !== cf.bodyRoomKey) failures.push(`${tag}: body room doesn't open first`);
+        if ([...cf.roomOrder].sort().join() !== input.rooms.map((r) => r.key).sort().join()) failures.push(`${tag}: room order isn't every room once`);
+        // a marker's clue is readable from the round its room opens, never before
+        for (const c of cf.clues.filter((x) => x.channel === "marker")) {
+          const room = input.markers.find((m) => m.number === c.markerNumber)!.roomKey;
+          const opens = openRound(room, cf.roomOrder, cfg.search);
+          if (c.round !== opens) failures.push(`${tag}: marker ${c.markerNumber} clue is in Round ${c.round}, room opens Round ${opens}`);
+          if (cfg.search === "all" && c.round !== 1) failures.push(`${tag}: all rooms open but a marker isn't Round 1`);
+          if (!openRoomsIn(c.round, cf.roomOrder, cfg.search).includes(room)) failures.push(`${tag}: marker ${c.markerNumber} readable while its room is closed`);
+        }
 
         // killer only ever from eligible, checked-in guests
         const killer = input.suspects.find((s) => s.id === sol.killerId);
@@ -97,7 +114,7 @@ describe("the engine", () => {
 
         // words match logic
         for (const c of cf.clues) {
-          const bad = textMatchesLogic(input, c);
+          const bad = textMatchesLogic(input, c, cf.bodyRoomKey);
           if (bad) failures.push(`${tag}: ${bad}`);
         }
         // tips: innocents only, and they never contradict the answer
@@ -123,7 +140,7 @@ describe("the engine", () => {
       }
     }
     expect(failures.slice(0, 20)).toEqual([]);
-    expect(games).toBe(2100);
+    expect(games).toBe(configs.length * SEEDS);
     // the builder rarely needs more than a few tries
     expect(Math.max(...attempts)).toBeLessThan(50);
   });
@@ -182,9 +199,46 @@ describe("the engine", () => {
     expect(() => draw(fakeCast({ rng, guests: 2 }), rng)).toThrow(/3 guests/);
     const one = fakeCast({ rng, guests: 5 });
     one.rooms = one.rooms.slice(0, 1);
-    one.bodyRoomKey = one.rooms[0].key;
     one.markers = [];
     expect(() => draw(one, rng)).toThrow(/2 rooms/);
+    const nine = fakeCast({ rng, guests: 5 });
+    nine.rooms = [...roomsN(8), { key: "attic", label: "The Attic" }];
+    expect(() => buildCase(nine, rng)).toThrow(/at most 8 rooms/);
+  });
+
+  test("waves open about 40%, then 75%, then every room, and opened rooms stay open", () => {
+    expect(waveSizes(2)).toEqual([1, 2, 2]);
+    expect(waveSizes(3)).toEqual([2, 3, 3]);
+    expect(waveSizes(5)).toEqual([2, 4, 5]);
+    expect(waveSizes(8)).toEqual([4, 6, 8]);
+    const order = ["a", "b", "c", "d", "e"];
+    expect(openRoomsIn(1, order, "waves")).toEqual(["a", "b"]);
+    expect(openRoomsIn(2, order, "waves")).toEqual(["a", "b", "c", "d"]);
+    expect(openRoomsIn(3, order, "waves")).toEqual(order);
+    expect(openRoomsIn(4, order, "waves")).toEqual(order);
+    expect(openRoomsIn(1, order, "all")).toEqual(order);
+  });
+
+  test("where the body turns up and the room order don't give away the answer", () => {
+    // Over many draws, the murder room is in the first wave about as often as chance says.
+    const rng = seeded(2026);
+    let firstWave = 0, bodyIsMurderRoom = 0;
+    const N = 1500;
+    const bodies = new Map<string, number>();
+    for (let i = 0; i < N; i++) {
+      const input = fakeCast({ rng, guests: 8, rooms: ROOMS_5, markers: 10 });
+      input.search = "waves";
+      const cf = buildCase(input, rng);
+      if (openRound(cf.solution.roomKey, cf.roomOrder, "waves") === 1) firstWave++;
+      if (cf.solution.roomKey === cf.bodyRoomKey) bodyIsMurderRoom++;
+      bodies.set(cf.bodyRoomKey, (bodies.get(cf.bodyRoomKey) ?? 0) + 1);
+    }
+    expect(firstWave / N).toBeGreaterThan(0.33); // chance: 2 of 5 rooms = 0.4
+    expect(firstWave / N).toBeLessThan(0.47);
+    expect(bodyIsMurderRoom / N).toBeGreaterThan(0.14); // chance: 1 in 5
+    expect(bodyIsMurderRoom / N).toBeLessThan(0.26);
+    expect(bodies.size).toBe(5);
+    for (const n of bodies.values()) expect(n).toBeGreaterThan(220); // ~300 each
   });
 
   test("players' own motives are used when they wrote them", () => {
@@ -207,6 +261,7 @@ describe("the engine", () => {
     const killer = cf.briefings.find((b) => b.role === "killer")!;
     expect(killer.lines[0]).toMatch(/^You did it\. You whacked Don Carmine Velluto/);
     const classic = buildCase({ ...input, tone: "classic" }, seeded(21));
+    expect(classic.bodyRoomKey).toBeTruthy();
     expect(classic.briefings.find((b) => b.role === "killer")!.lines[0]).toMatch(/You killed Don Carmine Velluto/);
   });
 });

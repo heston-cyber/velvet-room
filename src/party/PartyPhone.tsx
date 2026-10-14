@@ -6,6 +6,7 @@ import type { Id } from "../../convex/_generated/dataModel";
 import { Deco, initials } from "../components/MemberCard";
 import { friendlyError } from "../lib/errors";
 import { codeFromScan } from "../lib/scan";
+import { Swap } from "../lib/Swap";
 
 type Phone = NonNullable<FunctionReturnType<typeof api.game.phone>>;
 type Tab = "case" | "scan" | "evidence" | "notebook";
@@ -99,9 +100,10 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
 
   let body: JSX.Element;
   let showNav = false;
-  if (game.status === "lobby" && !me.checkedIn) body = <Arrive token={token} name={me.charName} />;
+  if (me.isMC && (game.status === "lobby" || game.status === "playing")) body = <McPhone data={data} />;
+  else if (game.status === "lobby" && !me.checkedIn) body = <Arrive token={token} name={me.charName} />;
   else if (game.status === "lobby") body = <Lobby data={data} />;
-  else if (game.status === "playing" && !me.inGame) body = <Late />;
+  else if (game.status === "playing" && !me.inGame) body = <Late data={data} />;
   else if (game.status === "playing" && !seen) {
     body = (
       <Murder
@@ -158,9 +160,11 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
 function TopLine({ data }: { data: Phone }) {
   const { game, counts } = data;
   const timed = game.pacing.mode === "timer";
-  const now = useNow(game.status === "playing" && timed);
+  const now = useNow(game.status === "playing");
   let left = "";
+  const intro = game.status === "playing" && game.round === 1 && !!game.introEndsAt && game.introEndsAt > now;
   if (game.paused) left = "Paused";
+  else if (intro) left = "Eyes on the TV";
   else if (timed && game.roundEndsAt && game.roundEndsAt > 0) {
     const s = Math.max(0, Math.round((game.roundEndsAt - now) / 1000));
     left = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")} left`;
@@ -172,7 +176,7 @@ function TopLine({ data }: { data: Phone }) {
     right = `${counts.checkedIn} of ${counts.registered} here`;
   } else if (game.status === "playing" && game.round <= 3) {
     chip = `Round ${game.round} · ${["", "Search the house", "Fresh evidence", "Last evidence"][game.round]}`;
-    right = timed ? left : game.paused ? "Paused" : `${counts.ready} of ${counts.inGame} ready`;
+    right = timed || intro ? left : game.paused ? "Paused" : `${counts.ready} of ${counts.inGame} ready`;
   } else if (game.status === "playing") {
     chip = "Accusations";
     right = game.paused ? "Paused" : `${counts.accused} of ${counts.inGame} in`;
@@ -225,6 +229,40 @@ function Arrive({ token, name }: { token: string; name: string }) {
   );
 }
 
+function WifiCard({ data }: { data: Phone }) {
+  const w = data.game.wifi;
+  if (!w) return null;
+  return (
+    <div className="file wifi">
+      <span className="lab">Guest Wi-Fi</span>
+      <p>
+        <b>{w.name}</b>
+        {w.password ? (
+          <>
+            {" "}
+            · password <b className="mono">{w.password}</b>
+          </>
+        ) : (
+          " · no password"
+        )}
+      </p>
+      <span className="help">Or scan the code on the TV.</span>
+    </div>
+  );
+}
+
+function McPhone({ data }: { data: Phone }) {
+  return (
+    <div className="screen center">
+      <span className="eyebrow">Self MC</span>
+      <Deco />
+      <h1 className="title-lg">You're the MC tonight.</h1>
+      <p className="lede">Run the night from the host laptop: it shows the answer, every clue and the lines to read. You don't get a role, and you don't accuse.</p>
+      <WifiCard data={data} />
+    </div>
+  );
+}
+
 function Lobby({ data }: { data: Phone }) {
   const { me, lobby } = data;
   return (
@@ -255,17 +293,19 @@ function Lobby({ data }: { data: Phone }) {
         ))}
       </ul>
       <p className="help">Faded guests haven't checked in yet. Anyone who arrives after the draw watches instead.</p>
+      <WifiCard data={data} />
     </div>
   );
 }
 
-function Late() {
+function Late({ data }: { data: Phone }) {
   return (
     <div className="screen center">
       <span className="eyebrow">The game is on</span>
       <Deco />
       <h1 className="title-lg">You missed the draw.</h1>
       <p className="lede">The case started before you checked in. Grab a drink, watch the TV, and heckle freely.</p>
+      <WifiCard data={data} />
     </div>
   );
 }
@@ -357,11 +397,14 @@ function Pacing({ token, data }: { token: string; data: Phone }) {
     <div className="ready">
       <button
         type="button"
-        className="ghost-btn"
+        className="ghost-btn full"
         aria-pressed={me.ready}
         onClick={() => setReady({ token, ready: !me.ready })}
       >
-        {me.ready ? "You're ready ✓" : game.round === 3 ? "Ready to accuse" : "Ready for more evidence"}
+        <Swap show={me.ready ? 1 : 0}>
+          <span>{game.round === 3 ? "Ready to accuse" : "Ready for more evidence"}</span>
+          <span>You're ready ✓</span>
+        </Swap>
       </button>
       <div className="meter" aria-hidden="true">
         <i style={{ width: `${(counts.ready / Math.max(1, counts.inGame)) * 100}%` }} />
@@ -563,6 +606,17 @@ function Scan({ token, data, onNotebook }: { token: string; data: Phone; onNoteb
       <p className="help">
         Markers you've found: {data.scans.length} of {data.game.markerCount}
       </p>
+      {data.game.search === "waves" && data.board && data.game.round <= 3 && (
+        <div className="file">
+          <span className="lab">Open for searching</span>
+          <p>{data.game.openRooms.join(", ")}</p>
+          <span className="help">
+            {data.game.openRooms.length < data.board.rooms.length
+              ? "The other rooms are sealed. More open each round."
+              : "Every room is open now."}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -703,7 +757,10 @@ function Accuse({ token, data }: { token: string; data: Phone }) {
         <span className="eyebrow">Where</span>
         <div className="opts">{board.rooms.map((r) => opt("r", r.key, r.label))}</div>
       </div>
-      {saved && <div className="locked">Locked in. You can change it until the reveal starts.</div>}
+      <Swap show={saved ? 1 : 0}>
+        <div className="locked pending">Pick who, which exhibit and where, then lock it in.</div>
+        <div className="locked">Locked in. You can change it until the reveal starts.</div>
+      </Swap>
       {error && <div className="errbox">{error}</div>}
       <button type="button" className="primary" disabled={!pick.s || !pick.e || !pick.r} onClick={lock}>
         {data.myAccusation ? "Update my accusation" : "Lock in my accusation"}
@@ -734,7 +791,9 @@ function Reveal({ token, data }: { token: string; data: Phone }) {
     );
   }
   const mine = r?.mine;
-  const headline = r?.iWasKiller
+  const headline = data.me.isMC
+    ? "You ran the night."
+    : r?.iWasKiller
     ? r.killerWins
       ? "You got away with it."
       : "They caught you."
@@ -774,7 +833,10 @@ function Reveal({ token, data }: { token: string; data: Phone }) {
         <span className="eyebrow">Best Liar</span>
         <div className="opts">{others.map((s) => opt("liar", s.id, s.name))}</div>
       </div>
-      {sent && <div className="locked">Votes in. You can change them until the host shows the awards.</div>}
+      <Swap show={sent ? 1 : 0}>
+        <div className="locked pending">Pick your favorites, then cast your votes.</div>
+        <div className="locked">Votes in. You can change them until the host shows the awards.</div>
+      </Swap>
       {error && <div className="errbox">{error}</div>}
       <button
         type="button"

@@ -25,6 +25,9 @@ export const ROOMS_5: Room[] = [
   { key: "conservatory", label: "The Conservatory" },
 ];
 export const ROOMS_6: Room[] = [...ROOMS_5, { key: "dock", label: "The Loading Dock" }];
+export const ROOMS_8: Room[] = [...ROOMS_6, { key: "cellar", label: "The Wine Cellar" }, { key: "cloak", label: "The Cloakroom" }];
+/** Any number of rooms from 2 to 8, for the simulations. */
+export const roomsN = (n: number): Room[] => ROOMS_8.slice(0, n);
 
 export const LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ".split("");
 
@@ -53,5 +56,5 @@ export function fakeCast(opts: {
     number: i + 1,
     roomKey: rooms[i % rooms.length].key,
   }));
-  return { suspects, exhibits, rooms, bodyRoomKey: "lounge", markers };
+  return { suspects, exhibits, rooms, markers };
 }
