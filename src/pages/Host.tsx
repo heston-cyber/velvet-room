@@ -225,7 +225,7 @@ function HostInner({ slug, hostKey }: { slug: string; hostKey: string }) {
               checked={game.killerOptIn}
               onChange={(v) => save({ killerOptIn: v })}
               label="Ask guests if they're up for being the killer"
-              help="Off means anyone who checks in can be drawn."
+              help="Off means anyone who checks in can be drawn. On, the draw uses only those who opted in, unless fewer than 3 did."
             />
 
             <Toggle

@@ -24,10 +24,13 @@ type Draft = {
   pointsAt?: string;
 };
 
-/** Guests the draw may pick. Respects the opt-in; if nobody opted in, everyone is eligible. */
+/** Fewer opt-ins than this and the draw uses everyone who checked in (Heston's rule). */
+export const MIN_OPT_INS = 3;
+
+/** Guests the draw may pick: those who opted in, or everyone if fewer than 3 did. */
 export function eligibleKillers(input: CaseInput): Suspect[] {
   const ok = input.suspects.filter((s) => s.killerOk);
-  return ok.length ? ok : input.suspects;
+  return ok.length >= MIN_OPT_INS ? ok : input.suspects;
 }
 
 export function checkInput(input: CaseInput): string[] {

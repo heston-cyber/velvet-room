@@ -74,7 +74,7 @@ describe("the engine", () => {
         // killer only ever from eligible, checked-in guests
         const killer = input.suspects.find((s) => s.id === sol.killerId);
         if (!killer) failures.push(`${tag}: killer isn't a checked-in guest`);
-        if (input.suspects.some((s) => s.killerOk) && !killer?.killerOk) failures.push(`${tag}: killer didn't opt in`);
+        if (input.suspects.filter((s) => s.killerOk).length >= 3 && !killer?.killerOk) failures.push(`${tag}: killer didn't opt in`);
         if (!input.exhibits.some((e) => e.id === sol.exhibitId)) failures.push(`${tag}: weapon wasn't handed in`);
 
         // independent solve
@@ -138,11 +138,16 @@ describe("the engine", () => {
     for (const n of counts.values()) expect(n).toBeGreaterThan(120); // roughly even, ~200 each
   });
 
-  test("if nobody opted in, anyone checked in can be drawn", () => {
+  test("if fewer than 3 opted in, anyone checked in can be drawn", () => {
     const rng = seeded(7);
     const input = fakeCast({ rng, guests: 6 });
     input.suspects.forEach((s) => (s.killerOk = false));
     expect(eligibleKillers(input)).toHaveLength(6);
+    input.suspects[0].killerOk = true;
+    input.suspects[1].killerOk = true;
+    expect(eligibleKillers(input)).toHaveLength(6);
+    input.suspects[2].killerOk = true;
+    expect(eligibleKillers(input).map((s) => s.id)).toEqual(["p1", "p2", "p3"]);
   });
 
   test("every room, weapon and guest can come up", () => {

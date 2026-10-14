@@ -395,7 +395,7 @@ export default function ProfileForm(props: {
               <span>
                 <strong>I'm up for being the killer</strong>
                 <span>
-                  If the game picks you, you'll find out on your phone when the game starts. Nobody else will know.
+                  If the game picks you, you'll find out on your phone when the game starts. Nobody else will know. If fewer than 3 guests opt in, everyone is in the running.
                 </span>
               </span>
             </label>

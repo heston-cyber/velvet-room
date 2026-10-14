@@ -6,15 +6,18 @@ function b64(bytes: Uint8Array): string {
   for (const b of bytes) s += String.fromCharCode(b);
   return btoa(s);
 }
-function unb64(s: string): Uint8Array {
+function unb64(s: string): Uint8Array<ArrayBuffer> {
   const bin = atob(s);
-  const out = new Uint8Array(bin.length);
+  const out = new Uint8Array(new ArrayBuffer(bin.length));
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
 }
 
 async function key(): Promise<CryptoKey> {
-  const raw = process.env.SEAL_KEY;
+  // process.env is provided by the Convex runtime; read it via globalThis so the
+  // browser build (which type-checks these files too) doesn't need Node types.
+  const env = (globalThis as unknown as { process?: { env: Record<string, string | undefined> } }).process?.env;
+  const raw = env?.SEAL_KEY;
   if (!raw) throw new Error("SEAL_KEY isn't set on this deployment.");
   return crypto.subtle.importKey("raw", unb64(raw), "AES-GCM", false, ["encrypt", "decrypt"]);
 }
