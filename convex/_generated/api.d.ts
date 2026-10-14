@@ -8,7 +8,11 @@
  * @module
  */
 
+import type * as admin from "../admin.js";
+import type * as host from "../host.js";
+import type * as lib from "../lib.js";
 import type * as ping from "../ping.js";
+import type * as registration from "../registration.js";
 
 import type {
   ApiFromModules,
@@ -17,7 +21,11 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  admin: typeof admin;
+  host: typeof host;
+  lib: typeof lib;
   ping: typeof ping;
+  registration: typeof registration;
 }>;
 
 /**
