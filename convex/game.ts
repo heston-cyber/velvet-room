@@ -13,6 +13,7 @@ import { ensureAllCards, markerForCode } from "./cards";
 import { ACCUSE_MAX_MINUTES, INTRO_MS, MAX_CARDS, REVEAL } from "./shared";
 import { scheduleRecording } from "./voice";
 import { ensureRoomCode } from "./join";
+import { anyFreeFigure, takenFigures } from "./figures";
 import { clipMatches, levelsOf, narratorOf, rollWanted, startWanted, voiceOf, type Wanted } from "./voiceLines";
 import { rollLineFor } from "./narration";
 
@@ -347,6 +348,7 @@ export const phone = query({
         mode: game.mode ?? "play",
         introEndsAt: game.introEndsAt ?? null,
         revealAt: game.revealAt ?? null,
+        nextSlug: game.nextSlug ?? null, // the host started another game: sign up for it
       },
       me: {
         id: player._id,
@@ -354,6 +356,7 @@ export const phone = query({
         who: player.who,
         signature: player.signature,
         photoUrl: await photo(player),
+        figure: player.figure ?? null,
         checkedIn: player.checkedIn,
         inGame: !!player.inGame,
         weaponIn: !!player.weaponIn,
@@ -365,7 +368,7 @@ export const phone = query({
       lobby: await Promise.all(
         all
           .sort((a, b) => a.charName.localeCompare(b.charName))
-          .map(async (p) => ({ id: p._id, charName: p.charName, photoUrl: await photo(p), checkedIn: p.checkedIn })),
+          .map(async (p) => ({ id: p._id, charName: p.charName, photoUrl: await photo(p), figure: p.figure ?? null, checkedIn: p.checkedIn })),
       ),
       counts: {
         checkedIn: all.filter((p) => p.checkedIn).length,
@@ -398,7 +401,7 @@ export const phone = query({
       board: input
         ? {
             suspects: await Promise.all(
-              input.suspects.map(async (s) => ({ id: s.id, name: s.name, signature: s.signature, photoUrl: await photo(all.find((p) => p._id === s.id)!) })),
+              input.suspects.map(async (s) => ({ id: s.id, name: s.name, signature: s.signature, photoUrl: await photo(all.find((p) => p._id === s.id)!), figure: all.find((p) => p._id === s.id)?.figure ?? null })),
             ),
             exhibits: input.exhibits.map((e) => ({ id: e.id, letter: e.letter, name: e.name })),
             rooms: input.rooms,
@@ -795,6 +798,7 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
         charName: p.charName,
         realName: p.realName,
         photoUrl: p.photoId ? await ctx.storage.getUrl(p.photoId) : null,
+        figure: p.figure ?? null,
         line: rollLineFor(p),
         clip: await clip(w),
       });
@@ -890,6 +894,7 @@ export const tv = query({
       results = {
         killer: killer?.charName ?? "",
         killerPhoto: killer ? await photo(killer) : null,
+        killerFigure: killer?.figure ?? null,
         exhibit: exhibit ? { letter: exhibit.letter, name: exhibit.name } : null,
         room: label(cf.solution.roomKey),
         killerWins: scored.killerWins,
@@ -913,6 +918,9 @@ export const tv = query({
         introEndsAt: game.introEndsAt ?? null,
         revealAt: game.revealAt ?? null,
         endedAt: game.endedAt ?? null,
+        nextSlug: game.nextSlug ?? null, // the TV follows the host into the next game
+        slug: game.slug,
+        gameNumber: game.gameNumber ?? 1,
         doorsAt: game.doorsAt ?? null,
         roundStartedAt: game.roundStartedAt ?? null,
         pausedAt: game.pausedAt ?? null,
@@ -941,6 +949,7 @@ export const tv = query({
             id: p._id,
             charName: p.charName,
             photoUrl: await photo(p),
+            figure: p.figure ?? null,
             here: p.checkedIn,
             ready: !!round && p.readyRound === round,
             accused: accused.has(p._id),
@@ -962,9 +971,38 @@ export const tv = query({
       results,
       reveal: REVEAL,
       voice: await tvVoice(ctx, game, all, input, cf),
+      map: await tvMap(ctx, game),
     };
   },
 });
+
+/**
+ * The house map on the TV while guests search: every room with the round it opens in, and every
+ * marker in play with whether anyone has found it yet. Only marker numbers and rooms, never clues.
+ */
+async function tvMap(ctx: QueryCtx, game: Doc<"games">) {
+  const markers = (
+    await ctx.db
+      .query("markers")
+      .withIndex("by_game", (q) => q.eq("gameId", game._id))
+      .collect()
+  ).filter((m) => m.roomKey && game.rooms.some((r) => r.key === m.roomKey));
+  const started = game.status !== "registration" && game.status !== "lobby";
+  const found = new Map<number, number>();
+  if (started) {
+    const scans = await ctx.db
+      .query("scans")
+      .withIndex("by_game", (q) => q.eq("gameId", game._id))
+      .collect();
+    for (const s of scans) if (!found.has(s.markerNumber) || s.at < found.get(s.markerNumber)!) found.set(s.markerNumber, s.at);
+  }
+  return {
+    rooms: game.rooms.map((r) => ({ key: r.key, label: r.label, opensIn: started ? markerOpensIn(game, r.key) : 1 })),
+    markers: markers
+      .sort((a, b) => a.number - b.number)
+      .map((m) => ({ number: m.number, room: m.roomKey, foundAt: found.get(m.number) ?? null })),
+  };
+}
 
 /** The TV window checks in, so the host laptop can show "TV connected" and whether sound is on. */
 export const tvPing = mutation({
@@ -996,7 +1034,9 @@ export const seedFakeCast = internalMutation({
     const now = Date.now();
     const taken = new Set((await playersOf(ctx, game._id)).map((p) => p.charKey));
     for (const g of shuffle(rng, FAKE_GUESTS).filter((g) => !taken.has(g.name.toLowerCase().replace(/[^a-z0-9]+/g, ""))).slice(0, guests)) {
+      const figure = anyFreeFigure(await takenFigures(ctx, game._id), rng);
       const playerId = await ctx.db.insert("players", {
+        figure,
         gameId: game._id,
         token: randomCode(10),
         realName: `Test ${g.name.split(" ")[0]}`,

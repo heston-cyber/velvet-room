@@ -7,6 +7,8 @@ import { Deco, initials } from "../components/MemberCard";
 import { friendlyError } from "../lib/errors";
 import { codeFromScan } from "../lib/scan";
 import { Swap } from "../lib/Swap";
+import { navigate } from "../lib/router";
+import { avatarSrc } from "../lib/figure";
 import { REVEAL_VERDICT_MS } from "../../convex/shared";
 
 type Phone = NonNullable<FunctionReturnType<typeof api.game.phone>>;
@@ -288,7 +290,7 @@ function Lobby({ data }: { data: Phone }) {
       <ul className="guests">
         {lobby.map((p) => (
           <li key={p.id} className={p.checkedIn ? "" : "away"}>
-            <Avatar name={p.charName} url={p.photoUrl} />
+            <Avatar name={p.charName} url={avatarSrc(p.photoUrl, p.figure)} />
             {p.charName}
           </li>
         ))}
@@ -817,12 +819,20 @@ function RevealVotes({ token, data }: { token: string; data: Phone }) {
   const [sent, setSent] = useState(!!r?.myVote);
   const [error, setError] = useState<string | null>(null);
   if (data.game.status === "done") {
+    const next = data.game.nextSlug;
     return (
       <div className="screen center">
-        <span className="eyebrow">That's the night</span>
+        <span className="eyebrow">{next ? "Play again" : "That's the night"}</span>
         <Deco />
-        <h1 className="title-lg">Awards are on the TV.</h1>
-        <p className="lede">The bar is open again. Settle your debts in chips.</p>
+        <h1 className="title-lg">{next ? "A new mystery is starting." : "Awards are on the TV."}</h1>
+        <p className="lede">{next ? "Make a new character for the next game. Same house, new killer." : "The bar is open again. Settle your debts in chips."}</p>
+        {next && (
+          <div className="actions wide">
+            <button type="button" className="primary" onClick={() => navigate(`/?game=${encodeURIComponent(next)}`)}>
+              Sign up for the next game
+            </button>
+          </div>
+        )}
       </div>
     );
   }

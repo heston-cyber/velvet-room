@@ -154,7 +154,7 @@ describe("the draw, sealed", () => {
     for (const [i, name] of ["Ada Ace", "Bo Bell", "Cy Cole", "Di Dunn"].entries()) {
       const { token } = await t.mutation(api.registration.register, {
         slug: "test-checkin", realName: `Guest ${i}`, charName: name, who: "Someone.", signature: `Item ${i}`,
-        weapon: `Weapon ${i}`, weaponDesc: "Plain.", killerOk: true,
+        weapon: `Weapon ${i}`, weaponDesc: "Plain.", killerOk: true, figure: ["flapper", "dapper", "singer", "curls"][i],
       });
       tokens.push(token);
     }

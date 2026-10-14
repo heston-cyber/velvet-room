@@ -65,13 +65,16 @@ export default defineSchema({
     pausedAt: v.optional(v.number()),
     resumedAt: v.optional(v.number()),
     doneAt: v.optional(v.number()),
-    // Before the murder: the host plays the house rules and the roll call on the TV.
+    // Before the murder: the host plays the roll call (How to play follows it) or How to play alone. rulesAt = How to play.
     rulesAt: v.optional(v.number()),
     rollCallAt: v.optional(v.number()),
     rollCallOrder: v.optional(v.array(v.id("players"))),
     // The narrator: Ivy or Duke, steady or Unstable. Volume levels 0 to 100 (0 is off).
     narrator: v.optional(v.object({ host: v.union(v.literal("ivy"), v.literal("duke")), unstable: v.boolean() })),
     levels: v.optional(v.object({ voice: v.number(), music: v.number(), sfx: v.number() })),
+    // Play again: game 2 is a fresh game with the same house setup. The old game points at it.
+    gameNumber: v.optional(v.number()),
+    nextSlug: v.optional(v.string()),
   })
     .index("by_slug", ["slug"])
     .index("by_active", ["isActive"])
@@ -96,6 +99,8 @@ export default defineSchema({
     readyRound: v.optional(v.number()), // last round this guest tapped "ready" in
     notebook: v.optional(v.array(v.string())), // the guest's own cross-offs
     claimedAt: v.optional(v.number()), // a phone has this guest: claimed with the room code, or checked in
+    gender: v.optional(v.union(v.literal("woman"), v.literal("man"))), // unused (an early build picked drawings by gender)
+    figure: v.optional(v.string()), // the drawing they picked as their avatar (convex/figures.ts); one per guest per game
     rumor: v.optional(v.string()), // roll call: the word on the street about their character
     sayAs: v.optional(v.string()), // how the narrator should say the character's name
     rollLine: v.optional(v.string()), // the host's edit of the roll-call line
@@ -138,7 +143,9 @@ export default defineSchema({
     playerId: v.id("players"),
     markerNumber: v.number(),
     at: v.number(),
-  }).index("by_player", ["playerId"]),
+  })
+    .index("by_player", ["playerId"])
+    .index("by_game", ["gameId"]),
 
   accusations: defineTable({
     gameId: v.id("games"),

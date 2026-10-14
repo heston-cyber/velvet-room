@@ -51,7 +51,7 @@ created = cx("admin:createGame", {"slug": SLUG, "title": "Phase 5 e2e", "isTest"
 KEY = created["hostKey"]
 cx("game:seedFakeCast", {"slug": SLUG, "guests": 5, "markers": 8, "seed": 21, "checkIn": False})
 me = cx("registration:register", {"slug": SLUG, "realName": "Heston Test", "charName": "Velma Kowalski", "who": "Cigarette girl who sells secrets.",
-                                  "signature": "Silver cigarette case", "weapon": "Brass candlestick", "weaponDesc": "Heavy, dented base.", "killerOk": True,
+                                  "signature": "Silver cigarette case", "weapon": "Brass candlestick", "weaponDesc": "Heavy, dented base.", "killerOk": True, "figure": "flapper",
                                   "rumor": "Once cheated a priest at cards, and won.", "sayAs": "VEL-muh koh-WAL-skee"})
 ok(bool(me and me.get("token")), "a guest signs up with a roll-call line and Say it like")
 TVKEY = cx("host:roster", {"slug": SLUG, "hostKey": KEY})["game"]["tvKey"]
@@ -74,6 +74,11 @@ with sync_playwright() as p:
     su.goto(f"{BASE}/?game={SLUG}")
     su.get_by_role("button", name="Step inside").click()
     su.locator("#f-realName").fill("Phone Tester")
+    su.get_by_role("button", name="Next: your character").click()
+    ok(has(su.inner_text("body"), "Pick a drawing to continue"), "sign-up asks for a character drawing before going on")
+    taken = su.locator(".figure-grid button.taken").count()
+    ok(taken >= 1, f"drawings other guests already picked are greyed out ({taken})")
+    su.locator(".figure-grid button:not(.taken)").first.click()
     su.get_by_role("button", name=re.compile("Next: your character")).click()
     su.wait_for_selector("#f-rumor")
     ok(su.locator("#f-sayAs").count() == 1 and has(su.inner_text("body"), "word on the street"), "sign-up asks the roll-call question and Say it like")
@@ -132,10 +137,10 @@ with sync_playwright() as p:
     checks = host.inner_text(".hx-checks")
     ok(has(checks, "TV videos loaded"), f"the laptop sees the TV's videos are in ({checks!r})")
 
-    # ---------- house rules ----------
-    host.get_by_role("button", name="Play the house rules").click()
+    # ---------- How to play (replaced the house rules) ----------
+    host.get_by_role("button", name="Play How to play only").click()
     tv.wait_for_timeout(2500)
-    ok(has(tv.inner_text(".tv-stage"), "House rule 1 of 5"), "the TV plays the house rules")
+    ok(has(tv.inner_text(".tv-stage"), "How to play · 1 of 9"), "the TV plays How to play")
     shot(tv, "04-tv-rule.png")
     host.get_by_role("button", name="Stop").click()
     tv.wait_for_timeout(1500)
@@ -160,10 +165,12 @@ with sync_playwright() as p:
                 break
     ok(len(seen) == 6, f"every guest gets a roll-call card ({sorted(seen)})")
     tv.wait_for_timeout(9000)
-    ok(has(tv.inner_text(".tv-stage"), "Tonight's guests") or has(tv.inner_text(".tv-stage"), "The doors are open"), "the roll call closes on everyone, then the doors")
+    ok(has(tv.inner_text(".tv-stage"), "Tonight's guests") or has(tv.inner_text(".tv-stage"), "How to play"), "the roll call closes on everyone, then How to play follows")
     shot(tv, "07-tv-roll-end.png")
 
     # ---------- Start: lights out, the intro ----------
+    host.get_by_role("button", name="Stop").click()
+    tv.wait_for_timeout(1000)
     host.get_by_role("button", name="Start the game").click()
     host.wait_for_timeout(300)
     host.locator(".hx-next .big-go").click()

@@ -57,7 +57,7 @@ created = cx("admin:createGame", {"slug": SLUG, "title": "Join e2e", "isTest": T
 KEY = created["hostKey"]
 cx("game:seedFakeCast", {"slug": SLUG, "guests": 5, "markers": 8, "seed": 21, "checkIn": False})
 me = cx("registration:register", {"slug": SLUG, "realName": "Heston Test", "charName": "Velma Kowalski", "who": "Cigarette girl who sells secrets.",
-                                  "signature": "Silver cigarette case", "weapon": "Brass candlestick", "weaponDesc": "Heavy, dented base.", "killerOk": True})
+                                  "signature": "Silver cigarette case", "weapon": "Brass candlestick", "weaponDesc": "Heavy, dented base.", "killerOk": True, "figure": "flapper"})
 roster = cx("host:roster", {"slug": SLUG, "hostKey": KEY})
 ok(roster["game"]["roomCode"] is None, "no room code while sign-ups run")
 cx("game:openDoors", {"slug": SLUG, "hostKey": KEY})

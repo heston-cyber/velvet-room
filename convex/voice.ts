@@ -191,6 +191,7 @@ export const rollCallSheet = query({
           charName: p.charName,
           realName: p.realName,
           photoUrl: p.photoId ? await ctx.storage.getUrl(p.photoId) : null,
+          figure: p.figure ?? null,
           checkedIn: p.checkedIn,
           rumor: p.rumor ?? "",
           line: rollLineFor(p),
@@ -255,7 +256,7 @@ export const playRollCall = mutation({
   },
 });
 
-/** The house rules on the TV: five cards, read by the narrator. */
+/** How to play on the TV by itself: nine illustrated cards, read by the narrator. (It also follows the roll call on its own.) */
 export const playRules = mutation({
   args: { slug: v.string(), hostKey: v.string() },
   handler: async (ctx, { slug, hostKey }) => {

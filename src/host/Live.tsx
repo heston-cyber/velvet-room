@@ -5,6 +5,7 @@ import type { Id } from "../../convex/_generated/dataModel";
 import { friendlyError } from "../lib/errors";
 import { Qr } from "../lib/qr";
 import { Swap } from "../lib/Swap";
+import { navigate } from "../lib/router";
 import { captionText, type CueKey } from "../../convex/narration";
 import { clock, openTvWindow, timeLeft, useBusy, useConfirm, useNow, type Roster } from "./common";
 import { Sec, SoundCheck } from "./Menu";
@@ -22,6 +23,7 @@ export function useNextStep(data: Roster, slug: string, hostKey: string, now: nu
   const advance = useMutation(api.game.advanceRound);
   const finish = useMutation(api.game.finish);
   const endNight = useMutation(api.game.endNight);
+  const newGame = useMutation(api.replay.newGame);
   const g = data.game;
   const c = data.counts;
   const args = { slug, hostKey };
@@ -48,8 +50,15 @@ export function useNextStep(data: Roster, slug: string, hostKey: string, now: nu
     };
   }
   if (g.status === "reveal") return { label: "Show the awards", help: "Closes the voting for Best Dressed and Best Liar.", run: () => finish(args) };
-  if (!g.endedAt) return { label: "End the night", help: "The TV shows the closing card.", run: () => endNight(args) };
-  return { label: "The night is over", help: "Thanks for playing.", run: async () => undefined, disabled: true };
+  if (!g.endedAt) return { label: "End the night", help: "The TV shows the closing card. After that you can start a new game.", run: () => endNight(args) };
+  const goTo = (next: string) => navigate(`/host?game=${encodeURIComponent(next)}&key=${encodeURIComponent(hostKey)}`);
+  if (g.nextSlug) return { label: "Go to the new game", help: "The new game is open for sign-ups. The TV has already switched to it.", run: async () => goTo(g.nextSlug!) };
+  return {
+    label: "Start a new game",
+    confirm: `Tap again: Game ${g.gameNumber + 1} opens sign-ups`,
+    help: "Same rooms and marker cards. Everyone signs up again with a new character, and the TV switches over.",
+    run: async () => goTo((await newGame(args)).slug),
+  };
 }
 
 export function NextButton({ data, slug, hostKey, onError }: { data: Roster; slug: string; hostKey: string; onError: (m: string | null) => void }) {
@@ -88,7 +97,8 @@ function statusOf(data: Roster, now: number): [string, string] {
   const c = data.counts;
   const left = timeLeft(g, now);
   const clockText = left === null ? "" : `${clock(left)} left`;
-  if (g.endedAt) return ["Night over", "The TV is showing the closing card."];
+  if (g.nextSlug) return ["Night over", "A new game has started. Use the button below to go to it."];
+  if (g.endedAt) return ["Night over", "The TV is showing the closing card. Start a new game to play again."];
   if (g.status === "registration") return [g.open ? "Sign-ups open" : "Sign-ups closed", `${c.total} signed up · doors closed`];
   if (g.status === "lobby") return ["Doors open", `${c.checkedIn} checked in · ${c.weaponsIn} weapon${c.weaponsIn === 1 ? "" : "s"} in the box`];
   if (g.status === "reveal") return ["The reveal", "Playing on the TV · votes coming in"];

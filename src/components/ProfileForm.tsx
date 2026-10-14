@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import MemberCard, { Deco } from "./MemberCard";
 import { shrinkPhoto, uploadPhoto } from "../lib/photo";
 import { friendlyError } from "../lib/errors";
 import { ROLL_PROMPT } from "../../convex/narration";
+import { avatarSrc, faceUrl, figureUrl } from "../lib/figure";
 
 export type GameInfo = {
   slug: string;
@@ -28,6 +29,8 @@ export type ProfileValues = {
   killerOk: boolean;
   rumor: string;
   sayAs: string;
+  /** The drawing they picked as their avatar. */
+  figure: string;
 };
 
 export const EMPTY_PROFILE: ProfileValues = {
@@ -42,9 +45,10 @@ export const EMPTY_PROFILE: ProfileValues = {
   killerOk: true,
   rumor: "",
   sayAs: "",
+  figure: "",
 };
 
-const MAX: Record<keyof Omit<ProfileValues, "killerOk">, number> = {
+const MAX: Record<keyof Omit<ProfileValues, "killerOk" | "figure">, number> = {
   realName: 60,
   charName: 60,
   who: 280,
@@ -93,6 +97,8 @@ export default function ProfileForm(props: {
   const [removePhoto, setRemovePhoto] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needFigure, setNeedFigure] = useState(false);
+  const gallery = useQuery(api.registration.figures, mode === "new" ? { slug: game.slug } : { token: props.token });
   const topRef = useRef<HTMLDivElement>(null);
 
   const generateUploadUrl = useMutation(api.registration.generateUploadUrl);
@@ -145,6 +151,11 @@ export default function ProfileForm(props: {
       document.getElementById(`f-${missing[0]}`)?.focus();
       return;
     }
+    if (step === "you" && !values.figure) {
+      setNeedFigure(true);
+      document.getElementById("f-figure")?.focus();
+      return;
+    }
     setError(null);
     setStepIndex((i) => Math.min(steps.length - 1, i + 1));
   }
@@ -165,7 +176,7 @@ export default function ProfileForm(props: {
         const url = await generateUploadUrl({ slug: game.slug });
         photoId = (await uploadPhoto(url, blob)) as Id<"_storage">;
       }
-      const payload = { ...values, photoId };
+      const payload = { ...values, figure: values.figure || undefined, photoId };
       if (mode === "new") {
         const { token } = await register({ slug: game.slug, ...payload });
         props.onDone(token);
@@ -257,6 +268,47 @@ export default function ProfileForm(props: {
             ph: "e.g. Jordan Reyes",
             help: "Only the host sees this, next to your character's name.",
           })}
+          <div className={`field${needFigure ? " bad" : ""}`}>
+            <span className="lab" id="l-figure">
+              Pick your character drawing
+            </span>
+            <span className="help">It's you on the TV tonight. Each drawing goes to one guest, so grab yours.</span>
+            <div className="figure-pick" role="radiogroup" aria-labelledby="l-figure" id="f-figure" tabIndex={-1}>
+              {gallery === undefined && <span className="help">Loading the drawings…</span>}
+              {gallery?.map((group) => (
+                <div className="figure-set" key={group.label}>
+                  <span className="small">{group.label}</span>
+                  <div className="figure-grid">
+                    {group.figures.map((f) => (
+                      <button
+                        type="button"
+                        key={f.key}
+                        role="radio"
+                        aria-checked={values.figure === f.key}
+                        aria-label={f.taken ? "Taken" : `Drawing ${f.key}`}
+                        disabled={f.taken && values.figure !== f.key}
+                        className={`${values.figure === f.key ? "on" : ""} ${f.taken && values.figure !== f.key ? "taken" : ""}`}
+                        onClick={() => {
+                          set("figure", f.key);
+                          setNeedFigure(false);
+                        }}
+                      >
+                        <img src={faceUrl(f.key)} alt="" />
+                        {f.taken && values.figure !== f.key && <span>Taken</span>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {values.figure && (
+              <div className="figure-chosen">
+                <img src={figureUrl(values.figure)} alt="Your drawing" />
+                <span className="help">That's you. Change it any time before sign-ups close.</span>
+              </div>
+            )}
+            {needFigure && <span className="err">Pick a drawing to continue.</span>}
+          </div>
           {nav("Next: your character")}
         </>
       );
@@ -398,7 +450,7 @@ export default function ProfileForm(props: {
             charName={values.charName}
             who={values.who}
             signature={values.signature}
-            photoUrl={removePhoto ? null : photoPreview}
+            photoUrl={avatarSrc(removePhoto ? null : photoPreview, values.figure)}
             weaponSealed
           />
           {game.killerOptIn && (

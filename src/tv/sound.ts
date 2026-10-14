@@ -22,7 +22,10 @@ export type SfxKey =
   | "brassSting"
   | "fanfare"
   | "sinisterBrass"
-  | "applause";
+  | "applause"
+  | "whoosh"
+  | "sneak"
+  | "creak";
 export type MusicKey = "lobby" | "intro" | "rounds" | "awards";
 export type Levels = { voice: number; music: number; sfx: number };
 

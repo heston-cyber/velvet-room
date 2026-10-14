@@ -34,9 +34,48 @@ export type Plan = {
   holdUntil: number;
   twistAt: number | null;
   awardsAt: number[];
-  rules: { steps: { cue: CueKey; at: number; until: number }[]; end: number } | null;
+  /** How to play (it replaced the house rules): one illustrated card per line. */
+  rules: { steps: { cue: CueKey; art: Art; at: number; until: number }[]; end: number } | null;
   roll: { titleUntil: number; steps: { item: RollItem; at: number; until: number }[]; end: number } | null;
+  /** The drawn characters stepping onto the screen. */
+  cameos: Cameo[];
 };
+
+/** A drawing in /art: "don", "killer", or one of the guests' characters (convex/figures.ts). */
+export type CharKey = string;
+/** Stand-ins when a game has no guests with drawings yet. */
+export const GUESTS: CharKey[] = ["flapper", "dapper", "lady", "bodyguard", "sleuth", "detective"];
+export type Art = CharKey | "map";
+export type CameoAnim =
+  | "stand" // slides in from the side and stays
+  | "standRight"
+  | "stroll" // walks across the bottom, left to right
+  | "strollBack" // right to left
+  | "creep" // tiptoes across, left to right
+  | "creepBack"
+  | "peek" // leans in from the right edge, then away
+  | "fall" // the Don's toast, the lights cut, and down he goes
+  | "lineup" // one of a row along the bottom
+  | "spot" // stands in a spotlight
+  | "unmask" // vanishes in a flash
+  | "unmasked"; // appears out of the flash: the real killer's drawing
+export type Cameo = {
+  id: string;
+  char: CharKey;
+  anim: CameoAnim;
+  at: number;
+  until: number;
+  /** Only on this scene (by key prefix), so a cameo never wanders into the wrong moment. */
+  on?: string;
+  /** Position in a line-up, and how many stand in it. */
+  slot?: number;
+  count?: number;
+  /** A name under the figure (line-ups). */
+  label?: string;
+  /** Above the title cards (the lights-out gag plays over the lights-out card). */
+  over?: boolean;
+};
+const FOREVER = 12 * 60 * 60 * 1000;
 
 /** How long a line takes: the recording's length when we have it, else reading speed. */
 export type Secs = (cue: CueKey) => number;
@@ -50,7 +89,23 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
   const g = d.game;
   const events: Ev[] = [];
   const cards: Plan["cards"] = [];
-  const out: Plan = { loop: "doors", music: "lobby", ambience: [], cards, events, holdUntil: 0, twistAt: null, awardsAt: [], rules: null, roll: null };
+  const cameos: Cameo[] = [];
+  const out: Plan = { loop: "doors", music: "lobby", ambience: [], cards, events, holdUntil: 0, twistAt: null, awardsAt: [], rules: null, roll: null, cameos };
+  const cameo = (c: Cameo) => cameos.push(c);
+  // The guests' own drawings: who's here (or in the game), falling back to the stand-ins.
+  const withFigure = (list: Data["guests"]) => list.filter((x) => !!x.figure) as (Data["guests"][number] & { figure: string })[];
+  const present = withFigure(d.guests.filter((x) => x.here));
+  const pool: CharKey[] = (present.length ? present : withFigure(d.guests)).map((x) => x.figure);
+  const walkers = pool.length ? pool : GUESTS;
+  /** Someone crosses the screen every few minutes while a scene sits still. */
+  const strollers = (id: string, from: number, every: number, on: string, creep: boolean, sfx?: SfxKey) => {
+    for (let k = 1; k <= 30; k++) {
+      const at = from + k * every;
+      const char = walkers[(k + id.length) % walkers.length];
+      cameo({ id: `${id}:${k}`, char, anim: creep ? (k % 2 ? "creepBack" : "creep") : k % 2 ? "strollBack" : "stroll", at, until: at + 9 * S, on });
+      if (sfx) fx(`${id}:${k}:sfx`, sfx, at + 0.4 * S);
+    }
+  };
 
   const vo = (id: string, cue: CueKey, at: number, quiet = false) => {
     const s = secs(cue);
@@ -75,35 +130,35 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
     out.holdUntil = card("lastcall", t);
     fx(`end:bell:${t}`, "lastCall", t + 0.3 * S);
     vo(`end:vo:${t}`, "goodnight", t + 4.3 * S);
+    cameo({ id: `end:don:${t}`, char: "don", anim: "standRight", at: out.holdUntil, until: t + FOREVER, on: "goodnight" });
     out.music = "lobby";
     return out;
   }
 
-  // ---- before the game: sign-ups, doors, house rules, roll call ----
+  // ---- before the game: sign-ups, doors, roll call, How to play ----
   if (g.status === "registration" || g.status === "lobby") {
     out.loop = "doors";
     out.music = "lobby";
+    if (g.status === "registration") {
+      // Sign-ups on the TV (the replay's main screen): everyone signed up so far lines up along the
+      // bottom with their name; stand-ins fill the row until there are six.
+      const signed = withFigure(d.guests).slice(0, 10).map((x) => ({ char: x.figure, label: x.charName }));
+      const fill = GUESTS.filter((f) => !signed.some((x) => x.char === f)).slice(0, Math.max(0, 6 - signed.length)).map((char) => ({ char, label: undefined }));
+      const row = [...signed, ...fill];
+      row.forEach((x, i) => cameo({ id: `signup:${i}:${x.char}`, char: x.char, label: x.label, anim: "lineup", slot: i, count: row.length, at: 0, until: Infinity, on: "waiting" }));
+    }
     if (g.status === "lobby" && g.doorsAt) {
       const t = g.doorsAt;
       out.ambience = ["roomTone"];
       out.holdUntil = card("opening", t);
       vo(`doors:${t}`, "doors", t + 4.3 * S);
+      // The Don greets his guests; now and then one of them strolls past.
+      fx(`doors:${t}:whoosh`, "whoosh", out.holdUntil);
+      cameo({ id: `doors:don:${t}`, char: "don", anim: "stand", at: out.holdUntil, until: t + FOREVER, on: "doors" });
+      strollers(`doors:${t}:walk`, t, 75 * S, "doors", false);
       if (d.counts.here < d.counts.registered) {
         for (let k = 1; k <= 12; k++) vo(`remind:${t}:${k}`, "doorsReminder", t + k * REMIND_EVERY);
       }
-    }
-    if (g.rulesAt) {
-      let t = g.rulesAt;
-      const steps: NonNullable<Plan["rules"]>["steps"] = [];
-      const cues: CueKey[] = ["rules1", "rules2", g.search === "waves" ? "rules3Waves" : "rules3", "rules4", "rules5"];
-      for (const cue of cues) {
-        fx(`rules:${g.rulesAt}:${cue}:flip`, "cardFlip", t);
-        const end = vo(`rules:${g.rulesAt}:${cue}`, cue, t + 0.5 * S, true);
-        steps.push({ cue, at: t, until: end + 1.4 * S });
-        t = end + 1.4 * S;
-      }
-      out.rules = { steps, end: t };
-      if (now < t) out.ambience = [];
     }
     const rc = d.voice.rollCall;
     if (rc) {
@@ -126,8 +181,36 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
         out.ambience = [];
       }
     }
-    // Arrival reminders keep quiet while the rules or the roll call play.
-    const busy = [out.rules && [g.rulesAt!, out.rules.end], out.roll && [rc!.at, out.roll.end]].filter(Boolean) as [number, number][];
+    // How to play follows the roll call on its own (or plays by itself from the host's button).
+    const howAt = out.roll ? out.roll.end + 1 * S : g.rulesAt ?? null;
+    if (howAt) {
+      let t = howAt;
+      const steps: NonNullable<Plan["rules"]>["steps"] = [];
+      const lines: [CueKey, Art][] = [
+        ["howTo1", "don"],
+        ["howTo2", "killer"],
+        ["howTo3", "flapper"],
+        [g.search === "waves" ? "howTo4Waves" : "howTo4", "dapper"],
+        ["howTo5", "map"],
+        [g.pacing.mode === "timer" ? "howTo6Timer" : "howTo6", "bodyguard"],
+        ["howTo7", "lady"],
+        ["howTo8", "detective"],
+        ["howTo9", "killer"],
+      ];
+      for (const [cue, art] of lines) {
+        fx(`how:${howAt}:${cue}:flip`, art === "map" ? "cardFlip" : "whoosh", t);
+        const end = vo(`how:${howAt}:${cue}`, cue, t + 0.6 * S, true);
+        steps.push({ cue, art, at: t, until: end + 1.2 * S });
+        t = end + 1.2 * S;
+      }
+      out.rules = { steps, end: t };
+      if (now >= howAt && now < t) {
+        out.loop = "rollcall";
+        out.ambience = [];
+      }
+    }
+    // Arrival reminders keep quiet while the roll call or How to play run.
+    const busy = [out.rules && [howAt!, out.rules.end], out.roll && [rc!.at, out.roll.end]].filter(Boolean) as [number, number][];
     out.events = events.filter((e) => !e.id.startsWith("remind:") || !busy.some(([a, b]) => e.at >= a - 10 * S && e.at <= b + 10 * S));
     return out;
   }
@@ -147,6 +230,7 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
       const beat = INTRO_MS / 4;
       out.loop = "dark";
       out.holdUntil = card("lightsout", t);
+      cameo({ id: `intro:${t}:don`, char: "don", anim: "fall", at: t, until: t + 2.8 * S, over: true });
       fx(`intro:${t}:scratch`, "needleScratch", t);
       fx(`intro:${t}:switch`, "lightsCut", t + 0.95 * S);
       fx(`intro:${t}:fall`, "bodyFall", t + 1.6 * S);
@@ -187,6 +271,15 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
           out.twistAt = c;
         }
       }
+      // A guest tiptoes past as the round opens, and again every few minutes.
+      const first = walkers[round % walkers.length];
+      cameo({ id: `r${round}:${t}:creep`, char: first, anim: round === 2 ? "creepBack" : "creep", at: out.holdUntil + 1.5 * S, until: out.holdUntil + 10.5 * S, on: `r${round}` });
+      fx(`r${round}:${t}:sneak`, "sneak", out.holdUntil + 1.9 * S);
+      strollers(`r${round}:${t}:creep`, out.holdUntil + 1.5 * S, 4 * 60 * S, `r${round}`, true, "sneak");
+      if (out.twistAt) {
+        cameo({ id: `r3:${t}:peek`, char: "killer", anim: "peek", at: out.twistAt + 0.6 * S, until: out.twistAt + 7.6 * S, on: "r3" });
+        fx(`r3:${t}:creak`, "creak", out.twistAt + 0.6 * S);
+      }
       if (timed) {
         vo(`r${round}:${t}:1min`, "oneMinute", g.roundEndsAt! - 60 * S);
         if (left > 0 && left <= 60 * S) out.ambience = ["clockTick"];
@@ -200,6 +293,13 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
     out.holdUntil = card("accuse", t);
     fx(`acc:${t}:stamp`, "stamp", t + 1.0 * S);
     vo(`acc:${t}`, "accuse", t + 4.3 * S);
+    // The suspects line up along the bottom in their drawings, with the masked one in the middle.
+    const suspects = withFigure(d.guests).slice(0, 10).map((x) => ({ char: x.figure, label: x.charName as string | undefined }));
+    const line = suspects.length ? suspects : GUESTS.map((char) => ({ char, label: undefined }));
+    line.splice(Math.floor(line.length / 2), 0, { char: "killer", label: undefined });
+    line.forEach((x, i) =>
+      cameo({ id: `acc:${t}:line:${i}:${x.char}`, char: x.char, label: x.label, anim: "lineup", slot: i, count: line.length, at: out.holdUntil + i * 0.18 * S, until: t + FOREVER, on: "accuse" }),
+    );
     const waitingOnFew = d.counts.playing > 1 && d.counts.accused >= d.counts.playing - 1 && d.counts.accused < d.counts.playing;
     if (timed) {
       const lc = vo(`acc:${t}:lastcall`, "accuseLastCall", g.roundEndsAt! - 30 * S);
@@ -218,6 +318,10 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
     out.music = now < t + REVEAL.verdict ? null : "lobby";
     out.holdUntil = card("reveal", t);
     vo(`rev:${t}:1`, "reveal1", t + REVEAL.line);
+    cameo({ id: `rev:${t}:spot`, char: "killer", anim: "spot", at: t + REVEAL.line - 0.3 * S, until: t + REVEAL.name, on: "reveal0" });
+    cameo({ id: `rev:${t}:unmask`, char: "killer", anim: "unmask", at: t + REVEAL.name, until: t + REVEAL.name + 1.6 * S, over: true });
+    // ...and out of the flash steps the real killer, in their own drawing.
+    if (d.results?.killerFigure) cameo({ id: `rev:${t}:unmasked`, char: d.results.killerFigure, anim: "unmasked", at: t + REVEAL.name + 0.2 * S, until: t + REVEAL.verdict, on: "reveal" });
     if (now >= t + REVEAL.line && now < t + REVEAL.name) out.ambience = ["drumroll"];
     fx(`rev:${t}:cymbal`, "cymbal", t + REVEAL.name);
     if (r?.killer) clip(`rev:${t}:killer`, r.killer, t + REVEAL.name + 0.3 * S);
@@ -242,6 +346,8 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
     out.music = "awards";
     out.holdUntil = card("awards", t);
     fx(`aw:${t}:applause`, "applause", t + 0.2 * S);
+    cameo({ id: `aw:${t}:detective`, char: "detective", anim: "stand", at: out.holdUntil + 0.4 * S, until: t + FOREVER, on: "awards" });
+    cameo({ id: `aw:${t}:flapper`, char: "flapper", anim: "standRight", at: out.holdUntil + 0.8 * S, until: t + FOREVER, on: "awards" });
     let e = vo(`aw:${t}`, "awards", t + 4.3 * S);
     const order: [CueKey, Clip | undefined][] = [
       ["awardDetective", w?.detective ?? undefined],
@@ -262,6 +368,11 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
   out.loop = g.status === "done" ? "awards" : "spotlight";
   out.music = g.status === "done" ? "awards" : null;
   return out;
+}
+
+/** The cameos on screen now for this scene. */
+export function cameosNow(p: Plan, now: number, sceneKey: string, over: boolean) {
+  return p.cameos.filter((c) => c.at <= now && now < c.until && !!c.over === over && (!c.on || sceneKey.startsWith(c.on)));
 }
 
 /** The title card on screen now, if any. */

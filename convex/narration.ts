@@ -44,42 +44,72 @@ export const CUES = {
     adult: "Still haven't checked in? Do it now, before I lose my patience.",
     wild: ["[suddenly impatient, shouting]", "[mutters to self]"],
   },
-  // ---- rules ----
-  rules1: {
-    when: "Rules, card 1",
-    classic: "Before the lights go down, the house rules.",
-    adult: "Listen up, you degenerates. House rules.",
+  // ---- how to play (after the roll call; replaced the five house rules, Oct 14) ----
+  howTo1: {
+    when: "How to play, card 1 (the Don)",
+    classic: "[warm, conspiratorial] Before the lights go down, here's how tonight works.",
+    adult: "[warm, conspiratorial] Listen up, you degenerates. Here's how tonight works.",
     wild: ["[clapping hands, way over the top]", ""],
   },
-  rules2: {
-    when: "Rules, card 2",
+  howTo2: {
+    when: "How to play, card 2 (the masked killer)",
+    classic: "Tonight, the Don dies. [short pause] And one of you did it.",
+    adult: "Tonight, the Don gets whacked. [short pause] And one of you is holding the bag.",
+    wild: ["[deadly serious]", "[giggles nervously]"],
+  },
+  howTo3: {
+    when: "How to play, card 3 (your phone)",
     classic: "Your phone holds your secret role. Press and hold to read it, and keep your screen to yourself.",
     adult: "Your phone has your secret role. Press and hold to read it, and keep your nosy eyes off everyone else's.",
-    wild: ["[conspiratorial whisper]", "[giggles nervously]"],
+    wild: ["[conspiratorial whisper]", "[giggles]"],
   },
-  rules3: {
-    when: "Rules, card 3 (all rooms open)",
-    classic: "Search the house for evidence markers and scan them. New evidence lands on this screen every round.",
-    adult: "Search the joint for evidence markers and scan them. New dirt lands on this screen every round.",
+  howTo4: {
+    when: "How to play, card 4 (searching; every room open)",
+    classic: "Then search the house. Evidence markers are hidden in every room on the map. Scan each one you find.",
+    adult: "Then tear the joint apart. Evidence markers are stashed in every room on the map. Scan every one you find.",
     wild: ["[shouting like a carnival barker]", ""],
   },
-  rules3Waves: {
-    when: "Rules, card 3 (rooms in waves)",
-    classic: "Search the open rooms for evidence markers and scan them. More rooms open every round, and new evidence lands on this screen.",
-    adult: "Search the open rooms for markers and scan them. More rooms open every round. Stay out of the sealed ones.",
+  howTo4Waves: {
+    when: "How to play, card 4 (searching; rooms open in waves)",
+    classic: "Then search the house. Evidence markers are hidden in the rooms on the map. Sealed rooms open a few at a time, so stay out until they do.",
+    adult: "Then tear the joint apart. Markers are stashed in the rooms on the map. Sealed rooms open a few at a time. Stay out till they do.",
     wild: ["[shouting like a carnival barker]", ""],
   },
-  rules4: {
-    when: "Rules, card 4",
-    classic: "Everyone may lie about their own secrets. [short pause] Only the killer may lie about the murder.",
-    adult: "Lie about your own secrets all you want. [short pause] Only the killer gets to lie about the murder.",
+  howTo5: {
+    when: "How to play, card 5 (the map)",
+    classic: "Every marker that's found gets stamped on the map, so everyone can see what's left.",
+    adult: "Every marker somebody finds gets stamped on the map. No hogging the good stuff.",
+    wild: ["[proudly, like a game show host]", ""],
+  },
+  howTo6: {
+    when: "How to play, card 6 (rounds; tap Ready)",
+    classic: "When you've searched enough, tap Ready. Fresh evidence lands on this screen every round, and the last round brings a twist.",
+    adult: "When you're done snooping, tap Ready. Fresh dirt lands on this screen every round, and the last round's got a nasty twist.",
+    wild: ["[urgent, fast]", "[gasps]"],
+  },
+  howTo6Timer: {
+    when: "How to play, card 6 (rounds on the clock)",
+    classic: "Each round runs on the clock. Fresh evidence lands on this screen every round, and the last round brings a twist.",
+    adult: "Each round runs on the clock, so move it. Fresh dirt lands on this screen every round, and the last one's got a nasty twist.",
+    wild: ["[urgent, fast]", "[gasps]"],
+  },
+  howTo7: {
+    when: "How to play, card 7 (lying)",
+    classic: "Talk to everyone. You may lie about your own secrets. [short pause] Only the killer may lie about the murder.",
+    adult: "Talk to everybody. Lie about your own secrets all you want. [short pause] Only the killer gets to lie about the murder.",
     wild: ["[deadly serious]", "[bursts out laughing]"],
   },
-  rules5: {
-    when: "Rules, card 5",
-    classic: "When the evidence runs out, accuse someone: who, which exhibit, and where. Get all three and you're an Ace Detective. If most of you get it wrong, the killer wins.",
-    adult: "When the evidence runs dry, accuse somebody: who, with what, and where. Nail all three and you're an Ace Detective. Screw it up, and the killer walks.",
-    wild: ["[building to a frenzy]", "[maniacal laughter]"],
+  howTo8: {
+    when: "How to play, card 8 (accusing)",
+    classic: "After the last round, accuse someone on your phone: who did it, with which exhibit, and where. Get all three and you're an Ace Detective.",
+    adult: "After the last round, point the finger on your phone: who, with what, and where. Nail all three and you're an Ace Detective.",
+    wild: ["[building to a frenzy]", ""],
+  },
+  howTo9: {
+    when: "How to play, card 9 (winning)",
+    classic: "If most of you get it wrong, the killer wins. Then we vote for Best Dressed and Best Liar. [short pause] Good luck. You'll need it.",
+    adult: "Screw it up, and the killer walks. Then we vote for Best Dressed and Best Liar. [short pause] Good luck. You're gonna need it.",
+    wild: ["[maniacal laughter]", "[cackles]"],
   },
   // ---- roll call (before the murder) ----
   rollCallOpen: {

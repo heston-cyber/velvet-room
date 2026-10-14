@@ -11,6 +11,7 @@ import {
   registrationIsOpen,
   required,
 } from "./lib";
+import { FIGURE_SETS, isFigure, takenFigures } from "./figures";
 
 const profileArgs = {
   realName: v.string(),
@@ -25,6 +26,7 @@ const profileArgs = {
   photoId: v.optional(v.id("_storage")),
   rumor: v.optional(v.string()),
   sayAs: v.optional(v.string()),
+  figure: v.optional(v.string()), // the drawing they picked as their avatar
 };
 
 type ProfileInput = {
@@ -39,6 +41,7 @@ type ProfileInput = {
   killerOk: boolean;
   rumor?: string;
   sayAs?: string;
+  figure?: string;
 };
 
 function validateProfile(game: Doc<"games">, input: ProfileInput) {
@@ -78,6 +81,31 @@ async function assertNameFree(
     throw new ConvexError("Someone already took that character name. Try a twist on it.");
   }
 }
+
+/** The drawing a guest picked: one of the cast, and nobody else's in this game. */
+async function checkFigure(ctx: MutationCtx, gameId: Id<"games">, figure: string | undefined, self?: Id<"players">) {
+  if (!figure) throw new ConvexError("Pick your character drawing.");
+  if (!isFigure(figure)) throw new ConvexError("That drawing isn't one of tonight's characters. Pick another.");
+  if ((await takenFigures(ctx, gameId, self)).has(figure)) throw new ConvexError("Someone just took that drawing. Pick another.");
+  return figure;
+}
+
+/** The sign-up gallery: every drawing and whether another guest already has it. Nothing private. */
+export const figures = query({
+  args: { slug: v.optional(v.string()), token: v.optional(v.string()) },
+  handler: async (ctx, { slug, token }) => {
+    const me = token
+      ? await ctx.db
+          .query("players")
+          .withIndex("by_token", (q) => q.eq("token", token))
+          .unique()
+      : null;
+    const game = me ? await ctx.db.get(me.gameId) : await gameBySlugOrActive(ctx, slug);
+    if (!game) return null;
+    const taken = await takenFigures(ctx, game._id, me?._id);
+    return FIGURE_SETS.map((set) => ({ label: set.label, figures: set.keys.map((key) => ({ key, taken: taken.has(key) })) }));
+  },
+});
 
 /** What the registration page needs to know about the game. Nothing private. */
 export const publicGame = query({
@@ -120,6 +148,7 @@ export const register = mutation({
 
     const p = validateProfile(game, args);
     await assertNameFree(ctx, game._id, p.charName);
+    const figure = await checkFigure(ctx, game._id, args.figure);
 
     let token = randomCode(10);
     while (await ctx.db.query("players").withIndex("by_token", (q) => q.eq("token", token)).first()) {
@@ -139,6 +168,7 @@ export const register = mutation({
       secret: p.secret || undefined,
       rumor: p.rumor || undefined,
       sayAs: p.sayAs || undefined,
+      figure,
       killerOk: p.killerOk,
       checkedIn: false,
       createdAt: now,
@@ -189,6 +219,7 @@ export const me = query({
       secret: player.secret ?? "",
       rumor: player.rumor ?? "",
       sayAs: player.sayAs ?? "",
+      figure: player.figure ?? null,
       killerOk: player.killerOk,
       weapon: weapon?.name ?? "",
       weaponDesc: weapon?.description ?? "",
@@ -234,6 +265,8 @@ export const update = mutation({
       // Older pages don't send these: leave what's there.
       ...(args.rumor !== undefined ? { rumor: p.rumor || undefined } : {}),
       ...(args.sayAs !== undefined ? { sayAs: p.sayAs || undefined } : {}),
+      // A different drawing has to be free; the same one stays theirs.
+      ...(args.figure && args.figure !== player.figure ? { figure: await checkFigure(ctx, game._id, args.figure, player._id) } : {}),
       killerOk: p.killerOk,
       updatedAt: Date.now(),
     });

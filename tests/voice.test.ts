@@ -56,7 +56,7 @@ describe("sign-up: roll-call question and Say it like", () => {
   test("stored with the guest, and kept when an older page edits without them", async () => {
     const t = convexTest(schema, modules);
     await t.mutation(internal.admin.createGame, { slug: SLUG, title: "T", isTest: true, makeActive: true, registrationClosesAt: FUTURE, deadlineLabel: "Sat" });
-    const base = { realName: "Ana Ruiz", charName: "Velma Kowalski", who: "Cigarette girl.", signature: "Silver case", weapon: "Candlestick", weaponDesc: "Brass.", killerOk: true };
+    const base = { realName: "Ana Ruiz", charName: "Velma Kowalski", who: "Cigarette girl.", signature: "Silver case", weapon: "Candlestick", weaponDesc: "Brass.", killerOk: true, figure: "lady" };
     const { token } = await t.mutation(api.registration.register, { ...base, rumor: "  Once cheated a priest at cards, and won. ", sayAs: "VEL-muh" });
     let me = await t.query(api.registration.me, { token });
     expect(me).toMatchObject({ rumor: "Once cheated a priest at cards, and won.", sayAs: "VEL-muh" });

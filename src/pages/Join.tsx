@@ -9,11 +9,12 @@ import { Deco, initials } from "../components/MemberCard";
 import { friendlyError } from "../lib/errors";
 import { navigate } from "../lib/router";
 import { saveToken, savedToken } from "../lib/storage";
+import { avatarSrc } from "../lib/figure";
 
 const LEN = 4;
 const clean = (s: string) => s.toUpperCase().replace(/[^A-Z]/g, "").slice(0, LEN);
 
-type Guest = { id: Id<"players">; charName: string; firstName: string; photoUrl: string | null; taken: boolean };
+type Guest = { id: Id<"players">; charName: string; firstName: string; photoUrl: string | null; figure: string | null; taken: boolean };
 
 export default function Join({ initialCode }: { initialCode: string }) {
   const [typed, setTyped] = useState(clean(initialCode));
@@ -98,7 +99,7 @@ export default function Join({ initialCode }: { initialCode: string }) {
         <div className="screen center join">
           {room.isTest && <div className="testflag">Test game · not the real party</div>}
           <span className="eyebrow">Is this you?</span>
-          <span className="av big">{pick.photoUrl ? <img src={pick.photoUrl} alt="" /> : initials(pick.charName)}</span>
+          <span className="av big">{avatarSrc(pick.photoUrl, pick.figure) ? <img src={avatarSrc(pick.photoUrl, pick.figure)!} alt="" /> : initials(pick.charName)}</span>
           <h1 className="title-lg">{pick.charName}</h1>
           {pick.firstName && <p className="lede">Signed up by {pick.firstName}</p>}
           <p className="help">Only pick your own name. The TV will announce it, and each name can only join once.</p>
@@ -135,7 +136,7 @@ export default function Join({ initialCode }: { initialCode: string }) {
           {room.guests.map((g) => (
             <li key={g.id} className={g.taken ? "away" : ""}>
               <button type="button" disabled={g.taken} onClick={() => setPick(g)} aria-label={g.taken ? `${g.charName}, taken` : `Join as ${g.charName}`}>
-                <span className="av">{g.photoUrl ? <img src={g.photoUrl} alt="" /> : initials(g.charName)}</span>
+                <span className="av">{avatarSrc(g.photoUrl, g.figure) ? <img src={avatarSrc(g.photoUrl, g.figure)!} alt="" /> : initials(g.charName)}</span>
                 <span className="nm">{g.charName}</span>
                 <span className="small">{g.taken ? "Taken" : g.firstName}</span>
               </button>

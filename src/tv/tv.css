@@ -146,3 +146,117 @@
 .tv-foot .tv-test { position: static; }
 .tv-room { font-family: var(--label); font-size: .95cqw; letter-spacing: .08em; color: var(--muted); background: rgba(10, 3, 6, .78); border: 1px solid var(--rule); padding: .3cqw .6cqw .2cqw; }
 .tv-room b { color: var(--brass); letter-spacing: .16em; }
+.tv-code-sm { font-size: 3.2cqw; letter-spacing: .06em; }
+
+/* ---- Phase 6: the house map while guests search ---- */
+.tv-split { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 42cqw; gap: 3cqw; align-items: start; text-align: left; }
+.tv-split .tv-left { display: grid; gap: 1.3cqw; justify-items: start; align-content: start; min-width: 0; }
+.tv-split .tv-left .tv-h2 { text-align: left; }
+.tv-split .tv-left .tv-sub { text-align: left; }
+.tv-map { margin: 0; display: grid; gap: .5cqw; justify-items: center; }
+.tv-map svg { width: 100%; height: auto; display: block; overflow: visible; }
+.tv-map .area rect { fill: rgba(18, 5, 10, .55); stroke: var(--rule); stroke-width: 3; }
+.tv-map .area.hall rect { fill: rgba(42, 10, 19, .55); stroke: none; }
+.tv-map .area text { font-family: var(--label); font-size: 19px; letter-spacing: .14em; text-transform: uppercase; fill: var(--hint); }
+.tv-map .room .floor { fill: rgba(79, 20, 36, .8); stroke: var(--brass); stroke-width: 5; }
+.tv-map .room.open .floor { filter: url(#glow); }
+.tv-map .room.sealed .floor { fill: rgba(18, 5, 10, .85); stroke: var(--brass-dim); stroke-dasharray: 14 10; }
+.tv-map .room .name { font-family: var(--display); font-size: 34px; fill: var(--paper); }
+.tv-map .room.sealed .name { fill: var(--muted); }
+.tv-map .room .note { font-family: var(--label); font-size: 15px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; fill: var(--brass); }
+.tv-map .room.sealed .note { fill: var(--blood); }
+.tv-map .divider { stroke: var(--brass-dim); stroke-width: 2; stroke-dasharray: 8 8; }
+.tv-map .pin circle { fill: rgba(18, 5, 10, .9); stroke: var(--brass); stroke-width: 3; }
+.tv-map .pin:not(.found) circle { animation: pinpulse 2.6s ease-in-out infinite; }
+.tv-map .pin text { font-family: var(--label); font-weight: 700; font-size: 22px; fill: var(--brass); }
+.tv-map .pin.found circle { fill: var(--brass); stroke: #f0d48a; }
+.tv-map .pin.found text { fill: var(--ink); opacity: .3; }
+.tv-map .pin .tick { fill: none; stroke: var(--ink); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.tv-map .pin.fresh { transform-box: fill-box; transform-origin: center; animation: pinstamp .9s cubic-bezier(.2, 1.6, .4, 1) both; }
+.tv-map .room.sealed .pin circle { stroke: var(--brass-dim); animation: none; }
+.tv-map .room.sealed .pin text { fill: var(--brass-dim); }
+.tv-map .chalk { fill: none; stroke: rgba(245, 232, 210, .85); stroke-width: 3; stroke-linecap: round; }
+.tv-map .door rect { fill: var(--brass); }
+.tv-map .door text { font-family: var(--label); font-size: 17px; letter-spacing: .16em; text-transform: uppercase; fill: var(--muted); }
+.tv-map figcaption { font-family: var(--label); font-size: 1.2cqw; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.tv-map figcaption b { color: var(--paper); }
+@keyframes pinpulse { 0%, 100% { stroke-opacity: 1; } 50% { stroke-opacity: .35; } }
+@keyframes pinstamp { 0% { transform: scale(2.4); opacity: 0; } 60% { transform: scale(.9); opacity: 1; } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .tv-map .pin circle, .tv-map .pin.fresh { animation: none !important; } }
+
+/* ---- Phase 6: the drawn cast ---- */
+.tv-cameos { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+/* (not .back/.front: the phone pages already use .back for a button) */
+.tv-cameos.cameos-back { z-index: 1; }
+.tv-cameos.cameos-front { z-index: 3; }
+.tv-cameos.cameos-over { z-index: 8; }
+.tv-content { z-index: 2; }
+.cameo { position: absolute; bottom: -.6cqw; height: 22cqw; animation-fill-mode: both; animation-timing-function: linear; }
+.cameo img { height: 100%; width: auto; max-width: none; display: block; filter: drop-shadow(0 .4cqw 1cqw rgba(0, 0, 0, .55)); animation-fill-mode: both; }
+.cameo img.flip { transform: scaleX(-1); }
+.cameo.killer img { filter: drop-shadow(0 0 .35cqw rgba(214, 178, 94, .55)) drop-shadow(0 .4cqw 1cqw rgba(0, 0, 0, .6)); }
+/* walkers cross the bottom of the screen */
+.cameo.stroll, .cameo.creep { left: 0; animation-name: crossR; animation-duration: 9s; }
+.cameo.strollBack, .cameo.creepBack { left: 0; animation-name: crossL; animation-duration: 9s; }
+.cameo.stroll img, .cameo.strollBack img { animation: bob .55s ease-in-out infinite alternate; }
+.cameo.creep img, .cameo.creepBack img { animation: tiptoe .8s ease-in-out infinite alternate; }
+@keyframes crossR { from { transform: translateX(-40cqw); } to { transform: translateX(104cqw); } }
+@keyframes crossL { from { transform: translateX(104cqw); } to { transform: translateX(-40cqw); } }
+@keyframes bob { from { translate: 0 0; } to { translate: 0 -.5cqw; } }
+@keyframes tiptoe { from { translate: 0 0; rotate: -1.5deg; } to { translate: 0 -.9cqw; rotate: 1.5deg; } }
+/* stands at the side and stays */
+.cameo.stand { left: .5cqw; height: 27cqw; animation: inL 1.1s cubic-bezier(.2, .8, .2, 1) both; }
+.cameo.standRight { right: .5cqw; height: 27cqw; animation: inR 1.1s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes inL { from { transform: translateX(-110%); } to { transform: none; } }
+@keyframes inR { from { transform: translateX(110%); } to { transform: none; } }
+/* the killer leans in from the right edge */
+.cameo.peek { right: 0; height: 34cqw; bottom: -1cqw; animation: peek 7s ease-in-out both; }
+@keyframes peek { 0% { transform: translateX(100%); } 14% { transform: translateX(38%); } 80% { transform: translateX(38%); } 100% { transform: translateX(105%); } }
+/* a line-up along the bottom */
+.cameo.lineup { left: calc(4cqw + var(--slot) * 13.4cqw); height: 19cqw; bottom: -1cqw; opacity: .5; animation: rise .9s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes rise { from { transform: translateY(110%); opacity: 0; } to { transform: none; opacity: .5; } }
+/* the Don's last toast: the lights cut, and down he goes */
+.cameo.fall { left: 50%; bottom: 3cqw; height: 40cqw; margin-left: -9cqw; transform-origin: 50% 100%; animation: fall 2.8s linear both; }
+.cameo.fall img { animation: lightsout 2.8s linear both; }
+@keyframes fall { 0%, 57% { transform: none; opacity: 1; } 75% { transform: rotate(-84deg) translateY(4cqw); opacity: 1; } 100% { transform: rotate(-90deg) translateY(6cqw); opacity: 0; } }
+@keyframes lightsout { 0%, 33% { filter: none; } 34%, 100% { filter: brightness(0) drop-shadow(0 0 .5cqw rgba(214, 178, 94, .8)); } }
+/* the reveal: the masked killer in a spotlight, then gone in a flash */
+.cameo.spot, .cameo.unmask { right: 7cqw; bottom: 0; height: 40cqw; }
+.cameo.spot { animation: spotin 1s ease-out both; }
+.cameo.spot::before { content: ""; position: absolute; left: 50%; bottom: 0; width: 34cqw; height: 50cqw; transform: translateX(-50%); background: radial-gradient(50% 60% at 50% 70%, rgba(245, 232, 210, .22), transparent 70%); z-index: -1; }
+.cameo.unmask { animation: unmask 1.6s ease-in both; }
+@keyframes spotin { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes unmask { 0% { opacity: 1; filter: none; transform: none; } 30% { filter: brightness(3) blur(.2cqw); } 100% { opacity: 0; filter: brightness(6) blur(1.4cqw); transform: scale(1.12); } }
+@media (prefers-reduced-motion: reduce) { .cameo, .cameo img { animation-duration: .01s !important; animation-iteration-count: 1 !important; } }
+
+/* ---- How to play: one illustrated card per line ---- */
+.tv-scene.how { padding: 3cqw 5cqw 8cqw; }
+.tv-how { display: grid; grid-template-columns: 30cqw minmax(0, 1fr); gap: 4cqw; align-items: center; width: 100%; max-width: 88cqw; text-align: left; }
+.tv-how-art { height: 36cqw; display: grid; place-items: end center; }
+.tv-how-art img { height: 100%; width: auto; max-width: 100%; object-fit: contain; filter: drop-shadow(0 .8cqw 1.6cqw rgba(0, 0, 0, .55)); }
+.tv-how-art img.enter { animation: howin .9s cubic-bezier(.2, .8, .2, 1) both; }
+.tv-how-art.map { height: auto; place-items: center; }
+.tv-how-text { display: grid; gap: 1.6cqw; justify-items: start; }
+.tv-how-text .tv-rule { max-width: none; font-size: 3.1cqw; }
+@keyframes howin { from { transform: translateX(-12cqw); opacity: 0; } to { transform: none; opacity: 1; } }
+.tv-how.wide { grid-template-columns: 50cqw minmax(0, 1fr); }
+.tv-how.wide .tv-how-art { height: auto; }
+.tv-how-art.map .tv-map, .tv-split .tv-map { width: 100%; }
+/* the doors: room on the left for the Don */
+.tv-scene.doors { padding-left: 17cqw; padding-right: 7cqw; }
+.cameo.don.stand { height: 30cqw; left: 0; }
+.cameo.lineup { opacity: .38; height: 17cqw; }
+@keyframes rise { from { transform: translateY(110%); opacity: 0; } to { transform: none; opacity: .38; } }
+/* sign-ups: the cast is the star of the screen */
+.cameo.lineup.on-waiting { opacity: 1; height: 21cqw; animation-name: riseFull; }
+@keyframes riseFull { from { transform: translateY(110%); opacity: 0; } to { transform: none; opacity: 1; } }
+/* a guest without a photo: their drawing in the gold frame, from the top */
+.tv-frame.drawn img { object-fit: cover; object-position: 50% 0; background: var(--felt); }
+/* line-ups: spaced for however many stand in them, names underneath */
+.cameo.lineup { left: calc(2cqw + var(--slot) * (96cqw / var(--n))); width: calc(96cqw / var(--n)); display: grid; justify-items: center; }
+.cameo.lineup img { height: 100%; width: auto; }
+.cameo-name { position: absolute; bottom: 1.4cqw; left: 50%; transform: translateX(-50%); white-space: nowrap; font-family: var(--label); font-size: 1cqw; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--paper); background: rgba(10, 3, 6, .82); padding: .25cqw .6cqw .15cqw; border: 1px solid var(--brass-dim); }
+.cameo.lineup.on-accuse .cameo-name { display: none; }
+/* the reveal: out of the flash, the killer's own drawing */
+.cameo.unmasked { right: 7cqw; bottom: 0; height: 40cqw; animation: unmasked 1.4s ease-out both; }
+@keyframes unmasked { 0% { opacity: 0; filter: brightness(6) blur(1.4cqw); transform: scale(1.12); } 60% { opacity: 1; } 100% { opacity: 1; filter: none; transform: none; } }

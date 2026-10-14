@@ -184,7 +184,7 @@ function RollRow({ g, slug, hostKey, locked, onError }: { g: Row; slug: string; 
   );
 }
 
-/** Live tab, before the game: the house rules and the roll call on the TV. */
+/** Live tab, before the game: the roll call and How to play on the TV. */
 export function Segments({ data, slug, hostKey, onError }: { data: Roster; slug: string; hostKey: string; onError: (m: string | null) => void }) {
   const playRules = useMutation(api.voice.playRules);
   const playRoll = useMutation(api.voice.playRollCall);
@@ -194,23 +194,25 @@ export function Segments({ data, slug, hostKey, onError }: { data: Roster; slug:
   const g = data.game;
   if (g.status !== "registration" && g.status !== "lobby") return null;
   // Rough running times, so the buttons know when the TV is back on the doors.
-  const rulesEnd = g.rulesAt ? g.rulesAt + 5 * 9000 : 0;
+  const HOW_MS = 9 * 8500; // How to play: nine cards
   const here = sheet ? sheet.guests.filter((x) => x.checkedIn).length || sheet.guests.length : 0;
   const rollSecs = sheet ? sheet.guests.reduce((s, x) => s + Math.max(5.5, 2.5 + (x.seconds || x.spoken.length / 15)), 0) / Math.max(1, sheet.guests.length) : 7;
   const rollEnd = g.rollCallAt ? g.rollCallAt + (12 + here * rollSecs) * 1000 : 0;
-  const playing = now < rulesEnd ? "rules" : now < rollEnd ? "roll" : null;
+  // How to play runs by itself, or straight after the roll call.
+  const howEnd = g.rulesAt ? g.rulesAt + HOW_MS : rollEnd ? rollEnd + HOW_MS : 0;
+  const playing = now < rollEnd ? "roll" : now < howEnd ? "rules" : null;
   const call = (p: Promise<unknown>) => p.catch((e) => onError(friendlyError(e)));
   const ready = sheet?.counts.ready ?? 0;
   const total = sheet?.counts.total ?? 0;
   return (
     <Sec title="Before the murder">
-      <span className="help">Play the house rules once most guests are here, then the roll call. Then start the game.</span>
+      <span className="help">Once most guests are here, play the roll call. How to play follows it on its own. Then start the game.</span>
       <div className="row">
-        <button type="button" className="btn" aria-pressed={playing === "rules"} onClick={() => call(playRules({ slug, hostKey }))}>
-          {playing === "rules" ? "Rules playing · restart" : "Play the house rules"}
-        </button>
         <button type="button" className="btn" aria-pressed={playing === "roll"} disabled={!total} onClick={() => call(playRoll({ slug, hostKey }))}>
-          {playing === "roll" ? "Roll call playing · restart" : "Play the roll call"}
+          {playing === "roll" ? "Roll call playing · restart" : "Play the roll call + How to play"}
+        </button>
+        <button type="button" className="btn" aria-pressed={playing === "rules"} onClick={() => call(playRules({ slug, hostKey }))}>
+          {playing === "rules" ? "How to play is on · restart" : "Play How to play only"}
         </button>
         <button type="button" className="btn" disabled={!playing} onClick={() => call(stop({ slug, hostKey }))}>
           Stop

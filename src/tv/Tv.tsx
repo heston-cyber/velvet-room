@@ -4,9 +4,13 @@ import { api } from "../../convex/_generated/api";
 import { HOSTS, captionText, type CueKey } from "../../convex/narration";
 import { INTRO_BEATS, INTRO_MS, REVEAL } from "../../convex/shared";
 import { Qr, wifiQrText } from "../lib/qr";
+import HouseMap from "./HouseMap";
+import { avatarSrc, figureUrl } from "../lib/figure";
+import { FACES_RIGHT, FIGURE_KEYS } from "../../convex/figures";
 import { CARD_MS, cardUrl, loopUrl, useMediaBank, type LoopKey } from "./media";
 import { SoundEngine } from "./sound";
-import { cardNow, due, plan, type Data, type Plan } from "./timeline";
+import { cameosNow, cardNow, due, plan, type Cameo, type CharKey, type Data, type Plan } from "./timeline";
+import type { MapData } from "./HouseMap";
 import "./tv.css";
 
 const mid = (l: string) => l.replace(/^The /, "the ");
@@ -50,7 +54,7 @@ const TV_LINK = "velvet-room:tv-link";
  * the big screen. A reload of this window finds it again in this tab's session storage.
  */
 function useTvLink(slug: string, tvKey: string) {
-  const [link] = useState(() => {
+  const [link, setLink] = useState(() => {
     if (slug && tvKey) return { slug, tvKey };
     try {
       return JSON.parse(sessionStorage.getItem(TV_LINK) || "null") ?? { slug: "", tvKey: "" };
@@ -67,14 +71,26 @@ function useTvLink(slug: string, tvKey: string) {
     }
     window.history.replaceState(null, "", "/tv");
   }, [slug, tvKey]);
-  return link as { slug: string; tvKey: string };
+  // Play again: the host started the next game. The TV follows it (same key) and stays unlocked for sound.
+  const follow = useCallback((next: string) => {
+    setLink((l: { slug: string; tvKey: string }) => {
+      const link = { slug: next, tvKey: l.tvKey };
+      try {
+        sessionStorage.setItem(TV_LINK, JSON.stringify(link));
+      } catch {
+        /* this load still follows */
+      }
+      return link;
+    });
+  }, []);
+  return { link: link as { slug: string; tvKey: string }, follow };
 }
 
 export default function Tv(props: { slug: string; tvKey: string }) {
-  const link = useTvLink(props.slug, props.tvKey);
+  const { link, follow } = useTvLink(props.slug, props.tvKey);
   return (
     <Boundary>
-      <TvInner slug={link.slug} tvKey={link.tvKey} />
+      <TvInner slug={link.slug} tvKey={link.tvKey} onNext={follow} />
     </Boundary>
   );
 }
@@ -88,8 +104,12 @@ function useNow(ms: number) {
   return now;
 }
 
-function TvInner({ slug, tvKey }: { slug: string; tvKey: string }) {
+function TvInner({ slug, tvKey, onNext }: { slug: string; tvKey: string; onNext: (slug: string) => void }) {
   const data = useQuery(api.game.tv, { slug, tvKey });
+  const nextSlug = data?.game.nextSlug ?? null;
+  useEffect(() => {
+    if (nextSlug) onNext(nextSlug);
+  }, [nextSlug, onNext]);
   const now = useNow(200);
   const engine = useMemo(() => new SoundEngine(), []);
   const bank = useMediaBank();
@@ -99,6 +119,11 @@ function TvInner({ slug, tvKey }: { slug: string; tvKey: string }) {
   const fired = useRef(new Set<string>());
   const [toast, setToast] = useState<{ text: string; at: number } | null>(null);
   const ping = useMutation(api.game.tvPing);
+
+  // The drawn cast, fetched ahead so nobody pops in half-loaded.
+  useEffect(() => {
+    for (const c of CAST) new Image().src = artUrl(c);
+  }, []);
 
   useEffect(() => {
     void engine.ready.then(() => {
@@ -204,7 +229,7 @@ function TvInner({ slug, tvKey }: { slug: string; tvKey: string }) {
       lastCheck.current = checkAt;
       return;
     }
-    if (checkAt !== lastCheck.current) {
+    if (checkAt !== lastCheck.current && checkAt !== null) {
       lastCheck.current = checkAt;
       setCheckUntil(Date.now() + 7000);
       void engine.sfx("chime");
@@ -271,10 +296,13 @@ function TvInner({ slug, tvKey }: { slug: string; tvKey: string }) {
     <div className={`tv-page ${chrome ? "" : "hide-cursor"}`}>
       <div className="tv-stage" data-scene={scene.key}>
         <Backdrop loop={p.loop} src={bank.src} />
+        {!held && <CameoLayer list={cameosNow(p, now, scene.key, false)} layer="back" />}
         <div className={`tv-content ${held ? "held" : ""}`} key={`${scene.key}:${held ? "hold" : "go"}`}>
           {scene.node}
         </div>
+        {!held && <CameoLayer list={cameosNow(p, now, scene.key, false)} layer="front" />}
         {card && <TitleCard key={`${card.key}:${card.at}`} cardKey={card.key} at={card.at} src={bank.src} />}
+        <CameoLayer list={cameosNow(p, now, scene.key, true)} layer="over" />
         {g.paused && g.status === "playing" && (
           <div className="tv-overlay">
             <span className="tv-kick">Paused</span>
@@ -419,22 +447,7 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
     };
   }
   if (g.status === "registration" || g.status === "lobby") {
-    // The house rules and the roll call play over the doors.
-    if (p.rules && now < p.rules.end) {
-      const i = Math.max(0, p.rules.steps.findIndex((s) => now < s.until));
-      const step = p.rules.steps[i];
-      return {
-        scene: {
-          key: `rules${i}`,
-          node: (
-            <div className="tv-scene">
-              <span className="tv-kick fade">House rule {i + 1} of {p.rules.steps.length}</span>
-              <div className="tv-rule fade">{captionText(step.cue, g.tone, g.narrator.host)}</div>
-            </div>
-          ),
-        },
-      };
-    }
+    // The roll call, then How to play, run over the doors.
     if (p.roll && now < p.roll.end) {
       const i = p.roll.steps.findIndex((s) => now >= s.at && now < s.until);
       if (i >= 0) {
@@ -445,7 +458,7 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
             node: (
               <div className="tv-scene roll">
                 <div className="tv-roll">
-                  <div className="tv-frame fade">{it.photoUrl ? <img src={it.photoUrl} alt="" /> : <span>{initials(it.charName)}</span>}</div>
+                  <div className={`tv-frame fade ${!it.photoUrl && it.figure ? "drawn" : ""}`}>{it.photoUrl ? <img src={it.photoUrl} alt="" /> : it.figure ? <img src={figureUrl(it.figure)} alt="" /> : <span>{initials(it.charName)}</span>}</div>
                   <div className="tv-roll-text">
                     <span className="tv-kick fade">Roll call · {i + 1} of {p.roll.steps.length}</span>
                     <h2 className="tv-h2 fade" style={{ animationDelay: ".25s" }}>{it.charName}</h2>
@@ -472,6 +485,33 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
         },
       };
     }
+    if (p.rules && now >= p.rules.steps[0].at && now < p.rules.end) {
+      const n = p.rules.steps.length;
+      const i = Math.max(0, p.rules.steps.findIndex((s) => now < s.until));
+      const step = p.rules.steps[i];
+      return {
+        scene: {
+          key: `how${i}`,
+          node: (
+            <div className="tv-scene how">
+              <div className={`tv-how ${step.art === "map" ? "wide" : ""}`}>
+                <div className={`tv-how-art ${step.art === "map" ? "map" : ""}`}>
+                  {step.art === "map" ? (
+                    <HouseMap map={demoMap(d.map, step.at)} round={1} now={now} />
+                  ) : (
+                    <img className="enter" src={artUrl(step.art)} alt="" />
+                  )}
+                </div>
+                <div className="tv-how-text">
+                  <span className="tv-kick fade">How to play · {i + 1} of {n}</span>
+                  <div className="tv-rule fade">{captionText(step.cue, g.tone, g.narrator.host)}</div>
+                </div>
+              </div>
+            </div>
+          ),
+        },
+      };
+    }
     if (g.status === "registration") {
       return {
         scene: {
@@ -482,11 +522,14 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
                 <span className="tv-kick">Chicago · October 31, 1929</span>
                 <div className="tv-deco" />
                 <h2 className="tv-h2">The Velvet Room</h2>
-                <p className="tv-sub">The doors open soon.</p>
+                <p className="tv-sub">{(g.gameNumber ?? 1) > 1 ? "A new mystery. Scan the code and make a new character." : "The doors open soon."}</p>
               </div>
               {g.wifi && <WifiCorner wifi={g.wifi} />}
-              <div className="tv-corner br">
-                <b>{d.counts.registered}</b> on the guest list
+              <div className="tv-corner tr">
+                <SignupPanel slug={g.slug} />
+                <span>
+                  <b>{d.counts.registered}</b> on the guest list
+                </span>
               </div>
             </>
           ),
@@ -498,7 +541,7 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
         key: "doors",
         node: (
           <>
-            <div className="tv-scene">
+            <div className="tv-scene doors">
               <span className="tv-kick">The doors are open</span>
               <h2 className="tv-h2" style={{ fontSize: "5.4cqw" }}>The Velvet Room</h2>
               <p className="tv-sub">
@@ -543,7 +586,8 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
       ];
       return { scene: { key: `intro${beat}`, node: frames[beat] } };
     }
-    const waves = g.search === "waves";
+    const bodyKey = d.map.rooms.find((r) => r.label === g.bodyRoom)?.key ?? null;
+    const houseMap = <HouseMap map={d.map} round={round} bodyRoomKey={bodyKey} now={now} />;
     if (round === 1) {
       return {
         scene: {
@@ -551,10 +595,15 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
           node: (
             <div className="tv-scene top">
               <RoundBar d={d} now={now} label="Search the house" />
-              <h2 className="tv-h2" style={{ fontSize: "5.6cqw", marginTop: "1.2cqw" }}>Find the markers.</h2>
-              <p className="tv-sub">Scan them with your phone. Question everyone. Lie only about your own secrets.</p>
-              <p className="tv-sub small">The body was found in {mid(g.bodyRoom)}.</p>
-              {waves ? <OpenRooms d={d} /> : <Exhibits letters={d.exhibits} caption="Exhibits on the evidence table" />}
+              <div className="tv-split">
+                <div className="tv-left">
+                  <h2 className="tv-h2" style={{ fontSize: "5cqw", marginTop: "1cqw" }}>Find the markers.</h2>
+                  <p className="tv-sub">Scan them with your phone. Question everyone. Lie only about your own secrets.</p>
+                  <p className="tv-sub small">The body was found in {mid(g.bodyRoom)}.</p>
+                  <Exhibits letters={d.exhibits} caption="Exhibits on the evidence table" />
+                </div>
+                {houseMap}
+              </div>
             </div>
           ),
         },
@@ -573,8 +622,8 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
           node: (
             <div className="tv-scene top">
               <RoundBar d={d} now={now} label={round === 2 ? "Fresh evidence" : "Last evidence"} />
-              {waves && <OpenRooms d={d} compact />}
-              <div className={`tv-cards ${size}`}>
+              <div className="tv-split">
+              <div className={`tv-cards ${size === "l" ? "l" : "s"}`}>
                 {plain.map((c, i) => (
                   <div className="tv-ev fade" style={{ animationDelay: `${i * 0.35}s` }} key={`p${i}`}>
                     <small>New evidence</small>
@@ -589,6 +638,8 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
                     </div>
                   ))}
                 {!cards.length && <p className="tv-sub">No new evidence this round. Keep digging.</p>}
+              </div>
+              {houseMap}
               </div>
             </div>
           ),
@@ -631,7 +682,7 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
       </div>,
       <div className="tv-scene" key="v1">
         <span className="tv-kick">The killer is</span>
-        <span className="tv-av xl blood fade">{r.killerPhoto ? <img src={r.killerPhoto} alt="" /> : initials(r.killer)}</span>
+        <span className="tv-av xl blood fade">{avatarSrc(r.killerPhoto, r.killerFigure) ? <img src={avatarSrc(r.killerPhoto, r.killerFigure)!} alt="" /> : initials(r.killer)}</span>
         <span className="tv-reveal-name fade">{r.killer}</span>
       </div>,
       <div className="tv-scene" key="v2">
@@ -714,7 +765,7 @@ function Guests({ guests, mark }: { guests: Data["guests"]; mark: "here" | "accu
     <div className="tv-guests" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
       {guests.map((x) => (
         <div key={x.id} className={mark === "here" && !x.here ? "away" : ""}>
-          <span className={`tv-av ${mark === "accused" && x.accused ? "done" : ""}`}>{x.photoUrl ? <img src={x.photoUrl} alt="" /> : initials(x.charName)}</span>
+          <span className={`tv-av ${mark === "accused" && x.accused ? "done" : ""}`}>{avatarSrc(x.photoUrl, x.figure) ? <img src={avatarSrc(x.photoUrl, x.figure)!} alt="" /> : initials(x.charName)}</span>
           {x.charName}
         </div>
       ))}
@@ -735,18 +786,57 @@ function Exhibits({ letters, caption }: { letters: string[]; caption?: string })
   );
 }
 
-function OpenRooms({ d, compact }: { d: Data; compact?: boolean }) {
-  const open = new Set(d.game.openRooms);
+const CAST: CharKey[] = ["don", "killer", ...FIGURE_KEYS];
+const artUrl = (c: CharKey) => `/art/${c}.webp`;
+/** Which way each drawing faces, so walkers face where they're going. */
+const FACES_RIGHT_SET = new Set<CharKey>(FACES_RIGHT);
+const BACK = new Set<Cameo["anim"]>(["stand", "standRight", "lineup"]);
+
+function CameoLayer({ list, layer }: { list: Cameo[]; layer: "back" | "front" | "over" }) {
+  const shown = layer === "over" ? list : list.filter((c) => BACK.has(c.anim) === (layer === "back"));
+  if (!shown.length) return null;
   return (
-    <div className={`tv-open ${compact ? "compact" : ""}`}>
-      <div className="rooms">
-        {d.game.rooms.map((r) => (
-          <span key={r} className={open.has(r) ? "" : "closed"}>
-            {r.replace(/^The /, "")}
-          </span>
-        ))}
+    <div className={`tv-cameos cameos-${layer}`} aria-hidden="true">
+      {shown.map((c) => (
+        <CameoFigure key={c.id} c={c} />
+      ))}
+    </div>
+  );
+}
+
+function CameoFigure({ c }: { c: Cameo }) {
+  // A TV that opens mid-cameo picks the animation up where it is.
+  // (Line-ups with no start time are simply already standing.)
+  const [late] = useState(() => (c.at > 0 && Number.isFinite(c.at) ? Math.min(3_600_000, Math.max(0, Date.now() - c.at)) : 60_000));
+  const right = c.anim === "stroll" || c.anim === "creep" || c.anim === "stand";
+  const left = c.anim === "strollBack" || c.anim === "creepBack" || c.anim === "standRight";
+  const flip = (right && !FACES_RIGHT_SET.has(c.char)) || (left && FACES_RIGHT_SET.has(c.char));
+  return (
+    <div
+      className={`cameo ${c.anim} ${c.char} ${c.on ? `on-${c.on}` : ""}`}
+      style={{ animationDelay: `-${late}ms`, ["--slot" as string]: c.slot ?? 0, ["--n" as string]: c.count ?? 7 }}
+    >
+      <img className={flip ? "flip" : ""} src={artUrl(c.char)} alt="" style={{ animationDelay: `-${late}ms` }} />
+      {c.label && <span className="cameo-name">{c.label}</span>}
+    </div>
+  );
+}
+
+/** How to play, card 5: the real map with every other marker stamped, as if the night were under way. */
+function demoMap(map: MapData, at: number): MapData {
+  return { rooms: map.rooms.map((r) => ({ ...r, opensIn: 1 })), markers: map.markers.map((m, i) => ({ ...m, foundAt: i % 2 ? null : at + 1500 + i * 350 })) };
+}
+
+/** Before the doors open: scan to sign up and make a character (the replay's main screen). */
+function SignupPanel({ slug }: { slug: string }) {
+  return (
+    <div className="tv-join">
+      <Qr className="qr" text={`${window.location.origin}/?game=${encodeURIComponent(slug)}`} label="Scan to sign up" />
+      <div className="tv-join-text">
+        <span className="tiny">Make your character</span>
+        <b className="tv-code tv-code-sm">Sign up</b>
+        <span className="tiny">Scan with your phone camera</span>
       </div>
-      <p className="tv-sub small">{open.size === d.game.rooms.length ? "Every room is open" : "Open for searching this round"}</p>
     </div>
   );
 }

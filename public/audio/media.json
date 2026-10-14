@@ -19,7 +19,10 @@
   "brassSting",
   "fanfare",
   "sinisterBrass",
-  "applause"
+  "applause",
+  "whoosh",
+  "sneak",
+  "creak"
  ],
  "music": [
   "lobby",

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { INTRO_MS, REVEAL } from "../convex/shared";
 import { CARD_MS } from "../src/tv/media";
-import { cardNow, due, plan, type Data } from "../src/tv/timeline";
+import { cameosNow, cardNow, due, plan, type Data } from "../src/tv/timeline";
 
 const T0 = 1_800_000_000_000;
 const secs = () => 3; // every narrator line runs 3 s
@@ -42,13 +42,26 @@ describe("TV timeline", () => {
     expect(p.music).toBe("lobby");
   });
 
-  test("house rules: five cards in order, each with a page flip; the waves version of rule 3", () => {
+  test("how to play: nine illustrated cards in order, with the waves and timer versions when those are on", () => {
     const at = T0 + 60_000;
-    const p = plan(data({ game: { rulesAt: at, search: "waves" } }), at, secs);
-    expect(p.rules!.steps.map((s) => s.cue)).toEqual(["rules1", "rules2", "rules3Waves", "rules4", "rules5"]);
-    for (let i = 1; i < 5; i++) expect(p.rules!.steps[i].at).toBe(p.rules!.steps[i - 1].until);
-    expect(p.events.filter((e) => e.sfx === "cardFlip")).toHaveLength(5);
-    expect(p.events.filter((e) => e.cue?.startsWith("rules")).every((e) => e.quiet)).toBe(true);
+    const p = plan(data({ game: { rulesAt: at, search: "waves", pacing: { mode: "timer", roundMinutes: 10 } } }), at, secs);
+    expect(p.rules!.steps.map((s) => s.cue)).toEqual(["howTo1", "howTo2", "howTo3", "howTo4Waves", "howTo5", "howTo6Timer", "howTo7", "howTo8", "howTo9"]);
+    expect(p.rules!.steps.map((s) => s.art)).toEqual(["don", "killer", "flapper", "dapper", "map", "bodyguard", "lady", "detective", "killer"]);
+    for (let i = 1; i < 9; i++) expect(p.rules!.steps[i].at).toBe(p.rules!.steps[i - 1].until);
+    expect(p.events.filter((e) => e.id.startsWith("how:") && (e.sfx === "whoosh" || e.sfx === "cardFlip"))).toHaveLength(9);
+    expect(p.events.filter((e) => e.cue?.startsWith("howTo")).every((e) => e.quiet)).toBe(true);
+    const plain = plan(data({ game: { rulesAt: at } }), at, secs);
+    expect(plain.rules!.steps.map((s) => s.cue)).toContain("howTo4");
+    expect(plain.rules!.steps.map((s) => s.cue)).toContain("howTo6");
+  });
+
+  test("how to play follows the roll call on its own", () => {
+    const at = T0 + 120_000;
+    const items = [{ id: "a", charName: "A", realName: "Ann", photoUrl: null, line: "Line a.", clip: null }];
+    const p = plan(data({ voice: { rollCall: { at, items } } }), at, secs);
+    expect(p.rules!.steps[0].at).toBe(p.roll!.end + 1000);
+    // while the roll call plays, How to play waits its turn
+    expect(p.rules!.steps[0].at).toBeGreaterThan(p.roll!.steps[0].until);
   });
 
   test("roll call: title card, the opener, one card per guest long enough for the line, then the closer", () => {
@@ -68,7 +81,7 @@ describe("TV timeline", () => {
     expect(steps[1].until - steps[1].at).toBe((0.9 + 7 + 1.6) * 1000);
     expect(p.events.filter((e) => e.clip).every((e) => e.quiet)).toBe(true);
     expect(p.events.filter((e) => e.clip)).toHaveLength(2);
-    expect(p.events.at(-1)?.cue).toBe("rollCallClose");
+    expect(p.events.filter((e) => e.id.startsWith("roll:")).at(-1)?.cue).toBe("rollCallClose");
     // reminders keep quiet while it plays
     expect(p.events.some((e) => e.cue === "doorsReminder" && e.at >= at && e.at <= p.roll!.end)).toBe(false);
     // and the doors come back after
@@ -121,11 +134,43 @@ describe("TV timeline", () => {
     expect(p.ambience).toEqual(["drumroll"]);
   });
 
+  test("the cast: the Don greets the lobby, falls at lights out, a guest creeps by each round, the killer peeks after the twist", () => {
+    let p = plan(data(), T0 + 5000, secs);
+    expect(cameosNow(p, T0 + 5000, "doors", false).map((c) => c.char)).toEqual(["don"]);
+    expect(cameosNow(p, T0 + 5000, "rules0", false)).toHaveLength(0);
+    expect(p.cameos.some((c) => c.anim === "stroll" || c.anim === "strollBack")).toBe(true);
+    const g = { status: "playing", round: 1, startedAt: T0, introEndsAt: T0 + INTRO_MS };
+    p = plan(data({ game: g }), T0 + 1000, secs);
+    expect(cameosNow(p, T0 + 1000, "intro0", true).map((c) => c.anim)).toEqual(["fall"]);
+    const t = T0 + 900_000;
+    const evidence = [{ round: 3, text: "a", twist: false }, { round: 3, text: "twist", twist: true }];
+    p = plan(data({ game: { status: "playing", round: 3, startedAt: T0, introEndsAt: T0 + INTRO_MS, roundStartedAt: t }, evidence }), t + 100, secs);
+    const peek = p.cameos.find((c) => c.anim === "peek")!;
+    expect(peek.char).toBe("killer");
+    expect(peek.at).toBeGreaterThan(p.twistAt!);
+    expect(p.events.some((e) => e.sfx === "creak" && e.at === peek.at)).toBe(true);
+    const creep = p.cameos.find((c) => c.id.endsWith(":creep"))!;
+    expect(creep.at).toBeGreaterThan(p.holdUntil);
+    expect(cameosNow(p, creep.at + 100, "r3", false).some((c) => c.id === creep.id)).toBe(true);
+    expect(cameosNow(p, creep.at + 100, "r2", false).some((c) => c.id === creep.id)).toBe(false);
+  });
+
+  test("the cast: a line-up at the accusations and the masked killer at the reveal", () => {
+    const t = T0 + 1_200_000;
+    let p = plan(data({ game: { status: "playing", round: 4, startedAt: T0, introEndsAt: T0 + INTRO_MS, roundStartedAt: t } }), t + 6000, secs);
+    const line = cameosNow(p, t + 6000, "accuse", false);
+    expect(line.map((c) => c.char)).toEqual(["flapper", "dapper", "lady", "killer", "bodyguard", "sleuth", "detective"]);
+    expect(line.map((c) => c.slot)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    p = plan(data({ game: { status: "reveal", round: 4, revealAt: t } }), t + REVEAL.line + 100, secs);
+    expect(cameosNow(p, t + REVEAL.line + 100, "reveal0", false).map((c) => c.anim)).toEqual(["spot"]);
+    expect(cameosNow(p, t + REVEAL.name + 100, "reveal1", true).map((c) => c.anim)).toEqual(["unmask"]);
+  });
+
   test("each event fires once, and only while fresh", () => {
     const p = plan(data(), T0 + 4400, secs);
     const fired = new Set<string>();
     const first = due(p, T0 + 4400, fired);
-    expect(first.map((e) => e.cue)).toEqual(["doors"]);
+    expect(first.map((e) => e.cue ?? e.sfx).sort()).toEqual(["doors", "whoosh"]);
     for (const e of first) fired.add(e.id);
     expect(due(p, T0 + 4600, fired)).toHaveLength(0);
     // a TV opened a minute after the doors stays quiet about the welcome

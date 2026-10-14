@@ -7,9 +7,9 @@ const modules = import.meta.glob("../convex/**/*.ts");
 const FUTURE = Date.now() + 7 * 864e5;
 
 const guests = [
-  { realName: "Ana Ruiz", charName: "Velma “Two-Bits” Kowalski", who: "Cigarette girl who sells secrets.", signature: "Silver cigarette case", weapon: "Brass candlestick", weaponDesc: "Heavy, a foot tall, dented base.", killerOk: true },
-  { realName: "Ben Cho", charName: "Father Malone", who: "A priest who drinks too much.", signature: "Rosary he twirls", weapon: "Rubber chicken", weaponDesc: "Yellow, squeaks when squeezed.", killerOk: false },
-  { realName: "Cal Ortiz", charName: "Lucky Lou", who: "Bookie with bad luck.", signature: "Lucky green dice", weapon: "Pool cue", weaponDesc: "Snapped in half, chalk on the tip.", killerOk: true },
+  { realName: "Ana Ruiz", charName: "Velma “Two-Bits” Kowalski", who: "Cigarette girl who sells secrets.", signature: "Silver cigarette case", weapon: "Brass candlestick", weaponDesc: "Heavy, a foot tall, dented base.", killerOk: true, figure: "flapper" },
+  { realName: "Ben Cho", charName: "Father Malone", who: "A priest who drinks too much.", signature: "Rosary he twirls", weapon: "Rubber chicken", weaponDesc: "Yellow, squeaks when squeezed.", killerOk: false, figure: "dapper" },
+  { realName: "Cal Ortiz", charName: "Lucky Lou", who: "Bookie with bad luck.", signature: "Lucky green dice", weapon: "Pool cue", weaponDesc: "Snapped in half, chalk on the tip.", killerOk: true, figure: "gambler" },
 ];
 
 async function setup(motiveMode: "game" | "players" = "game", closesAt = FUTURE) {

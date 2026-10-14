@@ -65,6 +65,7 @@ export const room = query({
           charName: p.charName,
           firstName: firstName(p.realName),
           photoUrl: p.photoId ? await ctx.storage.getUrl(p.photoId) : null,
+          figure: p.figure ?? null,
           taken: !!p.claimedAt,
         })),
     );
