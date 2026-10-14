@@ -253,10 +253,12 @@
 /* a guest without a photo: their drawing in the gold frame, from the top */
 .tv-frame.drawn img { object-fit: cover; object-position: 50% 0; background: var(--felt); }
 /* line-ups: spaced for however many stand in them, names underneath */
-.cameo.lineup { left: calc(2cqw + var(--slot) * (96cqw / var(--n))); width: calc(96cqw / var(--n)); display: grid; justify-items: center; }
-.cameo.lineup img { height: 100%; width: auto; }
+.cameo.lineup { left: calc(2cqw + var(--slot) * (96cqw / var(--n))); width: calc(96cqw / var(--n)); }
+.cameo.lineup img { height: 100%; width: auto; max-width: none; margin: 0 auto; }
 .cameo-name { position: absolute; bottom: 1.4cqw; left: 50%; transform: translateX(-50%); white-space: nowrap; font-family: var(--label); font-size: 1cqw; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--paper); background: rgba(10, 3, 6, .82); padding: .25cqw .6cqw .15cqw; border: 1px solid var(--brass-dim); }
 .cameo.lineup.on-accuse .cameo-name { display: none; }
 /* the reveal: out of the flash, the killer's own drawing */
 .cameo.unmasked { right: 7cqw; bottom: 0; height: 40cqw; animation: unmasked 1.4s ease-out both; }
 @keyframes unmasked { 0% { opacity: 0; filter: brightness(6) blur(1.4cqw); transform: scale(1.12); } 60% { opacity: 1; } 100% { opacity: 1; filter: none; transform: none; } }
+/* the reveal: leave room on the right for the killer's drawing */
+.tv-stage[data-scene="reveal0"] .tv-scene, .tv-stage[data-scene="reveal1"] .tv-scene, .tv-stage[data-scene="reveal2"] .tv-scene { padding-right: 26cqw; padding-left: 6cqw; }

@@ -56,8 +56,13 @@ created = cx("admin:createGame", {"slug": SLUG, "title": "Join e2e", "isTest": T
                                   "registrationClosesAt": int(time.time() * 1000) + 7 * 864e5, "deadlineLabel": "Sat, Oct 24"})
 KEY = created["hostKey"]
 cx("game:seedFakeCast", {"slug": SLUG, "guests": 5, "markers": 8, "seed": 21, "checkIn": False})
+def free_figure():
+    """A drawing no fake guest has taken yet (each drawing belongs to one guest)."""
+    sets = cx("registration:figures", {"slug": SLUG})
+    return next(f["key"] for s in sets for f in s["figures"] if not f["taken"])
+
 me = cx("registration:register", {"slug": SLUG, "realName": "Heston Test", "charName": "Velma Kowalski", "who": "Cigarette girl who sells secrets.",
-                                  "signature": "Silver cigarette case", "weapon": "Brass candlestick", "weaponDesc": "Heavy, dented base.", "killerOk": True, "figure": "flapper"})
+                                  "signature": "Silver cigarette case", "weapon": "Brass candlestick", "weaponDesc": "Heavy, dented base.", "killerOk": True, "figure": free_figure()})
 roster = cx("host:roster", {"slug": SLUG, "hostKey": KEY})
 ok(roster["game"]["roomCode"] is None, "no room code while sign-ups run")
 cx("game:openDoors", {"slug": SLUG, "hostKey": KEY})
