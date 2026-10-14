@@ -1,8 +1,10 @@
 :root {
-  --felt: #0d1613;
-  --brass: #c9a45c;
-  --paper: #ece4d0;
-  --muted: #a7a18f;
+  --felt: #2a0a13;
+  --velvet-hi: #4f1424;
+  --velvet-lo: #1a060c;
+  --brass: #d6b25e;
+  --paper: #f5e8d2;
+  --muted: #c9ab9c;
   --display: "Limelight", Georgia, serif;
   --body: "Crimson Pro", Georgia, serif;
   --label: "Josefin Sans", system-ui, sans-serif;
@@ -10,6 +12,13 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--felt); color: var(--paper); font-family: var(--body); }
+body {
+  background:
+    radial-gradient(120% 70% at 25% 0%, var(--velvet-hi) 0%, transparent 60%),
+    radial-gradient(90% 60% at 100% 100%, var(--velvet-lo) 0%, transparent 70%),
+    var(--felt);
+  min-height: 100dvh;
+}
 .door {
   min-height: 100dvh; display: grid; place-content: center; justify-items: center;
   gap: 16px; padding: 24px 16px; text-align: center;
