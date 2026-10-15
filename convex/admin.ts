@@ -45,7 +45,6 @@ export const createGame = internalMutation({
       rooms: DEFAULT_ROOMS,
       pacing: { mode: "ready", roundMinutes: 12 },
       search: "all",
-      mode: "play",
       createdAt: Date.now(),
     });
     return { slug: args.slug, hostKey };

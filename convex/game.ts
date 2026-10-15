@@ -49,9 +49,8 @@ async function playersOf(ctx: QueryCtx, gameId: Id<"games">) {
 /** Builds the engine's input from who actually showed up. */
 async function caseInput(ctx: QueryCtx, game: Doc<"games">): Promise<CaseInput> {
   const before = game.status === "registration" || game.status === "lobby";
-  // Before the draw: everyone checked in except the MC. After: exactly who was in the draw.
-  const mc = game.mode === "mc" ? game.mcPlayerId : undefined;
-  const players = (await playersOf(ctx, game._id)).filter((p) => (before ? p.checkedIn && p._id !== mc : p.inGame));
+  // Before the draw: everyone checked in. After: exactly who was in the draw.
+  const players = (await playersOf(ctx, game._id)).filter((p) => (before ? p.checkedIn : p.inGame));
   const weapons = await ctx.db
     .query("weapons")
     .withIndex("by_game", (q) => q.eq("gameId", game._id))
@@ -101,8 +100,8 @@ export async function dealLetter(ctx: MutationCtx, game: Doc<"games">): Promise<
 
 const isPlaying = (g: Doc<"games">) => g.status === "playing";
 
-/** Guests who are playing: in the draw, and not the MC (who may have taken over mid-game). */
-const playingOf = (g: Doc<"games">, players: Doc<"players">[]) => players.filter((p) => p.inGame && p._id !== g.mcPlayerId);
+/** Guests who are playing: everyone in the draw. */
+const playingOf = (players: Doc<"players">[]) => players.filter((p) => p.inGame);
 
 /** A marker's room opens in this round (Round 1 unless searching in waves). */
 function markerOpensIn(game: Doc<"games">, roomKey: string) {
@@ -124,7 +123,7 @@ async function advance(ctx: MutationCtx, game: Doc<"games">) {
   if (round >= 4) return nextRound(ctx, game);
   const v = voteOf(game);
   if (!v) {
-    const anyJailed = playingOf(game, await playersOf(ctx, game._id)).some((p) => p.jailed);
+    const anyJailed = playingOf(await playersOf(ctx, game._id)).some((p) => p.jailed);
     return startVote(ctx, game, round >= 2 && anyJailed ? "release" : "jail");
   }
   if (!v.closedAt) return closeVote(ctx, game);
@@ -151,7 +150,7 @@ async function nextRound(ctx: MutationCtx, game: Doc<"games">) {
 // ---------- votes (v2): jail and release, after every round ----------
 
 /** Guests in the game who aren't in jail: they search, vote and lock in. */
-const freeOf = (g: Doc<"games">, players: Doc<"players">[]) => playingOf(g, players).filter((p) => !p.jailed);
+const freeOf = (players: Doc<"players">[]) => playingOf(players).filter((p) => !p.jailed);
 
 /** This round's vote, open or showing its verdict. */
 const voteOf = (game: Doc<"games">) => (game.vote && game.vote.round === game.round ? game.vote : null);
@@ -166,8 +165,8 @@ async function ballotsOf(ctx: QueryCtx, gameId: Id<"games">, voteAt: number) {
 /** Opens a vote. The voters are the free guests right now; more than half of them must agree. */
 async function startVote(ctx: MutationCtx, game: Doc<"games">, kind: "jail" | "release", exclude?: Id<"players">) {
   const players = await playersOf(ctx, game._id);
-  const free = freeOf(game, players);
-  const candidates = kind === "jail" ? free.filter((p) => p._id !== exclude) : playingOf(game, players).filter((p) => p.jailed);
+  const free = freeOf(players);
+  const candidates = kind === "jail" ? free.filter((p) => p._id !== exclude) : playingOf(players).filter((p) => p.jailed);
   const at = Date.now();
   const endsAt = at + VOTE.ms;
   const vote = { kind, round: game.round ?? 1, at, endsAt, voters: free.map((p) => p._id), candidates: candidates.map((p) => p._id) };
@@ -297,7 +296,7 @@ async function publicVote(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">
 /** Ready votes: once most guests in the game are ready, the next round starts. */
 async function maybeAdvanceOnReady(ctx: MutationCtx, game: Doc<"games">) {
   if (game.pacing.mode !== "ready" || game.paused || !game.round || game.round > 3 || voteOf(game)) return;
-  const inGame = freeOf(game, await playersOf(ctx, game._id));
+  const inGame = freeOf(await playersOf(ctx, game._id));
   const ready = inGame.filter((p) => p.readyRound === game.round).length;
   if (inGame.length && ready > inGame.length / 2) await advance(ctx, game);
 }
@@ -305,7 +304,7 @@ async function maybeAdvanceOnReady(ctx: MutationCtx, game: Doc<"games">) {
 /** Accusations: once everyone in the game has accused, the reveal starts. */
 async function maybeRevealOnAccusations(ctx: MutationCtx, game: Doc<"games">) {
   if (!isPlaying(game) || (game.round ?? 0) < 4 || game.paused) return;
-  const inGame = freeOf(game, await playersOf(ctx, game._id));
+  const inGame = freeOf(await playersOf(ctx, game._id));
   const acc = await ctx.db
     .query("accusations")
     .withIndex("by_game", (q) => q.eq("gameId", game._id))
@@ -328,19 +327,18 @@ async function scoreGame(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile) {
     const gotAccomplice = !!sol.accompliceId && a.accompliceId === sol.accompliceId;
     return { playerId: a.playerId, score, ace: score === 3, gotKiller: a.suspectId === sol.killerId, gotAccomplice, at: a.at };
   });
-  // v2: every lock-in counts, the killer's too (their last sabotage). The MC isn't a detective.
-  const locked = scores.filter((s) => s.playerId !== game.mcPlayerId);
-  const n = locked.length;
-  const named = locked.filter((s) => s.gotKiller).length;
+  // v2: every lock-in counts, the killer's too (their last sabotage).
+  const n = scores.length;
+  const named = scores.filter((s) => s.gotKiller).length;
   const byId = new Map(accs.map((a) => [a.playerId as string, a]));
-  const rightWeapon = locked.filter((s) => byId.get(s.playerId)?.exhibitId === sol.exhibitId).length;
-  const rightRoom = locked.filter((s) => byId.get(s.playerId)?.roomKey === sol.roomKey).length;
+  const rightWeapon = scores.filter((s) => byId.get(s.playerId)?.exhibitId === sol.exhibitId).length;
+  const rightRoom = scores.filter((s) => byId.get(s.playerId)?.roomKey === sol.roomKey).length;
   // The group wins only if more than half of the lock-ins have the killer, more than half the weapon, and more than
   // half the room (Heston: "No ties"). Otherwise the killer wins.
   const groupWins = n > 0 && named > n / 2 && rightWeapon > n / 2 && rightRoom > n / 2;
   // Best Detective: never the killer or the accomplice. Most right wins; a right accomplice guess breaks a tie; then
   // whoever locked in first.
-  const detectives = locked.filter((s) => s.playerId !== sol.killerId && s.playerId !== sol.accompliceId);
+  const detectives = scores.filter((s) => s.playerId !== sol.killerId && s.playerId !== sol.accompliceId);
   const best = [...detectives].sort((a, b) => b.score - a.score || Number(b.gotAccomplice) - Number(a.gotAccomplice) || a.at - b.at)[0];
   const name = (id: string) => players.find((p) => p._id === id)?.charName ?? "";
   return {
@@ -378,7 +376,7 @@ export const setReady = mutation({
   args: { token: v.string(), ready: v.boolean() },
   handler: async (ctx, { token, ready }) => {
     const { player, game } = await requirePlayer(ctx, token);
-    if (!isPlaying(game) || !player.inGame || player.jailed || player._id === game.mcPlayerId || !game.round || game.round > 3) return { ok: false };
+    if (!isPlaying(game) || !player.inGame || player.jailed || !game.round || game.round > 3) return { ok: false };
     await ctx.db.patch(player._id, { readyRound: ready ? game.round : 0 });
     await maybeAdvanceOnReady(ctx, (await ctx.db.get(game._id))!);
     return { ok: true };
@@ -432,7 +430,6 @@ export const accuse = mutation({
     if (!isPlaying(game) || (game.round ?? 0) < 4) throw new ConvexError("The lock-in opens after the last round.");
     if (!player.inGame) throw new ConvexError("Only guests in the game can lock in.");
     if (player.jailed) throw new ConvexError("You're in jail, so you can't lock in.");
-    if (player._id === game.mcPlayerId) throw new ConvexError("You're the MC tonight, so you don't accuse.");
     if (suspectId === player._id) throw new ConvexError("You can't accuse yourself. Nice try.");
     const input = await caseInput(ctx, game);
     if (!input.suspects.some((s) => s.id === suspectId)) throw new ConvexError("Pick a suspect from the list.");
@@ -499,8 +496,8 @@ export const phone = query({
       .query("markers")
       .withIndex("by_game", (q) => q.eq("gameId", game._id))
       .collect();
-    const inGame = playingOf(game, all);
-    const free = freeOf(game, all);
+    const inGame = playingOf(all);
+    const free = freeOf(all);
     const round = game.round ?? 0;
     const roomLabel = (key?: string) => game.rooms.find((r) => r.key === key)?.label ?? "";
     const keyOf = await weaponKeys(ctx, game);
@@ -540,7 +537,6 @@ export const phone = query({
         // Rooms open for searching right now (all of them unless searching in waves).
         openRooms: started && game.roomOrder ? openRoomsIn(round, game.roomOrder, game.search).map(roomLabel) : [],
         wifi: game.wifi?.name ? game.wifi : null,
-        mode: game.mode ?? "play",
         introEndsAt: game.introEndsAt ?? null,
         rolesOut,
         revealAt: game.revealAt ?? null,
@@ -561,7 +557,6 @@ export const phone = query({
         jailed: !!player.jailed,
         weaponIn: !!player.weaponIn,
         exhibitLetter: player.exhibitLetter ?? null,
-        isMC: game.mcPlayerId === player._id,
         ready: !!game.round && player.readyRound === game.round,
         notebook: player.notebook ?? [],
       },
@@ -577,7 +572,7 @@ export const phone = query({
         inGame: free.length,
         jailed: inGame.length - free.length,
         ready: game.round ? free.filter((p) => p.readyRound === game.round).length : 0,
-        accused: accs.filter((a) => a.playerId !== game.mcPlayerId).length,
+        accused: accs.length,
       },
       vote: started ? await publicVote(ctx, game, all) : null,
       myBallot: started ? await myBallot(ctx, game, player._id) : null,
@@ -768,7 +763,7 @@ export const startGame = mutation({
     const { validation: _v, ...file } = cf as CaseFile & { validation?: unknown };
     await ctx.db.insert("sealed", { gameId: game._id, ...(await seal(file)) });
     for (const p of await playersOf(ctx, game._id)) {
-      await ctx.db.patch(p._id, { inGame: p.checkedIn && !(game.mode === "mc" && p._id === game.mcPlayerId), readyRound: 0 });
+      await ctx.db.patch(p._id, { inGame: p.checkedIn, readyRound: 0 });
     }
     // The show plays on the TV first (intro, How to play, roll call, check your phones); Round 1's clock
     // starts when it ends. The roll call's turns are estimated now and fixed when it begins.
@@ -1004,33 +999,6 @@ export const soundCheck = mutation({
   },
 });
 
-/**
- * Host, mid-game: switch to Self MC. Whoever takes over sees the answer on the laptop,
- * so they stop playing: their ready taps and guesses no longer count.
- */
-export const switchToSelfMC = mutation({
-  args: { slug: v.string(), hostKey: v.string(), confirm: v.literal("SWITCH"), mcPlayerId: v.union(v.id("players"), v.null()) },
-  handler: async (ctx, { slug, hostKey, mcPlayerId }) => {
-    const game = await requireHost(ctx, slug, hostKey);
-    if (!isPlaying(game)) throw new ConvexError("Switch to Self MC while the game is running, or pick it in the game menu before you start.");
-    if ((game.mode ?? "play") === "mc") return { ok: true };
-    if (mcPlayerId) {
-      const p = await ctx.db.get(mcPlayerId);
-      if (!p || p.gameId !== game._id) throw new ConvexError("Pick the MC from the guest list.");
-      const acc = await ctx.db
-        .query("accusations")
-        .withIndex("by_player", (q) => q.eq("playerId", mcPlayerId))
-        .unique();
-      if (acc) await ctx.db.delete(acc._id);
-    }
-    await ctx.db.patch(game._id, { mode: "mc", mcPlayerId: mcPlayerId ?? undefined });
-    const fresh = (await ctx.db.get(game._id))!;
-    await maybeAdvanceOnReady(ctx, fresh);
-    await maybeRevealOnAccusations(ctx, fresh);
-    return { ok: true };
-  },
-});
-
 export const timerTick = internalMutation({
   args: { gameId: v.id("games"), round: v.number() },
   handler: async (ctx, { gameId, round }) => {
@@ -1229,7 +1197,7 @@ export const tv = query({
           .collect()
       : [];
     const accused = new Set(accs.map((a) => a.playerId));
-    const shown = started ? playingOf(game, all) : all.filter((p) => p._id !== game.mcPlayerId);
+    const shown = started ? playingOf(all) : all;
     const free = shown.filter((p) => !p.jailed);
     const cf = started ? await caseFor(ctx, game) : null;
     const input = started ? await caseInput(ctx, game) : null;
@@ -1271,7 +1239,7 @@ export const tv = query({
         rightWeapon: scored.rightWeapon,
         rightRoom: scored.rightRoom,
         accusers: scored.accusers,
-        aces: scored.scores.filter((s) => s.ace && s.playerId !== game.mcPlayerId).map((s) => name(s.playerId)),
+        aces: scored.scores.filter((s) => s.ace).map((s) => name(s.playerId)),
         awards,
       };
     }
@@ -1303,7 +1271,6 @@ export const tv = query({
         tone: game.tone ?? "classic",
         narrator: narratorOf(game),
         levels: levelsOf(game),
-        mode: game.mode ?? "play",
         search: game.search ?? "all",
         // v2: a killer + accomplice game (fixed at Start): How to play adds the accomplice, the reveal names them.
         accomplice: started && !!game.hasAccomplice,
@@ -1332,8 +1299,8 @@ export const tv = query({
           })),
       ),
       counts: {
-        registered: all.filter((p) => p._id !== game.mcPlayerId).length,
-        here: all.filter((p) => p.checkedIn && p._id !== game.mcPlayerId).length,
+        registered: all.length,
+        here: all.filter((p) => p.checkedIn).length,
         // v2: the free guests search, vote and lock in; jailed ones sit it out.
         playing: free.length,
         jailed: shown.length - free.length,
@@ -1385,7 +1352,10 @@ async function tvMap(ctx: QueryCtx, game: Doc<"games">) {
   };
 }
 
-/** The TV window checks in, so the host laptop can show "TV connected" and whether sound is on. */
+/**
+ * The TV stage (on the host screen) checks in every 20 seconds. Older games get their room code here. The check-in
+ * fields (tvSeenAt, tvSound, tvMedia) were for the separate TV window's status on the host laptop; nothing shows them now.
+ */
 export const tvPing = mutation({
   args: { slug: v.string(), tvKey: v.string(), sound: v.boolean(), media: v.optional(v.boolean()) },
   handler: async (ctx, { slug, tvKey, sound, media }) => {

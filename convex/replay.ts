@@ -44,7 +44,6 @@ export const newGame = mutation({
       rooms: game.rooms,
       pacing: game.pacing,
       search: game.search,
-      mode: game.mode, // a Self MC is picked again for game 2 (or the game runs itself)
       wifi: game.wifi,
       tone: game.tone,
       narrator: game.narrator,

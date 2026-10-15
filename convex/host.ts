@@ -3,11 +3,9 @@ import { mutation, query } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
 import { MAX_ROOMS, MIN_ROOMS, openRoomsIn } from "./engine/build";
-import type { CaseFile } from "./engine/types";
 import { randomCode, registrationIsOpen, requireHost } from "./lib";
 import { ensureAllCards } from "./cards";
 import { MAX_CARDS } from "./shared";
-import { unseal } from "./seal";
 import { levelsOf, narratorOf } from "./voiceLines";
 
 const started = (g: Doc<"games">) => g.status !== "registration" && g.status !== "lobby";
@@ -22,7 +20,7 @@ async function playersOf(ctx: QueryCtx, game: Doc<"games">) {
 /**
  * The host's view of the game. Built to hold no spoilers: characters and real
  * names only. Weapons, motives, secrets, roles and guesses are never read here,
- * apart from counts. (Self MC has its own query, mcSheet, that does show the answer.)
+ * apart from counts.
  */
 export const roster = query({
   args: { slug: v.string(), hostKey: v.string() },
@@ -58,13 +56,12 @@ export const roster = query({
           jailed: !!p.jailed,
           ready: !!round && p.readyRound === round,
           accused: accused.has(p._id),
-          isMC: game.mcPlayerId === p._id,
           claimed: !!p.claimedAt,
           registeredAt: p.createdAt,
         })),
     );
     // v2: the free guests (not in jail) are the ones who ready up and lock in.
-    const playing = rows.filter((p) => p.inGame && !p.isMC && !p.jailed);
+    const playing = rows.filter((p) => p.inGame && !p.jailed);
     const label = (key?: string) => game.rooms.find((r) => r.key === key)?.label ?? "";
     return {
       game: {
@@ -85,8 +82,6 @@ export const roster = query({
         rooms: game.rooms,
         pacing: game.pacing,
         tone: game.tone ?? "classic",
-        mode: game.mode ?? "play",
-        mcPlayerId: game.mcPlayerId ?? null,
         search: game.search ?? "all",
         wifi: game.wifi ?? { name: "", password: "" },
         narrator: narratorOf(game),
@@ -94,7 +89,6 @@ export const roster = query({
         rulesAt: game.rulesAt ?? null,
         rollCallAt: game.rollCallAt ?? null,
         doorsAt: game.doorsAt ?? null,
-        tvMedia: !!game.tvMedia,
         roomCode: game.roomCode ?? null,
         round,
         paused: !!game.paused,
@@ -109,8 +103,6 @@ export const roster = query({
         nextSlug: game.nextSlug ?? null,
         gameNumber: game.gameNumber ?? 1,
         tvKey: game.tvKey ?? null,
-        tvSeenAt: game.tvSeenAt ?? null,
-        tvSound: !!game.tvSound,
         // Public once the game starts: where the body was found, and which rooms are open now.
         bodyRoom: started(game) ? label(game.bodyRoomKey) : null,
         openRooms: started(game) && game.roomOrder ? openRoomsIn(round, game.roomOrder, game.search).map(label) : [],
@@ -120,8 +112,8 @@ export const roster = query({
       counts: {
         total: players.length,
         optedIn: players.filter((p) => p.killerOk).length,
-        checkedIn: rows.filter((p) => p.checkedIn && !p.isMC).length,
-        weaponsIn: rows.filter((p) => p.checkedIn && p.weaponIn && !p.isMC).length,
+        checkedIn: rows.filter((p) => p.checkedIn).length,
+        weaponsIn: rows.filter((p) => p.checkedIn && p.weaponIn).length,
         inGame: playing.length,
         ready: playing.filter((p) => p.ready).length,
         accused: playing.filter((p) => p.accused).length,
@@ -151,18 +143,16 @@ export const updateSettings = mutation({
       }),
     ),
     tone: v.optional(v.union(v.literal("classic"), v.literal("adult"))),
-    mode: v.optional(v.union(v.literal("play"), v.literal("mc"))),
-    mcPlayerId: v.optional(v.union(v.id("players"), v.null())),
     search: v.optional(v.union(v.literal("all"), v.literal("waves"))),
     wifi: v.optional(v.object({ name: v.string(), password: v.string() })),
     narrator: v.optional(v.object({ host: v.union(v.literal("ivy"), v.literal("duke")), unstable: v.boolean() })),
     levels: v.optional(v.object({ voice: v.number(), music: v.number(), sfx: v.number() })),
   },
-  handler: async (ctx, { slug, hostKey, mcPlayerId, ...patch }) => {
+  handler: async (ctx, { slug, hostKey, ...patch }) => {
     const game = await requireHost(ctx, slug, hostKey);
     // Guest Wi-Fi and the volume levels can change any time (a typo shouldn't wait); everything else locks at Start.
     const anyTime = ["wifi", "levels"];
-    const onlyWifi = mcPlayerId === undefined && Object.entries(patch).every(([k, val]) => anyTime.includes(k) || val === undefined);
+    const onlyWifi = Object.entries(patch).every(([k, val]) => anyTime.includes(k) || val === undefined);
     if (started(game) && !onlyWifi) throw new ConvexError("The game has started, so settings are locked.");
     const update: Partial<Doc<"games">> = {};
     if (patch.rooms) {
@@ -199,21 +189,9 @@ export const updateSettings = mutation({
       update.levels = { voice: lv(patch.levels.voice), music: lv(patch.levels.music), sfx: lv(patch.levels.sfx) };
     }
     if (patch.narrator) update.narrator = { host: patch.narrator.host, unstable: patch.narrator.unstable };
-    if (mcPlayerId !== undefined) {
-      const nextMode = patch.mode ?? game.mode ?? "play";
-      if (mcPlayerId !== null && nextMode !== "mc") throw new ConvexError("Pick Self MC first, then choose the MC.");
-      if (mcPlayerId === null) update.mcPlayerId = undefined;
-      else {
-        const p = await ctx.db.get(mcPlayerId);
-        if (!p || p.gameId !== game._id) throw new ConvexError("Pick the MC from the guest list.");
-        update.mcPlayerId = mcPlayerId;
-      }
-    }
-    for (const key of ["motiveMode", "killerOptIn", "accomplice", "lookalikes", "registrationOpen", "registrationClosesAt", "deadlineLabel", "tone", "mode", "search"] as const) {
+    for (const key of ["motiveMode", "killerOptIn", "accomplice", "lookalikes", "registrationOpen", "registrationClosesAt", "deadlineLabel", "tone", "search"] as const) {
       if (patch[key] !== undefined) (update as Record<string, unknown>)[key] = patch[key];
     }
-    // Switching back to "everyone plays" means nobody is the MC.
-    if (patch.mode === "play") update.mcPlayerId = undefined;
     await ctx.db.patch(game._id, update);
     return { ok: true };
   },
@@ -232,7 +210,6 @@ export const removePlayer = mutation({
       .collect();
     for (const w of weapons) await ctx.db.delete(w._id);
     if (player.photoId) await ctx.storage.delete(player.photoId);
-    if (game.mcPlayerId === playerId) await ctx.db.patch(game._id, { mcPlayerId: undefined });
     await ctx.db.delete(playerId);
     return { ok: true };
   },
@@ -304,50 +281,6 @@ export const markerCards = query({
       markers: markers
         .sort((a, b) => a.number - b.number)
         .map((m) => ({ number: m.number, code: m.code, room: game.rooms.find((r) => r.key === m.roomKey)?.label ?? "" })),
-    };
-  },
-});
-
-/**
- * Self MC only: the answer, where the body was found, and every clue in order,
- * for the one person running the night. Returns nothing in "everyone plays" mode.
- */
-export const mcSheet = query({
-  args: { slug: v.string(), hostKey: v.string() },
-  handler: async (ctx, { slug, hostKey }) => {
-    const game = await requireHost(ctx, slug, hostKey);
-    if ((game.mode ?? "play") !== "mc" || !started(game)) return null;
-    const box = await ctx.db
-      .query("sealed")
-      .withIndex("by_game", (q) => q.eq("gameId", game._id))
-      .unique();
-    if (!box) return null;
-    const cf = await unseal<CaseFile>(box);
-    const players = await playersOf(ctx, game);
-    const name = (id: string) => players.find((p) => p._id === id)?.charName ?? "";
-    const weapon = await ctx.db.get(cf.solution.exhibitId as Doc<"weapons">["_id"]);
-    const letter = weapon ? players.find((p) => p._id === weapon.playerId)?.exhibitLetter ?? "" : "";
-    const label = (key?: string) => game.rooms.find((r) => r.key === key)?.label ?? "";
-    const markers = await ctx.db
-      .query("markers")
-      .withIndex("by_game", (q) => q.eq("gameId", game._id))
-      .collect();
-    return {
-      killer: name(cf.solution.killerId),
-      accomplice: cf.solution.accompliceId ? name(cf.solution.accompliceId) : null,
-      exhibit: { letter, name: weapon?.name ?? "" },
-      room: label(cf.solution.roomKey),
-      bodyRoom: label(cf.bodyRoomKey),
-      clues: cf.clues
-        .map((c) => ({
-          round: c.round,
-          onTv: c.channel === "tv",
-          marker: c.markerNumber ?? null,
-          room: c.markerNumber ? label(markers.find((m) => m.number === c.markerNumber)?.roomKey) : "",
-          twist: c.kind === "twist",
-          text: c.text,
-        }))
-        .sort((a, b) => a.round - b.round || Number(a.onTv) - Number(b.onTv) || (a.marker ?? 0) - (b.marker ?? 0)),
     };
   },
 });

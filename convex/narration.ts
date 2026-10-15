@@ -1,5 +1,5 @@
 // The narrator: every line the host says, in both scripts, for both hosts, steady or Unstable.
-// Pure data, shared by the TV, the MC sheet, the recording script and the custom-line maker.
+// Pure data, shared by the TV, the recording script and the custom-line maker.
 //
 // Lines are generic on purpose (no guest names), so one set of recordings serves every party.
 // Bracketed tags are delivery direction for ElevenLabs Eleven v4; captions and the live reader drop them.
@@ -737,7 +737,7 @@ export function cueFiles(tone: Tone): { cue: CueKey; v: number; file: string }[]
 const KEEP = /^\[(short pause|long pause)\]$/i;
 const TAG = /\[[^\]]*\]/g;
 
-/** Text without any direction tags: captions, the live reader, the MC sheet. */
+/** Text without any direction tags: captions and the live reader. */
 export const plain = (text: string) => text.replace(TAG, "").replace(/\s{2,}/g, " ").trim();
 
 /** The exact text sent to ElevenLabs for one recording (version v of the line). */
@@ -837,13 +837,6 @@ export function rollIntro(tone: Tone, char: string, real: string, seed = ""): st
 }
 
 const endStop = (s: string) => (/[.!?…"'”]$/.test(s) ? s : `${s}.`);
-
-/** The funny line under a guest's roll-call card: the host's edit, else their rumor, else who they are. */
-export function rollLineFor(p: { rollLine?: string; rumor?: string; who: string }): string {
-  if (p.rollLine?.trim()) return endStop(p.rollLine.trim());
-  if (p.rumor?.trim()) return `Word on the street: ${endStop(p.rumor.trim())}`;
-  return endStop(p.who.trim());
-}
 
 /** What the roll call (v2) says about one guest. The motive is theirs (first person) or the house's (second person). */
 export type RollParts = { name: string; real: string; signature: string; weapon: string; motive: string; motiveOwn: boolean; rumor: string; rumorLead?: string; roast: string; seed?: string };

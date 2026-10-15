@@ -89,15 +89,9 @@
 .tv-caption .line { font-size: 1.8cqw; font-style: italic; color: var(--paper); }
 .tv-test { position: absolute; bottom: 1cqw; left: 1.2cqw; font-family: var(--label); font-size: .9cqw; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--ink); background: var(--manila); padding: .3cqw .6cqw .2cqw; z-index: 5; }
 
-.tv-controls { position: fixed; top: 12px; right: 12px; display: flex; gap: 8px; z-index: 10; transition: opacity .4s; }
-.tv-controls.gone { opacity: 0; pointer-events: none; }
-.tv-controls button { background: rgba(18, 5, 10, .85); border: 1px solid var(--brass-dim); color: var(--paper); padding: 8px 12px 6px; font-family: var(--label); font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; }
-.tv-controls button[aria-pressed="true"] { border-color: var(--ok); color: var(--ok); }
-
 .fade { animation: fadein .8s ease both; }
 @keyframes fadein { from { opacity: 0; transform: translateY(1cqw); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .fade, .tv-caption { animation: none; } }
-.tv-mc { position: absolute; bottom: 1cqw; right: 1.2cqw; font-family: var(--label); font-size: .9cqw; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--blood); border: 1px solid var(--blood); padding: .3cqw .6cqw .2cqw; z-index: 5; }
 .tv-toast { position: absolute; top: 1.4cqw; left: 0; right: 0; margin-inline: auto; width: max-content; max-width: 46cqw; text-align: center; background: rgba(10, 3, 6, .92); border: 1px solid var(--brass); padding: .8cqw 1.6cqw .6cqw; font-family: var(--label); font-size: 1.3cqw; letter-spacing: .06em; color: var(--paper); z-index: 6; animation: fadein .5s ease both; }
 .tv-toast b { color: var(--brass); }
 
@@ -129,8 +123,7 @@
   clip-path: polygon(5% 0, 95% 0, 100% 4%, 100% 96%, 95% 100%, 5% 100%, 0 96%, 0 4%); font-family: var(--display); font-size: 9cqw; color: var(--brass); }
 
 .tv-award.waiting { opacity: .45; }
-.tv-load { align-self: center; font-family: var(--label); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); background: rgba(18, 5, 10, .85); padding: 8px 10px 6px; }
-.tv-test, .tv-mc { z-index: 9; }
+.tv-test { z-index: 9; }
 .tv-overlay { z-index: 8; }
 .tv-caption { z-index: 9; }
 .tv-toast { z-index: 9; }

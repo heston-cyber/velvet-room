@@ -13,7 +13,7 @@ function data(over: { game?: Record<string, unknown>; counts?: Record<string, nu
     game: {
       title: "T", isTest: true, status: "lobby", round: 0, paused: false, pacing: { mode: "ready", roundMinutes: 10 }, roundEndsAt: null,
       startedAt: null, introEndsAt: null, revealAt: null, endedAt: null, doorsAt: T0, roundStartedAt: null, pausedAt: null, resumedAt: null, doneAt: null, rulesAt: null,
-      tone: "classic", narrator: { host: "ivy", unstable: false }, levels: { voice: 100, music: 55, sfx: 80 }, mode: "play", search: "all", wifi: null, tvShowAll: false,
+      tone: "classic", narrator: { host: "ivy", unstable: false }, levels: { voice: 100, music: 55, sfx: 80 }, search: "all", wifi: null, tvShowAll: false,
       soundCheckAt: null, lastRescue: null, bodyRoom: "", rooms: [], openRooms: [],
       ...over.game,
     },

@@ -226,7 +226,7 @@ function HostScreen({ slug, hostKey, onGame }: { slug: string; hostKey: string; 
     </>
   );
 
-  return <TvStage slug={slug} tvKey={data.game.tvKey} onNext={follow} overlay={overlay} hostMode bare={stage === "title"} />;
+  return <TvStage slug={slug} tvKey={data.game.tvKey} onNext={follow} overlay={overlay} bare={stage === "title"} />;
 }
 
 // The title screen: Play opens the doors (the lobby); Options sits right under it.

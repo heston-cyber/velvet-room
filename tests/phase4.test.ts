@@ -20,8 +20,6 @@ type Opts = {
   markers?: number;
   pacing?: "ready" | "timer";
   search?: "all" | "waves";
-  mode?: "play" | "mc";
-  mcIndex?: number; // which seeded guest is the MC
   start?: boolean;
   /** Leave the show running (intro, How to play, roll call) instead of skipping to Round 1. */
   show?: boolean;
@@ -40,9 +38,6 @@ async function setup(o: Opts = {}) {
   });
   await t.mutation(internal.game.seedFakeCast, { slug: SLUG, guests: o.guests ?? 8, markers: o.markers ?? 15, seed: 4 });
   const players = await t.run((ctx) => ctx.db.query("players").collect());
-  if (o.mode === "mc") {
-    await t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, mode: "mc", mcPlayerId: o.mcIndex !== undefined ? players[o.mcIndex]._id : null });
-  }
   if (o.start !== false) {
     await t.mutation(api.game.openDoors, { slug: SLUG, hostKey });
     await t.mutation(api.game.startGame, { slug: SLUG, hostKey });
@@ -55,7 +50,7 @@ async function setup(o: Opts = {}) {
 const game = (t: ReturnType<typeof convexTest>) => t.run(async (ctx) => (await ctx.db.query("games").first())!);
 const tvKey = async (t: ReturnType<typeof convexTest>) => (await game(t)).tvKey!;
 
-describe("Phase 4: drawn body room, waves, Self MC, Wi-Fi, the TV", () => {
+describe("Phase 4: drawn body room, waves, Wi-Fi, the TV", () => {
   test("where the body turns up is drawn at Start and only shown after it", async () => {
     const { t, hostKey, tokens } = await setup({ start: false });
     const before = await t.query(api.game.phone, { token: tokens[0] });
@@ -99,31 +94,8 @@ describe("Phase 4: drawn body room, waves, Self MC, Wi-Fi, the TV", () => {
     for (const m of markers) expect((await t.mutation(api.game.scanMarker, { token: tokens[1], code: m.code })).number).toBe(m.number);
   });
 
-  test("Self MC: the MC isn't a suspect, can't accuse, and only the MC sheet shows the answer", async () => {
-    const { t, hostKey, tokens, players } = await setup({ mode: "mc", mcIndex: 0, guests: 6 });
-    const mcPhone = await t.query(api.game.phone, { token: tokens[0] });
-    expect(mcPhone!.me.isMC).toBe(true);
-    expect(mcPhone!.briefing).toBeNull();
-    const other = await t.query(api.game.phone, { token: tokens[1] });
-    expect(other!.board!.suspects.map((s) => s.id)).not.toContain(players[0]._id);
-    const sheet = await t.query(api.host.mcSheet, { slug: SLUG, hostKey });
-    expect(sheet).not.toBeNull();
-    const phones = await Promise.all(tokens.slice(1).map((token) => t.query(api.game.phone, { token })));
-    const killer = phones.find((p) => p!.briefing!.role === "killer")!;
-    expect(sheet!.killer).toBe(killer.me.charName);
-    expect(killer.briefing!.lines[0]).toContain(`the ${sheet!.exhibit.name.toLowerCase()}`);
-    expect(sheet!.clues.some((c) => c.twist)).toBe(true);
-    expect(sheet!.bodyRoom).toBe(other!.game.bodyRoom);
-    for (let i = 0; i < 3; i++) await nextRound(t, SLUG, hostKey);
-    const board = other!.board!;
-    await expect(
-      t.mutation(api.game.accuse, { token: tokens[0], suspectId: board.suspects[0].id, exhibitId: board.exhibits[0].id, roomKey: board.rooms[0].key }),
-    ).rejects.toThrow(/Only guests in the game|MC/);
-  });
-
-  test("everyone plays: the MC sheet is empty and the host roster never holds the answer", async () => {
+  test("the host roster never holds the answer", async () => {
     const { t, hostKey, tokens } = await setup({ guests: 6 });
-    expect(await t.query(api.host.mcSheet, { slug: SLUG, hostKey })).toBeNull();
     const roster = JSON.stringify(await t.query(api.host.roster, { slug: SLUG, hostKey }));
     for (const token of tokens) {
       const p = (await t.query(api.game.phone, { token }))!;
@@ -134,38 +106,35 @@ describe("Phase 4: drawn body room, waves, Self MC, Wi-Fi, the TV", () => {
     expect(roster).not.toContain("token");
   });
 
-  test("switching to Self MC mid-game: asks for confirmation, and the new MC stops counting", async () => {
-    const { t, hostKey, tokens, players } = await setup({ guests: 6 });
-    // @ts-expect-error the confirmation word is required
-    await expect(t.mutation(api.game.switchToSelfMC, { slug: SLUG, hostKey, mcPlayerId: players[0]._id })).rejects.toThrow();
-    // ready votes: 3 of 6 isn't most; once guest 0 becomes the MC, 3 of 5 is
-    for (const token of tokens.slice(1, 4)) await t.mutation(api.game.setReady, { token, ready: true });
-    expect((await game(t)).round).toBe(1);
-    await t.mutation(api.game.switchToSelfMC, { slug: SLUG, hostKey, confirm: "SWITCH", mcPlayerId: players[0]._id });
-    expect((await game(t)).vote?.kind).toBe("jail"); // v2: most guests ready ends the round in the jail vote
-    expect((await game(t)).mode).toBe("mc");
-    expect(await t.query(api.host.mcSheet, { slug: SLUG, hostKey })).not.toBeNull();
-    expect((await t.mutation(api.game.setReady, { token: tokens[0], ready: true })).ok).toBe(false);
-    // accusations: once the other five are in, the reveal starts without the MC
-    await nextRound(t, SLUG, hostKey);
-    await nextRound(t, SLUG, hostKey);
-    await nextRound(t, SLUG, hostKey);
-    const board = (await t.query(api.game.phone, { token: tokens[1] }))!.board!;
-    for (const [i, token] of tokens.entries()) {
-      if (i === 0) continue;
-      const me = players[i]._id as string;
-      const suspect = board.suspects.find((s) => s.id !== me)!;
-      await t.mutation(api.game.accuse, { token, suspectId: suspect.id, exhibitId: board.exhibits[0].id, roomKey: board.rooms[0].key });
-    }
-    expect((await game(t)).status).toBe("reveal");
-  });
-
-  test("the MC can only be picked in Self MC", async () => {
-    const { t, hostKey, players } = await setup({ start: false });
-    await expect(t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, mcPlayerId: players[0]._id })).rejects.toThrow(/Self MC first/);
-    await t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, mode: "mc", mcPlayerId: players[0]._id });
-    await t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, mode: "play" });
-    expect((await game(t)).mcPlayerId).toBeUndefined();
+  test("an old game that still carries Self MC fields plays like any other: everyone is in the draw", async () => {
+    const { t, hostKey, tokens, players } = await setup({ guests: 6, start: false });
+    // Production has games from before v2 that still carry the Self MC fields. The schema keeps them; the server ignores them.
+    await t.run(async (ctx) => {
+      const g = (await ctx.db.query("games").first())!;
+      await ctx.db.patch(g._id, { mode: "mc", mcPlayerId: players[0]._id });
+    });
+    const tv0 = await t.query(api.game.tv, { slug: SLUG, tvKey: await tvKey(t) });
+    expect(tv0.guests.map((x) => x.id)).toContain(players[0]._id);
+    expect(tv0.counts.registered).toBe(6);
+    await t.mutation(api.game.openDoors, { slug: SLUG, hostKey });
+    await t.mutation(api.game.startGame, { slug: SLUG, hostKey });
+    await t.mutation(api.game.skipIntro, { slug: SLUG, hostKey });
+    const phone = (await t.query(api.game.phone, { token: tokens[0] }))!;
+    expect(phone.me.inGame).toBe(true);
+    expect(phone.briefing).not.toBeNull();
+    expect(phone.board!.suspects.map((s) => s.id)).toContain(players[0]._id);
+    expect(phone.game).not.toHaveProperty("mode");
+    const roster = await t.query(api.host.roster, { slug: SLUG, hostKey });
+    expect(roster.counts.inGame).toBe(6);
+    expect(roster.game).not.toHaveProperty("mode");
+    expect((await t.query(api.game.tv, { slug: SLUG, tvKey: await tvKey(t) })).game).not.toHaveProperty("mode");
+    // their ready tap and lock-in count like anyone's
+    expect((await t.mutation(api.game.setReady, { token: tokens[0], ready: true })).ok).toBe(true);
+    for (let i = 0; i < 3; i++) await nextRound(t, SLUG, hostKey);
+    const board = phone.board!;
+    const suspect = board.suspects.find((s) => s.id !== players[0]._id)!;
+    await t.mutation(api.game.accuse, { token: tokens[0], suspectId: suspect.id, exhibitId: board.exhibits[0].id, roomKey: board.rooms[0].key });
+    expect((await t.query(api.host.roster, { slug: SLUG, hostKey })).counts.accused).toBe(1);
   });
 
   test("guest Wi-Fi shows on phones and the TV, within real Wi-Fi limits", async () => {

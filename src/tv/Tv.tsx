@@ -1,4 +1,4 @@
-import { Component, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { HOSTS, captionText, cueFile, cueVariant, type CueKey } from "../../convex/narration";
@@ -26,77 +26,6 @@ const clock = (ms: number) => {
 };
 const names = (xs: { name: string }[]) => (xs.length ? xs.map((x) => x.name).join(" & ") : "");
 
-class Boundary extends Component<{ children: ReactNode }, { error: unknown }> {
-  state = { error: null as unknown };
-  static getDerivedStateFromError(error: unknown) {
-    return { error };
-  }
-  render() {
-    if (this.state.error) {
-      return (
-        <div className="tv-page">
-          <div className="tv-stage">
-            <div className="tv-scene">
-              <span className="tv-kick">The Velvet Room</span>
-              <h2 className="tv-h2" style={{ fontSize: "5cqw" }}>Open the TV from the host laptop</h2>
-              <p className="tv-sub">Use "Open the TV window" in the game menu, so the TV gets the host link.</p>
-            </div>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-const TV_LINK = "velvet-room:tv-link";
-
-/**
- * The TV's key comes in the link, then leaves the address bar right away, so nobody reads it off
- * the big screen. A reload of this window finds it again in this tab's session storage.
- */
-function useTvLink(slug: string, tvKey: string) {
-  const [link, setLink] = useState(() => {
-    if (slug && tvKey) return { slug, tvKey };
-    try {
-      return JSON.parse(sessionStorage.getItem(TV_LINK) || "null") ?? { slug: "", tvKey: "" };
-    } catch {
-      return { slug: "", tvKey: "" };
-    }
-  });
-  useEffect(() => {
-    if (!slug || !tvKey) return;
-    try {
-      sessionStorage.setItem(TV_LINK, JSON.stringify({ slug, tvKey }));
-    } catch {
-      /* the link still works for this load */
-    }
-    window.history.replaceState(null, "", "/tv");
-  }, [slug, tvKey]);
-  // Play again: the host started the next game. The TV follows it (same key) and stays unlocked for sound.
-  const follow = useCallback((next: string) => {
-    setLink((l: { slug: string; tvKey: string }) => {
-      const link = { slug: next, tvKey: l.tvKey };
-      try {
-        sessionStorage.setItem(TV_LINK, JSON.stringify(link));
-      } catch {
-        /* this load still follows */
-      }
-      return link;
-    });
-  }, []);
-  return { link: link as { slug: string; tvKey: string }, follow };
-}
-
-export default function Tv(props: { slug: string; tvKey: string }) {
-  const { link, follow } = useTvLink(props.slug, props.tvKey);
-  return (
-    <Boundary>
-      <TvInner slug={link.slug} tvKey={link.tvKey} onNext={follow} />
-    </Boundary>
-  );
-}
-
 function useNow(ms: number) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -106,12 +35,12 @@ function useNow(ms: number) {
   return now;
 }
 
-/** The TV stage. The host screen (src/pages/Host.tsx) runs the same stage with its own controls laid over it. */
-export function TvStage(props: { slug: string; tvKey: string; onNext: (slug: string) => void; overlay?: ReactNode; hostMode?: boolean; bare?: boolean }) {
+/** The TV stage. The host screen (src/pages/Host.tsx) runs it with its own controls laid over it. */
+export function TvStage(props: { slug: string; tvKey: string; onNext: (slug: string) => void; overlay?: ReactNode; bare?: boolean }) {
   return <TvInner {...props} />;
 }
 
-function TvInner({ slug, tvKey, onNext, overlay, hostMode, bare }: { slug: string; tvKey: string; onNext: (slug: string) => void; overlay?: ReactNode; hostMode?: boolean; bare?: boolean }) {
+function TvInner({ slug, tvKey, onNext, overlay, bare }: { slug: string; tvKey: string; onNext: (slug: string) => void; overlay?: ReactNode; bare?: boolean }) {
   const data = useQuery(api.game.tv, { slug, tvKey });
   const nextSlug = data?.game.nextSlug ?? null;
   useEffect(() => {
@@ -147,7 +76,7 @@ function TvInner({ slug, tvKey, onNext, overlay, hostMode, bare }: { slug: strin
     return () => window.clearInterval(id);
   }, [ping, slug, tvKey, soundOn, bank.ready]);
 
-  // Controls show on mouse movement, then hide so the TV stays clean.
+  // The cursor shows on mouse movement, then hides so the TV stays clean.
   useEffect(() => {
     let timer = window.setTimeout(() => setChrome(false), 4000);
     const wake = () => {
@@ -178,10 +107,6 @@ function TvInner({ slug, tvKey, onNext, overlay, hostMode, bare }: { slug: strin
       window.removeEventListener("keydown", enableSound);
     };
   }, [enableSound]);
-  function fullScreen() {
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void document.documentElement.requestFullscreen?.().catch(() => undefined);
-  }
 
   const g = data?.game;
   const voice = data?.voice.voice ?? "ivy";
@@ -304,7 +229,7 @@ function TvInner({ slug, tvKey, onNext, overlay, hostMode, bare }: { slug: strin
         ? captionText(speaking.cue, tone, host, speaking.v)
         : speaking.clip?.caption ?? ""
       : null;
-  const who = g.mode === "mc" ? "MC" : HOSTS[host].name;
+  const who = HOSTS[host].name;
 
   return (
     <div className={`tv-page ${chrome ? "" : "hide-cursor"}`}>
@@ -342,7 +267,6 @@ function TvInner({ slug, tvKey, onNext, overlay, hostMode, bare }: { slug: strin
                 </span>
               )}
             </div>
-            {g.mode === "mc" && g.status === "playing" && <span className="tv-mc">Self MC</span>}
             {g.lastRescue && now - g.lastRescue.at < 12_000 && (
               <div className="tv-toast" key={g.lastRescue.at}>
                 New link for <b>{g.lastRescue.name}</b>. Their old link no longer works.
@@ -356,15 +280,6 @@ function TvInner({ slug, tvKey, onNext, overlay, hostMode, bare }: { slug: strin
           </>
         )}
         {overlay}
-      </div>
-      <div className={`tv-controls ${chrome && !hostMode ? "" : "gone"}`}>
-        <span className="tv-load">{bank.ready ? "Videos ready" : `Loading videos ${bank.loaded} of ${bank.total}`}</span>
-        <button type="button" onClick={(e) => { e.stopPropagation(); fullScreen(); }}>
-          Full screen
-        </button>
-        <button type="button" aria-pressed={soundOn} onClick={(e) => { e.stopPropagation(); enableSound(); }}>
-          {soundOn ? "Sound on" : "Click to allow sound"}
-        </button>
       </div>
     </div>
   );
