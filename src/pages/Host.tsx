@@ -350,12 +350,14 @@ function HostStep({ data, slug, hostKey, onError }: { data: Roster; slug: string
 function PauseMenu(props: { data: Roster; slug: string; hostKey: string; onClose: () => void; onOptions: () => void; onError: (m: string | null) => void }) {
   const { data, slug, hostKey, onClose, onOptions, onError } = props;
   const g = data.game;
-  const running = g.status === "playing";
+  const now = useNow(1000);
+  // During the show (intro to the roles) there's no clock to pause and no evidence yet: only skipping.
+  const inShow = g.status === "playing" && g.round === 1 && !!g.introEndsAt && g.introEndsAt > now;
+  const running = g.status === "playing" && !inShow;
   const setPaused = useMutation(api.game.setPaused);
   const setShowAll = useMutation(api.game.setTvShowAll);
   const [rescue, setRescue] = useState(false);
   const call = (p: Promise<unknown>) => p.catch((err) => onError(friendlyError(err)));
-  const now = useNow(1000);
   const step = useNextStep(data, slug, hostKey, now);
   const { armed, arm, disarm } = useConfirm();
   const { busy, run } = useBusy();

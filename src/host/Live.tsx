@@ -9,7 +9,6 @@ import { navigate } from "../lib/router";
 import { captionText, type CueKey } from "../../convex/narration";
 import { clock, openTvWindow, timeLeft, useBusy, useConfirm, useNow, type Roster } from "./common";
 import { Sec, SoundCheck } from "./Menu";
-import { Segments } from "./Voice";
 
 const mid = (l: string) => l.replace(/^The /, "the ");
 
@@ -20,6 +19,7 @@ export function useNextStep(data: Roster, slug: string, hostKey: string, now: nu
   const openDoors = useMutation(api.game.openDoors);
   const startGame = useMutation(api.game.startGame);
   const skipIntro = useMutation(api.game.skipIntro);
+  const skipShow = useMutation(api.game.skipShow);
   const advance = useMutation(api.game.advanceRound);
   const finish = useMutation(api.game.finish);
   const endNight = useMutation(api.game.endNight);
@@ -36,6 +36,13 @@ export function useNextStep(data: Roster, slug: string, hostKey: string, now: nu
       help: "Runs the secret draw and picks where the body turns up. Anyone not checked in can't join after this.",
       run: () => startGame(args),
     };
+  if (intro && g.show) {
+    // The show (v2): skip one part at a time.
+    const s = g.show;
+    const next = now < s.howAt ? "how" : now < s.rollAt ? "roll" : !s.phonesAt || now < s.phonesAt ? "phones" : "round";
+    const label = { how: "Skip to How to play", roll: "Skip to the roll call", phones: "Skip to the roles", round: "Begin Round 1" }[next];
+    return { label, help: "Or let the show run on its own. Round 1 starts after the roles.", run: () => skipShow(args) };
+  }
   if (intro) return { label: "Begin Round 1", help: "Or let the intro finish on its own.", run: () => skipIntro(args) };
   if (g.status === "playing") {
     if (g.round === 1) return { label: "Next round", help: g.pacing.mode === "ready" ? "Skips the ready vote and drops new evidence." : "Skips the rest of the timer and drops new evidence.", run: () => advance(args) };
@@ -157,8 +164,6 @@ export default function Live({ data, slug, hostKey, onError }: { data: Roster; s
             {g.mode === "mc" && <li>Self MC: {mcName ?? "someone who isn't signed up"} runs the night</li>}
           </ul>
         )}
-
-        <Segments data={data} slug={slug} hostKey={hostKey} onError={onError} />
 
         <NextButton data={data} slug={slug} hostKey={hostKey} onError={onError} />
 

@@ -10,6 +10,7 @@
 
 import type * as admin from "../admin.js";
 import type * as cards from "../cards.js";
+import type * as caseFile from "../caseFile.js";
 import type * as engine_build from "../engine/build.js";
 import type * as engine_fake from "../engine/fake.js";
 import type * as engine_rng from "../engine/rng.js";
@@ -25,8 +26,11 @@ import type * as narration from "../narration.js";
 import type * as ping from "../ping.js";
 import type * as registration from "../registration.js";
 import type * as replay from "../replay.js";
+import type * as roasts from "../roasts.js";
+import type * as rollCall from "../rollCall.js";
 import type * as seal from "../seal.js";
 import type * as shared from "../shared.js";
+import type * as show from "../show.js";
 import type * as voice from "../voice.js";
 import type * as voiceLines from "../voiceLines.js";
 import type * as weapons from "../weapons.js";
@@ -40,6 +44,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   cards: typeof cards;
+  caseFile: typeof caseFile;
   "engine/build": typeof engine_build;
   "engine/fake": typeof engine_fake;
   "engine/rng": typeof engine_rng;
@@ -55,8 +60,11 @@ declare const fullApi: ApiFromModules<{
   ping: typeof ping;
   registration: typeof registration;
   replay: typeof replay;
+  roasts: typeof roasts;
+  rollCall: typeof rollCall;
   seal: typeof seal;
   shared: typeof shared;
+  show: typeof show;
   voice: typeof voice;
   voiceLines: typeof voiceLines;
   weapons: typeof weapons;

@@ -95,6 +95,8 @@ export const roster = query({
         paused: !!game.paused,
         roundEndsAt: game.roundEndsAt ?? null,
         introEndsAt: game.introEndsAt ?? null,
+        // v2: the show's parts (convex/show.ts), so the host can skip to the next one.
+        show: game.show ? { howAt: game.show.howAt, rollAt: game.show.rollAt, phonesAt: game.show.phonesAt ?? null } : null,
         tvShowAll: !!game.tvShowAll,
         endedAt: game.endedAt ?? null,
         nextSlug: game.nextSlug ?? null,

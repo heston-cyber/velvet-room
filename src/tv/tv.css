@@ -262,3 +262,46 @@
 @keyframes unmasked { 0% { opacity: 0; filter: brightness(6) blur(1.4cqw); transform: scale(1.12); } 60% { opacity: 1; } 100% { opacity: 1; filter: none; transform: none; } }
 /* the reveal: leave room on the right for the killer's drawing */
 .tv-stage[data-scene="reveal0"] .tv-scene, .tv-stage[data-scene="reveal1"] .tv-scene, .tv-stage[data-scene="reveal2"] .tv-scene { padding-right: 26cqw; padding-left: 6cqw; }
+
+/* ---- v2: weapons, the jail bars, and the roll call card ---- */
+/* A weapon's little framed card: gold frame, the painting on felt, the name on the frame. */
+.tv-wcard { display: grid; justify-items: center; gap: .3cqw; width: 7cqw; padding: .4cqw .4cqw .45cqw; box-sizing: border-box;
+  background: linear-gradient(135deg, #f0d48a, #b48a3c 45%, #f5dd9c 70%, #9a7330); box-shadow: 0 .6cqw 1.4cqw rgba(0, 0, 0, .55); }
+.tv-wcard .in { display: block; width: 100%; aspect-ratio: 1; background: radial-gradient(80% 80% at 50% 40%, var(--velvet-hi), var(--felt)); }
+.tv-wcard .in img { display: block; width: 100%; height: 100%; padding: 7%; box-sizing: border-box; object-fit: contain; }
+.tv-wcard .nm { font-family: var(--label); font-size: .72cqw; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); line-height: 1.1; text-align: center; }
+.tv-wrow { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.1cqw; max-width: 86cqw; margin: .6cqw 0; }
+.tv-wfan { position: relative; width: 30cqw; height: 36cqw; }
+.tv-wfan .tv-wcard { position: absolute; left: 50%; bottom: 7cqw; width: 11cqw; transform-origin: 50% 100%; }
+.tv-wfan .tv-wcard .nm { font-size: 1cqw; }
+.tv-wfan .tv-wcard:nth-child(1) { transform: translateX(-128%) translateY(1.2cqw) rotate(-12deg); }
+.tv-wfan .tv-wcard:nth-child(2) { transform: translateX(-50%) translateY(-1.2cqw); z-index: 1; }
+.tv-wfan .tv-wcard:nth-child(3) { transform: translateX(28%) translateY(1.2cqw) rotate(12deg); z-index: 2; }
+.tv-wfan.enter, .tv-jailed.enter, .tv-roll-fig.enter { animation: howin .9s cubic-bezier(.2, .8, .2, 1) both; }
+
+/* Behind bars: the drawing sits 8.5% down the bars and 86% of their height, its face in the middle gap. */
+.tv-jailed { position: relative; height: 36cqw; aspect-ratio: 2 / 3; }
+.tv-jailed .who { position: absolute; top: 8.5%; left: 50%; height: 86%; width: auto; max-width: none; filter: drop-shadow(0 .6cqw 1.2cqw rgba(0, 0, 0, .5)); }
+.tv-jailed .bars { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; }
+
+/* The roll call card (v2): the full drawing with the weapon card at hip level, then the facts as they're said. */
+.tv-roll.v2 { grid-template-columns: auto minmax(0, 1fr); gap: 6cqw; max-width: 88cqw; }
+.tv-roll.v2 .tv-h2 { font-size: 5.2cqw; }
+.tv-roll-art { display: grid; place-items: end center; min-width: 24cqw; }
+.tv-roll-fig { position: relative; height: 40cqw; }
+.tv-roll-fig > img { display: block; height: 100%; width: auto; filter: drop-shadow(0 .8cqw 1.6cqw rgba(0, 0, 0, .55)); }
+/* About a quarter of the drawing's height, beside it at the hip. */
+.tv-wcard.hip { position: absolute; left: calc(100% - 2.6cqw); top: 41%; width: 8cqw; rotate: 5deg; animation: wpop .6s cubic-bezier(.2, .9, .3, 1.3) both; }
+@keyframes wpop { from { opacity: 0; transform: scale(.35); } to { opacity: 1; transform: none; } }
+.tv-facts { margin: .6cqw 0 0; display: grid; gap: .8cqw; max-width: 52cqw; }
+.tv-facts > div { display: grid; grid-template-columns: 9cqw minmax(0, 1fr); gap: 1.2cqw; align-items: baseline; }
+.tv-facts dt { font-family: var(--label); font-size: 1.05cqw; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--brass); }
+.tv-facts dd { margin: 0; font-size: 1.85cqw; line-height: 1.25; color: var(--paper);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.tv-roast { margin: 1cqw 0 0; max-width: 52cqw; padding-left: 1.4cqw; border-left: .25cqw solid var(--brass);
+  font-family: var(--display); font-size: 2.3cqw; line-height: 1.2; color: var(--manila); text-wrap: balance; }
+@media (prefers-reduced-motion: reduce) { .tv-wcard.hip, .tv-wfan.enter, .tv-jailed.enter, .tv-roll-fig.enter { animation: none; } }
+/* Round 1's left column: the weapons in one row, shrinking to fit however many there are. */
+.tv-left .tv-wrow { flex-wrap: nowrap; justify-content: flex-start; max-width: 100%; gap: .7cqw; margin: .4cqw 0 0; }
+.tv-left .tv-wcard { flex: 1 1 0; min-width: 0; max-width: 6.2cqw; padding: .3cqw; }
+.tv-left .tv-wcard .nm { font-size: .58cqw; letter-spacing: .04em; }

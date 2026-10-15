@@ -2,7 +2,6 @@ import { convexTest } from "convex-test";
 import { beforeAll, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
-import { INTRO_MS } from "../convex/shared";
 
 const modules = import.meta.glob("../convex/**/*.ts");
 const FUTURE = Date.now() + 7 * 864e5;
@@ -25,6 +24,8 @@ async function started(opts: { guests?: number; markers?: number; pacing?: "read
   await t.mutation(internal.game.seedFakeCast, { slug: SLUG, guests: opts.guests ?? 9, markers: opts.markers ?? 15, seed: 8 });
   await t.mutation(api.game.openDoors, { slug: SLUG, hostKey });
   await t.mutation(api.game.startGame, { slug: SLUG, hostKey });
+  // Skip the show (intro, How to play, roll call): Round 1 starts and the roles are on the phones.
+  await t.mutation(api.game.skipIntro, { slug: SLUG, hostKey });
   const players = await t.run((ctx) => ctx.db.query("players").collect());
   const tokens = players.map((p) => p.token);
   const phones = await Promise.all(tokens.map((token) => t.query(api.game.phone, { token })));
@@ -71,11 +72,10 @@ describe("party night", () => {
     try {
       const { t, hostKey } = await started({ guests: 5, pacing: "timer" });
       expect((await game(t)).roundEndsAt).toBeGreaterThan(Date.now());
-      // Round 1's clock starts after the TV intro.
       vi.advanceTimersByTime(10 * 60_000 - 1000);
       await t.finishInProgressScheduledFunctions();
       expect((await game(t)).round).toBe(1);
-      vi.advanceTimersByTime(INTRO_MS + 2000);
+      vi.advanceTimersByTime(2000);
       await t.finishInProgressScheduledFunctions();
       expect((await game(t)).round).toBe(2);
       await t.mutation(api.game.setPaused, { slug: SLUG, hostKey, paused: true });

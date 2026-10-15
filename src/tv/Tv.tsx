@@ -1,11 +1,13 @@
-import { Component, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Component, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { HOSTS, captionText, type CueKey } from "../../convex/narration";
-import { INTRO_BEATS, INTRO_MS, REVEAL } from "../../convex/shared";
+import { REVEAL } from "../../convex/shared";
+import { SHOW } from "../../convex/show";
 import { Qr, wifiQrText } from "../lib/qr";
 import HouseMap from "./HouseMap";
-import { avatarSrc, figureUrl } from "../lib/figure";
+import { avatarSrc, faceX, figureUrl } from "../lib/figure";
+import { weaponUrl } from "../lib/weapon";
 import { ALL_FIGURE_KEYS, FACES_RIGHT } from "../../convex/figures";
 import { CARD_MS, cardUrl, loopUrl, useMediaBank, type LoopKey } from "./media";
 import { SoundEngine } from "./sound";
@@ -459,71 +461,6 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
     };
   }
   if (g.status === "registration" || g.status === "lobby") {
-    // The roll call, then How to play, run over the doors.
-    if (p.roll && now < p.roll.end) {
-      const i = p.roll.steps.findIndex((s) => now >= s.at && now < s.until);
-      if (i >= 0) {
-        const it = p.roll.steps[i].item;
-        return {
-          scene: {
-            key: `roll${it.id}`,
-            node: (
-              <div className="tv-scene roll">
-                <div className="tv-roll">
-                  <div className={`tv-frame fade ${!it.photoUrl && it.figure ? "drawn" : ""}`}>{it.photoUrl ? <img src={it.photoUrl} alt="" /> : it.figure ? <img src={figureUrl(it.figure)} alt="" /> : <span>{initials(it.charName)}</span>}</div>
-                  <div className="tv-roll-text">
-                    <span className="tv-kick fade">Roll call · {i + 1} of {p.roll.steps.length}</span>
-                    <h2 className="tv-h2 fade" style={{ animationDelay: ".25s" }}>{it.charName}</h2>
-                    <span className="tv-played fade" style={{ animationDelay: ".45s" }}>Played by {it.realName}</span>
-                    <p className="tv-sub fade" style={{ animationDelay: "1s" }}>{it.line}</p>
-                  </div>
-                </div>
-              </div>
-            ),
-          },
-        };
-      }
-      const done = now >= (p.roll.steps[p.roll.steps.length - 1]?.until ?? 0);
-      return {
-        scene: {
-          key: done ? "roll-end" : "roll-open",
-          node: (
-            <div className="tv-scene">
-              <span className="tv-kick fade">{done ? "Remember these faces" : "Roll call"}</span>
-              <h2 className="tv-h2 fade" style={{ fontSize: "5.4cqw" }}>{done ? "Tonight's guests" : "Meet tonight's guests"}</h2>
-              {done && <Guests guests={d.guests} mark="here" />}
-            </div>
-          ),
-        },
-      };
-    }
-    if (p.rules && now >= p.rules.steps[0].at && now < p.rules.end) {
-      const n = p.rules.steps.length;
-      const i = Math.max(0, p.rules.steps.findIndex((s) => now < s.until));
-      const step = p.rules.steps[i];
-      return {
-        scene: {
-          key: `how${i}`,
-          node: (
-            <div className="tv-scene how">
-              <div className={`tv-how ${step.art === "map" ? "wide" : ""}`}>
-                <div className={`tv-how-art ${step.art === "map" ? "map" : ""}`}>
-                  {step.art === "map" ? (
-                    <HouseMap map={demoMap(d.map, step.at)} round={1} now={now} />
-                  ) : (
-                    <img className="enter" src={artUrl(step.art)} alt="" />
-                  )}
-                </div>
-                <div className="tv-how-text">
-                  <span className="tv-kick fade">How to play · {i + 1} of {n}</span>
-                  <div className="tv-rule fade">{captionText(step.cue, g.tone, g.narrator.host)}</div>
-                </div>
-              </div>
-            </div>
-          ),
-        },
-      };
-    }
     if (g.status === "registration") {
       return {
         scene: {
@@ -575,28 +512,9 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
   }
   if (g.status === "playing") {
     const round = g.round;
-    if (round === 1 && g.introEndsAt && now < g.introEndsAt && g.startedAt) {
-      const beat = Math.min(INTRO_BEATS - 1, Math.max(0, Math.floor((now - g.startedAt) / (INTRO_MS / INTRO_BEATS))));
-      const frames = [
-        <div className="tv-scene dark" key="i0">
-          <span className="tv-kick fade">Chicago · October, 1929</span>
-        </div>,
-        <div className="tv-scene dark" key="i1">
-          <h2 className="tv-h2 fade blood">The Don is dead.</h2>
-          <p className="tv-sub fade">Don Carmine Velluto · found in {mid(g.bodyRoom)}</p>
-        </div>,
-        <div className="tv-scene dark" key="i2">
-          <h2 className="tv-h2 fade">One of you did it.</h2>
-          <Exhibits letters={d.exhibits} />
-          <p className="tv-sub fade">The weapons are on the table. Only the game knows whose is whose.</p>
-        </div>,
-        <div className="tv-scene dark" key="i3">
-          <span className="tv-kick fade">Check your phone</span>
-          <h2 className="tv-h2 fade" style={{ fontSize: "5.4cqw" }}>Press and hold your card.</h2>
-          <p className="tv-sub fade">Keep your screen to yourself. Round 1 starts in a moment.</p>
-        </div>,
-      ];
-      return { scene: { key: `intro${beat}`, node: frames[beat] } };
+    if (round === 1 && g.introEndsAt && now < g.introEndsAt && g.startedAt && p.part) {
+      const scene = showScene(d, p, now);
+      if (scene) return { scene };
     }
     const bodyKey = d.map.rooms.find((r) => r.label === g.bodyRoom)?.key ?? null;
     const houseMap = <HouseMap map={d.map} round={round} bodyRoomKey={bodyKey} now={now} />;
@@ -612,7 +530,14 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
                   <h2 className="tv-h2" style={{ fontSize: "5cqw", marginTop: "1cqw" }}>Find the markers.</h2>
                   <p className="tv-sub">Scan them with your phone. Question everyone. Lie only about your own secrets.</p>
                   <p className="tv-sub small">The body was found in {mid(g.bodyRoom)}.</p>
-                  <Exhibits letters={d.exhibits} caption="Exhibits on the evidence table" />
+                  {d.weapons.length > 0 ? (
+                    <>
+                      <WeaponRow weapons={d.weapons} />
+                      <p className="tv-sub small">The weapons in play</p>
+                    </>
+                  ) : (
+                    <Exhibits letters={d.exhibits} caption="Exhibits on the evidence table" />
+                  )}
                 </div>
                 {houseMap}
               </div>
@@ -768,6 +693,200 @@ function RoundBar({ d, now, label }: { d: Data; now: number; label: string }) {
       </div>
       <div className="tv-meter">{!timed && <i style={{ width: `${pct}%` }} />}</div>
     </>
+  );
+}
+
+/** The show (v2): the intro, How to play, the roll call, "check your phones". */
+function showScene(d: Data, p: Plan, now: number): Scene | null {
+  const g = d.game;
+  if (p.part === "intro") {
+    const beat = Math.min(2, Math.max(0, Math.floor((now - (g.startedAt ?? now)) / SHOW.introBeatMs)));
+    const frames = [
+      <div className="tv-scene dark" key="i0">
+        <span className="tv-kick fade">Chicago · October, 1929</span>
+      </div>,
+      <div className="tv-scene dark" key="i1">
+        <h2 className="tv-h2 fade blood">The Don is dead.</h2>
+        <p className="tv-sub fade">Don Carmine Velluto · found in {mid(g.bodyRoom)}</p>
+      </div>,
+      <div className="tv-scene dark" key="i2">
+        <h2 className="tv-h2 fade">One of you did it.</h2>
+        {d.weapons.length > 0 && <WeaponRow weapons={d.weapons} />}
+        <p className="tv-sub fade" style={{ animationDelay: ".6s" }}>
+          {d.weapons.length ? "And one of these did the deed." : "The doors are locked."}
+        </p>
+      </div>,
+    ];
+    return { key: `intro${beat}`, node: frames[beat] };
+  }
+  if (p.part === "how" && p.rules && p.rules.steps.length) {
+    const n = p.rules.steps.length;
+    const i = Math.max(0, p.rules.steps.findIndex((st) => now < st.until));
+    const step = p.rules.steps[i];
+    const wide = step.art === "map";
+    return {
+      key: `how${i}`,
+      node: (
+        <div className="tv-scene how">
+          <div className={`tv-how ${wide ? "wide" : ""}`}>
+            <div className={`tv-how-art ${wide ? "map" : ""}`}>
+              {step.art === "map" ? (
+                <HouseMap map={demoMap(d.map, step.at)} round={1} now={now} />
+              ) : step.art === "weapons" ? (
+                <WeaponFan weapons={d.weapons} />
+              ) : step.art === "bars" ? (
+                <Jailed figure={d.guests.find((x) => x.figure)?.figure ?? "bodyguard"} className="enter" />
+              ) : (
+                <img className="enter" src={artUrl(step.art)} alt="" />
+              )}
+            </div>
+            <div className="tv-how-text">
+              <span className="tv-kick fade">How to play · {i + 1} of {n}</span>
+              <div className="tv-rule fade">{captionText(step.cue, g.tone, g.narrator.host)}</div>
+            </div>
+          </div>
+        </div>
+      ),
+    };
+  }
+  if (p.part === "roll" && p.roll) {
+    const steps = p.roll.steps.filter((st) => st.at < p.roll!.phonesAt);
+    const i = steps.findIndex((st) => now >= st.at && now < st.until);
+    if (i >= 0) return { key: `roll${steps[i].item.id}`, node: <RollCard step={steps[i]} index={i} count={steps.length} /> };
+    const done = steps.length > 0 && now >= steps[steps.length - 1].until;
+    return {
+      key: done ? "roll-end" : "roll-open",
+      node: (
+        <div className="tv-scene">
+          <span className="tv-kick fade">{done ? "Remember these faces" : "The roll call"}</span>
+          <h2 className="tv-h2 fade" style={{ fontSize: "5.4cqw" }}>{done ? "Tonight's suspects" : "The doors are locked."}</h2>
+          {done ? <Guests guests={d.guests} mark="here" /> : <p className="tv-sub fade" style={{ animationDelay: ".6s" }}>Nobody leaves until we know who did it.</p>}
+        </div>
+      ),
+    };
+  }
+  if (p.part === "phones") {
+    return {
+      key: "phones",
+      node: (
+        <div className="tv-scene dark">
+          <span className="tv-kick fade">Check your phone</span>
+          <h2 className="tv-h2 fade" style={{ fontSize: "5.4cqw" }}>Press and hold your card.</h2>
+          <p className="tv-sub fade">Keep your screen to yourself. Round 1 starts in a moment.</p>
+        </div>
+      ),
+    };
+  }
+  return null;
+}
+
+type RollStep = NonNullable<Plan["roll"]>["steps"][number];
+
+/** One guest's turn: their drawing with their weapon at hip level, and what the narrator says, row by row as it's said. */
+function RollCard({ step, index, count }: { step: RollStep; index: number; count: number }) {
+  const it = step.item;
+  // Each row arrives when the narrator gets to it (a share of the line, from where the voice starts).
+  const lead = step.voiceAt - step.at;
+  const at = (share: number) => `${((lead + share * step.talk * 1000) / 1000).toFixed(2)}s`;
+  return (
+    <div className="tv-scene roll">
+      <div className="tv-roll v2">
+        <div className="tv-roll-art">
+          {it.figure ? (
+            <div className="tv-roll-fig enter">
+              <img src={figureUrl(it.figure)} alt="" />
+              {it.weapon && <WeaponCard weapon={it.weapon} className="hip" style={{ animationDelay: at(it.marks.weapon) }} />}
+            </div>
+          ) : (
+            <div className="tv-frame fade">{it.photoUrl ? <img src={it.photoUrl} alt="" /> : <span>{initials(it.charName)}</span>}</div>
+          )}
+        </div>
+        <div className="tv-roll-text">
+          <span className="tv-kick fade">
+            Roll call · {index + 1} of {count}
+          </span>
+          <h2 className="tv-h2 fade" style={{ animationDelay: ".25s" }}>{it.charName}</h2>
+          <span className="tv-played fade" style={{ animationDelay: ".45s" }}>Played by {it.realName}</span>
+          <dl className="tv-facts">
+            {it.signature && (
+              <div className="fade" style={{ animationDelay: at(it.marks.signature) }}>
+                <dt>Signature</dt>
+                <dd>{it.signature}</dd>
+              </div>
+            )}
+            {it.weapon && (
+              <div className="fade" style={{ animationDelay: at(it.marks.weapon) }}>
+                <dt>Weapon</dt>
+                <dd>{it.weapon.name}</dd>
+              </div>
+            )}
+            {it.motive && (
+              <div className="fade" style={{ animationDelay: at(it.marks.motive) }}>
+                <dt>Motive</dt>
+                <dd>{it.motive}</dd>
+              </div>
+            )}
+          </dl>
+          {it.roast && (
+            <p className="tv-roast fade" style={{ animationDelay: at(it.marks.roast) }}>
+              {it.roast}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type Weapon = { key: string; name: string };
+
+/** A weapon's little framed card: the painting and its name. */
+function WeaponCard({ weapon, className = "", style }: { weapon: Weapon; className?: string; style?: CSSProperties }) {
+  return (
+    <div className={`tv-wcard ${className}`} style={style}>
+      <span className="in">
+        <img src={weaponUrl(weapon.key)} alt="" />
+      </span>
+      <span className="nm">{weapon.name}</span>
+    </div>
+  );
+}
+
+/** Every weapon in play, in a row (the intro). */
+function WeaponRow({ weapons }: { weapons: Weapon[] }) {
+  return (
+    <div className="tv-wrow">
+      {weapons.map((w, i) => (
+        <WeaponCard key={w.key} weapon={w} className="fade" style={{ animationDelay: `${0.3 + i * 0.12}s` }} />
+      ))}
+    </div>
+  );
+}
+
+/** Three weapon cards fanned out (How to play). */
+function WeaponFan({ weapons }: { weapons: Weapon[] }) {
+  const fallback: Weapon[] = [
+    { key: "candlestick", name: "Candlestick" },
+    { key: "revolver", name: "Revolver" },
+    { key: "rope", name: "Rope" },
+  ];
+  const three = (weapons.length >= 3 ? weapons : fallback).slice(0, 3);
+  return (
+    <div className="tv-wfan enter">
+      {three.map((w) => (
+        <WeaponCard key={w.key} weapon={w} />
+      ))}
+    </div>
+  );
+}
+
+/** A drawing behind the jail bars, its face lined up with the gap in the middle. */
+function Jailed({ figure, className = "" }: { figure: string; className?: string }) {
+  return (
+    <div className={`tv-jailed ${className}`}>
+      <img className="who" src={figureUrl(figure)} alt="" style={{ transform: `translateX(-${(faceX(figure) * 100).toFixed(1)}%)` }} />
+      <img className="bars" src="/art/jailbars.webp" alt="" />
+    </div>
   );
 }
 

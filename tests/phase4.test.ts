@@ -2,7 +2,6 @@ import { convexTest } from "convex-test";
 import { beforeAll, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
-import { INTRO_MS } from "../convex/shared";
 import type { Id } from "../convex/_generated/dataModel";
 
 const modules = import.meta.glob("../convex/**/*.ts");
@@ -23,6 +22,8 @@ type Opts = {
   mode?: "play" | "mc";
   mcIndex?: number; // which seeded guest is the MC
   start?: boolean;
+  /** Leave the show running (intro, How to play, roll call) instead of skipping to Round 1. */
+  show?: boolean;
 };
 
 async function setup(o: Opts = {}) {
@@ -44,6 +45,7 @@ async function setup(o: Opts = {}) {
   if (o.start !== false) {
     await t.mutation(api.game.openDoors, { slug: SLUG, hostKey });
     await t.mutation(api.game.startGame, { slug: SLUG, hostKey });
+    if (!o.show) await t.mutation(api.game.skipIntro, { slug: SLUG, hostKey });
   }
   const tokens = players.map((p) => p.token);
   return { t, hostKey, players, tokens };
@@ -187,8 +189,7 @@ describe("Phase 4: drawn body room, waves, Self MC, Wi-Fi, the TV", () => {
       for (const token of tokens) {
         const b = (await t.query(api.game.phone, { token }))!.briefing!;
         expect(tv).not.toContain(b.lines[0]);
-        expect(tv).not.toContain(b.motive);
-        expect(tv).not.toContain(b.secret);
+        expect(tv).not.toContain(b.secret); // (motives are public in v2: the roll call reads them out)
       }
       for (const text of markerTexts) if (text.length > 30) expect(tv).not.toContain(text);
       expect(JSON.parse(tv).results).toBeNull();
@@ -201,26 +202,6 @@ describe("Phase 4: drawn body room, waves, Self MC, Wi-Fi, the TV", () => {
     const rv = await t.query(api.game.tv, { slug: SLUG, tvKey: await tvKey(t) });
     expect(rv.results!.killer).toBeTruthy();
     expect((await game(t)).revealAt).toBeGreaterThan(0);
-  });
-
-  test("the intro: Round 1's clock starts after it, and skipping it starts the clock now", async () => {
-    vi.useFakeTimers();
-    try {
-      const { t, hostKey } = await setup({ pacing: "timer" });
-      const g = await game(t);
-      expect(g.introEndsAt! - g.startedAt!).toBe(INTRO_MS);
-      expect(g.roundEndsAt).toBe(g.introEndsAt! + 10 * 60_000);
-      vi.advanceTimersByTime(5_000);
-      await t.mutation(api.game.skipIntro, { slug: SLUG, hostKey });
-      const g2 = await game(t);
-      expect(g2.introEndsAt).toBeLessThanOrEqual(Date.now());
-      expect(g2.roundEndsAt).toBe(Date.now() + 10 * 60_000);
-      vi.advanceTimersByTime(10 * 60_000 + 1000);
-      await t.finishInProgressScheduledFunctions();
-      expect((await game(t)).round).toBe(2);
-    } finally {
-      vi.useRealTimers();
-    }
   });
 
   test("removing a room unassigns its markers, and the game won't start until they have a room", async () => {

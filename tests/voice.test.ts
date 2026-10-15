@@ -67,91 +67,60 @@ describe("sign-up: roll-call question and Say it like", () => {
   });
 });
 
-describe("roll call", () => {
-  test("lines come from the rumor, else who they are; the host can rewrite and reset them", async () => {
-    const { t, hostKey, players } = await setup();
-    await t.run((ctx) => ctx.db.patch(players[0]._id, { rumor: "Owes money to every bookie in Cicero", sayAs: "DOH-lor-ez" }));
+describe("roll call (v2)", () => {
+  test("every guest gets a different roast with their names and weapon; the host can rewrite and reset it before Start", async () => {
+    const { t, hostKey, players } = await setup({ guests: 6 });
     let sheet = await t.query(api.voice.rollCallSheet, { slug: SLUG, hostKey });
-    const row0 = sheet.guests.find((g) => g.id === players[0]._id)!;
-    expect(row0.line).toBe("Word on the street: Owes money to every bookie in Cicero.");
-    expect(row0.spoken).toContain(players[0].charName); // the caption shows the name as written…
-    expect(row0.spoken).toContain(players[0].realName);
-    expect(row0.voice).toBe("none");
-    const row1 = sheet.guests.find((g) => g.id === players[1]._id)!;
-    expect(row1.line).toBe(players[1].who.trim().replace(/([^.!?])$/, "$1."));
-
+    expect(sheet.started).toBe(false);
+    expect(sheet.guests).toHaveLength(6);
+    expect(new Set(sheet.guests.map((g) => g.roast)).size).toBe(6);
+    for (const g of sheet.guests) {
+      expect(g.roast.includes(g.charName) || g.roast.includes(g.realName)).toBe(true);
+      expect(g.roast).not.toMatch(/[{}]/);
+      expect(g.voice).toBe("later");
+      expect(g.weapon).toBeTruthy();
+    }
     await t.mutation(api.voice.setRollLine, { slug: SLUG, hostKey, playerId: players[1]._id, line: "The only man in Chicago afraid of pigeons" });
     sheet = await t.query(api.voice.rollCallSheet, { slug: SLUG, hostKey });
-    expect(sheet.guests.find((g) => g.id === players[1]._id)).toMatchObject({ line: "The only man in Chicago afraid of pigeons.", edited: true });
+    expect(sheet.guests.find((g) => g.id === players[1]._id)).toMatchObject({ roast: "The only man in Chicago afraid of pigeons", edited: true });
     await t.mutation(api.voice.setRollLine, { slug: SLUG, hostKey, playerId: players[1]._id, line: "  " });
     sheet = await t.query(api.voice.rollCallSheet, { slug: SLUG, hostKey });
     expect(sheet.guests.find((g) => g.id === players[1]._id)!.edited).toBe(false);
     await expect(t.mutation(api.voice.setRollLine, { slug: SLUG, hostKey: "wrong", playerId: players[1]._id, line: "x" })).rejects.toThrow();
   });
 
-  test("recording: every line once, in the chosen voice; unchanged lines aren't paid for twice; edits re-record", async () => {
+  test("recorded at Start in the chosen voice: name, signature, weapon, motive and roast, the name said their way", async () => {
     const said = fakeElevenLabs();
     process.env.ELEVENLABS_API_KEY = "test-key";
+    vi.useFakeTimers();
     const { t, hostKey, players } = await setup({ guests: 4 });
     await t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, narrator: { host: "duke", unstable: false } });
     await t.run((ctx) => ctx.db.patch(players[0]._id, { sayAs: "DOH-lor-ez" }));
-    const gameId = (await t.run(async (ctx) => (await ctx.db.query("games").first())!._id)) as Id<"games">;
-    await t.action(internal.voice.record, { gameId, scope: "roll" });
-    expect(said).toHaveLength(4);
-    expect(said.some((s) => s.text.includes("DOH-lor-ez") && !s.text.includes(players[0].charName))).toBe(true); // …the voice says it their way
+    await t.mutation(api.game.openDoors, { slug: SLUG, hostKey });
+    await t.mutation(api.game.startGame, { slug: SLUG, hostKey });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const roll = said.filter((s) => s.text.includes("Weapon: the"));
+    expect(roll).toHaveLength(4);
+    expect(roll.every((s) => /Motive/.test(s.text) && /Signature: /.test(s.text))).toBe(true);
+    expect(roll.some((s) => s.text.includes("DOH-lor-ez") && !s.text.includes(players[0].charName))).toBe(true);
     expect(new Set(said.map((s) => s.voice))).toEqual(new Set(["QzTKubutNn9TjrB7Xb2Q"])); // Duke
-    let sheet = await t.query(api.voice.rollCallSheet, { slug: SLUG, hostKey });
+    const sheet = await t.query(api.voice.rollCallSheet, { slug: SLUG, hostKey });
+    expect(sheet.started).toBe(true);
     expect(sheet.counts).toMatchObject({ total: 4, ready: 4, failed: 0 });
-    expect(sheet.guests[0].seconds).toBe(1); // 16 KB at 128 kbps
+    const gameId = (await t.run(async (ctx) => (await ctx.db.query("games").first())!._id)) as Id<"games">;
+    const before = said.length;
     await t.action(internal.voice.record, { gameId, scope: "roll" });
-    expect(said).toHaveLength(4);
-    await t.mutation(api.voice.setRollLine, { slug: SLUG, hostKey, playerId: players[2]._id, line: "Allergic to honesty" });
-    sheet = await t.query(api.voice.rollCallSheet, { slug: SLUG, hostKey });
-    expect(sheet.counts.ready).toBe(3);
-    await t.action(internal.voice.record, { gameId, scope: "roll" });
-    expect(said).toHaveLength(5);
-    expect(said[4].text).toContain("Allergic to honesty.");
-    // Unstable changes every line, so they all record again.
-    await t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, narrator: { host: "duke", unstable: true } });
-    await t.action(internal.voice.record, { gameId, scope: "roll" });
-    expect(said).toHaveLength(9);
-    expect(said.slice(5).every((s) => /^\[[^\]]+\] /.test(s.text))).toBe(true);
+    expect(said.length).toBe(before); // nothing paid for twice
+    await expect(t.mutation(api.voice.setRollLine, { slug: SLUG, hostKey, playerId: players[1]._id, line: "x" })).rejects.toThrow(/locked/);
   });
 
-  test("no key on the server: lines are marked failed, the game carries on", async () => {
-    const { t, hostKey } = await setup({ guests: 3 });
+  test("no key on the server: the roll call's voices are marked failed, the game carries on", async () => {
+    const { t, hostKey } = await setup({ guests: 3, start: true });
     const gameId = (await t.run(async (ctx) => (await ctx.db.query("games").first())!._id)) as Id<"games">;
     await t.action(internal.voice.record, { gameId, scope: "roll" });
     const sheet = await t.query(api.voice.rollCallSheet, { slug: SLUG, hostKey });
     expect(sheet.counts).toMatchObject({ ready: 0, failed: 3 });
     expect(sheet.guests[0].error).toMatch(/no ElevenLabs key/);
-  });
-
-  test("Play the roll call: guests who are here, shuffled, on the TV with their clips; gone once the game starts", async () => {
-    fakeElevenLabs();
-    process.env.ELEVENLABS_API_KEY = "test-key";
-    const { t, hostKey, players, tvKey } = await setup({ guests: 5 });
-    await t.mutation(api.game.openDoors, { slug: SLUG, hostKey });
-    await t.run((ctx) => ctx.db.patch(players[4]._id, { checkedIn: false }));
-    const gameId = (await t.run(async (ctx) => (await ctx.db.query("games").first())!._id)) as Id<"games">;
-    await t.action(internal.voice.record, { gameId, scope: "roll" });
-    await t.mutation(api.voice.playRollCall, { slug: SLUG, hostKey });
-    let tv = await t.query(api.game.tv, { slug: SLUG, tvKey });
-    const rc = tv.voice.rollCall!;
-    expect(rc.items).toHaveLength(4);
-    expect(rc.items.map((i) => i.id)).not.toContain(players[4]._id);
-    expect(rc.items.every((i) => i.clip && i.clip.seconds === 1 && i.realName)).toBe(true);
-    // the rules and the roll call never play at once
-    await t.mutation(api.voice.playRules, { slug: SLUG, hostKey });
-    tv = await t.query(api.game.tv, { slug: SLUG, tvKey });
-    expect(tv.voice.rollCall).toBeNull();
-    expect(tv.game.rulesAt).not.toBeNull();
-    await t.mutation(api.voice.playRollCall, { slug: SLUG, hostKey });
-    await t.mutation(api.game.startGame, { slug: SLUG, hostKey });
-    tv = await t.query(api.game.tv, { slug: SLUG, tvKey });
-    expect(tv.voice.rollCall).toBeNull();
-    expect(tv.game.rulesAt).toBeNull();
-    await expect(t.mutation(api.voice.playRollCall, { slug: SLUG, hostKey })).rejects.toThrow(/before the game starts/);
   });
 });
 

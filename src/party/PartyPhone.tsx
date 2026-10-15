@@ -88,11 +88,16 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
   const [seen, setSeen] = useState(() => hasSeen(game.slug));
   const prevStatus = useRef(game.status);
 
-  // Buzz the phone when the game starts (Android; iPhones ignore this).
+  // Buzz the phone when the game starts, and again when the roles arrive (Android; iPhones ignore this).
   useEffect(() => {
     if (prevStatus.current !== "playing" && game.status === "playing") navigator.vibrate?.([250, 120, 250]);
     prevStatus.current = game.status;
   }, [game.status]);
+  const prevRoles = useRef(game.rolesOut);
+  useEffect(() => {
+    if (!prevRoles.current && game.rolesOut && game.status === "playing") navigator.vibrate?.([400, 150, 400]);
+    prevRoles.current = game.rolesOut;
+  }, [game.rolesOut, game.status]);
 
   // Accusations open: jump to the accuse screen once.
   const lastRound = useRef(game.round);
@@ -107,6 +112,7 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
   else if (game.status === "lobby" && !me.checkedIn) body = <Arrive token={token} name={me.charName} />;
   else if (game.status === "lobby") body = <Lobby data={data} />;
   else if (game.status === "playing" && !me.inGame) body = <Late data={data} />;
+  else if (game.status === "playing" && !game.rolesOut) body = <ShowWait data={data} />;
   else if (game.status === "playing" && !seen) {
     body = (
       <Murder
@@ -177,6 +183,9 @@ function TopLine({ data }: { data: Phone }) {
   if (game.status === "lobby") {
     chip = "Doors open";
     right = `${counts.checkedIn} of ${counts.registered} here`;
+  } else if (intro) {
+    chip = "Lights down";
+    right = left;
   } else if (game.status === "playing" && game.round <= 3) {
     chip = `Round ${game.round} · ${["", "Search the house", "Fresh evidence", "Last evidence"][game.round]}`;
     right = timed || intro ? left : game.paused ? "Paused" : `${counts.ready} of ${counts.inGame} ready`;
@@ -340,13 +349,27 @@ function useHold() {
   return { holding, seenOnce, props };
 }
 
+/** The show (v2): the intro, How to play and the roll call play on the TV. The role arrives after the roll call. */
+function ShowWait({ data }: { data: Phone }) {
+  return (
+    <div className="screen center murder">
+      <span className="eyebrow">Lights down</span>
+      <h1 className="title-xl">The Don is dead.</h1>
+      {data.game.bodyRoom && <p className="lede">Don Carmine Velluto has been found in {mid(data.game.bodyRoom)}.</p>}
+      <div className="sealed">
+        <p>Eyes on the TV. Your secret role arrives here after the roll call.</p>
+      </div>
+    </div>
+  );
+}
+
 function Murder({ data, onDone }: { data: Phone; onDone: () => void }) {
   const { holding, seenOnce, props } = useHold();
   const b = data.briefing;
   const killer = b?.role === "killer";
   return (
     <div className="screen center murder no-select">
-      <span className="eyebrow">Lights down</span>
+      <span className="eyebrow">Check your phone</span>
       <h1 className="title-xl">The Don is dead.</h1>
       <p className="lede">Don Carmine Velluto has been found in {mid(data.game.bodyRoom)}.</p>
       <div {...props} aria-label="Press and hold to see your role" className={`hold-card${holding ? " showing" : ""}`}>

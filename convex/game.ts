@@ -8,15 +8,18 @@ import { secure, seeded, shuffle } from "./engine/rng";
 import { FAKE_GUESTS, LETTERS } from "./engine/fake";
 import type { CaseFile, CaseInput } from "./engine/types";
 import { randomCode, registrationIsOpen, requireHost, requireTv } from "./lib";
-import { seal, unseal } from "./seal";
+import { seal } from "./seal";
+import { caseFor } from "./caseFile";
 import { ensureAllCards, markerForCode } from "./cards";
-import { ACCUSE_MAX_MINUTES, INTRO_MS, MAX_CARDS, REVEAL } from "./shared";
+import { ACCUSE_MAX_MINUTES, MAX_CARDS, REVEAL } from "./shared";
+import { SHOW, cueSecs, howCues, howLayout, rollLayout } from "./show";
+import { inOrder, rollGuests, slotsFor } from "./rollCall";
+import type { CueKey } from "./narration";
 import { scheduleRecording } from "./voice";
 import { ensureRoomCode } from "./join";
 import { anyFreeFigure, fakeGuestPool, takenFigures } from "./figures";
 import { anyFreeWeapon, takenWeapons, weaponName } from "./weapons";
-import { clipMatches, levelsOf, narratorOf, rollWanted, startWanted, voiceOf, type Wanted } from "./voiceLines";
-import { rollLineFor } from "./narration";
+import { clipMatches, levelsOf, narratorOf, startWanted, voiceOf, type Wanted } from "./voiceLines";
 
 // ---------- shared helpers ----------
 
@@ -33,14 +36,6 @@ async function requirePlayer(ctx: QueryCtx, token: string) {
   if (!player) throw new ConvexError("That link doesn't match a guest.");
   const game = (await ctx.db.get(player.gameId))!;
   return { player, game };
-}
-
-async function caseFor(ctx: QueryCtx, game: Doc<"games">): Promise<CaseFile | null> {
-  const box = await ctx.db
-    .query("sealed")
-    .withIndex("by_game", (q) => q.eq("gameId", game._id))
-    .unique();
-  return box ? await unseal<CaseFile>(box) : null;
 }
 
 async function playersOf(ctx: QueryCtx, gameId: Id<"games">) {
@@ -128,7 +123,7 @@ async function advance(ctx: MutationCtx, game: Doc<"games">) {
   const minutes = next === 4 ? Math.min(game.pacing.roundMinutes, ACCUSE_MAX_MINUTES) : game.pacing.roundMinutes;
   const endsAt = timed ? Date.now() + minutes * 60_000 : undefined;
   // Skipping ahead also cuts the intro short.
-  await ctx.db.patch(game._id, { round: next, roundStartedAt: Date.now(), roundEndsAt: endsAt, paused: false, introEndsAt: Math.min(game.introEndsAt ?? 0, Date.now()) });
+  await ctx.db.patch(game._id, { round: next, roundStartedAt: Date.now(), roundEndsAt: endsAt, paused: false, introEndsAt: Math.min(game.introEndsAt ?? 0, Date.now()), rolesOut: true });
   await scheduleTimer(ctx, game._id, next, endsAt);
 }
 
@@ -297,7 +292,9 @@ export const phone = query({
     const started = game.status !== "registration" && game.status !== "lobby";
     const cf = started ? await caseFor(ctx, game) : null;
     const S = scriptFor({ tone: game.tone ?? "classic" } as CaseInput);
-    const brief = cf?.briefings.find((b) => b.playerId === player._id);
+    // v2: roles reach the phones at "check your phones", after the roll call.
+    const rolesOut = !game.show || !!game.rolesOut;
+    const brief = rolesOut ? cf?.briefings.find((b) => b.playerId === player._id) : undefined;
     const tip = cf?.tips.find((t) => t.playerId === player._id);
     const scans = await ctx.db
       .query("scans")
@@ -348,6 +345,7 @@ export const phone = query({
         wifi: game.wifi?.name ? game.wifi : null,
         mode: game.mode ?? "play",
         introEndsAt: game.introEndsAt ?? null,
+        rolesOut,
         revealAt: game.revealAt ?? null,
         nextSlug: game.nextSlug ?? null, // the host started another game: sign up for it
       },
@@ -565,9 +563,17 @@ export const startGame = mutation({
     for (const p of await playersOf(ctx, game._id)) {
       await ctx.db.patch(p._id, { inGame: p.checkedIn && !(game.mode === "mc" && p._id === game.mcPlayerId), readyRound: 0 });
     }
-    // The intro plays on the TV first; Round 1's clock starts when it ends.
+    // The show plays on the TV first (intro, How to play, roll call, check your phones); Round 1's clock
+    // starts when it ends. The roll call's turns are estimated now and fixed when it begins.
     const now = Date.now();
-    const introEndsAt = now + INTRO_MS;
+    const order = shuffle(
+      secure(),
+      (await playersOf(ctx, game._id)).filter((p) => p.inGame).map((p) => p._id),
+    );
+    const howAt = now + SHOW.introMs;
+    const rollAt = howLayout(howAt, howCues({ search: game.search ?? "all", pacing: game.pacing }), showSecs(game)).end;
+    const est = await rollPlan(ctx, game, rollAt, order, file as CaseFile);
+    const introEndsAt = est.end;
     const timed = game.pacing.mode === "timer";
     const endsAt = timed ? introEndsAt + game.pacing.roundMinutes * 60_000 : undefined;
     await ctx.db.patch(game._id, {
@@ -583,11 +589,15 @@ export const startGame = mutation({
       roomOrder: file.roomOrder,
       rulesAt: undefined,
       rollCallAt: undefined,
+      show: { howAt, rollAt, order },
+      rolesOut: false,
     });
+    await ctx.scheduler.runAt(rollAt, internal.game.freezeShowRoll, { gameId: game._id });
     await scheduleTimer(ctx, game._id, 1, endsAt);
     await ensureRoomCode(ctx, game); // started straight from sign-ups: late guests still need the code
-    // The names for the intro, the waves and the reveal: one clip for every guest, exhibit and room.
-    await scheduleRecording(ctx, game._id, "start");
+    // The roll call's voices first (it plays in a couple of minutes), then the names for the intro, the waves
+    // and the reveal: one clip for every guest, exhibit and room.
+    await scheduleRecording(ctx, game._id, "roll", undefined, "start");
     return { suspects: input.suspects.length, exhibits: input.exhibits.length, markers: input.markers.length };
   },
 });
@@ -603,6 +613,101 @@ export const advanceRound = mutation({
   },
 });
 
+// ---------- the show (v2): intro → How to play → roll call → check your phones ----------
+
+const showSecs = (game: Doc<"games">) => {
+  const n = narratorOf(game);
+  const tone = game.tone ?? "classic";
+  return (cue: CueKey) => cueSecs(voiceOf(n), tone, n.host, cue);
+};
+
+/** How long each recorded clip runs (null while it isn't recorded, or no longer says the right thing). */
+async function clipSeconds(ctx: QueryCtx, gameId: Id<"games">): Promise<(w: Wanted) => number | null> {
+  const rows = await ctx.db
+    .query("clips")
+    .withIndex("by_game", (q) => q.eq("gameId", gameId))
+    .collect();
+  const byPurpose = new Map(rows.map((r) => [r.purpose, r]));
+  return (w) => {
+    const r = byPurpose.get(w.purpose);
+    return clipMatches(r, w) && r!.seconds ? r!.seconds : null;
+  };
+}
+
+/** The roll call's turns, and when "check your phones" and Round 1 follow, for a roll call starting at rollAt. */
+async function rollPlan(ctx: QueryCtx, game: Doc<"games">, rollAt: number, order: Id<"players">[], cf: CaseFile | null) {
+  const guests = inOrder(await rollGuests(ctx, game, cf), order);
+  const slots = slotsFor(guests, await clipSeconds(ctx, game._id));
+  return { slots, ...rollLayout(rollAt, slots, showSecs(game)) };
+}
+
+/** Moves the end of the show, and Round 1's clock with it. */
+async function setShowEnd(ctx: MutationCtx, game: Doc<"games">, end: number, patch: Partial<Doc<"games">>) {
+  const timed = game.pacing.mode === "timer" && !game.paused;
+  const roundEndsAt = timed ? end + game.pacing.roundMinutes * 60_000 : game.roundEndsAt;
+  await ctx.db.patch(game._id, { ...patch, introEndsAt: end, roundEndsAt });
+  if (timed) await scheduleTimer(ctx, game._id, 1, roundEndsAt);
+}
+
+const inShow = (game: Doc<"games">, now: number) =>
+  !!game.show && isPlaying(game) && game.round === 1 && !!game.introEndsAt && game.introEndsAt > now;
+
+/** When the roll call begins, its turns are fixed from the recorded voices (or reading speed for any still missing). */
+async function freezeRoll(ctx: MutationCtx, game: Doc<"games">) {
+  const s = game.show;
+  if (!s || s.roll || !inShow(game, Date.now())) return;
+  const plan = await rollPlan(ctx, game, s.rollAt, s.order, await caseFor(ctx, game));
+  await setShowEnd(ctx, game, plan.end, { show: { ...s, roll: plan.slots, phonesAt: plan.phonesAt } });
+  if (plan.phonesAt <= Date.now()) await ctx.db.patch(game._id, { rolesOut: true });
+  else await ctx.scheduler.runAt(plan.phonesAt, internal.game.releaseRoles, { gameId: game._id });
+}
+
+export const freezeShowRoll = internalMutation({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, { gameId }) => {
+    const game = await ctx.db.get(gameId);
+    if (game) await freezeRoll(ctx, game);
+  },
+});
+
+/** "Check your phones": the roles appear. */
+export const releaseRoles = internalMutation({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, { gameId }) => {
+    const game = await ctx.db.get(gameId);
+    if (!game || game.rolesOut || !game.show?.phonesAt || game.show.phonesAt > Date.now() + 500) return;
+    await ctx.db.patch(game._id, { rolesOut: true });
+  },
+});
+
+/** Host: skip to the next part of the show (How to play, the roll call, check your phones, Round 1). */
+export const skipShow = mutation({
+  args: { slug: v.string(), hostKey: v.string() },
+  handler: async (ctx, { slug, hostKey }) => {
+    const game = await requireHost(ctx, slug, hostKey);
+    const now = Date.now();
+    const s = game.show;
+    if (!s || !inShow(game, now)) return { ok: true };
+    if (now < s.howAt) {
+      const d = s.howAt - now;
+      const show = { ...s, howAt: now, rollAt: s.rollAt - d };
+      await setShowEnd(ctx, game, game.introEndsAt! - d, { show });
+      await ctx.scheduler.runAt(show.rollAt, internal.game.freezeShowRoll, { gameId: game._id });
+    } else if (now < s.rollAt) {
+      await ctx.db.patch(game._id, { show: { ...s, rollAt: now } });
+      await freezeRoll(ctx, (await ctx.db.get(game._id))!);
+    } else if (!s.phonesAt || now < s.phonesAt) {
+      if (!s.roll) await freezeRoll(ctx, game);
+      const g = (await ctx.db.get(game._id))!;
+      const d = g.show!.phonesAt! - now;
+      await setShowEnd(ctx, g, g.introEndsAt! - d, { show: { ...g.show!, phonesAt: now }, rolesOut: true });
+    } else {
+      await setShowEnd(ctx, game, now, { rolesOut: true });
+    }
+    return { ok: true };
+  },
+});
+
 /** Host: cut the intro short and start Round 1 now. */
 export const skipIntro = mutation({
   args: { slug: v.string(), hostKey: v.string() },
@@ -611,7 +716,7 @@ export const skipIntro = mutation({
     if (!isPlaying(game) || game.round !== 1 || !game.introEndsAt || game.introEndsAt <= Date.now()) return { ok: true };
     const timed = game.pacing.mode === "timer" && !game.paused;
     const endsAt = timed ? Date.now() + game.pacing.roundMinutes * 60_000 : game.roundEndsAt;
-    await ctx.db.patch(game._id, { introEndsAt: Date.now(), roundEndsAt: endsAt });
+    await ctx.db.patch(game._id, { introEndsAt: Date.now(), roundEndsAt: endsAt, rolesOut: true });
     if (timed) await scheduleTimer(ctx, game._id, 1, endsAt);
     return { ok: true };
   },
@@ -786,25 +891,32 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
   const tone = game.tone ?? "classic";
   const n = narratorOf(game);
   const beforeStart = game.status === "registration" || game.status === "lobby";
+  // The roll call (v2) plays during the show, after How to play: each guest's turn, fixed once it begins.
   let rollCall = null;
-  if (beforeStart && game.rollCallAt && game.rollCallOrder) {
-    const byId = new Map(all.map((p) => [p._id as string, p]));
-    const items = [];
-    for (const id of game.rollCallOrder) {
-      const p = byId.get(id);
-      if (!p) continue;
-      const w = rollWanted(tone, n, { id: p._id, charName: p.charName, sayAs: p.sayAs, realName: p.realName, rumor: p.rumor, rollLine: p.rollLine, who: p.who });
-      items.push({
-        id: p._id,
-        charName: p.charName,
-        realName: p.realName,
-        photoUrl: p.photoId ? await ctx.storage.getUrl(p.photoId) : null,
-        figure: p.figure ?? null,
-        line: rollLineFor(p),
-        clip: await clip(w),
-      });
-    }
-    rollCall = { at: game.rollCallAt, items };
+  if (game.show && cf && game.status === "playing" && game.round === 1) {
+    const guests = inOrder(await rollGuests(ctx, game, cf), game.show.order);
+    const items = await Promise.all(
+      guests.map(async (g) => ({
+        id: g.player._id,
+        charName: g.player.charName,
+        realName: g.player.realName,
+        photoUrl: g.player.photoId ? await ctx.storage.getUrl(g.player.photoId) : null,
+        figure: g.player.figure ?? null,
+        who: g.player.who,
+        signature: g.player.signature,
+        weapon: g.weapon,
+        motive: g.motive,
+        roast: g.roast,
+        line: g.wanted.caption,
+        marks: g.wanted.marks,
+        clip: await clip(g.wanted),
+      })),
+    );
+    const secondsOf = (w: Wanted) => {
+      const row = byPurpose.get(w.purpose);
+      return clipMatches(row, w) && row!.seconds ? row!.seconds : null;
+    };
+    rollCall = { at: game.show.rollAt, items, slots: game.show.roll ?? slotsFor(guests, secondsOf), frozen: !!game.show.roll };
   }
   if (beforeStart || !input) return { voice: voiceOf(n), rollCall, body: null, rooms: {} as Record<string, Clip>, reveal: null, winners: null };
   const wanted = startWanted(tone, n, {
@@ -845,6 +957,19 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
     };
   }
   return { voice: voiceOf(n), rollCall, body: await get("body"), rooms, reveal, winners };
+}
+
+/** The weapons the guests in the game picked (v2), by name. */
+async function weaponsInPlay(ctx: QueryCtx, game: Doc<"games">, players: Doc<"players">[]) {
+  const ids = new Set(players.map((p) => p._id as string));
+  const rows = await ctx.db
+    .query("weapons")
+    .withIndex("by_game", (q) => q.eq("gameId", game._id))
+    .collect();
+  return rows
+    .filter((w) => w.key && ids.has(w.playerId))
+    .map((w) => ({ key: w.key!, name: w.name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**
@@ -928,6 +1053,8 @@ export const tv = query({
         resumedAt: game.resumedAt ?? null,
         doneAt: game.doneAt ?? null,
         rulesAt: started ? null : game.rulesAt ?? null,
+        // v2: the show between Start and Round 1 (convex/show.ts). phonesAt is set once the roll call begins.
+        show: game.show ? { howAt: game.show.howAt, rollAt: game.show.rollAt, phonesAt: game.show.phonesAt ?? null } : null,
         tone: game.tone ?? "classic",
         narrator: narratorOf(game),
         levels: levelsOf(game),
@@ -964,6 +1091,8 @@ export const tv = query({
         accused: shown.filter((p) => accused.has(p._id)).length,
       },
       exhibits: input ? input.exhibits.map((e) => e.letter) : [],
+      // v2: the weapons in play are public, like Clue. Picked at sign-up, one per guest.
+      weapons: started ? await weaponsInPlay(ctx, game, shown) : [],
       evidence: cf
         ? cf.clues
             .filter((c) => c.channel === "tv" && c.round <= Math.min(round, 3))
@@ -1124,6 +1253,8 @@ export const resetTestGame = internalMutation({
       rulesAt: undefined,
       rollCallAt: undefined,
       rollCallOrder: undefined,
+      show: undefined,
+      rolesOut: undefined,
       lastJoin: undefined,
     });
     if (status === "lobby") await ensureRoomCode(ctx, game);

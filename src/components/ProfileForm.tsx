@@ -403,7 +403,7 @@ export default function ProfileForm(props: {
               </div>
               <p>
                 The house will write your motive and your secret from your character. They arrive on your phone
-                when the game begins, and only you see them.
+                when the game begins. The narrator reads your motive out at the roll call; your secret stays yours.
               </p>
             </div>
             <p className="help">You may lie about your secret. Only the killer may lie about the murder.</p>
@@ -414,7 +414,8 @@ export default function ProfileForm(props: {
             {progress}
             <h2>Everyone here has a reason</h2>
             <p className="lede">
-              Only you will see these. You may lie about your secret. Only the killer may lie about the murder.
+              The narrator reads your motive out at the roll call. Only you see your secret, and you may lie about it. Only the
+              killer may lie about the murder.
             </p>
             {field("motive", "Why might you have wanted the Don dead?", {
               area: true,

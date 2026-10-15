@@ -2,7 +2,7 @@
 // intro, the waves and the reveal. Pure functions, shared by the server (recording, the TV query)
 // and the host laptop. Nothing here is secret: every guest, exhibit and room gets a clip, so the
 // set of recordings never points at the answer.
-import { customRecordingText, customText, rollLineFor, voiceKey, type HostKey, type Tone } from "./narration";
+import { customRecordingText, customText, rollNarration, voiceKey, type HostKey, type Tone } from "./narration";
 import { openRoomsIn } from "./engine/build";
 
 export type Narrator = { host: HostKey; unstable: boolean };
@@ -32,13 +32,25 @@ function make(purpose: string, caption: string, n: Narrator, spoken = caption): 
   return { purpose, caption, text: customRecordingText(spoken, n.unstable), voice: voiceOf(n) };
 }
 
-type RollGuest = { id: string; charName: string; sayAs?: string; realName: string; rumor?: string; rollLine?: string; who: string };
+/** What the roll call says about one guest (v2): the caption as written, the recording the guest's way. */
+export type RollLine = {
+  id: string;
+  charName: string;
+  sayAs?: string;
+  realName: string;
+  signature: string;
+  weapon: string;
+  motive: string;
+  motiveOwn: boolean;
+  roast: { caption: string; spoken: string };
+};
 
-/** One guest's roll-call intro: "Introducing Velma, played by Jordan. Word on the street: …" */
-export function rollWanted(tone: Tone, n: Narrator, p: RollGuest): Wanted {
-  const line = rollLineFor(p);
-  const caption = customText("roll", tone, { name: p.charName, real: p.realName, line });
-  return make(`roll:${p.id}`, caption, n, customText("roll", tone, { name: spokenName(p), real: p.realName, line }));
+/** One guest's roll-call intro: name, played by, signature, weapon, motive, roast. */
+export function rollWanted(tone: Tone, n: Narrator, p: RollLine): Wanted & { marks: ReturnType<typeof rollNarration>["marks"] } {
+  const base = { real: p.realName, signature: p.signature, weapon: p.weapon, motive: p.motive, motiveOwn: p.motiveOwn };
+  const shown = rollNarration(tone, { ...base, name: p.charName, roast: p.roast.caption });
+  const said = rollNarration(tone, { ...base, name: spokenName(p), roast: p.roast.spoken });
+  return { ...make(`roll:${p.id}`, shown.text, n, said.text), marks: shown.marks };
 }
 
 type StartInfo = {

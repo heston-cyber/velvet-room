@@ -5,7 +5,7 @@ import type { Id } from "../../convex/_generated/dataModel";
 import { HOSTS, voiceKey } from "../../convex/narration";
 import { friendlyError } from "../lib/errors";
 import { Swap } from "../lib/Swap";
-import { initials, useNow, type Roster } from "./common";
+import { initials, type Roster } from "./common";
 import type { FunctionReturnType } from "convex/server";
 import { Sec, Seg, Toggle, type SettingsPatch } from "./Menu";
 
@@ -75,50 +75,31 @@ function Levels({ game, save }: { game: Game; save: (p: SettingsPatch) => Promis
   );
 }
 
-const STATUS: Record<string, string> = { ready: "Voice ready", pending: "Recording…", failed: "Couldn't record", none: "Not recorded" };
+const STATUS: Record<string, string> = { ready: "Voice ready", pending: "Recording…", failed: "Couldn't record", none: "Not recorded", later: "Records at Start" };
 
-/** The roll call: each guest's line, editable, and whether the narrator has recorded it. */
+/** The roll call (v2): after How to play, the narrator introduces every guest and ends with a roast. Edit any roast here. */
 export function RollCallSection({ slug, hostKey, locked, onError }: { slug: string; hostKey: string; locked: boolean; onError: (m: string | null) => void }) {
   const sheet = useQuery(api.voice.rollCallSheet, { slug, hostKey });
-  const record = useMutation(api.voice.recordRollCall);
-  const [busy, setBusy] = useState(false);
   if (!sheet) return <Sec title="Roll call">{<span className="help">Loading…</span>}</Sec>;
   const c = sheet.counts;
-  const todo = c.total - c.ready;
-  async function go() {
-    setBusy(true);
-    onError(null);
-    try {
-      await record({ slug, hostKey });
-    } catch (e) {
-      onError(friendlyError(e));
-    } finally {
-      window.setTimeout(() => setBusy(false), 1500);
-    }
-  }
   return (
     <Sec title={<>Roll call · {c.total} guests</>}>
       <span className="help">
-        Right before the murder, the narrator introduces every guest on the TV: their photo, character, real name and this line. Lines start from what each guest wrote at
-        sign-up. Edit any of them, then record the voices.
+        After How to play, the narrator introduces every guest on the TV: their drawing, name, signature item, weapon and motive, then a roast. Each guest gets a
+        different roast. Rewrite any of them here before the game starts; the voices record when it starts.
       </span>
-      <div className="row">
-        <button type="button" className="btn" disabled={busy || locked || !todo || c.pending > 0} onClick={go}>
-          <Swap show={c.pending > 0 ? 1 : 0}>
-            <span>{todo ? `Record ${todo} voice${todo === 1 ? "" : "s"}` : "All voices recorded"}</span>
-            <span>Recording {c.pending}…</span>
-          </Swap>
-        </button>
+      {sheet.started && (
         <span className={`hx-status ${c.failed ? "warn" : ""}`}>
-          {c.ready} of {c.total} recorded{c.failed ? ` · ${c.failed} failed` : ""}
+          {c.ready} of {c.total} voices recorded{c.pending ? ` · ${c.pending} recording` : ""}
+          {c.failed ? ` · ${c.failed} failed (those guests show without a voice)` : ""}
         </span>
-      </div>
+      )}
       {c.total === 0 ? (
         <p className="help">Nobody's signed up yet.</p>
       ) : (
         <ul className="hx-rollcall">
           {sheet.guests.map((gst) => (
-            <RollRow key={gst.id} g={gst} slug={slug} hostKey={hostKey} locked={locked} onError={onError} />
+            <RollRow key={gst.id} g={gst} slug={slug} hostKey={hostKey} locked={locked || sheet.started} onError={onError} />
           ))}
         </ul>
       )}
@@ -130,20 +111,20 @@ type Row = FunctionReturnType<typeof api.voice.rollCallSheet>["guests"][number];
 
 function RollRow({ g, slug, hostKey, locked, onError }: { g: Row; slug: string; hostKey: string; locked: boolean; onError: (m: string | null) => void }) {
   const setLine = useMutation(api.voice.setRollLine);
-  const [text, setText] = useState(g.line);
+  const [text, setText] = useState(g.roast);
   const [focused, setFocused] = useState(false);
   useEffect(() => {
-    if (!focused) setText(g.line);
-  }, [g.line, focused]);
+    if (!focused) setText(g.roast);
+  }, [g.roast, focused]);
   async function commit() {
     setFocused(false);
-    if (text.trim() === g.line) return;
+    if (text.trim() === g.roast) return;
     onError(null);
     try {
       await setLine({ slug, hostKey, playerId: g.id as Id<"players">, line: text });
     } catch (e) {
       onError(friendlyError(e));
-      setText(g.line);
+      setText(g.roast);
     }
   }
   return (
@@ -151,7 +132,7 @@ function RollRow({ g, slug, hostKey, locked, onError }: { g: Row; slug: string; 
       <div className="card-ph sm">{g.photoUrl ? <img src={g.photoUrl} alt="" /> : initials(g.charName)}</div>
       <div className="main">
         <div className="nm">
-          {g.charName} <span className="sub">· {g.realName}</span>
+          {g.charName} <span className="sub">· {g.realName}{g.weapon ? ` · ${g.weapon}` : ""}</span>
         </div>
         <textarea
           className="inp area"
@@ -159,7 +140,7 @@ function RollRow({ g, slug, hostKey, locked, onError }: { g: Row; slug: string; 
           maxLength={200}
           value={text}
           disabled={locked}
-          aria-label={`Roll-call line for ${g.charName}`}
+          aria-label={`Roast for ${g.charName}`}
           onFocus={() => setFocused(true)}
           onChange={(e) => setText(e.target.value)}
           onBlur={commit}
@@ -175,7 +156,7 @@ function RollRow({ g, slug, hostKey, locked, onError }: { g: Row; slug: string; 
           )}
           {g.edited && !locked && (
             <button type="button" className="linkish" onClick={() => setLine({ slug, hostKey, playerId: g.id as Id<"players">, line: "" }).catch((e) => onError(friendlyError(e)))}>
-              Use their words
+              Back to the drawn roast
             </button>
           )}
         </div>
@@ -183,45 +164,3 @@ function RollRow({ g, slug, hostKey, locked, onError }: { g: Row; slug: string; 
     </li>
   );
 }
-
-/** Live tab, before the game: the roll call and How to play on the TV. */
-export function Segments({ data, slug, hostKey, onError }: { data: Roster; slug: string; hostKey: string; onError: (m: string | null) => void }) {
-  const playRules = useMutation(api.voice.playRules);
-  const playRoll = useMutation(api.voice.playRollCall);
-  const stop = useMutation(api.voice.stopSegment);
-  const sheet = useQuery(api.voice.rollCallSheet, { slug, hostKey });
-  const now = useNow(1000);
-  const g = data.game;
-  if (g.status !== "registration" && g.status !== "lobby") return null;
-  // Rough running times, so the buttons know when the TV is back on the doors.
-  const HOW_MS = 9 * 8500; // How to play: nine cards
-  const here = sheet ? sheet.guests.filter((x) => x.checkedIn).length || sheet.guests.length : 0;
-  const rollSecs = sheet ? sheet.guests.reduce((s, x) => s + Math.max(5.5, 2.5 + (x.seconds || x.spoken.length / 15)), 0) / Math.max(1, sheet.guests.length) : 7;
-  const rollEnd = g.rollCallAt ? g.rollCallAt + (12 + here * rollSecs) * 1000 : 0;
-  // How to play runs by itself, or straight after the roll call.
-  const howEnd = g.rulesAt ? g.rulesAt + HOW_MS : rollEnd ? rollEnd + HOW_MS : 0;
-  const playing = now < rollEnd ? "roll" : now < howEnd ? "rules" : null;
-  const call = (p: Promise<unknown>) => p.catch((e) => onError(friendlyError(e)));
-  const ready = sheet?.counts.ready ?? 0;
-  const total = sheet?.counts.total ?? 0;
-  return (
-    <Sec title="Before the murder">
-      <span className="help">Once most guests are here, play the roll call. How to play follows it on its own. Then start the game.</span>
-      <div className="row">
-        <button type="button" className="btn" aria-pressed={playing === "roll"} disabled={!total} onClick={() => call(playRoll({ slug, hostKey }))}>
-          {playing === "roll" ? "Roll call playing · restart" : "Play the roll call + How to play"}
-        </button>
-        <button type="button" className="btn" aria-pressed={playing === "rules"} onClick={() => call(playRules({ slug, hostKey }))}>
-          {playing === "rules" ? "How to play is on · restart" : "Play How to play only"}
-        </button>
-        <button type="button" className="btn" disabled={!playing} onClick={() => call(stop({ slug, hostKey }))}>
-          Stop
-        </button>
-      </div>
-      <span className={`hx-status ${total && ready < total ? "warn" : ""}`}>
-        {total ? `Roll call voices: ${ready} of ${total} recorded${ready < total ? " (the rest show without a voice; record them in the game menu)" : ""}` : "Nobody signed up yet."}
-      </span>
-    </Sec>
-  );
-}
-

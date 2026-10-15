@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { INTRO_MS, REVEAL } from "../convex/shared";
+import { REVEAL } from "../convex/shared";
+const INTRO_MS = 60_000;
 import { CARD_MS } from "../src/tv/media";
 import { cameosNow, cardNow, due, plan, type Data } from "../src/tv/timeline";
 
@@ -42,65 +43,101 @@ describe("TV timeline", () => {
     expect(p.music).toBe("lobby");
   });
 
-  test("how to play: nine illustrated cards in order, with the waves and timer versions when those are on", () => {
-    const at = T0 + 60_000;
-    const p = plan(data({ game: { rulesAt: at, search: "waves", pacing: { mode: "timer", roundMinutes: 10 } } }), at, secs);
-    expect(p.rules!.steps.map((s) => s.cue)).toEqual(["howTo1", "howTo2", "howTo3", "howTo4Waves", "howTo5", "howTo6Timer", "howTo7", "howTo8", "howTo9"]);
-    expect(p.rules!.steps.map((s) => s.art)).toEqual(["don", "killer", "flapper", "dapper", "map", "bodyguard", "lady", "detective", "killer"]);
-    for (let i = 1; i < 9; i++) expect(p.rules!.steps[i].at).toBe(p.rules!.steps[i - 1].until);
-    expect(p.events.filter((e) => e.id.startsWith("how:") && (e.sfx === "whoosh" || e.sfx === "cardFlip"))).toHaveLength(9);
-    expect(p.events.filter((e) => e.cue?.startsWith("howTo")).every((e) => e.quiet)).toBe(true);
-    const plain = plan(data({ game: { rulesAt: at } }), at, secs);
-    expect(plain.rules!.steps.map((s) => s.cue)).toContain("howTo4");
-    expect(plain.rules!.steps.map((s) => s.cue)).toContain("howTo6");
+  // The show (v2): Start → intro → How to play → roll call → check your phones → Round 1.
+  const HOW = T0 + 40_000;
+  const ROLL = HOW + 10 * (600 + 3000 + 1200); // ten How to play cards, 3 s lines
+  const item = (id: string, clipSecs: number | null) => ({
+    id, charName: id.toUpperCase(), realName: `Real ${id}`, photoUrl: null, figure: "flapper", who: "Who.", signature: "A hat",
+    weapon: { key: "rope", name: "Rope" }, motive: "He owed you money.", roast: "A roast.", line: `Introducing ${id}. Weapon: the rope.`,
+    marks: { signature: 0.3, weapon: 0.5, motive: 0.7, roast: 0.9 },
+    clip: clipSecs === null ? null : { url: `u-${id}`, caption: `c-${id}`, seconds: clipSecs },
+  });
+  const slots = [8000, 0.9 * 1000 + 7000 + 1600, 8000];
+  const OPEN = ROLL + 4000 + 300;
+  const FIRST = OPEN + 3000 + 800;
+  const CLOSE = FIRST + slots[0] + slots[1] + slots[2] + 200;
+  const PHONES = CLOSE + 3000 + 600;
+  const END = PHONES + 12_000;
+  const showGame = (over: Record<string, unknown> = {}) => ({
+    status: "playing", round: 1, startedAt: T0, introEndsAt: END, search: "waves", pacing: { mode: "timer", roundMinutes: 10 },
+    show: { howAt: HOW, rollAt: ROLL, phonesAt: null }, ...over,
+  });
+  const showVoice = (items = [item("a", 2), item("b", 7), item("c", null)]) => ({
+    body: { url: "b", caption: "He was found in the Lounge.", seconds: 2 },
+    rollCall: { at: ROLL, items, slots, frozen: false },
   });
 
-  test("how to play follows the roll call on its own", () => {
-    const at = T0 + 120_000;
-    const items = [{ id: "a", charName: "A", realName: "Ann", photoUrl: null, line: "Line a.", clip: null }];
-    const p = plan(data({ voice: { rollCall: { at, items } } }), at, secs);
-    expect(p.rules!.steps[0].at).toBe(p.roll!.end + 1000);
-    // while the roll call plays, How to play waits its turn
-    expect(p.rules!.steps[0].at).toBeGreaterThan(p.roll!.steps[0].until);
-  });
-
-  test("roll call: title card, the opener, one card per guest long enough for the line, then the closer", () => {
-    const at = T0 + 120_000;
-    const clip = (n: number) => ({ url: `u${n}`, caption: `c${n}`, seconds: n });
-    const items = [
-      { id: "a", charName: "A", realName: "Ann", photoUrl: null, line: "Line a.", clip: clip(2) },
-      { id: "b", charName: "B", realName: "Bo", photoUrl: null, line: "A much longer line for b that takes its time.", clip: clip(7) },
-      { id: "c", charName: "C", realName: "Cy", photoUrl: null, line: "No clip yet.", clip: null },
-    ];
-    const p = plan(data({ counts: { here: 3 }, voice: { rollCall: { at, items } } }), at + 500, secs);
-    expect(cardNow(p, at + 500)?.key).toBe("rollcall");
-    expect(p.loop).toBe("rollcall");
-    const steps = p.roll!.steps;
-    expect(steps.map((s) => s.item.id)).toEqual(["a", "b", "c"]);
-    expect(steps[0].until - steps[0].at).toBe(5500);
-    expect(steps[1].until - steps[1].at).toBe((0.9 + 7 + 1.6) * 1000);
-    expect(p.events.filter((e) => e.clip).every((e) => e.quiet)).toBe(true);
-    expect(p.events.filter((e) => e.clip)).toHaveLength(2);
-    expect(p.events.filter((e) => e.id.startsWith("roll:")).at(-1)?.cue).toBe("rollCallClose");
-    // reminders keep quiet while it plays
-    expect(p.events.some((e) => e.cue === "doorsReminder" && e.at >= at && e.at <= p.roll!.end)).toBe(false);
-    // and the doors come back after
-    expect(plan(data({ voice: { rollCall: { at, items } } }), p.roll!.end + 1, secs).loop).toBe("doors");
-  });
-
-  test("intro: lights out, the body, the room; a skipped intro drops what it didn't reach", () => {
-    const g = { status: "playing", round: 1, startedAt: T0, introEndsAt: T0 + INTRO_MS };
-    const body = { url: "b", caption: "He was found in the Lounge.", seconds: 2 };
-    let p = plan(data({ game: g, voice: { body } }), T0 + 500, secs);
+  test("the show: the intro, How to play, the roll call, then check your phones, each part at its fixed time", () => {
+    let p = plan(data({ game: showGame(), voice: showVoice() }), T0 + 500, secs);
+    expect(p.part).toBe("intro");
     expect(cardNow(p, T0 + 500)?.key).toBe("lightsout");
     expect(p.loop).toBe("dark");
     expect(p.music).toBeNull();
-    expect(p.events.map((e) => e.sfx ?? e.cue ?? "clip")).toEqual(["needleScratch", "lightsCut", "bodyFall", "scream", "intro1", "swell", "intro2", "clip", "intro3", "intro4"]);
-    p = plan(data({ game: g, voice: { body } }), T0 + 5000, secs);
+    const intro = p.events.filter((e) => e.id.startsWith("intro:")).map((e) => e.sfx ?? e.cue ?? "clip");
+    expect(intro).toEqual(["needleScratch", "lightsCut", "bodyFall", "scream", "intro1", "swell", "intro2", "clip", "intro3"]);
+    p = plan(data({ game: showGame(), voice: showVoice() }), T0 + 5000, secs);
     expect(p.music).toBe("intro");
     expect(p.ambience).toEqual(["heartbeat"]);
-    p = plan(data({ game: { ...g, introEndsAt: T0 + 20_000 }, voice: { body } }), T0 + 10_000, secs);
+
+    // How to play: ten cards, the waves and timer versions, read quietly (the card shows the line).
+    p = plan(data({ game: showGame(), voice: showVoice() }), HOW + 100, secs);
+    expect(p.part).toBe("how");
+    expect(p.loop).toBe("rollcall");
+    expect(p.rules!.steps.map((s) => s.cue)).toEqual(["howKiller", "howRoles", "howWeapons", "howTo4Waves", "howTo6Timer", "howJail", "howRelease", "howTo7", "howLockIn", "howWin"]);
+    expect(p.rules!.steps.map((s) => s.art)).toEqual(["killer", "flapper", "weapons", "map", "dapper", "bars", "bodyguard", "lady", "detective", "don"]);
+    for (let i = 1; i < 10; i++) expect(p.rules!.steps[i].at).toBe(p.rules!.steps[i - 1].until);
+    expect(p.rules!.end).toBe(ROLL);
+    expect(p.events.filter((e) => e.id.startsWith("how:") && e.cue).every((e) => e.quiet)).toBe(true);
+
+    // The roll call: the card, "the doors are locked", each guest's turn, "remember these faces".
+    p = plan(data({ game: showGame(), voice: showVoice() }), ROLL + 500, secs);
+    expect(p.part).toBe("roll");
+    expect(cardNow(p, ROLL + 500)?.key).toBe("rollcall");
+    expect(p.events.find((e) => e.cue === "rollLocked")?.at).toBe(OPEN);
+    const steps = p.roll!.steps;
+    expect(steps.map((s) => s.item.id)).toEqual(["a", "b", "c"]);
+    expect(steps[0].at).toBe(FIRST);
+    expect(steps.map((s) => s.until - s.at)).toEqual(slots);
+    expect(steps.map((s) => s.voiceAt - s.at)).toEqual([900, 900, 900]);
+    expect(p.events.filter((e) => e.clip && e.id.startsWith("roll:"))).toHaveLength(2);
+    expect(p.events.filter((e) => e.clip && e.id.startsWith("roll:")).every((e) => e.quiet)).toBe(true);
+    expect(p.events.find((e) => e.cue === "rollCallClose")?.at).toBe(CLOSE);
+    expect(p.roll!.phonesAt).toBe(PHONES);
+
+    // Check your phones, then Round 1.
+    p = plan(data({ game: showGame(), voice: showVoice() }), PHONES + 100, secs);
+    expect(p.part).toBe("phones");
+    expect(p.loop).toBe("dark");
+    expect(p.events.find((e) => e.cue === "intro4")?.at).toBe(PHONES + 200);
+    p = plan(data({ game: showGame(), voice: showVoice() }), END + 10, secs);
+    expect(p.part).toBeNull();
+    expect(cardNow(p, END + 10)?.key).toBe("round1");
+  });
+
+  test("the show: a skipped part drops what it didn't reach; a voice too long for its fixed turn stays quiet", () => {
+    // The host skipped the intro 10 s in: How to play starts then, and the intro's later lines never play.
+    let p = plan(data({ game: showGame({ show: { howAt: T0 + 10_000, rollAt: ROLL - 30_000, phonesAt: null } }), voice: showVoice() }), T0 + 10_100, secs);
+    expect(p.part).toBe("how");
     expect(p.events.some((e) => e.cue === "intro3")).toBe(false);
+    // Skipped from the roll call to the roles: the guests after that point don't play.
+    const cut = FIRST + 3000;
+    p = plan(data({ game: showGame({ show: { howAt: HOW, rollAt: ROLL, phonesAt: cut } }), voice: showVoice() }), cut + 100, secs);
+    expect(p.part).toBe("phones");
+    expect(p.events.some((e) => e.clip?.url === "u-b")).toBe(false);
+    expect(p.events.some((e) => e.cue === "rollCallClose")).toBe(false);
+    expect(p.events.find((e) => e.cue === "intro4")?.at).toBe(cut + 200);
+    // Turns were fixed before b's voice came in, and it's longer than b's turn: the card shows, the voice doesn't play.
+    const late = showVoice([item("a", 2), item("b", 30), item("c", null)]);
+    p = plan(data({ game: showGame(), voice: { ...late, rollCall: { ...late.rollCall, frozen: true } } }), ROLL + 500, secs);
+    expect(p.events.some((e) => e.clip?.url === "u-b")).toBe(false);
+    expect(p.events.some((e) => e.clip?.url === "u-a")).toBe(true);
+  });
+
+  test("before Start, the TV stays on the doors (the roll call and How to play moved into the show)", () => {
+    const p = plan(data({ game: { rulesAt: T0 + 1000 } }), T0 + 2000, secs);
+    expect(p.rules).toBeNull();
+    expect(p.roll).toBeNull();
+    expect(p.loop).toBe("doors");
   });
 
   test("round 3: cards land with a telegraph each, then the twist line, the twist card, and the twist", () => {

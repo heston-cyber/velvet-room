@@ -67,10 +67,24 @@ export default defineSchema({
     pausedAt: v.optional(v.number()),
     resumedAt: v.optional(v.number()),
     doneAt: v.optional(v.number()),
-    // Before the murder: the host plays the roll call (How to play follows it) or How to play alone. rulesAt = How to play.
+    // Old (before v2): the host played the roll call or How to play in the lobby. Kept so old games still load.
     rulesAt: v.optional(v.number()),
     rollCallAt: v.optional(v.number()),
     rollCallOrder: v.optional(v.array(v.id("players"))),
+    // The show (v2): after Start, the intro, How to play, the roll call and "check your phones" (convex/show.ts).
+    // The intro starts at startedAt and the show ends at introEndsAt. The roll call's turns are fixed when it
+    // begins (once the voices are in); phonesAt comes with them.
+    show: v.optional(
+      v.object({
+        howAt: v.number(),
+        rollAt: v.number(),
+        order: v.array(v.id("players")),
+        roll: v.optional(v.array(v.number())),
+        phonesAt: v.optional(v.number()),
+      }),
+    ),
+    // Phones show the roles from "check your phones" on (v2). Games without a show had them at Start.
+    rolesOut: v.optional(v.boolean()),
     // The narrator: Ivy or Duke, steady or Unstable. Volume levels 0 to 100 (0 is off).
     narrator: v.optional(v.object({ host: v.union(v.literal("ivy"), v.literal("duke")), unstable: v.boolean() })),
     levels: v.optional(v.object({ voice: v.number(), music: v.number(), sfx: v.number() })),
