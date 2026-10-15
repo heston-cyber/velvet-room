@@ -10,7 +10,6 @@ import { Swap } from "../lib/Swap";
 import { navigate } from "../lib/router";
 import { avatarSrc, faceUrl } from "../lib/figure";
 import { weaponUrl } from "../lib/weapon";
-import { REVEAL_VERDICT_MS } from "../../convex/shared";
 
 type Phone = NonNullable<FunctionReturnType<typeof api.game.phone>>;
 type Tab = "case" | "scan" | "evidence" | "notebook";
@@ -474,7 +473,7 @@ function ShowWait({ data }: { data: Phone }) {
 function Murder({ data, onDone }: { data: Phone; onDone: () => void }) {
   const { holding, seenOnce, props } = useHold();
   const b = data.briefing;
-  const killer = b?.role === "killer";
+  const role = b?.role ?? "innocent";
   return (
     <div className="screen center murder no-select">
       <span className="eyebrow">Check your phone</span>
@@ -482,11 +481,17 @@ function Murder({ data, onDone }: { data: Phone; onDone: () => void }) {
       <p className="lede">Don Carmine Velluto has been found in {mid(data.game.bodyRoom)}.</p>
       <div {...props} aria-label="Press and hold to see your role" className={`hold-card${holding ? " showing" : ""}`}>
         {holding ? (
-          killer ? (
+          role === "killer" ? (
             <>
               <span className="eyebrow">Your role</span>
               <span className="big">You did it.</span>
               <p>{b!.lines[0].replace(/^You did it\. /, "")}</p>
+            </>
+          ) : role === "accomplice" ? (
+            <>
+              <span className="eyebrow">Your role</span>
+              <span className="big">Accomplice.</span>
+              <p>{b!.lines[0].replace(/^You're the accomplice\. /, "")}</p>
             </>
           ) : (
             <>
@@ -864,7 +869,7 @@ function Notebook({ token, data }: { token: string; data: Phone }) {
 function Accuse({ token, data }: { token: string; data: Phone }) {
   const accuse = useMutation(api.game.accuse);
   const board = data.board!;
-  const [pick, setPick] = useState({ s: "", e: "", r: "" });
+  const [pick, setPick] = useState({ s: "", e: "", r: "", a: "" });
   const [armed, setArmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const mine = data.myAccusation;
@@ -882,6 +887,7 @@ function Accuse({ token, data }: { token: string; data: Phone }) {
     const who = board.suspects.find((s) => s.id === mine.suspectId)?.name ?? "";
     const weapon = board.exhibits.find((e) => e.id === mine.exhibitId);
     const where = board.rooms.find((r) => r.key === mine.roomKey)?.label ?? "";
+    const helper = mine.accompliceId ? board.suspects.find((s) => s.id === mine.accompliceId)?.name ?? "" : "";
     return (
       <div className="screen">
         <span className="eyebrow">Locked in</span>
@@ -890,6 +896,7 @@ function Accuse({ token, data }: { token: string; data: Phone }) {
           with the {weapon?.name.toLowerCase()}, in {mid(where)}.
         </p>
         {weapon?.key && <img className="locked-weapon" src={weaponUrl(weapon.key)} alt="" />}
+        {data.game.hasAccomplice && <p className="help">Accomplice: {helper || "no guess"}.</p>}
         <p className="help">No changes now. The reveal starts once everyone who's free has locked in.</p>
       </div>
     );
@@ -898,18 +905,19 @@ function Accuse({ token, data }: { token: string; data: Phone }) {
     if (!armed) return setArmed(true);
     setError(null);
     try {
-      await accuse({ token, suspectId: pick.s, exhibitId: pick.e, roomKey: pick.r });
+      await accuse({ token, suspectId: pick.s, exhibitId: pick.e, roomKey: pick.r, accompliceId: pick.a || undefined });
     } catch (e) {
       setError(friendlyError(e));
       setArmed(false);
     }
   }
-  const set = (k: "s" | "e" | "r", val: string) => {
-    setPick((p) => ({ ...p, [k]: val }));
+  const set = (k: "s" | "e" | "r" | "a", val: string) => {
+    // Naming someone as the killer takes them off the accomplice guess.
+    setPick((p) => ({ ...p, [k]: val, ...(k === "s" && p.a === val ? { a: "" } : {}) }));
     setArmed(false);
   };
-  const opt = (k: "s" | "r", val: string, label: string) => (
-    <button key={val} type="button" aria-pressed={pick[k] === val} onClick={() => set(k, val)}>
+  const opt = (k: "s" | "r" | "a", val: string, label: string) => (
+    <button key={val} type="button" aria-pressed={pick[k] === val} onClick={() => set(k, pick[k] === val && k === "a" ? "" : val)}>
       {label}
     </button>
   );
@@ -937,6 +945,13 @@ function Accuse({ token, data }: { token: string; data: Phone }) {
         <span className="eyebrow">Where</span>
         <div className="opts">{board.rooms.map((r) => opt("r", r.key, r.label))}</div>
       </div>
+      {data.game.hasAccomplice && (
+        <div className="pick">
+          <span className="eyebrow">The accomplice (optional)</span>
+          <div className="opts">{board.suspects.filter((s) => s.id !== data.me.id && s.id !== pick.s).map((s) => opt("a", s.id, s.name))}</div>
+          <span className="help">A guess. It doesn't change who wins, but it can win you Best Detective. Tap again to clear it.</span>
+        </div>
+      )}
       {error && <div className="errbox">{error}</div>}
       <button type="button" className={`primary ${armed ? "armed" : ""}`} disabled={!ready} onClick={lock}>
         <Swap show={armed ? 1 : 0}>
@@ -951,7 +966,8 @@ function Accuse({ token, data }: { token: string; data: Phone }) {
 
 function Reveal({ token, data }: { token: string; data: Phone }) {
   // The TV reveals the killer step by step. The phone waits for the verdict, so nobody reads it here first.
-  const verdictAt = data.game.status === "reveal" && data.game.revealAt ? data.game.revealAt + REVEAL_VERDICT_MS : 0;
+  // v2: the verdict comes later when the TV also names the accomplice (the server says when).
+  const verdictAt = data.game.status === "reveal" && data.game.revealAt ? data.game.revealAt + data.game.verdictMs : 0;
   const now = useNow(Date.now() < verdictAt);
   if (now < verdictAt) {
     return (
@@ -1001,6 +1017,10 @@ function RevealVotes({ token, data }: { token: string; data: Phone }) {
     ? r.killerWins
       ? "You got away with it."
       : "They caught you."
+    : r?.iWasAccomplice
+    ? r.killerWins
+      ? "You both got away with it."
+      : "Your partner got caught."
     : mine
       ? mine.ace
         ? "Ace Detective."
@@ -1026,7 +1046,11 @@ function RevealVotes({ token, data }: { token: string; data: Phone }) {
       {r && (
         <p className="lede">
           It was {r.killer}, with the {r.exhibit?.name.toLowerCase()}, in {mid(r.room)}.
+          {r.accomplice && ` ${r.accomplice} was the accomplice.`}
         </p>
+      )}
+      {r?.accomplice && mine && data.myAccusation?.accompliceId && !r.iWasKiller && !r.iWasAccomplice && (
+        <p className="help">{mine.gotAccomplice ? "And you spotted the accomplice." : "Your accomplice guess missed."}</p>
       )}
       <p className="help">Best Detective is scored automatically. Vote for the other two.</p>
       <div className="pick">

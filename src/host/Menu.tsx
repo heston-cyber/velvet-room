@@ -9,6 +9,7 @@ import { Swap } from "../lib/Swap";
 import { TZ, initials, openTvWindow, useConfirm, type Roster } from "./common";
 import { downloadCardsPdf } from "./printCards";
 import { NarratorSection, RollCallSection } from "./Voice";
+import { MIN_ACCOMPLICE } from "../../convex/engine/build";
 
 export type SettingsPatch = Omit<FunctionArgs<typeof api.host.updateSettings>, "slug" | "hostKey">;
 
@@ -82,13 +83,31 @@ export default function Menu(props: { data: Roster; slug: string; hostKey: strin
           <Seg label="Script" value={game.tone} options={[["classic", "Classic"], ["adult", "Adult (explicit)"]]} disabled={locked} onPick={(tone) => save({ tone })} />
           <span className="lab">Motives and secrets</span>
           <Seg label="Motives and secrets" value={game.motiveMode} options={[["game", "Game writes them"], ["players", "Players write their own"]]} disabled={locked} onPick={(motiveMode) => save({ motiveMode })} />
+          <span className="lab">Killers</span>
+          <Seg
+            label="Killers"
+            value={game.accomplice ? "accomplice" : "one"}
+            options={[["one", "One killer"], ["accomplice", `Killer + accomplice (${MIN_ACCOMPLICE}+)`]]}
+            disabled={locked}
+            onPick={(k) => save({ accomplice: k === "accomplice" })}
+          />
+          <Swap show={game.accomplice ? 1 : 0}>
+            <span className="help">One killer, drawn in secret. Everyone else is innocent.</span>
+            <span className="help">
+              A killer and an accomplice, both drawn at random from everyone. The accomplice didn't do it, knows who did, and lies for them. Needs {MIN_ACCOMPLICE} players; with fewer, the game plays with one killer.
+            </span>
+          </Swap>
           <Toggle
             id="set-optin"
             checked={game.killerOptIn}
             disabled={locked}
             onChange={(v) => save({ killerOptIn: v })}
             label="Ask guests if they're up for being the killer"
-            help="On, the draw uses only those who opted in, unless fewer than 3 did. Off, anyone checked in can be drawn."
+            help={
+              game.accomplice
+                ? "Killer + accomplice games ignore the opt-in: anyone can be drawn. (One-killer games use it.)"
+                : "On, the draw uses only those who opted in, unless fewer than 3 did. Off, anyone checked in can be drawn."
+            }
           />
         </Sec>
 

@@ -71,6 +71,7 @@
 .tv-open.compact .rooms span { font-size: 1.1cqw; }
 
 .tv-reveal-name { font-family: var(--display); font-size: 8cqw; line-height: .95; color: var(--blood); text-wrap: balance; }
+.tv-reveal-name.tv-reveal-acc { color: var(--brass); }
 .tv-verdict { font-family: var(--display); font-size: 4.4cqw; line-height: 1.1; color: var(--brass); }
 .tv-awards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2cqw; width: 100%; }
 .tv-award { border: 1px solid var(--brass); background: rgba(18, 5, 10, .5); padding: 2cqw 1.4cqw; display: grid; justify-items: center; gap: .8cqw; }
@@ -236,6 +237,11 @@
 .tv-how-art img { height: 100%; width: auto; max-width: 100%; object-fit: contain; filter: drop-shadow(0 .8cqw 1.6cqw rgba(0, 0, 0, .55)); }
 .tv-how-art img.enter { animation: howin .9s cubic-bezier(.2, .8, .2, 1) both; }
 .tv-how-art.map { height: auto; place-items: center; }
+/* How to play, the accomplice card: the masked killer in front, a second drawing at their shoulder. */
+.tv-how-pair { position: relative; height: 100%; width: 100%; display: grid; place-items: end center; }
+.tv-how-pair img { grid-area: 1 / 1; }
+.tv-how-pair img.behind { height: 88%; translate: -38% 0; filter: brightness(.55) drop-shadow(0 .8cqw 1.6cqw rgba(0, 0, 0, .55)); animation-delay: .35s; }
+.tv-how-pair img:not(.behind) { translate: 14% 0; }
 .tv-how-text { display: grid; gap: 1.6cqw; justify-items: start; }
 .tv-how-text .tv-rule { max-width: none; font-size: 3.1cqw; }
 @keyframes howin { from { transform: translateX(-12cqw); opacity: 0; } to { transform: none; opacity: 1; } }

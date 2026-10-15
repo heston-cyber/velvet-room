@@ -37,6 +37,21 @@ export type KillerFacts = {
   room: string; // label
   ownWeapon: boolean;
   herringName?: string;
+  /** Killer + accomplice games: the accomplice's character name. */
+  accompliceName?: string;
+};
+
+/** What the accomplice's phone says (v2): who did it, with what and where, and how to help. */
+export type AccompliceFacts = {
+  killerName: string;
+  weapon: string;
+  room: string; // label
+  /** The murder weapon is the one the accomplice picked at sign-up. */
+  ownWeapon: boolean;
+  /** A clue points at this innocent (not the accomplice). */
+  herringName?: string;
+  /** A clue points at the accomplice themselves. */
+  herringIsMe: boolean;
 };
 
 export type Script = {
@@ -57,6 +72,9 @@ export type Script = {
   secrets: string[];
   killerLines: (f: KillerFacts) => string[];
   innocentLines: string[];
+  /** Killer + accomplice games (v2). */
+  accompliceLines: (f: AccompliceFacts) => string[];
+  innocentLinesAcc: string[];
 };
 
 export const CLASSIC: Script = {
@@ -147,16 +165,43 @@ export const CLASSIC: Script = {
     f.ownWeapon
       ? `The ${f.weapon.toLowerCase()} is the weapon you brought. If anyone works that out, you'll need a good story.`
       : `The ${f.weapon.toLowerCase()} isn't the weapon you brought. That's lucky for you.`,
+    ...(f.accompliceName ? [`Your accomplice is ${f.accompliceName}. They know what you did, and they'll lie to protect you.`] : []),
     "Over three rounds, the clues will clear the other guests one by one. Your job is to keep them guessing.",
     ...(f.herringName ? [`One clue points at ${f.herringName}. Lean on it.`] : []),
-    "You may lie about anything tonight. Everyone else may only lie about their own secrets.",
+    f.accompliceName
+      ? `You may lie about anything tonight, and so may ${f.accompliceName}. Everyone else may only lie about their own secrets.`
+      : "You may lie about anything tonight. Everyone else may only lie about their own secrets.",
+    ...(f.accompliceName ? [`If the heat gets too close, you can try pinning it on ${f.accompliceName}. Loyalty only goes so far.`] : []),
     "Stay out of jail: jailbirds can't lock in. Getting someone else jailed is fair game.",
-    "You win unless more than half of the lock-ins get you, the weapon and the room.",
+    f.accompliceName
+      ? "You and your accomplice win unless more than half of the lock-ins get you, the weapon and the room."
+      : "You win unless more than half of the lock-ins get you, the weapon and the room.",
   ],
   innocentLines: [
     "You're innocent. You didn't kill the Don.",
     "You may lie about your secret, but not about the murder. Only the killer may lie about that.",
     "Find the markers, compare notes, and work out who did it, with which weapon, and where.",
+    "After every round, vote someone into jail if most of you agree. Jailbirds can't search, vote or lock in.",
+  ],
+  accompliceLines: (f) => [
+    `You're the accomplice. You didn't kill the Don, but you know who did: ${f.killerName}.`,
+    `${f.killerName} did it with the ${f.weapon.toLowerCase()} in ${mid(f.room)}.`,
+    ...(f.ownWeapon ? [`The ${f.weapon.toLowerCase()} is the weapon you brought. Expect some questions.`] : []),
+    `Your job is to keep ${f.killerName} out of trouble: steer the others wrong, cast doubt, and keep the heat off your partner.`,
+    ...(f.herringIsMe
+      ? [`One clue points at you. Good: every minute they spend on you is a minute they don't spend on ${f.killerName}.`]
+      : f.herringName
+        ? [`One clue points at ${f.herringName}. Help it stick.`]
+        : []),
+    "You may lie about anything tonight, just like the killer. Everyone else may only lie about their own secrets.",
+    `You didn't do it, so the evidence can't prove you did, and sooner or later it will clear you. Careful: if things get hot, ${f.killerName} may try to pin it on you.`,
+    "Stay out of jail: jailbirds can't lock in. You win if the killer wins.",
+  ],
+  innocentLinesAcc: [
+    "You're innocent. You didn't kill the Don.",
+    "Tonight the killer has an accomplice: someone who didn't do it, knows who did, and will lie to protect them.",
+    "You may lie about your secret, but not about the murder. Only the killer and the accomplice may lie about that.",
+    "Find the markers, compare notes, and work out who did it, with which weapon, and where. When you lock in, you can guess the accomplice too.",
     "After every round, vote someone into jail if most of you agree. Jailbirds can't search, vote or lock in.",
   ],
 };

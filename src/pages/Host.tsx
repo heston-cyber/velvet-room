@@ -13,6 +13,7 @@ import { TvStage } from "../tv/Tv";
 import { Swap } from "../lib/Swap";
 import "../host/host.css";
 import "../host/screen.css";
+import { MIN_ACCOMPLICE } from "../../convex/engine/build";
 
 // ---------- the host link: remembered on this laptop ----------
 
@@ -311,7 +312,13 @@ function LobbyBar({ data, slug, hostKey, onError }: { data: Roster; slug: string
           <span>Tap again to begin</span>
         </Swap>
       </button>
-      {inCount < 3 && <span className="hs-hint">At least 3 guests have to be in.</span>}
+      {inCount < 3 ? (
+        <span className="hs-hint">At least 3 guests have to be in.</span>
+      ) : data.game.accomplice ? (
+        <span className="hs-hint">
+          {inCount >= MIN_ACCOMPLICE ? "A killer and an accomplice tonight." : `A killer + accomplice game needs ${MIN_ACCOMPLICE} players. With ${inCount}, it's one killer tonight.`}
+        </span>
+      ) : null}
     </div>
   );
 }

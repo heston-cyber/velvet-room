@@ -35,20 +35,24 @@ export function cueSecs(voice: string, tone: Tone, host: HostKey, cue: CueKey, v
   return rec[voice]?.[tone]?.[cueFile(cue, v)] ?? readSecs(captionText(cue, tone, host, v));
 }
 
-/** A drawing in /art, the house map, the jail bars, or a fan of weapon cards. */
+/** A drawing in /art, the house map, the jail bars, a fan of weapon cards, or "pair" (the killer and the accomplice). */
 export type HowArt = string;
 
-/** How to play, v2: one illustrated card per line. */
-export function howCues(g: { search: "all" | "waves"; pacing: { mode: "ready" | "timer" } }): [CueKey, HowArt][] {
+/**
+ * How to play, v2: one illustrated card per line. A killer + accomplice game adds the accomplice card (the masked
+ * killer with a second drawing at their shoulder) and says the accomplice may lie too.
+ */
+export function howCues(g: { search: "all" | "waves"; pacing: { mode: "ready" | "timer" }; accomplice?: boolean }): [CueKey, HowArt][] {
   return [
     ["howKiller", "killer"],
+    ...(g.accomplice ? [["howAccomplice", "pair"] as [CueKey, HowArt]] : []),
     ["howRoles", "flapper"],
     ["howWeapons", "weapons"],
     [g.search === "waves" ? "howTo4Waves" : "howTo4", "map"],
     [g.pacing.mode === "timer" ? "howTo6Timer" : "howTo6", "dapper"],
     ["howJail", "bars"],
     ["howRelease", "bodyguard"],
-    ["howTo7", "lady"],
+    [g.accomplice ? "howTo7Acc" : "howTo7", "lady"],
     ["howLockIn", "detective"],
     ["howWin", "don"],
   ];

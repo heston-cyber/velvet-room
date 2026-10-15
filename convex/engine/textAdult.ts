@@ -91,16 +91,44 @@ export const ADULT: Script = {
     f.ownWeapon
       ? `The ${f.weapon.toLowerCase()} is the weapon you brought, genius. If anyone figures that out, start lying your ass off.`
       : `The ${f.weapon.toLowerCase()} isn't even your weapon. Lucky break, you sneaky bastard.`,
+    ...(f.accompliceName ? [`Your accomplice is ${f.accompliceName}. They know what you did and they'll lie for you, which is more than your own family would do.`] : []),
     "Over three rounds the clues will clear everyone else one by one. Your job: keep these idiots guessing.",
     ...(f.herringName ? [`One clue points at ${f.herringName}. Throw them under the bus.`] : []),
-    "You can lie about anything tonight. Everyone else can only lie about their own dirty secrets.",
+    f.accompliceName
+      ? `You can lie about anything tonight, and so can ${f.accompliceName}. Everyone else can only lie about their own dirty secrets.`
+      : "You can lie about anything tonight. Everyone else can only lie about their own dirty secrets.",
+    ...(f.accompliceName ? [`If the cops get close, pin it on ${f.accompliceName}. That's what accomplices are for. It's in the brochure.`] : []),
     "Stay out of jail: jailbirds can't lock in. Getting some other sucker jailed is fair game.",
-    "You win unless more than half of these clowns get you, the weapon and the room.",
+    f.accompliceName
+      ? "You and your accomplice win unless more than half of these clowns get you, the weapon and the room."
+      : "You win unless more than half of these clowns get you, the weapon and the room.",
   ],
   innocentLines: [
     "You're innocent. You didn't kill the Don, for once in your life.",
     "You can lie about your secret, but not about the murder. Only the killer gets to bullshit about that.",
     "Find the markers, compare notes, and figure out who did it, with what, and where.",
+    "After every round, vote somebody into jail if most of you agree. Jailbirds can't search, vote or lock in.",
+  ],
+  // Accomplice games (v2), with Heston's comedy notes: deadpan, specific, the swearing rationed.
+  accompliceLines: (f) => [
+    `You're the accomplice. You didn't kill the Don. You just know who did: ${f.killerName}.`,
+    `${f.killerName} did it with the ${f.weapon.toLowerCase()} in ${mid(f.room)}. You were not consulted.`,
+    ...(f.ownWeapon ? [`The ${f.weapon.toLowerCase()} is the weapon you brought, so people are going to have questions. Have answers.`] : []),
+    `Your job: keep ${f.killerName} out of the slammer. Point fingers, muddy the water, and look innocent, which for you will take practice.`,
+    ...(f.herringIsMe
+      ? [`One clue points at you. Good. Every minute they waste on you is a minute they're not spending on ${f.killerName}.`]
+      : f.herringName
+        ? [`One clue points at ${f.herringName}. Help it stick.`]
+        : []),
+    "You can lie about anything tonight, same as the killer. Everybody else only gets to lie about their own dirty secrets.",
+    `You didn't do it, so the evidence can't prove you did. Sooner or later it'll clear you. Watch your back: if it gets hot, ${f.killerName} will throw you under a streetcar without slowing down.`,
+    "Stay out of jail. If the killer walks, you walk with them.",
+  ],
+  innocentLinesAcc: [
+    "You're innocent. You didn't kill the Don, for once in your life.",
+    "Tonight the killer brought a friend: an accomplice who didn't do it, knows who did, and will lie through their teeth about it.",
+    "You can lie about your secret, but not about the murder. Only the killer and the accomplice get to bullshit about that.",
+    "Find the markers, compare notes, and figure out who did it, with what, and where. When you lock in, take a guess at the accomplice too.",
     "After every round, vote somebody into jail if most of you agree. Jailbirds can't search, vote or lock in.",
   ],
 };

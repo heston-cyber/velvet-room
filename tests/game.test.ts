@@ -38,7 +38,7 @@ describe("the draw, sealed", () => {
   test("starting the game seals the case: no answer, clue or briefing is readable in the database", async () => {
     const { t, hostKey } = await setup();
     const res = await t.mutation(api.game.startGame, { slug: "test-engine", hostKey });
-    expect(res).toEqual({ suspects: 9, exhibits: 9, markers: 15 });
+    expect(res).toEqual({ suspects: 9, exhibits: 9, markers: 15, accomplice: false, accompliceDropped: false });
     const db = await everyDoc(t);
     for (const phrase of ["You did it", "Cleared.", "Not the weapon", "The twist", "killerId", "solution"]) {
       expect(db).not.toContain(phrase);

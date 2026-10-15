@@ -3,7 +3,7 @@ import { internal } from "./_generated/api";
 import { internalMutation, mutation, query } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { buildCase, checkInput, openRound, openRoomsIn, scriptFor } from "./engine/build";
+import { buildCase, checkInput, MIN_ACCOMPLICE, openRound, openRoomsIn, scriptFor } from "./engine/build";
 import { secure, seeded, shuffle } from "./engine/rng";
 import { FAKE_GUESTS, LETTERS } from "./engine/fake";
 import type { CaseFile, CaseInput } from "./engine/types";
@@ -11,7 +11,7 @@ import { randomCode, registrationIsOpen, requireHost, requireTv } from "./lib";
 import { seal } from "./seal";
 import { caseFor } from "./caseFile";
 import { ensureAllCards, markerForCode } from "./cards";
-import { ACCUSE_MAX_MINUTES, MAX_CARDS, REVEAL, VOTE } from "./shared";
+import { ACCUSE_MAX_MINUTES, MAX_CARDS, revealTimes, VOTE } from "./shared";
 import { SHOW, cueSecs, howCues, howLayout, rollLayout } from "./show";
 import { inOrder, rollGuests, slotsFor } from "./rollCall";
 import { heckleWanted } from "./heckles";
@@ -84,6 +84,8 @@ async function caseInput(ctx: QueryCtx, game: Doc<"games">): Promise<CaseInput> 
     markers: markers.map((m) => ({ number: m.number, roomKey: m.roomKey })),
     tone: game.tone ?? "classic",
     playerMotives: Object.fromEntries(players.map((p) => [p._id, { motive: p.motive, secret: p.secret }])),
+    // v2: before the draw, the host's setting (if there are enough players); after it, what Start decided.
+    accomplice: before ? !!game.accomplice && players.length >= MIN_ACCOMPLICE : !!game.hasAccomplice,
   };
 }
 
@@ -322,7 +324,9 @@ async function scoreGame(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile) {
   const sol = cf.solution;
   const scores = accs.map((a) => {
     const score = Number(a.suspectId === sol.killerId) + Number(a.exhibitId === sol.exhibitId) + Number(a.roomKey === sol.roomKey);
-    return { playerId: a.playerId, score, ace: score === 3, gotKiller: a.suspectId === sol.killerId, at: a.at };
+    // v2: the accomplice guess doesn't change who wins; it breaks ties for Best Detective.
+    const gotAccomplice = !!sol.accompliceId && a.accompliceId === sol.accompliceId;
+    return { playerId: a.playerId, score, ace: score === 3, gotKiller: a.suspectId === sol.killerId, gotAccomplice, at: a.at };
   });
   // v2: every lock-in counts, the killer's too (their last sabotage). The MC isn't a detective.
   const locked = scores.filter((s) => s.playerId !== game.mcPlayerId);
@@ -334,8 +338,10 @@ async function scoreGame(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile) {
   // The group wins only if more than half of the lock-ins have the killer, more than half the weapon, and more than
   // half the room (Heston: "No ties"). Otherwise the killer wins.
   const groupWins = n > 0 && named > n / 2 && rightWeapon > n / 2 && rightRoom > n / 2;
-  const detectives = locked.filter((s) => s.playerId !== sol.killerId);
-  const best = [...detectives].sort((a, b) => b.score - a.score || a.at - b.at)[0];
+  // Best Detective: never the killer or the accomplice. Most right wins; a right accomplice guess breaks a tie; then
+  // whoever locked in first.
+  const detectives = locked.filter((s) => s.playerId !== sol.killerId && s.playerId !== sol.accompliceId);
+  const best = [...detectives].sort((a, b) => b.score - a.score || Number(b.gotAccomplice) - Number(a.gotAccomplice) || a.at - b.at)[0];
   const name = (id: string) => players.find((p) => p._id === id)?.charName ?? "";
   return {
     scores,
@@ -344,7 +350,10 @@ async function scoreGame(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile) {
     rightWeapon,
     rightRoom,
     accusers: n,
-    bestDetective: best && best.score > 0 ? { playerId: best.playerId, name: name(best.playerId), score: best.score } : null,
+    // Killer + accomplice games: how many of the innocent lock-ins guessed the accomplice.
+    namedAccomplice: sol.accompliceId ? detectives.filter((s) => s.gotAccomplice).length : null,
+    guessers: sol.accompliceId ? detectives.filter((s) => byId.get(s.playerId)?.accompliceId).length : null,
+    bestDetective: best && best.score > 0 ? { playerId: best.playerId, name: name(best.playerId), score: best.score, gotAccomplice: best.gotAccomplice } : null,
   };
 }
 
@@ -429,7 +438,10 @@ export const accuse = mutation({
     if (!input.suspects.some((s) => s.id === suspectId)) throw new ConvexError("Pick a suspect from the list.");
     if (!input.exhibits.some((e) => e.id === exhibitId)) throw new ConvexError("Pick a weapon from the list.");
     if (!input.rooms.some((r) => r.key === roomKey)) throw new ConvexError("Pick a room from the list.");
+    if (accompliceId && !game.hasAccomplice) throw new ConvexError("There's no accomplice tonight.");
     if (accompliceId && !input.suspects.some((s) => s.id === accompliceId)) throw new ConvexError("Pick an accomplice from the list, or leave it blank.");
+    if (accompliceId && accompliceId === player._id) throw new ConvexError("You can't name yourself as the accomplice.");
+    if (accompliceId && accompliceId === suspectId) throw new ConvexError("The killer can't be their own accomplice. Pick someone else, or leave it blank.");
     const existing = await ctx.db
       .query("accusations")
       .withIndex("by_player", (q) => q.eq("playerId", player._id))
@@ -532,6 +544,9 @@ export const phone = query({
         introEndsAt: game.introEndsAt ?? null,
         rolesOut,
         revealAt: game.revealAt ?? null,
+        // v2: a killer + accomplice game (fixed at Start), and when the TV's reveal reaches the verdict.
+        hasAccomplice: started && !!game.hasAccomplice,
+        verdictMs: revealTimes(started && !!game.hasAccomplice, game.tone ?? "classic").verdict,
         nextSlug: game.nextSlug ?? null, // the host started another game: sign up for it
       },
       me: {
@@ -606,9 +621,11 @@ export const phone = query({
                 return e ? { letter: e.letter, name: e.name, key: keyOf.get(e.id) ?? null } : null;
               })(),
               room: game.rooms.find((r) => r.key === cf.solution.roomKey)?.label ?? "",
+              accomplice: cf.solution.accompliceId ? all.find((p) => p._id === cf.solution.accompliceId)?.charName ?? "" : null,
               killerWins: scored.killerWins,
               mine: scored.scores.find((s) => s.playerId === player._id) ?? null,
               iWasKiller: cf.solution.killerId === player._id,
+              iWasAccomplice: !!cf.solution.accompliceId && cf.solution.accompliceId === player._id,
               myVote: myVote ? { dressed: myVote.dressed ?? null, liar: myVote.liar ?? null } : null,
             }
           : null,
@@ -761,7 +778,7 @@ export const startGame = mutation({
       (await playersOf(ctx, game._id)).filter((p) => p.inGame).map((p) => p._id),
     );
     const howAt = now + SHOW.introMs;
-    const rollAt = howLayout(howAt, howCues({ search: game.search ?? "all", pacing: game.pacing }), showSecs(game)).end;
+    const rollAt = howLayout(howAt, howCues({ search: game.search ?? "all", pacing: game.pacing, accomplice: !!input.accomplice }), showSecs(game)).end;
     const est = await rollPlan(ctx, game, rollAt, order, file as CaseFile);
     const introEndsAt = est.end;
     const timed = game.pacing.mode === "timer";
@@ -781,6 +798,8 @@ export const startGame = mutation({
       rollCallAt: undefined,
       show: { howAt, rollAt, order },
       rolesOut: false,
+      // v2: a killer and an accomplice only with 7+ players; otherwise one killer.
+      hasAccomplice: !!input.accomplice,
     });
     await ctx.scheduler.runAt(rollAt, internal.game.freezeShowRoll, { gameId: game._id });
     await scheduleTimer(ctx, game._id, 1, endsAt);
@@ -788,7 +807,14 @@ export const startGame = mutation({
     // The roll call's voices first (it plays in a couple of minutes), then the names for the intro, the waves
     // and the reveal: one clip for every guest, exhibit and room.
     await scheduleRecording(ctx, game._id, "roll", undefined, "start");
-    return { suspects: input.suspects.length, exhibits: input.exhibits.length, markers: input.markers.length };
+    return {
+      suspects: input.suspects.length,
+      exhibits: input.exhibits.length,
+      markers: input.markers.length,
+      accomplice: !!input.accomplice,
+      // The host wanted an accomplice, but there weren't enough players: one killer tonight.
+      accompliceDropped: !!game.accomplice && !input.accomplice,
+    };
   },
 });
 
@@ -1046,6 +1072,7 @@ export const results = query({
     const exhibit = input.exhibits.find((e) => e.id === cf.solution.exhibitId);
     return {
       killer: name(cf.solution.killerId),
+      accomplice: cf.solution.accompliceId ? name(cf.solution.accompliceId) : null,
       exhibit: exhibit ? { letter: exhibit.letter, name: exhibit.name } : null,
       room: input.rooms.find((r) => r.key === cf.solution.roomKey)?.label ?? "",
       killerWins: scored.killerWins,
@@ -1120,6 +1147,7 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
     roomOrder: game.roomOrder,
     search: game.search ?? "all",
     seed: game.slug,
+    accomplice: !!game.hasAccomplice,
   });
   const get = (purpose: string) => clip(wanted.find((w) => w.purpose === purpose));
   const rooms: Record<string, Clip> = {};
@@ -1127,7 +1155,12 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
   let reveal = null;
   let winners = null;
   if ((game.status === "reveal" || game.status === "done") && cf) {
-    reveal = { killer: await get(`killer:${cf.solution.killerId}`), exhibit: await get(`exhibit:${cf.solution.exhibitId}`), room: await get(`room:${cf.solution.roomKey}`) };
+    reveal = {
+      killer: await get(`killer:${cf.solution.killerId}`),
+      exhibit: await get(`exhibit:${cf.solution.exhibitId}`),
+      room: await get(`room:${cf.solution.roomKey}`),
+      accomplice: cf.solution.accompliceId ? await get(`accomplice:${cf.solution.accompliceId}`) : null,
+    };
   }
   if (game.status === "done" && cf) {
     const scored = await scoreGame(ctx, game, cf);
@@ -1222,10 +1255,15 @@ export const tv = query({
         awards = { bestDressed: tally("dressed"), bestLiar: tally("liar"), bestDetective: scored.bestDetective ? { name: scored.bestDetective.name, score: scored.bestDetective.score } : null };
       }
       const keyOf = await weaponKeys(ctx, game);
+      const accomplice = cf.solution.accompliceId ? all.find((p) => p._id === cf.solution.accompliceId) : undefined;
       results = {
         killer: killer?.charName ?? "",
         killerPhoto: killer ? await photo(killer) : null,
         killerFigure: killer?.figure ?? null,
+        // v2: the accomplice (killer + accomplice games), and how many of the detectives guessed them.
+        accomplice: accomplice ? { name: accomplice.charName, photo: await photo(accomplice), figure: accomplice.figure ?? null } : null,
+        namedAccomplice: scored.namedAccomplice,
+        guessers: scored.guessers,
         exhibit: exhibit ? { letter: exhibit.letter, name: exhibit.name, key: keyOf.get(exhibit.id) ?? null } : null,
         room: label(cf.solution.roomKey),
         killerWins: scored.killerWins,
@@ -1267,6 +1305,8 @@ export const tv = query({
         levels: levelsOf(game),
         mode: game.mode ?? "play",
         search: game.search ?? "all",
+        // v2: a killer + accomplice game (fixed at Start): How to play adds the accomplice, the reveal names them.
+        accomplice: started && !!game.hasAccomplice,
         wifi: game.wifi?.name ? game.wifi : null,
         tvShowAll: !!game.tvShowAll,
         soundCheckAt: game.soundCheckAt ?? null,
@@ -1310,7 +1350,7 @@ export const tv = query({
             .map((c) => ({ round: c.round, text: c.text, twist: c.kind === "twist" }))
         : [],
       results,
-      reveal: REVEAL,
+      reveal: revealTimes(started && !!game.hasAccomplice, game.tone ?? "classic"),
       voice: await tvVoice(ctx, game, all, input, cf),
       map: await tvMap(ctx, game),
     };

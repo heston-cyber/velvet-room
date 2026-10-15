@@ -28,8 +28,15 @@ type Draft = {
 /** Fewer opt-ins than this and the draw uses everyone who checked in (Heston's rule). */
 export const MIN_OPT_INS = 3;
 
-/** Guests the draw may pick: those who opted in, or everyone if fewer than 3 did. */
+/** A killer and an accomplice need at least this many guests (Heston's rule, v2). */
+export const MIN_ACCOMPLICE = 7;
+
+/**
+ * Guests the draw may pick: those who opted in, or everyone if fewer than 3 did. With an accomplice, everyone
+ * (the opt-in is ignored in that mode).
+ */
 export function eligibleKillers(input: CaseInput): Suspect[] {
+  if (input.accomplice) return input.suspects;
   const ok = input.suspects.filter((s) => s.killerOk);
   return ok.length >= MIN_OPT_INS ? ok : input.suspects;
 }
@@ -40,6 +47,7 @@ export const MAX_ROOMS = 8;
 export function checkInput(input: CaseInput): string[] {
   const problems: string[] = [];
   if (input.suspects.length < 3) problems.push("At least 3 guests have to be checked in.");
+  else if (input.accomplice && input.suspects.length < MIN_ACCOMPLICE) problems.push(`A killer and an accomplice need at least ${MIN_ACCOMPLICE} guests.`);
   if (input.exhibits.length < 1) problems.push("At least one weapon has to be handed in.");
   if (input.rooms.length < MIN_ROOMS) problems.push("Play with at least 2 rooms.");
   if (input.rooms.length > MAX_ROOMS) problems.push(`Play with at most ${MAX_ROOMS} rooms.`);
@@ -55,11 +63,18 @@ export function checkInput(input: CaseInput): string[] {
 export function draw(input: CaseInput, rng: Rng): Solution {
   const problems = checkInput(input);
   if (problems.length) throw new Error(problems.join(" "));
-  return {
+  const sol: Solution = {
     killerId: pick(rng, eligibleKillers(input)).id,
     exhibitId: pick(rng, input.exhibits).id,
     roomKey: pick(rng, input.rooms).key,
   };
+  return withAccomplice(input, rng, sol);
+}
+
+/** In a killer + accomplice game, draws the accomplice from everyone but the killer (unless the solution has one). */
+export function withAccomplice(input: CaseInput, rng: Rng, sol: Solution): Solution {
+  if (!input.accomplice || sol.accompliceId) return sol;
+  return { ...sol, accompliceId: pick(rng, input.suspects.filter((s) => s.id !== sol.killerId)).id };
 }
 
 // ---------- searching in waves ----------
@@ -182,9 +197,13 @@ export function validateCase(input: CaseInput, cf: CaseFile): Validation {
     else if (clear.round < c.round) problems.push("A herring appears after its target was already cleared.");
   }
 
-  // Every guest has a briefing, and exactly one of them is the killer.
+  // Every guest has a briefing, and exactly one of them is the killer (and, with an accomplice, one the accomplice).
   if (cf.briefings.length !== input.suspects.length) problems.push("Not every guest has a briefing.");
   if (cf.briefings.filter((b) => b.role === "killer").length !== 1) problems.push("There isn't exactly one killer.");
+  const accomplices = cf.briefings.filter((b) => b.role === "accomplice");
+  if (input.accomplice) {
+    if (accomplices.length !== 1 || !sol.accompliceId || sol.accompliceId === sol.killerId || accomplices[0].playerId !== sol.accompliceId) problems.push("There isn't exactly one accomplice.");
+  } else if (accomplices.length || sol.accompliceId) problems.push("An accomplice in a one-killer game.");
 
   return {
     ok: problems.length === 0,
@@ -339,6 +358,8 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
   const ex = input.exhibits.find((e) => e.id === sol.exhibitId)!;
   const room = input.rooms.find((r) => r.key === sol.roomKey)!;
   const herringClue = placed.find((c) => c.kind === "herring");
+  const herringAt = herringClue?.pointsAt;
+  const accompliceName = sol.accompliceId ? name.get(sol.accompliceId) : undefined;
   const briefings: Briefing[] = input.suspects.map((s) => {
     const m = motives.get(s.id)!;
     if (s.id === sol.killerId) {
@@ -347,11 +368,23 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
         weapon: ex.name,
         room: room.label,
         ownWeapon: ex.ownerId === s.id,
-        herringName: herringClue?.pointsAt ? name.get(herringClue.pointsAt) : undefined,
+        herringName: herringAt ? name.get(herringAt) : undefined,
+        accompliceName,
       });
       return { playerId: s.id, role: "killer", motive: m.motive, secret: m.secret, lines };
     }
-    return { playerId: s.id, role: "innocent", motive: m.motive, secret: m.secret, lines: S.innocentLines };
+    if (s.id === sol.accompliceId) {
+      const lines = S.accompliceLines({
+        killerName: name.get(sol.killerId)!,
+        weapon: ex.name,
+        room: room.label,
+        ownWeapon: ex.ownerId === s.id,
+        herringName: herringAt && herringAt !== s.id && herringAt !== sol.killerId ? name.get(herringAt) : undefined,
+        herringIsMe: herringAt === s.id,
+      });
+      return { playerId: s.id, role: "accomplice", motive: m.motive, secret: m.secret, lines };
+    }
+    return { playerId: s.id, role: "innocent", motive: m.motive, secret: m.secret, lines: sol.accompliceId ? S.innocentLinesAcc : S.innocentLines };
   });
 
   return { solution: sol, bodyRoomKey: body.key, roomOrder: order, clues: placed, tips, briefings, attempts: 1 };
@@ -365,7 +398,7 @@ export function buildCase(input: CaseInput, rng: Rng, solution?: Solution): Case
   const problems = checkInput(input);
   if (problems.length) throw new Error(problems.join(" "));
   const full: CaseInput = { ...input, ...drawScene(input, rng) };
-  const sol = solution ?? draw(full, rng);
+  const sol = solution ? withAccomplice(full, rng, solution) : draw(full, rng);
   let last: Validation | null = null;
   for (let attempt = 1; attempt <= 200; attempt++) {
     const cf = tryBuild(full, rng, sol);

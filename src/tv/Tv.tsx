@@ -2,7 +2,7 @@ import { Component, useCallback, useEffect, useMemo, useRef, useState, type CSSP
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { HOSTS, captionText, cueFile, cueVariant, type CueKey } from "../../convex/narration";
-import { REVEAL, VOTE } from "../../convex/shared";
+import { VOTE } from "../../convex/shared";
 import { SHOW } from "../../convex/show";
 import { Qr, wifiQrText } from "../lib/qr";
 import HouseMap from "./HouseMap";
@@ -386,7 +386,7 @@ function partyClipUrls(d: Data): string[] {
   for (const i of v.rollCall?.items ?? []) out.push(i.clip?.url);
   out.push(v.body?.url);
   for (const c of Object.values(v.rooms)) out.push(c?.url);
-  out.push(v.reveal?.killer?.url, v.reveal?.exhibit?.url, v.reveal?.room?.url);
+  out.push(v.reveal?.killer?.url, v.reveal?.exhibit?.url, v.reveal?.room?.url, v.reveal?.accomplice?.url);
   out.push(v.winners?.detective?.url, v.winners?.dressed?.url, v.winners?.liar?.url);
   return out.filter((u): u is string => !!u);
 }
@@ -619,7 +619,10 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
   if (g.status === "reveal" && d.results) {
     const r = d.results;
     const t = g.revealAt ?? 0;
-    const step = now < t + REVEAL.name ? 0 : now < t + REVEAL.how ? 1 : now < t + REVEAL.verdict ? 2 : 3;
+    const R = d.reveal;
+    // Killer + accomplice games add a step for the accomplice before the verdict.
+    const accAt = R.accomplice !== null && r.accomplice ? t + R.accomplice : null;
+    const step = now < t + R.name ? 0 : now < t + R.how ? 1 : accAt !== null && now < accAt ? 2 : now < t + R.verdict ? (accAt !== null ? 3 : 2) : accAt !== null ? 4 : 3;
     const frames = [
       <div className="tv-scene" key="v0">
         <span className="tv-kick fade">The killer of Don Carmine Velluto is</span>
@@ -640,16 +643,30 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
         )}
         <h3 className="tv-h3 fade" style={{ animationDelay: "1.4s" }}>in {mid(r.room)}</h3>
       </div>,
-      <div className="tv-scene" key="v3">
+      ...(r.accomplice
+        ? [
+            <div className="tv-scene" key="vacc">
+              <span className="tv-kick">The accomplice</span>
+              <span className="tv-av xl fade">{avatarSrc(r.accomplice.photo, r.accomplice.figure) ? <img src={avatarSrc(r.accomplice.photo, r.accomplice.figure)!} alt="" /> : initials(r.accomplice.name)}</span>
+              <span className="tv-reveal-name tv-reveal-acc fade">{r.accomplice.name}</span>
+            </div>,
+          ]
+        : []),
+      <div className="tv-scene" key="vverdict">
         <span className="tv-kick">The verdict</span>
         <span className="tv-verdict fade">
           Of {r.accusers} locked in: {r.named} named the killer, {r.rightWeapon} the weapon, {r.rightRoom} the room.
           <br />
-          {r.killerWins ? "The killer wins." : "The detectives win."}
+          {r.killerWins ? (r.accomplice ? "The killer and the accomplice win." : "The killer wins.") : "The detectives win."}
         </span>
+        {r.accomplice && r.guessers !== null && (
+          <p className="tv-sub fade">
+            {r.guessers ? `${r.namedAccomplice} of ${r.guessers} who guessed spotted the accomplice.` : "Nobody guessed the accomplice."}
+          </p>
+        )}
         {r.aces.length > 0 && <p className="tv-sub fade">Ace detectives: {r.aces.join(", ")}</p>}
         <p className="tv-sub fade" style={{ color: "var(--paper)" }}>
-          {r.killer}, stand up and confess. Everyone else: vote Best Dressed and Best Liar on your phones.
+          {r.accomplice ? `${r.killer} and ${r.accomplice.name}, stand up and confess.` : `${r.killer}, stand up and confess.`} Everyone else: vote Best Dressed and Best Liar on your phones.
         </p>
       </div>,
     ];
@@ -749,6 +766,12 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
                 <WeaponFan weapons={d.weapons} />
               ) : step.art === "bars" ? (
                 <Jailed figure={d.guests.find((x) => x.figure)?.figure ?? "bodyguard"} className="enter" />
+              ) : step.art === "pair" ? (
+                // The accomplice: the masked killer, with someone at their shoulder.
+                <div className="tv-how-pair">
+                  <img className="enter behind" src={artUrl("slick")} alt="" />
+                  <img className="enter" src={artUrl("killer")} alt="" />
+                </div>
               ) : (
                 <img className="enter" src={artUrl(step.art)} alt="" />
               )}

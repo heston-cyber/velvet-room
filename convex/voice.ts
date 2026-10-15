@@ -61,6 +61,7 @@ async function wantedFor(ctx: QueryCtx, game: Doc<"games">, scope: "roll" | "sta
     roomOrder: game.roomOrder,
     search: game.search ?? "all",
     seed: game.slug,
+    accomplice: !!game.hasAccomplice,
   });
   // The night's heckles (convex/heckles.ts) record with the names for the reveal.
   return [...lines, ...(await heckleWanted(ctx, game)).map(({ line: _l, ...w }) => w)];

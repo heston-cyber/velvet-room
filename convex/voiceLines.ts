@@ -70,6 +70,8 @@ type StartInfo = {
   search: "all" | "waves";
   /** The game's seed (its slug): picks this game's versions of the wording. */
   seed?: string;
+  /** v2: a killer + accomplice game also names the accomplice at the reveal, so every guest gets that line too. */
+  accomplice?: boolean;
 };
 
 /** Rooms that open at the start of a round when searching in waves (Round 1: the first wave). */
@@ -94,6 +96,7 @@ export function startWanted(tone: Tone, n: Narrator, s: StartInfo): Wanted[] {
   }
   for (const p of s.players) {
     out.push(make(`killer:${p.id}`, customText("killer", tone, { name: p.charName, seed: s.seed }), n, customText("killer", tone, { name: spokenName(p), seed: s.seed }), nz));
+    if (s.accomplice) out.push(make(`accomplice:${p.id}`, customText("accomplice", tone, { name: p.charName, seed: s.seed }), n, customText("accomplice", tone, { name: spokenName(p), seed: s.seed }), nz));
     out.push(make(`winner:${p.id}`, customText("winner", tone, { name: p.charName }), n, customText("winner", tone, { name: spokenName(p) }), nz));
     // v2 votes: every guest's "going to jail" and "is free", so the verdicts have names.
     out.push(make(`jailed:${p.id}`, customText("jailed", tone, { name: p.charName, seed: s.seed }), n, customText("jailed", tone, { name: spokenName(p), seed: s.seed }), nz));

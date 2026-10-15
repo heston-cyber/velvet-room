@@ -372,7 +372,7 @@ function McSheet({ data, slug, hostKey, now }: { data: Roster; slug: string; hos
     <div className="hx-mc">
       <span className="lab blood">MC sheet · only you see this</span>
       <span className="ans">
-        {sheet.killer} · Exhibit {sheet.exhibit.letter} ({sheet.exhibit.name}) · {sheet.room}
+        {sheet.killer}{sheet.accomplice ? ` (accomplice: ${sheet.accomplice})` : ""} · Exhibit {sheet.exhibit.letter} ({sheet.exhibit.name}) · {sheet.room}
       </span>
       <span className="help">Body found in {sheet.bodyRoom}. Don't let this screen face the room.</span>
       <span className="lab">Read aloud now</span>

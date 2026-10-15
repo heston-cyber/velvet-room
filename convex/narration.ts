@@ -118,6 +118,12 @@ export const CUES = {
     adult: "[warm, conspiratorial] Here's how this goes. One of you is a killer. The rest of you are witnesses with a drinking problem. [short pause] Nail the killer anyway.",
     wild: ["[clapping hands, way over the top]", "[cackles]"],
   },
+  howAccomplice: {
+    when: "How to play v2, the accomplice (killer + accomplice games only)",
+    classic: "Tonight the killer has an accomplice. The accomplice didn't do it, but knows who did, and will lie to protect them. [short pause] When you lock in, you can guess the accomplice too. It won't change who wins, but it can win you Best Detective.",
+    adult: "Tonight the killer brought a friend. The accomplice didn't do it, but knows exactly who did, and will lie to your face about it. [short pause] When you lock in, take a guess at the accomplice too. It won't change who wins. It will make you look smart.",
+    wild: ["[conspiratorial whisper, way too close to the mic]", "[giggles]"],
+  },
   howRoles: {
     when: "How to play v2, card 2 (your phone)",
     classic: "After the roll call, your phone shows your secret role. Press and hold to read it, and keep your screen to yourself.",
@@ -141,6 +147,12 @@ export const CUES = {
     classic: "From the second vote on, you can spring someone first. Same rule: more than half of you.",
     adult: "From the second vote on, you can spring somebody first. Same rule, more than half of you. Bail, like everything else in Chicago, is a popularity contest.",
     wild: ["[jingling keys, way too excited]", ""],
+  },
+  howTo7Acc: {
+    when: "How to play v2, lying (killer + accomplice games)",
+    classic: "Talk to everyone. You may lie about your own secrets. [short pause] Only the killer and the accomplice may lie about the murder.",
+    adult: "Talk to everybody. Lie about your own secrets all you want. [short pause] Only the killer and the accomplice get to lie about the murder.",
+    wild: ["[deadly serious]", "[bursts out laughing]"],
   },
   howLockIn: {
     when: "How to play v2, the lock-in",
@@ -312,6 +324,12 @@ export const CUES = {
     adult: "With this, in there. Disgusting.",
     wild: ["[horrified]", ""],
   },
+  revealAccomplice: {
+    when: "Reveal: before the accomplice's name (killer + accomplice games)",
+    classic: "[short pause] And the accomplice who helped them is…",
+    adult: "And the accomplice, who helped, loosely speaking, is…",
+    wild: ["[whispering, scandalized]", ""],
+  },
   verdictDetectives: {
     when: "Verdict: most named the killer",
     classic: "The detectives got their killer. [short pause] Confess, you rat.",
@@ -406,6 +424,10 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
     "[warm, conspiratorial] Here's how tonight works. One of you killed the Don. [short pause] The rest of you are suspects, witnesses and, frankly, a fire hazard.",
     "[warm, conspiratorial] The rules are simple. One of you is a killer. Everyone else has to figure out who, while drinking. [short pause] Mostly while drinking.",
   ],
+  howAccomplice: [
+    "Tonight the killer has an accomplice: someone who didn't do it, knows who did, and has decided that's fine. [short pause] When you lock in, guess the accomplice too. It won't change who wins, but it can win you Best Detective.",
+    "This is a two-person job. One killer, one accomplice. The accomplice didn't swing anything. They just lie for the person who did. Loyalty, in this economy. [short pause] When you lock in, take a guess at the accomplice too.",
+  ],
   howRoles: [
     "After the roll call, your phone shows your secret role. Press and hold to read it. Keep it to yourself, the way you keep everything else to yourself. Poorly.",
     "After the roll call, check your phone for your secret role. Press and hold to read it. If someone leans over to look, lean back. Harder.",
@@ -465,6 +487,10 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
   howTo7: [
     "Talk to everybody. Lie about your own secrets. It's encouraged. [short pause] Only the killer may lie about the murder. Everyone else, tell the truth about that one thing, just this once.",
     "You may lie about your own secrets. Most of you have been practicing for years. [short pause] Only the killer gets to lie about the murder.",
+  ],
+  howTo7Acc: [
+    "Talk to everybody. Lie about your own secrets. It's encouraged. [short pause] Only the killer and the accomplice may lie about the murder. Everyone else, tell the truth about that one thing, just this once.",
+    "You may lie about your own secrets. Most of you have been practicing for years. [short pause] Only the killer and their accomplice get to lie about the murder.",
   ],
   howLockIn: [
     "After the last round, everyone who's free locks in: who did it, with which weapon, and in which room. Jailbirds sit this one out and watch, which, for some of you, is how you like it.",
@@ -546,6 +572,10 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
   reveal3: [
     "With that, in there. The cleaning crew is furious.",
     "With this weapon, in this room. We'll be steaming the carpet for weeks.",
+  ],
+  revealAccomplice: [
+    "And the accomplice, who lied to all of you with a straight face, is…",
+    "And the one who held the coats and asked no questions is…",
   ],
   verdictDetectives: [
     "The detectives got it right. [short pause] Killer, you may now confess, cry, or both.",
@@ -631,6 +661,8 @@ export const NOISY: Record<Tone, Partial<Record<CueKey, string>>> = {
     awards: "And now, the awards. [clears throat]",
     paused: "Hold everything. [sneezes] Excuse me.",
     goodnight: "The Velvet Room is closed for the night. [hiccups] Settle your debts in chips.",
+    howAccomplice: "Tonight the killer has an accomplice. [hiccups] The accomplice didn't do it, but knows who did, and will lie to protect them. [short pause] When you lock in, you can guess the accomplice too. It won't change who wins, but it can win you Best Detective.",
+    revealAccomplice: "[short pause] And the a- a- accomplice who helped them is…",
   },
   adult: {
     doors: "[warm, smoky voice] Welcome to the Velvet Room. I'm {host}. The gin was made in a bathtub this afternoon, [hiccups] and the bathtub did its best.",
@@ -659,6 +691,8 @@ export const NOISY: Record<Tone, Partial<Record<CueKey, string>>> = {
     voteJail: "Time to vote. Somebody's going to jail, or nobody is. [burps] Pick on your phone.",
     voteTally: "The votes are in. [hiccups] Here's how you voted. No take-backs.",
     releaseNobody: "Not enough votes. [farts] [short pause] The jailbirds stay in their cage.",
+    howAccomplice: "Tonight the killer brought a friend. [hiccups] The accomplice didn't do it, but knows exactly who did, and will lie to your face about it. [short pause] When you lock in, take a guess at the accomplice too.",
+    revealAccomplice: "And the accomplice, who lied to all of you with a straight face, is… [burps] is…",
   },
 };
 /** How often a line with a noisy take plays it (so about one line in ten heard has a noise). */
@@ -731,7 +765,7 @@ const pickWild = (seed: string) => WILD_POOL[[...seed].reduce((h, ch) => (h * 31
 const list = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 const mid = (l: string) => l.replace(/^The /, "the ");
 
-export type CustomKind = "arrival" | "body" | "rooms" | "killer" | "exhibit" | "room" | "winner" | "roll" | "jailed" | "released";
+export type CustomKind = "arrival" | "body" | "rooms" | "killer" | "accomplice" | "exhibit" | "room" | "winner" | "roll" | "jailed" | "released";
 
 /** The words for a custom line. Pass a name as it should sound (the guest's "say it like", when they gave one). */
 export function customText(
@@ -755,6 +789,8 @@ export function customText(
     }
     case "killer":
       return adult ? pick([`${v.name}, you rotten bastard.`, `${v.name}. Of course it was.`, `${v.name}. We're not even surprised. We're a little proud.`]) : `${v.name}.`;
+    case "accomplice":
+      return adult ? pick([`${v.name}. The getaway driver, minus the car.`, `${v.name}, who has been nodding along all night.`, `${v.name}. Loyal, quiet, and no help to anyone else.`]) : `${v.name}.`;
     case "exhibit":
       // v2: weapons have names, not exhibit letters.
       return `With the ${(v.weapon ?? "").toLowerCase()},`;

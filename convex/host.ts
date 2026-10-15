@@ -78,6 +78,9 @@ export const roster = query({
         deadlineLabel: game.deadlineLabel,
         motiveMode: game.motiveMode,
         killerOptIn: game.killerOptIn,
+        // v2: a killer and an accomplice (7+ players). hasAccomplice: what Start decided (null before Start).
+        accomplice: !!game.accomplice,
+        hasAccomplice: started(game) ? !!game.hasAccomplice : null,
         lookalikes: !!game.lookalikes,
         rooms: game.rooms,
         pacing: game.pacing,
@@ -135,6 +138,7 @@ export const updateSettings = mutation({
     hostKey: v.string(),
     motiveMode: v.optional(v.union(v.literal("game"), v.literal("players"))),
     killerOptIn: v.optional(v.boolean()),
+    accomplice: v.optional(v.boolean()),
     lookalikes: v.optional(v.boolean()),
     registrationOpen: v.optional(v.boolean()),
     registrationClosesAt: v.optional(v.number()),
@@ -205,7 +209,7 @@ export const updateSettings = mutation({
         update.mcPlayerId = mcPlayerId;
       }
     }
-    for (const key of ["motiveMode", "killerOptIn", "lookalikes", "registrationOpen", "registrationClosesAt", "deadlineLabel", "tone", "mode", "search"] as const) {
+    for (const key of ["motiveMode", "killerOptIn", "accomplice", "lookalikes", "registrationOpen", "registrationClosesAt", "deadlineLabel", "tone", "mode", "search"] as const) {
       if (patch[key] !== undefined) (update as Record<string, unknown>)[key] = patch[key];
     }
     // Switching back to "everyone plays" means nobody is the MC.
@@ -330,6 +334,7 @@ export const mcSheet = query({
       .collect();
     return {
       killer: name(cf.solution.killerId),
+      accomplice: cf.solution.accompliceId ? name(cf.solution.accompliceId) : null,
       exhibit: { letter, name: weapon?.name ?? "" },
       room: label(cf.solution.roomKey),
       bodyRoom: label(cf.bodyRoomKey),

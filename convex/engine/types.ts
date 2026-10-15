@@ -41,6 +41,11 @@ export type CaseInput = {
   tone?: "classic" | "adult";
   /** Motives and secrets players wrote themselves, by suspect id. Blanks get written by the game. */
   playerMotives?: Record<string, { motive?: string; secret?: string }>;
+  /**
+   * v2: a killer and an accomplice (7+ guests). Both are drawn from everyone (the opt-in is ignored). The accomplice
+   * didn't do it: the evidence treats them like any innocent, and may clear them.
+   */
+  accomplice?: boolean;
 };
 
 export type Elim = { suspects: string[]; exhibits: string[]; rooms: string[] };
@@ -71,11 +76,17 @@ export type PlacedClue = {
 
 export type Tip = { playerId: string; clueId: string; text: string; elim: Elim };
 
-export type Solution = { killerId: string; exhibitId: string; roomKey: string };
+export type Solution = {
+  killerId: string;
+  exhibitId: string;
+  roomKey: string;
+  /** Killer + accomplice games: who helps the killer. Not part of what the clues prove. */
+  accompliceId?: string;
+};
 
 export type Briefing = {
   playerId: string;
-  role: "killer" | "innocent";
+  role: "killer" | "accomplice" | "innocent";
   motive: string;
   secret: string;
   lines: string[];

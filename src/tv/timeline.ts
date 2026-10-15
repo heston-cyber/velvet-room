@@ -5,7 +5,7 @@
 import type { FunctionReturnType } from "convex/server";
 import type { api } from "../../convex/_generated/api";
 import { cueVariant, type CueKey } from "../../convex/narration";
-import { REVEAL, VOTE } from "../../convex/shared";
+import { VOTE } from "../../convex/shared";
 import { howCues, howLayout, readSecs, rollLayout, SHOW, type HowArt, type ShowPart } from "../../convex/show";
 import { CARD_MS, type CardKey, type LoopKey } from "./media";
 import type { MusicKey, SfxKey } from "./sound";
@@ -302,6 +302,8 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
   if (g.status === "reveal" && g.revealAt) {
     const t = g.revealAt;
     const r = d.voice.reveal;
+    // The server's timings: a killer + accomplice game names the accomplice before the verdict.
+    const REVEAL = d.reveal;
     out.loop = "spotlight";
     out.music = now < t + REVEAL.verdict ? null : "lobby";
     out.holdUntil = card("reveal", t);
@@ -319,6 +321,15 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
       const e = clip(`rev:${t}:exhibit`, r.exhibit, t + REVEAL.how + 0.3 * S);
       clip(`rev:${t}:room`, r.room, e + 0.1 * S);
     } else vo(`rev:${t}:3`, "reveal3", t + REVEAL.how + 0.3 * S);
+    // The accomplice: "And the accomplice who helped them is…", their name, and their drawing steps in.
+    if (REVEAL.accomplice !== null) {
+      const at = t + REVEAL.accomplice;
+      fx(`rev:${t}:acc`, "creak", at);
+      const said = vo(`rev:${t}:acc:vo`, "revealAccomplice", at + 0.4 * S);
+      if (r?.accomplice) clip(`rev:${t}:acc:name`, r.accomplice, said + 0.2 * S);
+      const fig = d.results?.accomplice?.figure;
+      if (fig) cameo({ id: `rev:${t}:acc:fig`, char: fig, anim: "stand", at: said, until: t + REVEAL.verdict, on: "reveal3" });
+    }
     const killerWins = !!d.results?.killerWins;
     fx(`rev:${t}:verdict`, killerWins ? "sinisterBrass" : "fanfare", t + REVEAL.verdict);
     const e = vo(`rev:${t}:verdict:vo`, killerWins ? "verdictKiller" : "verdictDetectives", t + REVEAL.verdict + 0.8 * S);
