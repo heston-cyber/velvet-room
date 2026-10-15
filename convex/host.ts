@@ -55,6 +55,7 @@ export const roster = query({
           checkedIn: p.checkedIn,
           weaponIn: !!p.weaponIn,
           inGame: !!p.inGame,
+          jailed: !!p.jailed,
           ready: !!round && p.readyRound === round,
           accused: accused.has(p._id),
           isMC: game.mcPlayerId === p._id,
@@ -62,7 +63,8 @@ export const roster = query({
           registeredAt: p.createdAt,
         })),
     );
-    const playing = rows.filter((p) => p.inGame && !p.isMC);
+    // v2: the free guests (not in jail) are the ones who ready up and lock in.
+    const playing = rows.filter((p) => p.inGame && !p.isMC && !p.jailed);
     const label = (key?: string) => game.rooms.find((r) => r.key === key)?.label ?? "";
     return {
       game: {
@@ -97,6 +99,8 @@ export const roster = query({
         introEndsAt: game.introEndsAt ?? null,
         // v2: the show's parts (convex/show.ts), so the host can skip to the next one.
         show: game.show ? { howAt: game.show.howAt, rollAt: game.show.rollAt, phonesAt: game.show.phonesAt ?? null } : null,
+        // v2: this round's vote, so the host can close it or skip its verdict.
+        vote: game.vote && game.vote.round === game.round ? { kind: game.vote.kind, closedAt: game.vote.closedAt ?? null, nextAt: game.vote.nextAt ?? null } : null,
         tvShowAll: !!game.tvShowAll,
         endedAt: game.endedAt ?? null,
         nextSlug: game.nextSlug ?? null,

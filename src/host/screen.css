@@ -55,3 +55,5 @@
 .hs-error { position: absolute; top: 1.2cqw; left: 0; right: 0; margin-inline: auto; width: max-content; max-width: 60cqw; z-index: 40; background: rgba(10, 3, 6, .95);
   border: 1px solid var(--blood); color: var(--paper); padding: .8cqw 1.4cqw .6cqw; font-size: 1.3cqw; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .hs-cover, .hs-pause { animation: none; } }
+/* The host's Menu button sits top right: the TV's top-right corner moves down to clear it. */
+.tv-stage:has(.hs-menu-btn) .tv-corner.tr { top: 4.6cqw; }

@@ -95,6 +95,9 @@ export function startWanted(tone: Tone, n: Narrator, s: StartInfo): Wanted[] {
   for (const p of s.players) {
     out.push(make(`killer:${p.id}`, customText("killer", tone, { name: p.charName, seed: s.seed }), n, customText("killer", tone, { name: spokenName(p), seed: s.seed }), nz));
     out.push(make(`winner:${p.id}`, customText("winner", tone, { name: p.charName }), n, customText("winner", tone, { name: spokenName(p) }), nz));
+    // v2 votes: every guest's "going to jail" and "is free", so the verdicts have names.
+    out.push(make(`jailed:${p.id}`, customText("jailed", tone, { name: p.charName, seed: s.seed }), n, customText("jailed", tone, { name: spokenName(p), seed: s.seed }), nz));
+    out.push(make(`released:${p.id}`, customText("released", tone, { name: p.charName, seed: s.seed }), n, customText("released", tone, { name: spokenName(p), seed: s.seed }), nz));
   }
   for (const e of s.exhibits) out.push(make(`exhibit:${e.id}`, customText("exhibit", tone, { letter: e.letter, weapon: e.name }), n, undefined, nz));
   for (const r of s.rooms) out.push(make(`room:${r.key}`, customText("room", tone, { room: r.label }), n, undefined, nz));

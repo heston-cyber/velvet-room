@@ -157,7 +157,7 @@ describe("party night", () => {
       const killer = (await t.query(api.game.phone, { token: killerToken }))!;
       const board = killer.board!;
       const line = killer.briefing!.lines[0];
-      const exhibit = board.exhibits.find((e) => e.letter === /Exhibit ([A-Z])/.exec(line)![1])!;
+      const exhibit = board.exhibits.find((e) => line.includes(`with the ${e.name.toLowerCase()} in`))!;
       const room = board.rooms.find((r) => line.includes(r.label.replace(/^The /, "the ")))!;
       const killerId = killer.me.id;
       // Everyone locks in, the killer last (their pick counts too).

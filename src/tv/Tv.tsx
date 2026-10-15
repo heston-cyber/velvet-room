@@ -2,11 +2,11 @@ import { Component, useCallback, useEffect, useMemo, useRef, useState, type CSSP
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { HOSTS, captionText, cueFile, cueVariant, type CueKey } from "../../convex/narration";
-import { REVEAL } from "../../convex/shared";
+import { REVEAL, VOTE } from "../../convex/shared";
 import { SHOW } from "../../convex/show";
 import { Qr, wifiQrText } from "../lib/qr";
 import HouseMap from "./HouseMap";
-import { avatarSrc, faceX, figureUrl } from "../lib/figure";
+import { avatarSrc, faceUrl, faceX, figureUrl } from "../lib/figure";
 import { weaponUrl } from "../lib/weapon";
 import { ALL_FIGURE_KEYS, FACES_RIGHT } from "../../convex/figures";
 import { CARD_MS, cardUrl, loopUrl, useMediaBank, type LoopKey } from "./media";
@@ -522,6 +522,8 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
       const scene = showScene(d, p, now);
       if (scene) return { scene };
     }
+    const vt = d.vote;
+    if (round <= 3 && vt && vt.round === round && (!vt.closedAt || now < (vt.nextAt ?? Infinity))) return { scene: voteScene(d, vt, now) };
     const bodyKey = d.map.rooms.find((r) => r.label === g.bodyRoom)?.key ?? null;
     const houseMap = <HouseMap map={d.map} round={round} bodyRoomKey={bodyKey} now={now} />;
     if (round === 1) {
@@ -596,9 +598,9 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
         node: (
           <>
             <div className="tv-scene">
-              <span className="tv-kick">Accusations</span>
+              <span className="tv-kick">The lock-in</span>
               <h2 className="tv-h2" style={{ fontSize: "5.4cqw" }}>Who killed the Don?</h2>
-              <p className="tv-sub">Lock in who, which exhibit and where on your phone.</p>
+              <p className="tv-sub">Lock in who, with which weapon, and where, on your phone. Jailbirds sit this one out.</p>
               <Guests guests={d.guests} mark="accused" />
             </div>
             <div className="tv-corner tr">
@@ -630,13 +632,18 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
       </div>,
       <div className="tv-scene" key="v2">
         <span className="tv-kick">{r.killer} did it</span>
-        {r.exhibit && <h3 className="tv-h3 fade">with Exhibit {r.exhibit.letter}, the {r.exhibit.name.toLowerCase()}</h3>}
+        {r.exhibit && (
+          <div className="tv-reveal-weapon fade">
+            {r.exhibit.key && <WeaponCard weapon={{ key: r.exhibit.key, name: r.exhibit.name }} />}
+            <h3 className="tv-h3">with the {r.exhibit.name.toLowerCase()}</h3>
+          </div>
+        )}
         <h3 className="tv-h3 fade" style={{ animationDelay: "1.4s" }}>in {mid(r.room)}</h3>
       </div>,
       <div className="tv-scene" key="v3">
         <span className="tv-kick">The verdict</span>
         <span className="tv-verdict fade">
-          {r.named} of {r.accusers} named the killer.
+          Of {r.accusers} locked in: {r.named} named the killer, {r.rightWeapon} the weapon, {r.rightRoom} the room.
           <br />
           {r.killerWins ? "The killer wins." : "The detectives win."}
         </span>
@@ -786,6 +793,96 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
   return null;
 }
 
+type Vote = NonNullable<Data["vote"]>;
+
+/** The jail and release votes: the candidates while it's open, then who voted for whom, then the verdict. */
+function voteScene(d: Data, vt: Vote, now: number): Scene {
+  const jail = vt.kind === "jail";
+  if (!vt.closedAt) {
+    return {
+      key: `vote-open-${vt.at}`,
+      node: (
+        <>
+          <div className="tv-scene">
+            <span className="tv-kick fade">{jail ? `The jail vote · Round ${vt.round}` : `The release vote · Round ${vt.round}`}</span>
+            <h2 className="tv-h2 fade" style={{ fontSize: "5.4cqw" }}>{jail ? "Who goes to jail?" : "Does anyone get out?"}</h2>
+            <div className="tv-cands">
+              {vt.candidates.map((c, i) => (
+                <div key={c.id} className="fade" style={{ animationDelay: `${0.2 + i * 0.08}s` }}>
+                  {c.figure ? jail ? <img src={figureUrl(c.figure)} alt="" /> : <Jailed figure={c.figure} /> : <span className="tv-av">{initials(c.name)}</span>}
+                  <span>{c.name}</span>
+                </div>
+              ))}
+            </div>
+            <p className="tv-sub fade">Vote on your phone. You can pick nobody. More than half of you have to agree.</p>
+          </div>
+          <div className="tv-corner tr">
+            <span>
+              <b>{vt.voted}</b> of {vt.voters} voted
+            </span>
+            <span className="tv-mini-clock">{clock(vt.endsAt - now)}</span>
+          </div>
+        </>
+      ),
+    };
+  }
+  const verdictAt = vt.closedAt + VOTE.verdictAtMs;
+  if (now < verdictAt) {
+    return {
+      key: `vote-tally-${vt.at}`,
+      node: (
+        <div className="tv-scene">
+          <span className="tv-kick fade">The votes are in</span>
+          <div className="tv-tally">
+            {(vt.tally ?? []).map((col, i) => (
+              <div key={col.targetId ?? "nobody"} className="fade" style={{ animationDelay: `${0.3 + i * 0.25}s` }}>
+                <span className="who">{col.name}</span>
+                <span className="n">{col.voters.length}</span>
+                <div className="voters">
+                  {col.voters.map((v) => (
+                    <span key={v.id} className="tv-av sm" title={v.name}>
+                      {v.figure ? <img src={faceUrl(v.figure)} alt="" /> : initials(v.name)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="tv-sub fade" style={{ animationDelay: "1s" }}>
+            {vt.voted} of {vt.voters} voted. More than half had to agree.
+          </p>
+        </div>
+      ),
+    };
+  }
+  const who = vt.target;
+  return {
+    key: `vote-verdict-${vt.at}`,
+    node: (
+      <div className="tv-scene">
+        {vt.outcome === "nobody" || !who ? (
+          <>
+            <span className="tv-kick fade">The verdict</span>
+            <h2 className="tv-h2 fade" style={{ fontSize: "5.4cqw" }}>{jail ? "Nobody goes to jail." : "Nobody gets out."}</h2>
+            <p className="tv-sub fade">Not enough votes. More than half had to agree.</p>
+          </>
+        ) : (
+          <div className="tv-verdict-who">
+            {who.figure && (vt.outcome === "jailed" ? <Jailed figure={who.figure} className="slam" /> : <img className="freed" src={figureUrl(who.figure)} alt="" />)}
+            <div>
+              <span className="tv-kick fade">{vt.outcome === "jailed" ? "Locked up" : "Released"}</span>
+              <h2 className="tv-h2 fade" style={{ fontSize: "5cqw" }}>{vt.outcome === "jailed" ? `${who.name} is going to jail.` : `${who.name} is free.`}</h2>
+              <p className="tv-sub fade" style={{ animationDelay: ".6s" }}>
+                {vt.outcome === "jailed" ? "They can talk and bribe. No searching, no voting, no lock-in." : "Back in the game, with a vote."}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    ),
+  };
+}
+
 type RollStep = NonNullable<Plan["roll"]>["steps"][number];
 
 /** One guest's turn: their drawing with their weapon at hip level, and what the narrator says, row by row as it's said. */
@@ -907,7 +1004,7 @@ function Guests({ guests, mark }: { guests: Data["guests"]; mark: "here" | "accu
     <div className="tv-guests" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
       {guests.map((x) => (
         <div key={x.id} className={mark === "here" && !x.here ? "away" : ""}>
-          <span className={`tv-av ${mark === "accused" && x.accused ? "done" : ""}`}>{avatarSrc(x.photoUrl, x.figure) ? <img src={avatarSrc(x.photoUrl, x.figure)!} alt="" /> : initials(x.charName)}</span>
+          <span className={`tv-av ${mark === "accused" && x.accused ? "done" : ""} ${x.jailed ? "jailed" : ""}`}>{avatarSrc(x.photoUrl, x.figure) ? <img src={avatarSrc(x.photoUrl, x.figure)!} alt="" /> : initials(x.charName)}</span>
           {x.charName}
         </div>
       ))}

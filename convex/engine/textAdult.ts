@@ -17,16 +17,16 @@ export const ADULT: Script = {
       `${a} and ${b} were out back sharing a cigar and talking shit about the Don's toupee when it happened. Both cleared.`,
       `The bartender swears ${a} and ${b} never left the bar. He'd know, because neither cheap bastard tipped. Both cleared.`,
     ]),
-  exhibitClear: (say, letter, name) =>
+  exhibitClear: (say, name) =>
     say("e1", [
-      `The coroner took one look at Exhibit ${letter} (${name}) and laughed his ass off. You couldn't kill a fly with that. Not the weapon.`,
-      `Exhibit ${letter} (${name}) came back from the lab clean. Cleaner than anyone in this damn room. Not the weapon.`,
-      `Exhibit ${letter} (${name}) sat in the coat check all night under a pile of mink. Nobody touched the damn thing. Not the weapon.`,
+      `The coroner took one look at the ${name} and laughed his ass off. You couldn't kill a fly with that. Not the weapon.`,
+      `The ${name} came back from the lab clean. Cleaner than anyone in this damn room. Not the weapon.`,
+      `The ${name} sat in the coat check all night under a pile of mink. Nobody touched the damn thing. Not the weapon.`,
     ]),
   exhibitPairClear: (say, a, b) =>
     say("e2", [
-      `Exhibits ${a} and ${b} sat behind the bar all night, right under the bartender's big nose. Neither one did shit. Not the weapon.`,
-      `The lab cleared Exhibits ${a} and ${b}. Spotless and boring as hell. Neither is the weapon.`,
+      `The ${a} and the ${b} sat behind the bar all night, right under the bartender's big nose. Neither one did shit. Not the weapon.`,
+      `The lab cleared the ${a} and the ${b}. Spotless and boring as hell. Neither is the weapon.`,
     ]),
   roomClear: (say, label) =>
     say("r1", [
@@ -87,18 +87,20 @@ export const ADULT: Script = {
     "Somebody paid you twenty bucks to keep an eye on someone here tonight. You already lost track of them.",
   ],
   killerLines: (f) => [
-    `You did it. You whacked Don Carmine Velluto with Exhibit ${f.letter} (${f.weapon}) in ${mid(f.room)}.`,
+    `You did it. You whacked Don Carmine Velluto with the ${f.weapon.toLowerCase()} in ${mid(f.room)}.`,
     f.ownWeapon
-      ? `Exhibit ${f.letter} is the weapon you brought, genius. If anyone figures that out, start lying your ass off.`
-      : `Exhibit ${f.letter} isn't even your weapon. Lucky break, you sneaky bastard.`,
+      ? `The ${f.weapon.toLowerCase()} is the weapon you brought, genius. If anyone figures that out, start lying your ass off.`
+      : `The ${f.weapon.toLowerCase()} isn't even your weapon. Lucky break, you sneaky bastard.`,
     "Over three rounds the clues will clear everyone else one by one. Your job: keep these idiots guessing.",
     ...(f.herringName ? [`One clue points at ${f.herringName}. Throw them under the bus.`] : []),
     "You can lie about anything tonight. Everyone else can only lie about their own dirty secrets.",
-    "You win if most of these clowns accuse someone else.",
+    "Stay out of jail: jailbirds can't lock in. Getting some other sucker jailed is fair game.",
+    "You win unless more than half of these clowns get you, the weapon and the room.",
   ],
   innocentLines: [
     "You're innocent. You didn't kill the Don, for once in your life.",
     "You can lie about your secret, but not about the murder. Only the killer gets to bullshit about that.",
     "Find the markers, compare notes, and figure out who did it, with what, and where.",
+    "After every round, vote somebody into jail if most of you agree. Jailbirds can't search, vote or lock in.",
   ],
 };

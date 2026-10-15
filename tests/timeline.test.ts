@@ -140,6 +140,34 @@ describe("TV timeline", () => {
     expect(p.loop).toBe("doors");
   });
 
+  test("votes: the opener, heckles while votes come in, the last call; once closed, who voted for whom, then the verdict", () => {
+    const V = T0 + 2_000_000;
+    const hk = [0, 1, 2].map((i) => ({ id: `heckle:${i}`, figure: null, gag: false, clip: { url: `h${i}`, caption: `H${i}`, seconds: 3 } }));
+    const vote = { kind: "jail", round: 2, at: V, endsAt: V + 90_000, closedAt: null, nextAt: null, outcome: null, target: null, candidates: [], voters: 5, voted: 2, tally: null };
+    const g = { status: "playing", round: 2, startedAt: T0, introEndsAt: T0 + 60_000, roundStartedAt: T0 + 1_000_000 };
+    let p = plan(data({ game: g, voice: { heckles: hk } }) as never as Data & { vote: unknown }, V + 1000, secs);
+    // (the vote rides on the data the TV query returns)
+    p = plan({ ...data({ game: g, voice: { heckles: hk } }), vote } as unknown as Data, V + 1000, secs);
+    expect(p.loop).toBe("accuse");
+    expect(p.events.find((e) => e.cue === "voteJail")?.at).toBe(V + 600);
+    expect(p.events.filter((e) => e.id.startsWith("heckle:vote")).length).toBe(2);
+    expect(p.events.find((e) => e.cue === "voteLastCall")?.at).toBe(V + 75_000);
+    // closed early (everyone voted) with a verdict: the open vote's leftovers drop, the tally and the verdict play
+    const closed = { ...vote, closedAt: V + 20_000, nextAt: V + 34_000, outcome: "jailed", target: { id: "p1", name: "Velma", figure: "lady" } };
+    const verdict = { url: "v", caption: "Velma is going to jail.", seconds: 2 };
+    p = plan({ ...data({ game: g, voice: { heckles: hk, verdict } }), vote: closed } as unknown as Data, V + 21_000, secs);
+    expect(p.events.some((e) => e.cue === "voteLastCall")).toBe(false);
+    expect(p.events.filter((e) => e.id.startsWith("heckle:vote")).every((e) => e.at < V + 20_000)).toBe(true);
+    expect(p.events.find((e) => e.cue === "voteTally")?.at).toBe(V + 20_400);
+    expect(p.events.find((e) => e.clip?.url === "v")?.at).toBe(V + 20_000 + 6_000 + 500);
+    // nobody: the narrator says so
+    p = plan({ ...data({ game: g, voice: { heckles: hk } }), vote: { ...closed, outcome: "nobody", target: null } } as unknown as Data, V + 21_000, secs);
+    expect(p.events.some((e) => e.cue === "jailNobody")).toBe(true);
+    // after the verdict: back to the round's own plan (Round 3 will start)
+    p = plan({ ...data({ game: g }), vote: closed } as unknown as Data, V + 40_000, secs);
+    expect(p.events.some((e) => e.id.startsWith("vote:"))).toBe(false);
+  });
+
   test("round 3: cards land with a telegraph each, then the twist line, the twist card, and the twist", () => {
     const t = T0 + 900_000;
     const evidence = [

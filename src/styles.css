@@ -327,3 +327,19 @@ img { max-width: 100%; }
 .weapon-grid button.taken .weapon-name { color: var(--muted); }
 .card dd.card-weapon { display: flex; align-items: center; gap: 8px; }
 .card dd.card-weapon img { width: 40px; height: 40px; object-fit: contain; }
+
+/* ---- v2: jail, votes, lock-in ---- */
+.jail-banner { border: 1px solid var(--blood); background: rgba(120, 20, 30, .25); color: var(--paper); padding: 10px 12px; font-size: 15px; line-height: 1.35;
+  background-image: repeating-linear-gradient(90deg, transparent 0 22px, rgba(0, 0, 0, .18) 22px 26px); }
+.vote-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.vote-grid button { display: grid; justify-items: center; gap: 6px; padding: 12px 8px 10px; background: var(--well); border: 1px solid var(--rule); color: var(--paper); cursor: pointer; font-size: 15px; min-height: 44px; }
+.vote-grid button .av { width: 56px; height: 56px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; border: 1px solid var(--brass-dim); }
+.vote-grid button .av img { width: 100%; height: 100%; object-fit: cover; }
+.vote-grid button[aria-checked="true"] { background: var(--brass); color: var(--ink); border-color: var(--brass); }
+.vote-grid button.nobody { grid-column: 1 / -1; font-family: var(--label); letter-spacing: .14em; text-transform: uppercase; font-weight: 700; }
+.tally { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; text-align: left; width: 100%; }
+.tally li { border: 1px solid var(--rule); padding: 8px 10px; }
+.pick .opts.weapons button { display: grid; justify-items: center; gap: 4px; width: calc(33.33% - 4px); padding: 6px 4px; font-size: 13px; }
+.pick .opts.weapons img { width: 52px; height: 52px; object-fit: contain; }
+.locked-weapon { width: 120px; height: 120px; object-fit: contain; justify-self: center; }
+.primary.armed { box-shadow: 0 0 0 3px var(--blood); }

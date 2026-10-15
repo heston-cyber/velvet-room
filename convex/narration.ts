@@ -161,6 +161,43 @@ export const CUES = {
     adult: "[low, grave] The doors are locked until we figure out which one of you did it. The fire marshal has been informed, and does not care. [short pause] Let's meet the suspects.",
     wild: ["[slamming the door, shouting]", "[cackles]"],
   },
+  // ---- votes (v2): after every round. Drafts for Heston's review. ----
+  voteJail: {
+    when: "The jail vote opens",
+    classic: "Time to vote. Who goes to jail? Vote on your phone. You can pick nobody.",
+    adult: "Time to vote. Somebody's going to jail, or nobody is. Pick on your phone.",
+    wild: ["[banging a gavel, way too hard]", ""],
+  },
+  voteRelease: {
+    when: "The release vote opens (before the jail vote, from Round 2, if anyone is in jail)",
+    classic: "Before the jail vote: does anyone get out of jail? Vote on your phone.",
+    adult: "Before we lock anyone else up: does anybody get out? Vote on your phone.",
+    wild: ["[jingling keys, giggling]", ""],
+  },
+  voteLastCall: {
+    when: "Fifteen seconds left to vote",
+    classic: "Fifteen seconds left to vote.",
+    adult: "Fifteen seconds. Vote now, or let everyone else decide for you, like usual.",
+    wild: ["[panicking]", ""],
+  },
+  voteTally: {
+    when: "The vote closes: who voted for whom",
+    classic: "The votes are in. Here's how you voted.",
+    adult: "The votes are in. Here's how you voted. No take-backs.",
+    wild: ["[drumroll noises with mouth]", ""],
+  },
+  jailNobody: {
+    when: "Jail vote: not enough votes",
+    classic: "Not enough votes. Nobody goes to jail this time.",
+    adult: "Not enough votes. Nobody goes to jail. Democracy is a beautiful, useless thing.",
+    wild: ["[deeply disappointed sigh]", ""],
+  },
+  releaseNobody: {
+    when: "Release vote: not enough votes",
+    classic: "Not enough votes. Everyone in jail stays put.",
+    adult: "Not enough votes. The jailbirds stay in their cage.",
+    wild: ["[cackling]", ""],
+  },
   // ---- roll call (before the murder) ----
   rollCallOpen: {
     when: "Roll call begins",
@@ -377,6 +414,30 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
     "Every guest brought a weapon, and one of them was used on the Don. [short pause] If it's yours, that doesn't make you the killer. It does make you a person who owns that.",
     "Each of you brought a weapon, which is not normal party etiquette. [short pause] One of them did the job. Its owner may be completely innocent. Its owner may also be lying.",
   ],
+  voteJail: [
+    "Jail vote. Look around the room, find the face you trust least, and vote on your phone.",
+    "Phones out. Who's going to jail? More than half of you have to agree. Good luck with that.",
+  ],
+  voteRelease: [
+    "Release vote. Somebody in that cell might be innocent. Somebody in that cell might also owe you money. Vote.",
+    "Time to decide whether anyone gets out of jail. Mercy is allowed. It just isn't popular.",
+  ],
+  voteLastCall: [
+    "Fifteen seconds left. If you haven't voted, this is the part where you panic.",
+    "Fifteen seconds. Pick somebody. Anybody. Not literally anybody.",
+  ],
+  voteTally: [
+    "Let's see who voted for whom, and who's going to hold a grudge.",
+    "The votes are in. Some of you are about to find out who your friends are.",
+  ],
+  jailNobody: [
+    "Nobody goes to jail. You couldn't agree on anything, which is very on brand.",
+    "Not enough votes. Everybody stays free, for now. Act natural.",
+  ],
+  releaseNobody: [
+    "Nobody gets out. The cell is cozy, and the company is probably guilty.",
+    "Not enough votes. Release denied. Somebody bring them a sandwich.",
+  ],
   howTo4: [
     "Then search the house. Evidence markers are hidden in every room on the map. Feel around under things. Nobody here is a stranger to feeling around under things. Scan every one you find.",
     "Then search the house. Every room on the map has markers stashed in it. Open drawers, check under cushions, and if you find something that isn't a marker, put it back and never speak of it. Scan every marker you find.",
@@ -565,6 +626,8 @@ export const NOISY: Record<Tone, Partial<Record<CueKey, string>>> = {
     reveal1: "[long pause] The killer of Don Carmine Velluto is… [hiccups] is…",
     verdictDetectives: "The detectives got their killer. [short pause] C- c- confess, you rat.",
     votePrompt: "Now vote on your phones: Best Dressed and [hiccups] Best Liar.",
+    voteJail: "Time to vote. [clears throat] Who goes to jail? Vote on your phone. You can pick nobody.",
+    jailNobody: "Not enough votes. Nobody goes to jail this t- t- time.",
     awards: "And now, the awards. [clears throat]",
     paused: "Hold everything. [sneezes] Excuse me.",
     goodnight: "The Velvet Room is closed for the night. [hiccups] Settle your debts in chips.",
@@ -593,6 +656,9 @@ export const NOISY: Record<Tone, Partial<Record<CueKey, string>>> = {
     awardLiar: "And Best Liar goes to someone who looked every one of you in the eye tonight and l- l- lied. Congratulations to…",
     goodnight: "The Velvet Room is closed. [burps] Settle your debts in chips. If you're staying the night, the couch has seen worse.",
     paused: "Freeze. Nobody move. [farts] [short pause] Nobody say a word, either.",
+    voteJail: "Time to vote. Somebody's going to jail, or nobody is. [burps] Pick on your phone.",
+    voteTally: "The votes are in. [hiccups] Here's how you voted. No take-backs.",
+    releaseNobody: "Not enough votes. [farts] [short pause] The jailbirds stay in their cage.",
   },
 };
 /** How often a line with a noisy take plays it (so about one line in ten heard has a noise). */
@@ -665,7 +731,7 @@ const pickWild = (seed: string) => WILD_POOL[[...seed].reduce((h, ch) => (h * 31
 const list = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 const mid = (l: string) => l.replace(/^The /, "the ");
 
-export type CustomKind = "arrival" | "body" | "rooms" | "killer" | "exhibit" | "room" | "winner" | "roll";
+export type CustomKind = "arrival" | "body" | "rooms" | "killer" | "exhibit" | "room" | "winner" | "roll" | "jailed" | "released";
 
 /** The words for a custom line. Pass a name as it should sound (the guest's "say it like", when they gave one). */
 export function customText(
@@ -696,6 +762,10 @@ export function customText(
       return `in ${mid(v.room!)}.`;
     case "winner":
       return `${v.name}!`;
+    case "jailed":
+      return adult ? pick([`${v.name} is going to jail. Think about what you did.`, `${v.name}, into the cell. Mind the bars.`, `${v.name} is going to jail. Bring a sweater.`]) : `${v.name} is going to jail.`;
+    case "released":
+      return adult ? pick([`${v.name} is out. Behave.`, `${v.name} walks. For now.`, `${v.name} is free. The cell will miss you.`]) : `${v.name} is free to go.`;
     case "roll":
       return `${rollIntro(tone, v.name ?? "", v.real ?? "")} ${v.line ?? ""}`.trim();
   }

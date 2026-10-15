@@ -1111,7 +1111,7 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
     };
     rollCall = { at: game.show.rollAt, items, slots: game.show.roll ?? slotsFor(guests, secondsOf), frozen: !!game.show.roll };
   }
-  if (beforeStart || !input) return { voice: voiceOf(n), rollCall, body: null, rooms: {} as Record<string, Clip>, reveal: null, winners: null, heckles: [] };
+  if (beforeStart || !input) return { voice: voiceOf(n), rollCall, body: null, rooms: {} as Record<string, Clip>, reveal: null, winners: null, heckles: [], verdict: null as Clip };
   const wanted = startWanted(tone, n, {
     players: all.filter((p) => p.inGame).map((p) => ({ id: p._id, charName: p.charName, sayAs: p.sayAs })),
     exhibits: input.exhibits.map((e) => ({ id: e.id, letter: e.letter, name: e.name })),
@@ -1156,7 +1156,10 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
     const c = await clip(h);
     if (c) heckles.push({ id: h.purpose, figure: h.line.figure, gag: h.line.gag, clip: c });
   }
-  return { voice: voiceOf(n), rollCall, body: await get("body"), rooms, reveal, winners, heckles };
+  // The vote's verdict, once it has closed on someone: "Velma is going to jail."
+  const vt = voteOf(game);
+  const verdict = vt?.closedAt && vt.targetId ? await get(`${vt.kind === "jail" ? "jailed" : "released"}:${vt.targetId}`) : null;
+  return { voice: voiceOf(n), rollCall, body: await get("body"), rooms, reveal, winners, heckles, verdict };
 }
 
 /** The weapons the guests in the game picked (v2), by name. */

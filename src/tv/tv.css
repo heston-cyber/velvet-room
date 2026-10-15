@@ -306,3 +306,32 @@
 .tv-left .tv-wcard { flex: 1 1 0; min-width: 0; max-width: 6.2cqw; padding: .3cqw; }
 .tv-left .tv-wcard .nm { font-size: .58cqw; letter-spacing: .04em; }
 .tv-roast .word { font-family: var(--body); font-style: italic; font-size: 1.8cqw; line-height: 1.25; color: var(--paper); }
+
+/* ---- v2 votes ---- */
+/* A jailed guest's round avatar gets bars. */
+.tv-av { position: relative; }
+.tv-av.jailed::after { content: ""; position: absolute; inset: 0; border-radius: inherit;
+  background: repeating-linear-gradient(90deg, transparent 0 18%, rgba(20, 12, 6, .92) 18% 26%); box-shadow: inset 0 0 0 .25cqw rgba(20, 12, 6, .9); }
+.tv-av.sm { width: 3.6cqw; height: 3.6cqw; font-size: 1.3cqw; }
+/* The candidates: their drawings in a row (behind bars for a release vote). */
+.tv-cands { display: flex; justify-content: center; align-items: flex-end; gap: 2.2cqw; margin: 1cqw 0; max-width: 92cqw; flex-wrap: nowrap; }
+.tv-cands > div { display: grid; justify-items: center; gap: .6cqw; min-width: 0; flex: 0 1 auto; font-size: 1.4cqw; color: var(--paper); }
+.tv-cands img { height: 20cqw; width: auto; max-width: 12cqw; object-fit: contain; filter: drop-shadow(0 .6cqw 1.2cqw rgba(0, 0, 0, .5)); }
+.tv-cands .tv-jailed { height: 20cqw; }
+/* Who voted for whom. */
+.tv-tally { display: flex; justify-content: center; align-items: flex-start; gap: 2.4cqw; flex-wrap: wrap; max-width: 90cqw; margin-top: 1.2cqw; }
+.tv-tally > div { display: grid; justify-items: center; gap: .6cqw; min-width: 9cqw; padding: 1cqw 1.2cqw; border: 1px solid var(--brass-dim); background: rgba(10, 3, 6, .45); }
+.tv-tally .who { font-family: var(--display); font-size: 1.9cqw; color: var(--paper); text-align: center; }
+.tv-tally .n { font-family: var(--display); font-size: 3.4cqw; color: var(--brass); line-height: 1; }
+.tv-tally .voters { display: flex; flex-wrap: wrap; justify-content: center; gap: .4cqw; max-width: 14cqw; }
+/* The verdict. */
+.tv-verdict-who { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 5cqw; text-align: left; max-width: 84cqw; }
+.tv-verdict-who > div { display: grid; gap: 1.2cqw; justify-items: start; }
+.tv-verdict-who .tv-jailed { height: 36cqw; }
+.tv-verdict-who img.freed { height: 36cqw; width: auto; animation: freed 1.2s cubic-bezier(.2, .8, .2, 1) both; filter: drop-shadow(0 .8cqw 1.6cqw rgba(0, 0, 0, .55)); }
+.tv-jailed.slam .bars { animation: slam .5s cubic-bezier(.5, 0, .7, 1.4) .4s both; }
+@keyframes slam { from { transform: translateY(-110%); } to { transform: none; } }
+@keyframes freed { from { transform: translateX(-6cqw); opacity: 0; } to { transform: none; opacity: 1; } }
+.tv-reveal-weapon { display: flex; align-items: center; gap: 2cqw; }
+.tv-reveal-weapon .tv-wcard { width: 10cqw; }
+@media (prefers-reduced-motion: reduce) { .tv-jailed.slam .bars, .tv-verdict-who img.freed { animation: none; } }

@@ -241,10 +241,10 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
   for (let i = 0; i < exs.length; ) {
     if (i + 1 < exs.length && rng() < 0.35) {
       const [a, b] = [exs[i], exs[i + 1]];
-      exhibitDrafts.push({ kind: "exhibitPair", text: S.exhibitPairClear(say, a.letter, b.letter), elim: { ...NONE, exhibits: [a.id, b.id] } });
+      exhibitDrafts.push({ kind: "exhibitPair", text: S.exhibitPairClear(say, a.name.toLowerCase(), b.name.toLowerCase()), elim: { ...NONE, exhibits: [a.id, b.id] } });
       i += 2;
     } else {
-      exhibitDrafts.push({ kind: "exhibit", text: S.exhibitClear(say, exs[i].letter, exs[i].name), elim: { ...NONE, exhibits: [exs[i].id] } });
+      exhibitDrafts.push({ kind: "exhibit", text: S.exhibitClear(say, exs[i].name.toLowerCase()), elim: { ...NONE, exhibits: [exs[i].id] } });
       i += 1;
     }
   }

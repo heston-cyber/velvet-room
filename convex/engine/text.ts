@@ -42,7 +42,8 @@ export type KillerFacts = {
 export type Script = {
   suspectClear: (say: Say, n: string) => string;
   suspectPairClear: (say: Say, a: string, b: string) => string;
-  exhibitClear: (say: Say, letter: string, name: string) => string;
+  /** v2: weapons go by name (lower case: "the lawn gnome"); exhibit letters are gone. */
+  exhibitClear: (say: Say, name: string) => string;
   exhibitPairClear: (say: Say, a: string, b: string) => string;
   roomClear: (say: Say, label: string) => string;
   roomClearHere: (label: string) => string;
@@ -73,16 +74,16 @@ export const CLASSIC: Script = {
       `The bartender kept ${a} and ${b} in his sights all night. Neither one left the bar. Both cleared.`,
       `${a} and ${b} were caught sneaking a smoke out back together when it happened. Both cleared.`,
     ]),
-  exhibitClear: (say, letter, name) =>
+  exhibitClear: (say, name) =>
     say("e1", [
-      `The coroner rules out Exhibit ${letter} (${name}). The wounds don't match. Not the weapon.`,
-      `Exhibit ${letter} (${name}) came back from the lab clean: no blood, no prints. Not the weapon.`,
-      `Exhibit ${letter} (${name}) sat in the coat check all night and nobody touched it. Not the weapon.`,
+      `The coroner rules out the ${name}. The wounds don't match. Not the weapon.`,
+      `The ${name} came back from the lab clean: no blood, no prints. Not the weapon.`,
+      `The ${name} sat in the coat check all night and nobody touched it. Not the weapon.`,
     ]),
   exhibitPairClear: (say, a, b) =>
     say("e2", [
-      `Exhibits ${a} and ${b} were behind the bar under the bartender's nose all evening. Neither one was used.`,
-      `The lab cleared Exhibits ${a} and ${b}. Spotless, both of them. Neither is the weapon.`,
+      `The ${a} and the ${b} were behind the bar under the bartender's nose all evening. Neither one was used.`,
+      `The lab cleared the ${a} and the ${b}. Spotless, both of them. Neither is the weapon.`,
     ]),
   roomClear: (say, label) =>
     say("r1", [
@@ -142,18 +143,20 @@ export const CLASSIC: Script = {
     "You took a payment to keep an eye on someone here tonight.",
   ],
   killerLines: (f) => [
-    `You did it. You killed Don Carmine Velluto with Exhibit ${f.letter} (${f.weapon}) in ${mid(f.room)}.`,
+    `You did it. You killed Don Carmine Velluto with the ${f.weapon.toLowerCase()} in ${mid(f.room)}.`,
     f.ownWeapon
-      ? `Exhibit ${f.letter} is the weapon you brought. If anyone works that out, you'll need a good story.`
-      : `Exhibit ${f.letter} isn't the weapon you brought. That's lucky for you.`,
+      ? `The ${f.weapon.toLowerCase()} is the weapon you brought. If anyone works that out, you'll need a good story.`
+      : `The ${f.weapon.toLowerCase()} isn't the weapon you brought. That's lucky for you.`,
     "Over three rounds, the clues will clear the other guests one by one. Your job is to keep them guessing.",
     ...(f.herringName ? [`One clue points at ${f.herringName}. Lean on it.`] : []),
     "You may lie about anything tonight. Everyone else may only lie about their own secrets.",
-    "You win if most guests accuse someone else.",
+    "Stay out of jail: jailbirds can't lock in. Getting someone else jailed is fair game.",
+    "You win unless more than half of the lock-ins get you, the weapon and the room.",
   ],
   innocentLines: [
     "You're innocent. You didn't kill the Don.",
     "You may lie about your secret, but not about the murder. Only the killer may lie about that.",
-    "Find the markers, compare notes, and work out who did it, with which exhibit, and where.",
+    "Find the markers, compare notes, and work out who did it, with which weapon, and where.",
+    "After every round, vote someone into jail if most of you agree. Jailbirds can't search, vote or lock in.",
   ],
 };

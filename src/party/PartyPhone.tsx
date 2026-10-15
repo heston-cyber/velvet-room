@@ -8,7 +8,8 @@ import { friendlyError } from "../lib/errors";
 import { codeFromScan } from "../lib/scan";
 import { Swap } from "../lib/Swap";
 import { navigate } from "../lib/router";
-import { avatarSrc } from "../lib/figure";
+import { avatarSrc, faceUrl } from "../lib/figure";
+import { weaponUrl } from "../lib/weapon";
 import { REVEAL_VERDICT_MS } from "../../convex/shared";
 
 type Phone = NonNullable<FunctionReturnType<typeof api.game.phone>>;
@@ -106,6 +107,11 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
     lastRound.current = game.round;
   }, [game.round]);
 
+  // v2: the jail and release votes take over the phone between rounds, until the verdict has shown.
+  const now = useNow(game.status === "playing");
+  const vt = data.vote;
+  const voting = game.status === "playing" && !!vt && vt.round === game.round && (!vt.closedAt || now < (vt.nextAt ?? 0));
+
   let body: JSX.Element;
   let showNav = false;
   if (me.isMC && (game.status === "lobby" || game.status === "playing")) body = <McPhone data={data} />;
@@ -113,6 +119,7 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
   else if (game.status === "lobby") body = <Lobby data={data} />;
   else if (game.status === "playing" && !me.inGame) body = <Late data={data} />;
   else if (game.status === "playing" && !game.rolesOut) body = <ShowWait data={data} />;
+  else if (voting) body = <VoteScreen token={token} data={data} now={now} />;
   else if (game.status === "playing" && !seen) {
     body = (
       <Murder
@@ -149,7 +156,7 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
         <nav className="tabbar" aria-label="Game">
           {(
             [
-              ["case", game.round >= 4 ? "Accuse" : "Case"],
+              ["case", game.round >= 4 ? "Lock in" : "Case"],
               ["scan", "Scan"],
               ["evidence", "Evidence"],
               ["notebook", "Notebook"],
@@ -186,11 +193,14 @@ function TopLine({ data }: { data: Phone }) {
   } else if (intro) {
     chip = "Lights down";
     right = left;
+  } else if (data.vote && game.status === "playing" && data.vote.round === game.round && !data.vote.closedAt) {
+    chip = data.vote.kind === "jail" ? "Jail vote" : "Release vote";
+    right = `${data.vote.voted} of ${data.vote.voters} voted`;
   } else if (game.status === "playing" && game.round <= 3) {
     chip = `Round ${game.round} · ${["", "Search the house", "Fresh evidence", "Last evidence"][game.round]}`;
     right = timed || intro ? left : game.paused ? "Paused" : `${counts.ready} of ${counts.inGame} ready`;
   } else if (game.status === "playing") {
-    chip = "Accusations";
+    chip = "Lock-in";
     right = game.paused ? "Paused" : `${counts.accused} of ${counts.inGame} in`;
   } else if (game.status === "reveal") {
     chip = "The reveal";
@@ -349,6 +359,104 @@ function useHold() {
   return { holding, seenOnce, props };
 }
 
+/** v2 jail: shown on a jailed guest's case file and scanner. */
+function JailBanner() {
+  return (
+    <div className="jail-banner" role="status">
+      <b>You're in jail.</b> You can talk and bribe with chips, but you can't search, vote or lock in.
+    </div>
+  );
+}
+
+const clockOf = (ms: number) => {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
+
+/** The jail and release votes (v2): tap someone or nobody; change it until it closes; then the result. */
+function VoteScreen({ token, data, now }: { token: string; data: Phone; now: number }) {
+  const cast = useMutation(api.game.castVote);
+  const [error, setError] = useState<string | null>(null);
+  const vt = data.vote!;
+  const b = data.myBallot;
+  const jail = vt.kind === "jail";
+  async function vote(targetId: Id<"players"> | null) {
+    setError(null);
+    try {
+      await cast({ token, targetId });
+    } catch (e) {
+      setError(friendlyError(e));
+    }
+  }
+  if (vt.closedAt) {
+    const verdict =
+      vt.outcome === "nobody" || !vt.target
+        ? jail
+          ? "Nobody goes to jail."
+          : "Nobody gets out."
+        : vt.outcome === "jailed"
+          ? vt.target.id === data.me.id
+            ? "You're going to jail."
+            : `${vt.target.name} is going to jail.`
+          : vt.target.id === data.me.id
+            ? "You're free."
+            : `${vt.target.name} is free.`;
+    return (
+      <div className="screen center">
+        <span className="eyebrow">The votes are in</span>
+        <h1 className="title-lg">{verdict}</h1>
+        <ul className="tally">
+          {(vt.tally ?? []).map((c) => (
+            <li key={c.targetId ?? "nobody"}>
+              <b>{c.name}</b> · {c.voters.length} {c.voters.length === 1 ? "vote" : "votes"}
+              {c.voters.length > 0 && <span className="help"> ({c.voters.map((v) => v.name).join(", ")})</span>}
+            </li>
+          ))}
+        </ul>
+        <p className="help">Eyes on the TV.</p>
+      </div>
+    );
+  }
+  if (!b?.canVote) {
+    const onBallot = vt.candidates.some((c) => c.id === data.me.id);
+    return (
+      <div className="screen center">
+        <span className="eyebrow">{jail ? "The jail vote" : "The release vote"}</span>
+        {data.me.jailed && <JailBanner />}
+        <h1 className="title-lg">{onBallot ? "Your fate is on the ballot." : "Sit tight."}</h1>
+        <p className="lede">{data.me.jailed ? "You can't vote from a cell. Talk fast. Bribes are welcome." : "This vote is for the others."}</p>
+        <p className="help">
+          {vt.voted} of {vt.voters} voted · {clockOf(vt.endsAt - now)} left
+        </p>
+      </div>
+    );
+  }
+  const options = vt.candidates.filter((c) => c.id !== data.me.id);
+  return (
+    <div className="screen">
+      <span className="eyebrow">{jail ? `The jail vote · Round ${vt.round}` : `The release vote · Round ${vt.round}`}</span>
+      <h1 className="title-lg">{jail ? "Who goes to jail?" : "Does anyone get out?"}</h1>
+      <p className="lede">More than half of you have to agree. You can change your vote until it closes.</p>
+      <div className="vote-grid" role="radiogroup" aria-label={jail ? "Who goes to jail" : "Who gets out"}>
+        {options.map((c) => (
+          <button key={c.id} type="button" role="radio" aria-checked={b.voted && b.targetId === c.id} onClick={() => vote(c.id as Id<"players">)}>
+            <span className="av">{c.figure ? <img src={faceUrl(c.figure)} alt="" /> : initials(c.name)}</span>
+            <span className="nm">{c.name}</span>
+          </button>
+        ))}
+        <button type="button" role="radio" className="nobody" aria-checked={b.voted && b.targetId === null} onClick={() => vote(null)}>
+          <span className="nm">Nobody</span>
+        </button>
+      </div>
+      {error && <div className="errbox">{error}</div>}
+      <p className="help">
+        {b.voted ? "Your vote is in. " : ""}
+        {vt.voted} of {vt.voters} voted · {clockOf(vt.endsAt - now)} left
+      </p>
+    </div>
+  );
+}
+
 /** The show (v2): the intro, How to play and the roll call play on the TV. The role arrives after the roll call. */
 function ShowWait({ data }: { data: Phone }) {
   return (
@@ -409,6 +517,7 @@ function Murder({ data, onDone }: { data: Phone; onDone: () => void }) {
 function Pacing({ token, data }: { token: string; data: Phone }) {
   const setReady = useMutation(api.game.setReady);
   const { game, counts, me } = data;
+  if (me.jailed) return null;
   if (game.paused) return <p className="help">The host paused the game. Hang tight.</p>;
   if (game.pacing.mode === "timer") return <p className="help">The next evidence drops on the TV when the timer runs out.</p>;
   if (game.round > 3) return null;
@@ -421,7 +530,7 @@ function Pacing({ token, data }: { token: string; data: Phone }) {
         onClick={() => setReady({ token, ready: !me.ready })}
       >
         <Swap show={me.ready ? 1 : 0}>
-          <span>{game.round === 3 ? "Ready to accuse" : "Ready for more evidence"}</span>
+          <span>{game.round === 3 ? "Ready for the last vote" : "Ready to end the round"}</span>
           <span>You're ready ✓</span>
         </Swap>
       </button>
@@ -430,7 +539,7 @@ function Pacing({ token, data }: { token: string; data: Phone }) {
       </div>
       <span className="help">
         {counts.ready} of {counts.inGame} ready.{" "}
-        {game.round === 3 ? "Accusations open" : "More evidence drops on the TV"} once most of the room is ready.
+        The round ends in a jail vote once most of the free guests are ready.
       </span>
     </div>
   );
@@ -456,6 +565,7 @@ function CaseFile({ token, data }: { token: string; data: Phone }) {
   // so neither the screen nor the card's shape tells anyone who the killer is.
   return (
     <div className="screen">
+      {data.me.jailed && <JailBanner />}
       <h1 className="title-lg">Your case file</h1>
       <div {...props} ref={card} aria-label="Press and hold to read your role" className={`hold-card role-hold no-select${holding ? " showing" : ""}`}>
         <span className="eyebrow">Your role</span>
@@ -549,7 +659,19 @@ function CameraScanner({ onCode, onClose }: { onCode: (code: string) => void; on
   );
 }
 
-function Scan({ token, data, onNotebook }: { token: string; data: Phone; onNotebook: () => void }) {
+function Scan(props: { token: string; data: Phone; onNotebook: () => void }) {
+  if (props.data.me.jailed) {
+    return (
+      <div className="screen">
+        <JailBanner />
+        <p className="lede">No searching from a cell. Ask a friend what they've found, and offer chips.</p>
+      </div>
+    );
+  }
+  return <Scanner {...props} />;
+}
+
+function Scanner({ token, data, onNotebook }: { token: string; data: Phone; onNotebook: () => void }) {
   const scanMarker = useMutation(api.game.scanMarker);
   const [code, setCode] = useState("");
   const [camera, setCamera] = useState(false);
@@ -731,8 +853,8 @@ function Notebook({ token, data }: { token: string; data: Phone }) {
       <p className="help">Tap anything you've ruled out. Only you see this.</p>
       <h3>Suspects</h3>
       <div className="nb-grid">{board.suspects.map((s) => cell(`s:${s.id}`, s.name, s.signature))}</div>
-      <h3>Exhibits</h3>
-      <div className="nb-grid">{board.exhibits.map((e) => cell(`e:${e.id}`, `Exhibit ${e.letter}`, e.name))}</div>
+      <h3>Weapons</h3>
+      <div className="nb-grid">{board.exhibits.map((e) => cell(`e:${e.id}`, e.name))}</div>
       <h3>Rooms</h3>
       <div className="nb-grid">{board.rooms.map((r) => cell(`r:${r.key}`, r.label))}</div>
     </div>
@@ -742,60 +864,87 @@ function Notebook({ token, data }: { token: string; data: Phone }) {
 function Accuse({ token, data }: { token: string; data: Phone }) {
   const accuse = useMutation(api.game.accuse);
   const board = data.board!;
-  const [pick, setPick] = useState(() => ({
-    s: data.myAccusation?.suspectId ?? "",
-    e: data.myAccusation?.exhibitId ?? "",
-    r: data.myAccusation?.roomKey ?? "",
-  }));
+  const [pick, setPick] = useState({ s: "", e: "", r: "" });
+  const [armed, setArmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(!!data.myAccusation);
+  const mine = data.myAccusation;
+  if (data.me.jailed) {
+    return (
+      <div className="screen">
+        <JailBanner />
+        <h1 className="title-lg">You sit out the lock-in.</h1>
+        <p className="lede">Jailbirds don't get a say. Watch the TV for the reveal.</p>
+      </div>
+    );
+  }
+  // v2: a lock-in is final.
+  if (mine) {
+    const who = board.suspects.find((s) => s.id === mine.suspectId)?.name ?? "";
+    const weapon = board.exhibits.find((e) => e.id === mine.exhibitId);
+    const where = board.rooms.find((r) => r.key === mine.roomKey)?.label ?? "";
+    return (
+      <div className="screen">
+        <span className="eyebrow">Locked in</span>
+        <h1 className="title-lg">{who}</h1>
+        <p className="lede">
+          with the {weapon?.name.toLowerCase()}, in {mid(where)}.
+        </p>
+        {weapon?.key && <img className="locked-weapon" src={weaponUrl(weapon.key)} alt="" />}
+        <p className="help">No changes now. The reveal starts once everyone who's free has locked in.</p>
+      </div>
+    );
+  }
   async function lock() {
+    if (!armed) return setArmed(true);
     setError(null);
     try {
       await accuse({ token, suspectId: pick.s, exhibitId: pick.e, roomKey: pick.r });
-      setSaved(true);
     } catch (e) {
       setError(friendlyError(e));
+      setArmed(false);
     }
   }
-  const opt = (k: "s" | "e" | "r", val: string, label: string) => (
-    <button
-      key={val}
-      type="button"
-      aria-pressed={pick[k] === val}
-      onClick={() => {
-        setPick((p) => ({ ...p, [k]: val }));
-        setSaved(false);
-      }}
-    >
+  const set = (k: "s" | "e" | "r", val: string) => {
+    setPick((p) => ({ ...p, [k]: val }));
+    setArmed(false);
+  };
+  const opt = (k: "s" | "r", val: string, label: string) => (
+    <button key={val} type="button" aria-pressed={pick[k] === val} onClick={() => set(k, val)}>
       {label}
     </button>
   );
+  const ready = !!(pick.s && pick.e && pick.r);
   return (
     <div className="screen">
-      <h1 className="title-lg">Make your accusation</h1>
-      <p className="lede">Who killed the Don, with which exhibit, and where?</p>
+      <h1 className="title-lg">Lock it in</h1>
+      <p className="lede">Who killed the Don, with which weapon, and where? Once you lock in, that's final.</p>
       <div className="pick">
         <span className="eyebrow">Who</span>
         <div className="opts">{board.suspects.filter((s) => s.id !== data.me.id).map((s) => opt("s", s.id, s.name))}</div>
       </div>
       <div className="pick">
-        <span className="eyebrow">Which exhibit</span>
-        <div className="opts">{board.exhibits.map((e) => opt("e", e.id, `${e.letter} · ${e.name}`))}</div>
+        <span className="eyebrow">Which weapon</span>
+        <div className="opts weapons">
+          {board.exhibits.map((e) => (
+            <button key={e.id} type="button" aria-pressed={pick.e === e.id} onClick={() => set("e", e.id)}>
+              {e.key && <img src={weaponUrl(e.key)} alt="" />}
+              <span>{e.name}</span>
+            </button>
+          ))}
+        </div>
       </div>
       <div className="pick">
         <span className="eyebrow">Where</span>
         <div className="opts">{board.rooms.map((r) => opt("r", r.key, r.label))}</div>
       </div>
-      <Swap show={saved ? 1 : 0}>
-        <div className="locked pending">Pick who, which exhibit and where, then lock it in.</div>
-        <div className="locked">Locked in. You can change it until the reveal starts.</div>
-      </Swap>
       {error && <div className="errbox">{error}</div>}
-      <button type="button" className="primary" disabled={!pick.s || !pick.e || !pick.r} onClick={lock}>
-        {data.myAccusation ? "Update my accusation" : "Lock in my accusation"}
+      <button type="button" className={`primary ${armed ? "armed" : ""}`} disabled={!ready} onClick={lock}>
+        <Swap show={armed ? 1 : 0}>
+          <span>Lock it in</span>
+          <span>Tap again: this is final</span>
+        </Swap>
       </button>
-      <span className="help">One point each for the right person, exhibit and room. All three makes you an Ace Detective.</span>
+      <span className="help">The group wins if more than half of you get the killer, more than half the weapon, and more than half the room.</span>
     </div>
   );
 }
@@ -876,7 +1025,7 @@ function RevealVotes({ token, data }: { token: string; data: Phone }) {
       <h1 className="title-lg">{headline}</h1>
       {r && (
         <p className="lede">
-          It was {r.killer}, with Exhibit {r.exhibit?.letter} ({r.exhibit?.name}), in {mid(r.room)}.
+          It was {r.killer}, with the {r.exhibit?.name.toLowerCase()}, in {mid(r.room)}.
         </p>
       )}
       <p className="help">Best Detective is scored automatically. Vote for the other two.</p>

@@ -26,8 +26,9 @@ function textMatchesLogic(input: CaseInput, c: PlacedClue, bodyRoomKey: string):
     if (c.kind !== "twist" && !c.text.includes(n)) return `${c.id} doesn't name ${n}`;
   }
   for (const id of c.elim.exhibits) {
-    const L = input.exhibits.find((x) => x.id === id)!.letter;
-    if (!new RegExp(`Exhibits? [^.]*\\b${L}\\b`).test(c.text)) return `${c.id} doesn't name Exhibit ${L}`;
+    // v2: weapons go by name ("the lawn gnome"), not exhibit letters
+    const n = input.exhibits.find((x) => x.id === id)!.name.toLowerCase();
+    if (!c.text.toLowerCase().includes(`the ${n}`)) return `${c.id} doesn't name the ${n}`;
   }
   if (c.kind === "room") {
     const label = input.rooms.find((r) => r.key === c.elim.rooms[0])!.label;
@@ -109,7 +110,7 @@ describe("the engine", () => {
         // each wrong suspect, exhibit and room is ruled out by at least one clue
         const ruledOut = new Set(cf.clues.flatMap((c) => [...c.elim.suspects, ...c.elim.exhibits, ...c.elim.rooms]));
         for (const s of input.suspects) if (s.id !== sol.killerId && !ruledOut.has(s.id)) failures.push(`${tag}: ${s.name} never cleared`);
-        for (const e of input.exhibits) if (e.id !== sol.exhibitId && !ruledOut.has(e.id)) failures.push(`${tag}: Exhibit ${e.letter} never cleared`);
+        for (const e of input.exhibits) if (e.id !== sol.exhibitId && !ruledOut.has(e.id)) failures.push(`${tag}: the ${e.name} never cleared`);
         for (const r of input.rooms) if (r.key !== sol.roomKey && !ruledOut.has(r.key)) failures.push(`${tag}: ${r.label} never cleared`);
 
         // words match logic
@@ -134,10 +135,10 @@ describe("the engine", () => {
         if (kb.length !== 1 || kb[0].playerId !== sol.killerId) failures.push(`${tag}: wrong killer briefing`);
         const ex = input.exhibits.find((e) => e.id === sol.exhibitId)!;
         const room = input.rooms.find((r) => r.key === sol.roomKey)!;
-        if (!kb[0]?.lines[0].includes(`Exhibit ${ex.letter}`) || !kb[0]?.lines[0].includes(mid(room.label))) failures.push(`${tag}: killer briefing has the wrong details`);
+        if (!kb[0]?.lines[0].includes(`the ${ex.name.toLowerCase()}`) || !kb[0]?.lines[0].includes(mid(room.label))) failures.push(`${tag}: killer briefing has the wrong details`);
         // no innocent briefing mentions the answer
         for (const b of cf.briefings.filter((b) => b.role === "innocent")) {
-          if (b.lines.join(" ").includes(`Exhibit ${ex.letter}`)) failures.push(`${tag}: innocent briefing leaks the weapon`);
+          if (b.lines.join(" ").toLowerCase().includes(ex.name.toLowerCase())) failures.push(`${tag}: innocent briefing leaks the weapon`);
         }
       }
     }

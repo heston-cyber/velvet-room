@@ -111,7 +111,7 @@ describe("Phase 4: drawn body room, waves, Self MC, Wi-Fi, the TV", () => {
     const phones = await Promise.all(tokens.slice(1).map((token) => t.query(api.game.phone, { token })));
     const killer = phones.find((p) => p!.briefing!.role === "killer")!;
     expect(sheet!.killer).toBe(killer.me.charName);
-    expect(killer.briefing!.lines[0]).toContain(`Exhibit ${sheet!.exhibit.letter}`);
+    expect(killer.briefing!.lines[0]).toContain(`the ${sheet!.exhibit.name.toLowerCase()}`);
     expect(sheet!.clues.some((c) => c.twist)).toBe(true);
     expect(sheet!.bodyRoom).toBe(other!.game.bodyRoom);
     for (let i = 0; i < 3; i++) await nextRound(t, SLUG, hostKey);

@@ -45,13 +45,15 @@ export function useNextStep(data: Roster, slug: string, hostKey: string, now: nu
   }
   if (intro) return { label: "Begin Round 1", help: "Or let the intro finish on its own.", run: () => skipIntro(args) };
   if (g.status === "playing") {
-    if (g.round === 1) return { label: "Next round", help: g.pacing.mode === "ready" ? "Skips the ready vote and drops new evidence." : "Skips the rest of the timer and drops new evidence.", run: () => advance(args) };
-    if (g.round === 2) return { label: "Next round", help: "Drops the final evidence and the twist.", run: () => advance(args) };
-    if (g.round === 3) return { label: "Open accusations", help: "Guests lock in who, which exhibit and where.", run: () => advance(args) };
+    // v2: a round ends in its votes; the host can close a vote early and skip its verdict.
+    const vt = g.round <= 3 ? g.vote : null;
+    if (vt && !vt.closedAt) return { label: "Close the vote", help: "Counts the votes now. More than half on one guest is needed.", run: () => advance(args) };
+    if (vt && vt.closedAt && (vt.nextAt ?? 0) > now) return { label: vt.kind === "release" ? "On to the jail vote" : g.round === 3 ? "On to the lock-in" : `On to Round ${g.round + 1}`, help: "Skips the rest of the verdict.", run: () => advance(args) };
+    if (g.round <= 3) return { label: `End Round ${g.round}`, help: g.round === 1 ? "Ends the round in the jail vote." : "Ends the round in the votes (release first, if anyone is in jail).", run: () => advance(args) };
     const allIn = c.accused >= c.inGame;
     return {
       label: "Start the reveal",
-      confirm: allIn ? undefined : `Tap again: only ${c.accused} of ${c.inGame} have accused`,
+      confirm: allIn ? undefined : `Tap again: only ${c.accused} of ${c.inGame} have locked in`,
       help: "Starts on its own once everyone's in.",
       run: () => advance(args),
     };

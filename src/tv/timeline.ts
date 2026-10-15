@@ -5,7 +5,7 @@
 import type { FunctionReturnType } from "convex/server";
 import type { api } from "../../convex/_generated/api";
 import { cueVariant, type CueKey } from "../../convex/narration";
-import { REVEAL } from "../../convex/shared";
+import { REVEAL, VOTE } from "../../convex/shared";
 import { howCues, howLayout, readSecs, rollLayout, SHOW, type HowArt, type ShowPart } from "../../convex/show";
 import { CARD_MS, type CardKey, type LoopKey } from "./media";
 import type { MusicKey, SfxKey } from "./sound";
@@ -90,7 +90,7 @@ const S = 1000;
 export const FRESH_MS = 3_000;
 const REMIND_EVERY = 5 * 60 * S;
 /** When heckles fill the lulls: while searching, at the lock-in, and during the votes. */
-export const HECKLE = { roundFirst: 80 * S, roundEvery: 150 * S, lockFirst: 35 * S, lockEvery: 60 * S, voteFirst: 12 * S, voteEvery: 32 * S };
+export const HECKLE = { roundFirst: 80 * S, roundEvery: 150 * S, lockFirst: 35 * S, lockEvery: 60 * S, voteFirst: 12 * S, voteEvery: 32 * S, voteOpenFirst: 24 * S, voteOpenEvery: 30 * S };
 
 export function plan(d: Data, now: number, secs: Secs): Plan {
   const g = d.game;
@@ -197,6 +197,35 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
     out.music = "rounds";
     const timed = g.pacing.mode === "timer" && !g.paused && g.roundEndsAt !== null && g.roundEndsAt > 0;
     const left = timed ? g.roundEndsAt! - now : Infinity;
+
+    // The votes after a round (v2): the jail vote, and from Round 2 a release vote first if anyone is in jail.
+    const vt = d.vote;
+    if (round >= 1 && round <= 3 && vt && vt.round === round && (!vt.closedAt || now < (vt.nextAt ?? Infinity))) {
+      const t = vt.at;
+      const id = `vote:${t}`;
+      out.loop = "accuse";
+      out.music = "rounds";
+      vo(`${id}:open`, vt.kind === "jail" ? "voteJail" : "voteRelease", t + 0.6 * S, false, `${round}`);
+      // Heckles while the votes come in, then the last call.
+      heckle(`${id}:0`, 23 + round * 3 + (vt.kind === "jail" ? 0 : 2), t + HECKLE.voteOpenFirst, "vote");
+      heckle(`${id}:1`, 24 + round * 3 + (vt.kind === "jail" ? 0 : 2), t + HECKLE.voteOpenFirst + HECKLE.voteOpenEvery, "vote");
+      vo(`${id}:last`, "voteLastCall", vt.endsAt - VOTE.lastCallMs, false, `${round}:${vt.kind}`);
+      if (vt.closedAt) {
+        // Closed: who voted for whom, then the verdict. Whatever the open vote still had queued doesn't play.
+        const c = vt.closedAt;
+        fx(`${id}:stamp`, "stamp", c);
+        vo(`${id}:tally`, "voteTally", c + 0.4 * S, false, `${round}:${vt.kind}`);
+        const at = c + VOTE.verdictAtMs;
+        if (vt.outcome === "nobody") vo(`${id}:verdict`, vt.kind === "jail" ? "jailNobody" : "releaseNobody", at + 0.3 * S, false, `${round}`);
+        else {
+          fx(`${id}:door`, vt.outcome === "jailed" ? "lightsCut" : "chime", at);
+          clip(`${id}:verdict`, d.voice.verdict ?? undefined, at + 0.5 * S);
+        }
+        const openPart = (e: Ev) => e.id === `${id}:open` || e.id === `${id}:last` || e.id.startsWith(`heckle:${id}`);
+        out.events = events.filter((e) => !openPart(e) || e.at < c);
+      }
+      return out;
+    }
 
     if (round >= 1 && round <= 3) {
       const t = round === 1 ? g.introEndsAt ?? g.startedAt ?? 0 : g.roundStartedAt ?? 0;
