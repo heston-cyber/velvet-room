@@ -84,7 +84,7 @@ with sync_playwright() as p:
     ok(wait_for(lambda: roster()["game"]["status"] == "playing", 20), "Everyone is in starts the show")
 
     # The intro.
-    ok(wait_for(lambda: host.get_by_text("Chicago · October, 1929").count() == 1, 10), "the intro opens on Chicago, 1929")
+    ok(wait_for(lambda: host.get_by_text("New York City · October, 1929").count() == 1, 10), "the intro opens on New York City, 1929")
     ok(wait_for(lambda: phone.get_by_text("Eyes on the TV").count() >= 1, 15), "the phone says eyes on the TV, no role yet")
     ok(phone.get_by_text("Press and hold").count() == 0, "no role card on the phone during the show")
     shot(phone, "01-phone-wait.png")

@@ -16,7 +16,7 @@ export default function Register({ slug, walkIn }: { slug?: string; walkIn?: str
     return (
       <Shell>
         <div className="screen center">
-          <span className="eyebrow">Chicago · 1929</span>
+          <span className="eyebrow">New York City · 1929</span>
           <Deco />
           <h1 className="title-xl">The Velvet Room</h1>
           <p className="lede">The doors are locked. Check back soon.</p>
@@ -78,7 +78,7 @@ export default function Register({ slug, walkIn }: { slug?: string; walkIn?: str
     return (
       <Shell>
         <div className="screen center">
-          <span className="eyebrow">Chicago · 1929</span>
+          <span className="eyebrow">New York City · 1929</span>
           <Deco />
           <h1 className="title-lg">{game.partyOn ? "The party's on" : "The guest list is closed"}</h1>
           {game.partyOn ? (

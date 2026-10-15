@@ -13,7 +13,7 @@ export const FAKE_GUESTS: { name: string; who: string; signature: string; weapon
   { name: "Tommy Two-Tone", who: "Trumpet player who owes everybody.", signature: "Two-tone shoes", weapon: "Trumpet mute", weaponDesc: "Dented copper cone.", rumor: "Owes the band four months of pay and a trumpet." },
   { name: "Countess Olga", who: "Nobody knows which country she's a countess of.", signature: "Opera glasses", weapon: "Hat pin", weaponDesc: "Six inches, pearl head.", rumor: "Her accent changes depending on who's buying." },
   { name: "Officer Doyle", who: "Beat cop on the take.", signature: "Tin badge", weapon: "Nightstick", weaponDesc: "Black wood, leather strap.", rumor: "Arrests people, then sells them their own alibi." },
-  { name: "Bunny LaRue", who: "Chorus girl who wants out of Chicago.", signature: "Rabbit-fur stole", weapon: "Champagne bottle", weaponDesc: "Empty, green glass.", rumor: "Can cry on cue, and does it at every card table." },
+  { name: "Bunny LaRue", who: "Chorus girl who wants out of Hell's Kitchen.", signature: "Rabbit-fur stole", weapon: "Champagne bottle", weaponDesc: "Empty, green glass.", rumor: "Can cry on cue, and does it at every card table." },
   { name: "Doc Halloran", who: "A doctor who lost his license and found a bar.", signature: "Black medical bag", weapon: "Stethoscope", weaponDesc: "Rubber tubing, steel bell.", rumor: "Still writes prescriptions. For gin." },
 ];
 

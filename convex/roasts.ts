@@ -47,7 +47,7 @@ export const ROASTS: Record<Tone, string[]> = {
     "{real} has been practicing an innocent face in the mirror. It needs work.",
     "{real} keeps a little black book. It's mostly IOUs.",
     "Everyone loves {real}. Everyone also checks their pockets after a hug from {real}.",
-    "{real} has been to every party in Chicago. Funny how the trouble always follows.",
+    "{real} has been to every party in Manhattan. Funny how the trouble always follows.",
     "{real} wanted the {weapon} for sentimental reasons. We didn't ask. We're not going to ask.",
   ],
   // Adult (rewritten Oct 15 with Heston's comedy notes: deadpan, specific, formats with rules, many drafts and only
@@ -67,7 +67,7 @@ export const ROASTS: Record<Tone, string[]> = {
     "{real} says they've never killed anyone. Sober.",
     "{real} doesn't gamble. {real} just loses money on purpose to the wrong people.",
     "{real}'s alibi is that they were in the bathroom. For forty-five minutes. We have questions.",
-    "{real} owes money to every bookie in Chicago and two in Milwaukee.",
+    "{real} owes money to every bookie in Manhattan and two in Hoboken.",
     "{real} is one bad night away from a wanted poster. Tonight might be the night.",
     "{real} is a cheap date and an expensive mistake.",
     "Let the record show {real} arrived with a date. Let the record also show nobody has seen the date since.",
@@ -80,7 +80,7 @@ export const ROASTS: Record<Tone, string[]> = {
 /**
  * Adult roasts, one set per weapon (Oct 15). The weapon is the one specific thing every guest has, and each weapon
  * goes to one guest, so these never repeat in a game. Written the Toplyn way: the weapon's associations on one
- * side, the guest and 1929 Chicago on the other, linked into the punch line. Played straight. {real} is the
+ * side, the guest and 1929 New York City on the other, linked into the punch line. Played straight. {real} is the
  * guest's first name. A game picks one line per weapon.
  */
 export const WEAPON_ROASTS: Record<string, string[]> = {
@@ -114,7 +114,7 @@ export const WEAPON_ROASTS: Record<string, string[]> = {
   ],
   horseshoe: [
     "{real} took the horseshoe. The horse would like it back, and has retained a lawyer.",
-    "{real} picked the horseshoe, for luck. {real} is down forty dollars at Hawthorne this month, so the horseshoe is not working.",
+    "{real} picked the horseshoe, for luck. {real} is down forty dollars at Belmont Park this month, so the horseshoe is not working.",
   ],
   axe: [
     "{real} took the hatchet, in what Lizzie Borden's lawyers are calling a clear case of copying.",
@@ -129,7 +129,7 @@ export const WEAPON_ROASTS: Record<string, string[]> = {
     "The dumbbell belongs to {real}, who lifts it twice a year, both times in front of a mirror.",
   ],
   bat: [
-    "{real} chose the baseball bat, the weapon of choice for Al Capone and for every Cubs fan since 1908.",
+    "{real} chose the baseball bat. Babe Ruth hit sixty home runs with one of those. {real} has only ever hit the bar.",
     "{real} took the bat. {real} says they're a White Sox fan, which, after 1919, is also a crime.",
   ],
   flaregun: [
@@ -146,7 +146,7 @@ export const WEAPON_ROASTS: Record<string, string[]> = {
   ],
   racquet: [
     "{real} took the tennis racquet. {real} doesn't play tennis. {real} just likes holding things that cost more than other people's rent.",
-    "The tennis racquet belongs to {real}, who was banned from the Lake Shore Club for conduct. Just conduct. Nothing after it.",
+    "The tennis racquet belongs to {real}, who was banned from the Racquet and Tennis Club for conduct. Just conduct. Nothing after it.",
   ],
   gnome: [
     "{real} picked the lawn gnome. Police have called it not a weapon and deeply concerning, in the same sentence.",
@@ -167,7 +167,7 @@ export const WEAPON_ROASTS: Record<string, string[]> = {
   ],
   crowbar: [
     "{real} chose the crowbar, the tool of a burglar, and would like everyone to know it's just for the trunk.",
-    "{real} took the crowbar. Three hardware stores on Halsted have {real}'s picture behind the counter.",
+    "{real} took the crowbar. Three hardware stores on the Bowery have {real}'s picture behind the counter.",
   ],
   gloves: [
     "{real} picked the gloves. Not a weapon. Just a person who doesn't want to leave fingerprints, which is worse.",
@@ -203,7 +203,7 @@ export const RUMOR_LEADS: Record<Tone, string[]> = {
   adult: [
     "From {real}'s parole file:",
     "Sworn testimony:",
-    "Per the Chicago Police Department:",
+    "Per the New York Police Department:",
     "Insurance investigators confirmed:",
     "Entered into evidence:",
     "According to three ex-lovers and one priest:",

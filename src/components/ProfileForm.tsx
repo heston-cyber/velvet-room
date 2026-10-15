@@ -239,7 +239,7 @@ export default function ProfileForm(props: {
     case "door":
       body = (
         <div className="door">
-          <span className="eyebrow">Chicago · October 31, 1929</span>
+          <span className="eyebrow">New York City · October 31, 1929</span>
           <Deco />
           <h1 className="title-xl">The Velvet Room</h1>
           <p className="lede">

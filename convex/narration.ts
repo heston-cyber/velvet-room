@@ -145,7 +145,7 @@ export const CUES = {
   howRelease: {
     when: "How to play v2, the release vote",
     classic: "From the second vote on, you can spring someone first. Same rule: more than half of you.",
-    adult: "From the second vote on, you can spring somebody first. Same rule, more than half of you. Bail, like everything else in Chicago, is a popularity contest.",
+    adult: "From the second vote on, you can spring somebody first. Same rule, more than half of you. Bail, like everything else at Tammany Hall, is a popularity contest.",
     wild: ["[jingling keys, way too excited]", ""],
   },
   howTo7Acc: {
@@ -226,8 +226,8 @@ export const CUES = {
   // ---- intro ----
   intro1: {
     when: "Start: lights down",
-    classic: "[low, gravelly voice] Chicago. October, 1929. [long pause]",
-    adult: "[low, gravelly voice] Chicago. October, 1929. [long pause]",
+    classic: "[low, gravelly voice] New York City. October, 1929. [long pause]",
+    adult: "[low, gravelly voice] New York City. October, 1929. [long pause]",
     wild: ["[dramatic hushed whisper]", ""],
   },
   intro2: {
@@ -509,8 +509,8 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
     "And that's the lineup. [short pause] Take a good look. The police sketch artist is drunk.",
   ],
   intro1: [
-    "[low, gravelly voice] Chicago. October, 1929. Prohibition is the law of the land, [short pause] and nobody in this room has noticed. [long pause]",
-    "[low, gravelly voice] Chicago. October, 1929. The gin is illegal, the band is loud, and the Don is in a very good mood. [long pause] For now.",
+    "[low, gravelly voice] New York City. October, 1929. Prohibition is the law of the land, [short pause] and nobody in this room has noticed. [long pause]",
+    "[low, gravelly voice] New York City. October, 1929. The stock market is nervous, the gin is illegal, and the Don is in a very good mood. [long pause] For now.",
   ],
   intro2: [
     "Tonight the Velvet Room lost its owner. Don Carmine Velluto is dead. He leaves behind a nightclub, eleven unpaid cops and a very confused parrot.",
@@ -579,7 +579,7 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
   ],
   verdictDetectives: [
     "The detectives got it right. [short pause] Killer, you may now confess, cry, or both.",
-    "Justice, for once in Chicago. [short pause] The killer is caught, and is welcome to blame the gin.",
+    "Justice, for once in New York. [short pause] The killer is caught, and is welcome to blame the gin.",
   ],
   verdictKiller: [
     "Most of you got it wrong. [short pause] The killer walks out of here tonight, free, smug and, frankly, better dressed than any of you.",
@@ -682,7 +682,7 @@ export const NOISY: Record<Tone, Partial<Record<CueKey, string>>> = {
     twist: "[building] Hold on to something. [farts] [short pause] Not that.",
     accuseLastCall: "Thirty seconds left. Lock it in. [hiccups] Lock it in.",
     reveal1: "[long pause] The person who murdered Don Carmine Velluto, in his own club, in front of his own gin, is… [hiccups] is…",
-    verdictDetectives: "Justice, for once in Chicago. [short pause] The killer is c- c- caught, and is welcome to blame the gin.",
+    verdictDetectives: "Justice, for once in New York. [short pause] The killer is c- c- caught, and is welcome to blame the gin.",
     votePrompt: "Now vote on your phones: Best Dressed and Best Liar. Vote for yourself if you must. [snorts] Everyone will know.",
     awards: "And now, the awards. [clears throat] [clears throat again] The trophies are real. The talent is debatable.",
     awardLiar: "And Best Liar goes to someone who looked every one of you in the eye tonight and l- l- lied. Congratulations to…",
@@ -823,7 +823,7 @@ const ROLL_INTROS: Record<Tone, string[]> = {
     "Next up, {char}, a.k.a. {real}.",
     "Look who crawled in: {char}, played by {real}.",
     "Exhibit A: {char}, played by {real}.",
-    "From the files of the Chicago Police Department: {char}, played by {real}.",
+    "From the files of the New York Police Department: {char}, played by {real}.",
     "Please welcome {char}, played by {real}, who was not technically invited.",
   ],
 };

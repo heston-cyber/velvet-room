@@ -389,7 +389,7 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
           node: (
             <>
               <div className="tv-scene">
-                <span className="tv-kick">Chicago · October 31, 1929</span>
+                <span className="tv-kick">New York City · October 31, 1929</span>
                 <div className="tv-deco" />
                 <h2 className="tv-h2">The Velvet Room</h2>
                 <p className="tv-sub">{(g.gameNumber ?? 1) > 1 ? "A new mystery. Scan the code and make a new character." : "The doors open soon."}</p>
@@ -648,7 +648,7 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
     const beat = Math.min(2, Math.max(0, Math.floor((now - (g.startedAt ?? now)) / SHOW.introBeatMs)));
     const frames = [
       <div className="tv-scene dark" key="i0">
-        <span className="tv-kick fade">Chicago · October, 1929</span>
+        <span className="tv-kick fade">New York City · October, 1929</span>
       </div>,
       <div className="tv-scene dark" key="i1">
         <h2 className="tv-h2 fade blood">The Don is dead.</h2>
