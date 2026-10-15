@@ -21,6 +21,13 @@ export const FIGURE_KEYS = FIGURE_SETS.flatMap((s) => s.keys);
 export const LOOKALIKES: { key: string; name: string }[] = [
   { key: "curls", name: "Heston" },
   { key: "sweetheart", name: "Emily" },
+  { key: "miranda", name: "Miranda" },
+  { key: "sam", name: "Sam" },
+  { key: "reily", name: "Reily" },
+  { key: "madison", name: "Madison" },
+  { key: "josh", name: "Josh" },
+  { key: "sophia", name: "Sophia" },
+  { key: "chrissie", name: "Chrissie" },
 ];
 const LOOKALIKE_KEYS = LOOKALIKES.map((l) => l.key);
 export const lookalikeName = (key: string) => LOOKALIKES.find((l) => l.key === key)?.name ?? null;
