@@ -57,6 +57,7 @@ export async function rollGuests(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile
       rumor: p.rumor?.trim() ?? "",
       rumorLead: lead,
       roast,
+      seed: game.slug,
     });
     return { player: p, weapon, motive, rumor: p.rumor?.trim() ?? "", rumorLead: lead, roast, roastEdited: !!own, wanted };
   });

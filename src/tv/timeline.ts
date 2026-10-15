@@ -4,7 +4,7 @@
 // so a TV opened mid-scene doesn't replay what already happened.
 import type { FunctionReturnType } from "convex/server";
 import type { api } from "../../convex/_generated/api";
-import type { CueKey } from "../../convex/narration";
+import { cueVariant, type CueKey } from "../../convex/narration";
 import { REVEAL } from "../../convex/shared";
 import { howCues, howLayout, readSecs, rollLayout, SHOW, type HowArt, type ShowPart } from "../../convex/show";
 import { CARD_MS, type CardKey, type LoopKey } from "./media";
@@ -19,6 +19,8 @@ export type Ev = {
   at: number;
   secs: number;
   cue?: CueKey;
+  /** Which version of the line this game plays (adult lines come in several). */
+  v?: number;
   clip?: { url: string; caption: string };
   sfx?: SfxKey;
   /** Roll-call clips: the guest's card already shows the line. */
@@ -38,7 +40,7 @@ export type Plan = {
   /** The show's part right now (v2: between Start and Round 1), else null. */
   part: ShowPart | null;
   /** How to play: one illustrated card per line. */
-  rules: { steps: { cue: CueKey; art: HowArt; at: number; voiceAt: number; until: number }[]; end: number } | null;
+  rules: { steps: { cue: CueKey; v: number; art: HowArt; at: number; voiceAt: number; until: number }[]; end: number } | null;
   /** The roll call: each guest's turn, then the closer, then "check your phones". */
   roll: { titleUntil: number; steps: { item: RollItem; at: number; voiceAt: number; until: number; talk: number }[]; closeAt: number; phonesAt: number; end: number } | null;
   /** The drawn characters stepping onto the screen. */
@@ -80,13 +82,15 @@ export type Cameo = {
 };
 const FOREVER = 12 * 60 * 60 * 1000;
 
-/** How long a line takes: the recording's length when we have it, else reading speed. */
-export type Secs = (cue: CueKey) => number;
+/** How long a line takes (version v of it): the recording's length when we have it, else reading speed. */
+export type Secs = (cue: CueKey, v?: number) => number;
 
 const S = 1000;
 /** A fired event must be this fresh; older ones belong to a moment the TV missed. */
 export const FRESH_MS = 3_000;
 const REMIND_EVERY = 5 * 60 * S;
+/** When heckles fill the lulls: while searching, at the lock-in, and during the votes. */
+export const HECKLE = { roundFirst: 80 * S, roundEvery: 150 * S, lockFirst: 35 * S, lockEvery: 60 * S, voteFirst: 12 * S, voteEvery: 32 * S };
 
 export function plan(d: Data, now: number, secs: Secs): Plan {
   const g = d.game;
@@ -110,9 +114,13 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
     }
   };
 
-  const vo = (id: string, cue: CueKey, at: number, quiet = false) => {
-    const s = secs(cue);
-    events.push({ id, at, secs: s, cue, quiet });
+  // This game's version of each line; a line that repeats in one game passes which time it is.
+  const pick = (cue: CueKey, occurrence = "") => cueVariant(g.tone, cue, g.slug ?? "", occurrence);
+  const cs = (cue: CueKey) => secs(cue, pick(cue));
+  const vo = (id: string, cue: CueKey, at: number, quiet = false, occurrence = "") => {
+    const v = pick(cue, occurrence);
+    const s = secs(cue, v);
+    events.push({ id, at, secs: s, cue, v, quiet });
     return at + s * S;
   };
   const clip = (id: string, c: Clip | undefined, at: number, quiet = false) => {
@@ -121,6 +129,15 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
     return at + c.seconds * S;
   };
   const fx = (id: string, sfx: SfxKey, at: number) => events.push({ id, at, secs: 0, sfx });
+  // Heckles (convex/heckles.ts): in the lulls the narrator roasts a guest (their drawing leans in) or says something
+  // about the night. Each lull takes the next ones in the night's order, so the running gag comes back on cue.
+  const heckles = d.voice.heckles ?? [];
+  const heckle = (id: string, n: number, at: number, on: string) => {
+    if (!heckles.length || g.paused) return;
+    const h = heckles[n % heckles.length];
+    clip(`heckle:${id}`, h.clip, at);
+    if (h.figure) cameo({ id: `heckle:${id}:peek`, char: h.figure, anim: "peek", at: at - 0.4 * S, until: at + 6.6 * S, on });
+  };
   const card = (key: CardKey, at: number) => {
     cards.push({ key, at });
     return at + CARD_MS[key];
@@ -160,7 +177,7 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
       cameo({ id: `doors:don:${t}`, char: "don", anim: "stand", at: out.holdUntil, until: t + FOREVER, on: "doors" });
       strollers(`doors:${t}:walk`, t, 75 * S, "doors", false);
       if (d.counts.here < d.counts.registered) {
-        for (let k = 1; k <= 12; k++) vo(`remind:${t}:${k}`, "doorsReminder", t + k * REMIND_EVERY);
+        for (let k = 1; k <= 12; k++) vo(`remind:${t}:${k}`, "doorsReminder", t + k * REMIND_EVERY, false, String(k));
       }
     }
     return out;
@@ -171,12 +188,12 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
     const round = g.round;
     if (g.paused && g.pausedAt) {
       fx(`pause:${g.pausedAt}`, "needleScratch", g.pausedAt);
-      vo(`pause:${g.pausedAt}:vo`, "paused", g.pausedAt + 0.6 * S);
+      vo(`pause:${g.pausedAt}:vo`, "paused", g.pausedAt + 0.6 * S, false, String(g.pausedAt));
     }
-    if (!g.paused && g.resumedAt) vo(`resume:${g.resumedAt}`, "resumed", g.resumedAt + 0.2 * S);
+    if (!g.paused && g.resumedAt) vo(`resume:${g.resumedAt}`, "resumed", g.resumedAt + 0.2 * S, false, String(g.resumedAt));
 
     // The show (v2): the intro, How to play, the roll call, "check your phones". Then Round 1.
-    if (round === 1 && g.startedAt && g.introEndsAt && now < g.introEndsAt) return show(d, now, secs, out, { vo, clip, fx, card, cameo });
+    if (round === 1 && g.startedAt && g.introEndsAt && now < g.introEndsAt) return show(d, now, cs, out, { vo, clip, fx, card, cameo, pick });
     out.music = "rounds";
     const timed = g.pacing.mode === "timer" && !g.paused && g.roundEndsAt !== null && g.roundEndsAt > 0;
     const left = timed ? g.roundEndsAt! - now : Infinity;
@@ -209,8 +226,15 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
         cameo({ id: `r3:${t}:peek`, char: "killer", anim: "peek", at: out.twistAt + 0.6 * S, until: out.twistAt + 7.6 * S, on: "r3" });
         fx(`r3:${t}:creak`, "creak", out.twistAt + 0.6 * S);
       }
+      // Heckles while everyone searches: the first after a minute and a bit, then every two and a half minutes,
+      // clear of the one-minute warning.
+      for (let k = 0; k < 8; k++) {
+        const at = out.holdUntil + HECKLE.roundFirst + k * HECKLE.roundEvery;
+        if (timed && at > g.roundEndsAt! - 75 * S) break;
+        heckle(`r${round}:${t}:${k}`, (round - 1) * 5 + k, at, `r${round}`);
+      }
       if (timed) {
-        vo(`r${round}:${t}:1min`, "oneMinute", g.roundEndsAt! - 60 * S);
+        vo(`r${round}:${t}:1min`, "oneMinute", g.roundEndsAt! - 60 * S, false, String(round));
         if (left > 0 && left <= 60 * S) out.ambience = ["clockTick"];
       }
       return out;
@@ -229,6 +253,12 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
     line.forEach((x, i) =>
       cameo({ id: `acc:${t}:line:${i}:${x.char}`, char: x.char, label: x.label, anim: "lineup", slot: i, count: line.length, at: out.holdUntil + i * 0.18 * S, until: t + FOREVER, on: "accuse" }),
     );
+    // Heckles while everyone decides.
+    for (let k = 0; k < 4; k++) {
+      const at = out.holdUntil + HECKLE.lockFirst + k * HECKLE.lockEvery;
+      if (timed && at > g.roundEndsAt! - 45 * S) break;
+      heckle(`acc:${t}:${k}`, 15 + k, at, "accuse");
+    }
     const waitingOnFew = d.counts.playing > 1 && d.counts.accused >= d.counts.playing - 1 && d.counts.accused < d.counts.playing;
     if (timed) {
       const lc = vo(`acc:${t}:lastcall`, "accuseLastCall", g.roundEndsAt! - 30 * S);
@@ -263,7 +293,9 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
     const killerWins = !!d.results?.killerWins;
     fx(`rev:${t}:verdict`, killerWins ? "sinisterBrass" : "fanfare", t + REVEAL.verdict);
     const e = vo(`rev:${t}:verdict:vo`, killerWins ? "verdictKiller" : "verdictDetectives", t + REVEAL.verdict + 0.8 * S);
-    vo(`rev:${t}:vote`, "votePrompt", e + 1 * S);
+    const voted = vo(`rev:${t}:vote`, "votePrompt", e + 1 * S);
+    // Heckles while everyone votes for Best Dressed and Best Liar.
+    for (let k = 0; k < 4; k++) heckle(`rev:${t}:${k}`, 19 + k, voted + HECKLE.voteFirst + k * HECKLE.voteEvery, "reveal");
     return out;
   }
 
@@ -300,7 +332,8 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
 }
 
 type Tools = {
-  vo: (id: string, cue: CueKey, at: number, quiet?: boolean) => number;
+  vo: (id: string, cue: CueKey, at: number, quiet?: boolean, occurrence?: string) => number;
+  pick: (cue: CueKey, occurrence?: string) => number;
   clip: (id: string, c: Clip | undefined, at: number, quiet?: boolean) => number;
   fx: (id: string, sfx: SfxKey, at: number) => void;
   card: (key: CardKey, at: number) => number;
@@ -311,7 +344,8 @@ type Tools = {
  * Between Start and Round 1. The server fixes when each part starts (convex/show.ts); inside a part the lines
  * are laid out the same way the server laid them out. A skipped part drops whatever it didn't get to.
  */
-function show(d: Data, now: number, secs: Secs, out: Plan, { vo, clip, fx, card, cameo }: Tools): Plan {
+/** secs here gives this game's version of each line (cs in plan). */
+function show(d: Data, now: number, secs: (cue: CueKey) => number, out: Plan, { vo, clip, fx, card, cameo, pick }: Tools): Plan {
   const g = d.game;
   const t = g.startedAt!;
   const end = g.introEndsAt!;
@@ -343,7 +377,7 @@ function show(d: Data, now: number, secs: Secs, out: Plan, { vo, clip, fx, card,
     fx(`how:${howAt}:${st.cue}:flip`, st.art === "map" ? "cardFlip" : "whoosh", st.at);
     vo(`how:${howAt}:${st.cue}`, st.cue, st.voiceAt, true);
   }
-  out.rules = { steps: how.steps.filter((st) => st.at < rollAt), end: Math.min(how.end, rollAt) };
+  out.rules = { steps: how.steps.filter((st) => st.at < rollAt).map((st) => ({ ...st, v: pick(st.cue) })), end: Math.min(how.end, rollAt) };
 
   // The roll call: "the doors are locked", then each guest, then "remember these faces".
   let titleUntil = rollAt;

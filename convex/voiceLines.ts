@@ -45,11 +45,13 @@ export type RollLine = {
   rumor: string;
   rumorLead: string;
   roast: string;
+  /** The game's seed (its slug): picks this game's versions of the wording. */
+  seed?: string;
 };
 
 /** One guest's roll-call intro: name, played by, signature, weapon, motive, word on the street, roast. */
 export function rollWanted(tone: Tone, n: Narrator, p: RollLine): Wanted & { marks: ReturnType<typeof rollNarration>["marks"] } {
-  const base = { real: p.realName, signature: p.signature, weapon: p.weapon, motive: p.motive, motiveOwn: p.motiveOwn, rumor: p.rumor, rumorLead: p.rumorLead, roast: p.roast };
+  const base = { real: p.realName, signature: p.signature, weapon: p.weapon, motive: p.motive, motiveOwn: p.motiveOwn, rumor: p.rumor, rumorLead: p.rumorLead, roast: p.roast, seed: p.seed };
   const shown = rollNarration(tone, { ...base, name: p.charName });
   const said = rollNarration(tone, { ...base, name: spokenName(p) });
   return { ...make(`roll:${p.id}`, shown.text, n, said.text), marks: shown.marks };
@@ -62,6 +64,8 @@ type StartInfo = {
   bodyRoomKey?: string;
   roomOrder?: string[];
   search: "all" | "waves";
+  /** The game's seed (its slug): picks this game's versions of the wording. */
+  seed?: string;
 };
 
 /** Rooms that open at the start of a round when searching in waves (Round 1: the first wave). */
@@ -76,15 +80,15 @@ export function newRoomsIn(round: number, order: string[], search: "all" | "wave
 export function startWanted(tone: Tone, n: Narrator, s: StartInfo): Wanted[] {
   const label = (key: string) => s.rooms.find((r) => r.key === key)?.label ?? "";
   const out: Wanted[] = [];
-  if (s.bodyRoomKey) out.push(make("body", customText("body", tone, { room: label(s.bodyRoomKey) }), n));
+  if (s.bodyRoomKey) out.push(make("body", customText("body", tone, { room: label(s.bodyRoomKey), seed: s.seed }), n));
   if (s.search === "waves" && s.roomOrder) {
     for (const round of [1, 2, 3]) {
       const fresh = newRoomsIn(round, s.roomOrder, s.search);
-      if (fresh.length) out.push(make(`rooms:${round}`, customText("rooms", tone, { rooms: fresh.map(label) }), n));
+      if (fresh.length) out.push(make(`rooms:${round}`, customText("rooms", tone, { rooms: fresh.map(label), seed: s.seed }), n));
     }
   }
   for (const p of s.players) {
-    out.push(make(`killer:${p.id}`, customText("killer", tone, { name: p.charName }), n, customText("killer", tone, { name: spokenName(p) })));
+    out.push(make(`killer:${p.id}`, customText("killer", tone, { name: p.charName, seed: s.seed }), n, customText("killer", tone, { name: spokenName(p), seed: s.seed })));
     out.push(make(`winner:${p.id}`, customText("winner", tone, { name: p.charName }), n, customText("winner", tone, { name: spokenName(p) })));
   }
   for (const e of s.exhibits) out.push(make(`exhibit:${e.id}`, customText("exhibit", tone, { letter: e.letter, weapon: e.name }), n));

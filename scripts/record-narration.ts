@@ -1,12 +1,13 @@
 // Records the narrator's lines with ElevenLabs: every cue, for Ivy and Duke, steady and Unstable,
-// in Classic and Adult. Resumable: lines already recorded are skipped.
+// in Classic and Adult, and every version of each adult line (<cue>.mp3, <cue>.1.mp3, …).
+// Resumable: lines already recorded are skipped.
 //   npx tsx scripts/record-narration.ts [--only ivy,duke-unstable] [--cues doors,intro1] [--redo]
 // Needs ELEVENLABS_API_KEY (from .env.elevenlabs). Raw takes go to $RAW_DIR; the site gets
 // loudness-matched mono MP3s in public/audio/narration/<voice>/<tone>/<cue>.mp3 plus a manifest.
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { CUE_KEYS, HOSTS, TTS_MODEL, VOICE_SETTINGS, plain, recordingText, voiceKey, type CueKey, type HostKey, type Tone } from "../convex/narration";
+import { HOSTS, TTS_MODEL, VOICE_SETTINGS, cueFiles, plain, recordingText, voiceKey, type CueKey, type HostKey, type Tone } from "../convex/narration";
 
 const KEY = process.env.ELEVENLABS_API_KEY;
 if (!KEY) throw new Error("Set ELEVENLABS_API_KEY");
@@ -17,13 +18,13 @@ const only = arg("--only")?.split(",");
 const cuesOnly = arg("--cues")?.split(",") as CueKey[] | undefined;
 const redo = process.argv.includes("--redo");
 
-type Job = { host: HostKey; unstable: boolean; tone: Tone; cue: CueKey };
+type Job = { host: HostKey; unstable: boolean; tone: Tone; cue: CueKey; v: number; file: string };
 const jobs: Job[] = [];
 for (const host of ["ivy", "duke"] as HostKey[])
   for (const unstable of [false, true])
     for (const tone of ["classic", "adult"] as Tone[])
-      for (const cue of cuesOnly ?? CUE_KEYS)
-        if (!only || only.includes(voiceKey(host, unstable))) jobs.push({ host, unstable, tone, cue });
+      for (const f of cueFiles(tone))
+        if ((!cuesOnly || cuesOnly.includes(f.cue)) && (!only || only.includes(voiceKey(host, unstable)))) jobs.push({ host, unstable, tone, ...f });
 
 const dur = (f: string) => Number(execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f]).toString().trim());
 
@@ -41,10 +42,10 @@ let chars = 0;
 const report: string[] = [];
 async function run(j: Job) {
   const vk = voiceKey(j.host, j.unstable);
-  const rel = `${vk}/${j.tone}/${j.cue}.mp3`;
+  const rel = `${vk}/${j.tone}/${j.file}.mp3`;
   const out = join(OUT, rel);
   if (existsSync(out) && !redo) return;
-  const text = recordingText(j.cue, j.tone, j.host, j.unstable);
+  const text = recordingText(j.cue, j.tone, j.host, j.unstable, j.v);
   // A take should last roughly as long as the words take to say (about 14 characters a second).
   const expect = plain(text).length / 14 + (text.match(/long pause/g) ?? []).length * 1.5;
   for (let attempt = 1; attempt <= 3; attempt++) {
@@ -70,7 +71,7 @@ async function pool(n: number) {
   const workers = Array.from({ length: n }, async () => {
     while (i < jobs.length) {
       const j = jobs[i++];
-      try { await run(j); } catch (e) { report.push(`FAILED ${voiceKey(j.host, j.unstable)}/${j.tone}/${j.cue}: ${(e as Error).message}`); }
+      try { await run(j); } catch (e) { report.push(`FAILED ${voiceKey(j.host, j.unstable)}/${j.tone}/${j.file}: ${(e as Error).message}`); }
     }
   });
   await Promise.all(workers);
@@ -79,10 +80,10 @@ async function pool(n: number) {
 await pool(4);
 // manifest: every recorded line and its length, so the TV knows what it has and how long each runs
 const manifest: Record<string, Record<string, Record<string, number>>> = {};
-for (const host of ["ivy", "duke"] as HostKey[]) for (const unstable of [false, true]) for (const tone of ["classic", "adult"] as Tone[]) for (const cue of CUE_KEYS) {
-  const f = join(OUT, voiceKey(host, unstable), tone, `${cue}.mp3`);
+for (const host of ["ivy", "duke"] as HostKey[]) for (const unstable of [false, true]) for (const tone of ["classic", "adult"] as Tone[]) for (const { file } of cueFiles(tone)) {
+  const f = join(OUT, voiceKey(host, unstable), tone, `${file}.mp3`);
   if (!existsSync(f)) continue;
-  ((manifest[voiceKey(host, unstable)] ??= {})[tone] ??= {})[cue] = Math.round(dur(f) * 100) / 100;
+  ((manifest[voiceKey(host, unstable)] ??= {})[tone] ??= {})[file] = Math.round(dur(f) * 100) / 100;
 }
 writeFileSync(join(OUT, "manifest.json"), JSON.stringify(manifest, null, 1));
 const prev = existsSync("/tmp/vr-chars.txt") ? Number(readFileSync("/tmp/vr-chars.txt", "utf8")) : 0;

@@ -1,7 +1,7 @@
 import { Component, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { HOSTS, captionText, type CueKey } from "../../convex/narration";
+import { HOSTS, captionText, cueFile, cueVariant, type CueKey } from "../../convex/narration";
 import { REVEAL } from "../../convex/shared";
 import { SHOW } from "../../convex/show";
 import { Qr, wifiQrText } from "../lib/qr";
@@ -188,7 +188,7 @@ function TvInner({ slug, tvKey, onNext, overlay, hostMode, bare }: { slug: strin
   const tone = g?.tone ?? "classic";
   const host = g?.narrator.host ?? "ivy";
   const secs = useCallback(
-    (cue: CueKey) => engine.narrationSecs(voice, tone, cue) ?? captionText(cue, tone, host).length / 14 + 0.4,
+    (cue: CueKey, v = 0) => engine.narrationSecs(voice, tone, cueFile(cue, v)) ?? captionText(cue, tone, host, v).length / 14 + 0.4,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [engine, voice, tone, host, engine.manifest],
   );
@@ -222,7 +222,7 @@ function TvInner({ slug, tvKey, onNext, overlay, hostMode, bare }: { slug: strin
       if (!engine.unlocked) continue;
       if (e.sfx) void engine.sfx(e.sfx);
       else if (e.clip) void engine.voice(e.clip.url, 0.9);
-      else if (e.cue) void engine.voice(engine.narrationUrl(voice, tone, e.cue));
+      else if (e.cue) void engine.voice(engine.narrationUrl(voice, tone, cueFile(e.cue, e.v)));
     }
   });
 
@@ -240,7 +240,7 @@ function TvInner({ slug, tvKey, onNext, overlay, hostMode, bare }: { slug: strin
       lastCheck.current = checkAt;
       setCheckUntil(Date.now() + 7000);
       void engine.sfx("chime");
-      window.setTimeout(() => void engine.voice(engine.narrationUrl(voice, tone, "soundCheck")), 900);
+      window.setTimeout(() => void engine.voice(engine.narrationUrl(voice, tone, cueFile("soundCheck", cueVariant(tone, "soundCheck", data.game.slug, String(checkAt))))), 900);
     }
   }, [checkAt, !!data]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -297,7 +297,13 @@ function TvInner({ slug, tvKey, onNext, overlay, hostMode, bare }: { slug: strin
   const held = now < p.holdUntil;
   const showCheck = now < checkUntil;
   const speaking = showCheck ? null : captionNow(p, now);
-  const say = showCheck ? captionText("soundCheck", tone, host) : speaking ? (speaking.cue ? captionText(speaking.cue, tone, host) : speaking.clip?.caption ?? "") : null;
+  const say = showCheck
+    ? captionText("soundCheck", tone, host, cueVariant(tone, "soundCheck", g.slug, String(checkAt)))
+    : speaking
+      ? speaking.cue
+        ? captionText(speaking.cue, tone, host, speaking.v)
+        : speaking.clip?.caption ?? ""
+      : null;
   const who = g.mode === "mc" ? "MC" : HOSTS[host].name;
 
   return (
@@ -742,7 +748,7 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
             </div>
             <div className="tv-how-text">
               <span className="tv-kick fade">How to play · {i + 1} of {n}</span>
-              <div className="tv-rule fade">{captionText(step.cue, g.tone, g.narrator.host)}</div>
+              <div className="tv-rule fade">{captionText(step.cue, g.tone, g.narrator.host, step.v)}</div>
             </div>
           </div>
         </div>

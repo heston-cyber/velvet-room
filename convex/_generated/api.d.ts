@@ -19,6 +19,7 @@ import type * as engine_textAdult from "../engine/textAdult.js";
 import type * as engine_types from "../engine/types.js";
 import type * as figures from "../figures.js";
 import type * as game from "../game.js";
+import type * as heckles from "../heckles.js";
 import type * as host from "../host.js";
 import type * as join from "../join.js";
 import type * as lib from "../lib.js";
@@ -53,6 +54,7 @@ declare const fullApi: ApiFromModules<{
   "engine/types": typeof engine_types;
   figures: typeof figures;
   game: typeof game;
+  heckles: typeof heckles;
   host: typeof host;
   join: typeof join;
   lib: typeof lib;

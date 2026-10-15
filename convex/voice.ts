@@ -10,6 +10,7 @@ import { requireHost } from "./lib";
 import { clipMatches, narratorOf, secondsOfMp3, startWanted, voiceOf, type Wanted } from "./voiceLines";
 import { caseFor } from "./caseFile";
 import { inOrder, rollGuests } from "./rollCall";
+import { heckleWanted } from "./heckles";
 
 const ROLL_LINE_MAX = 200;
 const CLAIM_MS = 90_000; // a pending recording older than this is treated as stuck
@@ -52,14 +53,17 @@ async function wantedFor(ctx: QueryCtx, game: Doc<"games">, scope: "roll" | "sta
       return p?.inGame && p.weaponIn && p.exhibitLetter;
     })
     .map((w) => ({ id: w._id as string, letter: byId.get(w.playerId)!.exhibitLetter!, name: w.name }));
-  return startWanted(game.tone ?? "classic", narratorOf(game), {
+  const lines = startWanted(game.tone ?? "classic", narratorOf(game), {
     players: inGame.map((p) => ({ id: p._id, charName: p.charName, sayAs: p.sayAs })),
     exhibits,
     rooms: game.rooms,
     bodyRoomKey: game.bodyRoomKey,
     roomOrder: game.roomOrder,
     search: game.search ?? "all",
+    seed: game.slug,
   });
+  // The night's heckles (convex/heckles.ts) record with the names for the reveal.
+  return [...lines, ...(await heckleWanted(ctx, game)).map(({ line: _l, ...w }) => w)];
 }
 
 // ---------- recording (internal) ----------

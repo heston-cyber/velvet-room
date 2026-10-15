@@ -145,7 +145,7 @@ export const CUES = {
   howLockIn: {
     when: "How to play v2, the lock-in",
     classic: "After the last round, everyone who's free locks in on their phone: who did it, with which weapon, and in which room.",
-    adult: "After the last round, everybody who isn't behind bars locks in on their phone: who did it, with what, and where. No take-backs. This isn't a marriage.",
+    adult: "After the last round, everybody who isn't behind bars locks in on their phone: who did it, with what, and where. Once you lock in, that's it. No appeals, no recounts, no crying.",
     wild: ["[building to a frenzy]", ""],
   },
   howWin: {
@@ -348,6 +348,223 @@ export const CUES = {
 export type CueKey = keyof typeof CUES;
 export const CUE_KEYS = Object.keys(CUES) as CueKey[];
 
+/**
+ * More adult versions of each line (Heston, Oct 15: "swappable scripts for each section chosen at random so replays
+ * of the game we hear new words and jokes"). Version 0 is the line in CUES; these are versions 1, 2, …
+ * A game picks one version per line (cueVariant). Written with Heston's comedy notes: deadpan and specific; swearing
+ * rationed and inventive (a crude word plus an absurdly specific image), saved for moments under pressure; innuendo
+ * implied under an innocent surface, ideally by a narrator who doesn't seem to notice. No marriage jokes.
+ */
+export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
+  doors: [
+    "[warm, smoky voice] Welcome to the Velvet Room. I'm {host}. The gin was made in a bathtub this afternoon, and the bathtub did its best.",
+    "[warm, smoky voice] Good evening, and welcome to the Velvet Room. I'm {host}, your host. Please keep your hands to yourselves. [short pause] Or don't. I'm a host, not a nun.",
+  ],
+  doorsReminder: [
+    "If you haven't opened your link yet, do it now. The bouncer has been told you're a fed.",
+    "Friendly reminder: open your link and come in. Unfriendly reminder: same thing, but louder.",
+  ],
+  howKiller: [
+    "[warm, conspiratorial] Here's how tonight works. One of you killed the Don. [short pause] The rest of you are suspects, witnesses and, frankly, a fire hazard.",
+    "[warm, conspiratorial] The rules are simple. One of you is a killer. Everyone else has to figure out who, while drinking. [short pause] Mostly while drinking.",
+  ],
+  howRoles: [
+    "After the roll call, your phone shows your secret role. Press and hold to read it. Keep it to yourself, the way you keep everything else to yourself. Poorly.",
+    "After the roll call, check your phone for your secret role. Press and hold to read it. If someone leans over to look, lean back. Harder.",
+  ],
+  howWeapons: [
+    "Every guest brought a weapon, and one of them was used on the Don. [short pause] If it's yours, that doesn't make you the killer. It does make you a person who owns that.",
+    "Each of you brought a weapon, which is not normal party etiquette. [short pause] One of them did the job. Its owner may be completely innocent. Its owner may also be lying.",
+  ],
+  howTo4: [
+    "Then search the house. Evidence markers are hidden in every room on the map. Feel around under things. Nobody here is a stranger to feeling around under things. Scan every one you find.",
+    "Then search the house. Every room on the map has markers stashed in it. Open drawers, check under cushions, and if you find something that isn't a marker, put it back and never speak of it. Scan every marker you find.",
+  ],
+  howTo4Waves: [
+    "Then search the house. Markers are hidden in the rooms on the map, and the sealed rooms open a few at a time. A closed door means no. This should not be a new concept for anyone here.",
+    "Then search the house. The rooms on the map open a few at a time. Until a room opens, stay out of it. A locked door is not a challenge. It's a door.",
+  ],
+  howTo6: [
+    "When you've searched enough, tap Ready. Once most of you are ready, fresh evidence lands on this screen. The last round has a twist. Pace yourselves.",
+    "Tap Ready when you're done snooping. Nothing happens until most of you are ready, which is also how this party got started. The last round brings a twist.",
+  ],
+  howTo6Timer: [
+    "Each round runs on the clock. When it hits zero, fresh evidence lands on this screen, ready or not. The last round has a twist.",
+    "Every round is timed, like a parking meter. When time's up, new evidence lands here whether you're done or not. The last round brings a twist.",
+  ],
+  howJail: [
+    "After every round, you vote someone into jail. More than half of you have to agree, or nobody goes. [short pause] Jailbirds can talk and bribe. They can't search, vote or accuse. Bring chips. Bring a lot of chips.",
+    "After every round there's a jail vote. It takes more than half of you to lock someone up, which, in this crowd, is the hard part. [short pause] Jailed guests can talk and bribe, but they can't search, vote or accuse.",
+  ],
+  howRelease: [
+    "From the second vote on, you can spring somebody before you lock somebody else up. Same rule: more than half of you. The cell has a revolving door, and it squeaks.",
+    "Starting with the second vote, you can let someone out first. It takes more than half of you. Bribe the judge. The judge is all of you.",
+  ],
+  howTo7: [
+    "Talk to everybody. Lie about your own secrets. It's encouraged. [short pause] Only the killer may lie about the murder. Everyone else, tell the truth about that one thing, just this once.",
+    "You may lie about your own secrets. Most of you have been practicing for years. [short pause] Only the killer gets to lie about the murder.",
+  ],
+  howLockIn: [
+    "After the last round, everyone who's free locks in: who did it, with which weapon, and in which room. Jailbirds sit this one out and watch, which, for some of you, is how you like it.",
+    "After the last round, if you're not in jail, you lock in on your phone: who, with what, and where. Commit. Some of you have never committed to anything, and tonight is a good night to start.",
+  ],
+  howWin: [
+    "To win, more than half of you need the right killer, more than half the right weapon, and more than half the right room. Half is not more than half. We checked with an accountant. [short pause] Then we vote for Best Dressed and Best Liar.",
+    "More than half of you have to get the killer, more than half the weapon, and more than half the room. Miss one, and the killer walks out a free and very smug individual. [short pause] Then we vote for Best Dressed and Best Liar.",
+  ],
+  rollLocked: [
+    "[low, grave] The doors are locked until we figure out which one of you did it. [short pause] Bathroom breaks will be supervised. Let's meet the suspects.",
+    "[low, grave] Nobody leaves until we know who did it. The doors are locked, the windows are painted shut, and the coat check has your keys. [short pause] Let's meet the suspects.",
+  ],
+  rollCallClose: [
+    "That's everyone. [short pause] One of those lovely faces is lying to you.",
+    "And that's the lineup. [short pause] Take a good look. The police sketch artist is drunk.",
+  ],
+  intro1: [
+    "[low, gravelly voice] Chicago. October, 1929. Prohibition is the law of the land, [short pause] and nobody in this room has noticed. [long pause]",
+    "[low, gravelly voice] Chicago. October, 1929. The gin is illegal, the band is loud, and the Don is in a very good mood. [long pause] For now.",
+  ],
+  intro2: [
+    "Tonight the Velvet Room lost its owner. Don Carmine Velluto is dead. He leaves behind a nightclub, eleven unpaid cops and a very confused parrot.",
+    "Don Carmine Velluto, owner of the Velvet Room, beloved by nobody, is dead. The family asks that you don't touch anything. The family is also suspects.",
+  ],
+  intro3: [
+    "[whispers] One of you did it. [short pause] And frankly, we're all a little impressed.",
+    "[whispers] And one of you did it. [short pause] Don't look so innocent. It doesn't suit you.",
+  ],
+  intro4: [
+    "Check your phone. Press and hold your card to see who you are tonight, and keep it to yourself. Some secrets are worth a murder.",
+    "Phones out. Press and hold your card. If it says you did it, try to look less pleased about it.",
+  ],
+  round1: [
+    "Round one. Search the house, find the markers, and question everyone. If someone answers too quickly, that's a clue. If someone answers too slowly, that's the gin.",
+    "Round one. Go search. Open the closets, check the drawers, find the markers. Whatever you find in a nightstand, keep it to yourself.",
+  ],
+  round1Waves: [
+    "Round one. Only some rooms are open. Search those and only those. The rest are closed, out of respect for the Don, and because of the smell.",
+    "Round one. A few rooms are open. Search them. A locked door is not an invitation. It's barely even a suggestion, but tonight it's a rule.",
+  ],
+  oneMinute: [
+    "One minute left in this round. Whatever you're doing, do it faster.",
+    "One minute. If you've been flirting instead of searching, this is your wake-up call.",
+    "Sixty seconds. Hurry it up, you overdressed herd of snails.",
+  ],
+  round2: [
+    "Round two. Fresh evidence just came in, still warm.",
+    "Round two. New evidence. Read it slowly. Some of you move your lips. That's fine.",
+  ],
+  roomsOpen: [
+    "More rooms just opened. Go on. Get in there.",
+    "New rooms are open. Same rules: look everywhere, and touch nothing you can't explain.",
+  ],
+  round3: [
+    "Round three. The last of the evidence. After this, you're on your own, morally and legally.",
+    "Last round. This is the evidence you'll wish you'd seen first. [short pause] And a twist.",
+  ],
+  twist: [
+    "[building] And now, the part nobody saw coming. Except the killer. The killer saw it coming.",
+    "[building] Hold on to something. [short pause] Not each other. Something.",
+  ],
+  accuse: [
+    "That's it. No more evidence. Lock in who did it, with what, and where.",
+    "The talking is over. Point the finger on your phone, and pick carefully. Fingers have been broken for less.",
+  ],
+  accuseLastCall: [
+    "Thirty seconds. Lock it in, or forever hold your peace, your drink and your shame.",
+    "Thirty seconds left. If you haven't locked in, you're either thinking very hard or hiding something. Both look bad.",
+  ],
+  reveal1: [
+    "[long pause] The person who murdered Don Carmine Velluto, in his own club, in front of his own gin, is…",
+    "[long pause] The police have been called. They're on their way. They've been paid. [short pause] The killer of Don Carmine Velluto is…",
+  ],
+  reveal2: [
+    "…standing right here, in a very nice outfit.",
+    "…in this room, and has been the whole time. Of course they have.",
+  ],
+  reveal3: [
+    "With that, in there. The cleaning crew is furious.",
+    "With this weapon, in this room. We'll be steaming the carpet for weeks.",
+  ],
+  verdictDetectives: [
+    "The detectives got it right. [short pause] Killer, you may now confess, cry, or both.",
+    "Justice, for once in Chicago. [short pause] The killer is caught, and is welcome to blame the gin.",
+  ],
+  verdictKiller: [
+    "Most of you got it wrong. [short pause] The killer walks out of here tonight, free, smug and, frankly, better dressed than any of you.",
+    "The killer wins. [short pause] You had the evidence, the weapon and the room, and you still investigated like a sack of drunk-ass ferrets.",
+  ],
+  votePrompt: [
+    "Now vote on your phones: Best Dressed and Best Liar. Vote for yourself if you must. Everyone will know.",
+    "Phones out. Best Dressed and Best Liar. This is the only honest thing you'll do all night.",
+  ],
+  awards: [
+    "And now, the awards. The trophies are real. The talent is debatable.",
+    "The awards. Please hold your applause, your drinks, and each other, in that order.",
+  ],
+  awardDetective: [
+    "Best Detective, the only person who read the evidence instead of the bar menu, goes to…",
+    "Best Detective goes to someone who will now be insufferable for a full year. It goes to…",
+  ],
+  awardDressed: [
+    "Best Dressed, as judged by people who are themselves dressed questionably, goes to…",
+    "Best Dressed goes to the outfit that turned the most heads, and at least one stomach…",
+  ],
+  awardLiar: [
+    "And Best Liar, a title several of you have been training for since grade school, goes to…",
+    "And Best Liar goes to someone who looked every one of you in the eye tonight and lied. Congratulations to…",
+  ],
+  goodnight: [
+    "The Velvet Room is closed. Settle your debts in chips. If you're staying the night, the couch has seen worse.",
+    "That's the night. The bar is closed, the case is closed, and so, frankly, are most of your eyes. Go home.",
+  ],
+  paused: [
+    "Hold everything. Put the drinks down. [short pause] Not you. You can keep yours.",
+    "Freeze. Nobody move. [short pause] Especially you. Yes, you.",
+  ],
+  resumed: ["As you were. Lying, mostly.", "Carry on. Resume your crimes."],
+  soundCheck: [
+    "Sound check. If you can hear this, the TV works, which makes it the most reliable thing at this party.",
+    "Sound check. One, two. If you can hear me, nod. If you can't, how are you nodding?",
+  ],
+};
+
+/** FNV-1a with a final mix, so small differences in a game's seed spread across the versions. */
+const hashOf = (s: string) => {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  h ^= h >>> 15;
+  h = Math.imul(h, 2246822507);
+  h ^= h >>> 13;
+  return h >>> 0;
+};
+
+/** Every version of a line in this script: one in Classic; in Adult, the CUES line and then ADULT_MORE's. */
+export function cueVersions(cue: CueKey, tone: Tone): string[] {
+  const c: Cue = CUES[cue];
+  return tone === "adult" ? [c.adult, ...(ADULT_MORE[cue] ?? [])] : [c.classic];
+}
+
+/**
+ * Which version of a line this game uses: picked from the game (its slug) so every replay sounds different, and the
+ * server, the TV and the recordings agree. A line that repeats in one game (the one-minute warning, say) passes
+ * which time it is, so it changes each time too.
+ */
+export function cueVariant(tone: Tone, cue: CueKey, seed = "", occurrence = ""): number {
+  const n = cueVersions(cue, tone).length;
+  return n <= 1 ? 0 : hashOf(`${seed}|${cue}|${occurrence}`) % n;
+}
+
+/** The recording's file name (without .mp3): version 0 is the cue's own name, the rest add their number. */
+export const cueFile = (cue: CueKey, v = 0) => (v ? `${cue}.${v}` : cue);
+
+/** Every recording a script needs: each line, in each of its versions. */
+export function cueFiles(tone: Tone): { cue: CueKey; v: number; file: string }[] {
+  return CUE_KEYS.flatMap((cue) => cueVersions(cue, tone).map((_, v) => ({ cue, v, file: cueFile(cue, v) })));
+}
+
 /** Pauses survive in Unstable takes; every other direction is replaced by the wild one. */
 const KEEP = /^\[(short pause|long pause)\]$/i;
 const TAG = /\[[^\]]*\]/g;
@@ -355,19 +572,20 @@ const TAG = /\[[^\]]*\]/g;
 /** Text without any direction tags: captions, the live reader, the MC sheet. */
 export const plain = (text: string) => text.replace(TAG, "").replace(/\s{2,}/g, " ").trim();
 
-/** The exact text sent to ElevenLabs for one recording. */
-export function recordingText(cue: CueKey, tone: Tone, host: HostKey, unstable: boolean): string {
+/** The exact text sent to ElevenLabs for one recording (version v of the line). */
+export function recordingText(cue: CueKey, tone: Tone, host: HostKey, unstable: boolean, v = 0): string {
   const c: Cue = CUES[cue];
-  const base = (tone === "adult" ? c.adult : c.classic).replaceAll("{host}", HOSTS[host].name);
+  const versions = cueVersions(cue, tone);
+  const base = (versions[v] ?? versions[0]).replaceAll("{host}", HOSTS[host].name);
   if (!unstable) return base;
   const kept = base.replace(TAG, (t) => (KEEP.test(t) ? t : "")).replace(/\s{2,}/g, " ").trim();
   return [c.wild[0], kept, c.wild[1]].filter(Boolean).join(" ");
 }
 
-/** What the TV caption and the live reader say for a cue. */
-export function captionText(cue: CueKey, tone: Tone, host: HostKey): string {
-  const c: Cue = CUES[cue];
-  return plain((tone === "adult" ? c.adult : c.classic).replaceAll("{host}", HOSTS[host].name));
+/** What the TV caption and the live reader say for a cue (version v of the line). */
+export function captionText(cue: CueKey, tone: Tone, host: HostKey, v = 0): string {
+  const versions = cueVersions(cue, tone);
+  return plain((versions[v] ?? versions[0]).replaceAll("{host}", HOSTS[host].name));
 }
 
 // ---------- custom lines: made per party from what guests typed and from the draw ----------
@@ -382,17 +600,27 @@ const mid = (l: string) => l.replace(/^The /, "the ");
 export type CustomKind = "arrival" | "body" | "rooms" | "killer" | "exhibit" | "room" | "winner" | "roll";
 
 /** The words for a custom line. Pass a name as it should sound (the guest's "say it like", when they gave one). */
-export function customText(kind: CustomKind, tone: Tone, v: { name?: string; who?: string; room?: string; rooms?: string[]; letter?: string; weapon?: string; real?: string; line?: string }): string {
+export function customText(
+  kind: CustomKind,
+  tone: Tone,
+  v: { name?: string; who?: string; room?: string; rooms?: string[]; letter?: string; weapon?: string; real?: string; line?: string; seed?: string },
+): string {
   const adult = tone === "adult";
+  // Adult lines come in versions, picked per game (by its seed) so replays sound different.
+  const pick = (xs: string[]) => xs[hashOf(`${v.seed ?? ""}|${kind}`) % xs.length];
   switch (kind) {
     case "arrival":
       return `Now arriving: ${v.name}.${v.who ? ` ${v.who}` : ""}`;
-    case "body":
-      return adult ? `They found him in ${mid(v.room!)}. What a mess.` : `He was found in ${mid(v.room!)}.`;
-    case "rooms":
-      return adult ? `Now open: ${list((v.rooms ?? []).map(mid))}. Go dig.` : `Now open: ${list((v.rooms ?? []).map(mid))}.`;
+    case "body": {
+      const r = mid(v.room!);
+      return adult ? pick([`They found him in ${r}. What a mess.`, `He was found in ${r}. Face down. On the good rug.`, `They found him in ${r}, looking surprised, which for the Don was a first.`]) : `He was found in ${r}.`;
+    }
+    case "rooms": {
+      const rs = list((v.rooms ?? []).map(mid));
+      return adult ? pick([`Now open: ${rs}. Go dig.`, `Now open: ${rs}. Wipe your feet.`, `Unlocked: ${rs}. Behave. Or don't, but quietly.`]) : `Now open: ${rs}.`;
+    }
     case "killer":
-      return adult ? `${v.name}, you rotten bastard.` : `${v.name}.`;
+      return adult ? pick([`${v.name}, you rotten bastard.`, `${v.name}. Of course it was.`, `${v.name}. We're not even surprised. We're a little proud.`]) : `${v.name}.`;
     case "exhibit":
       return `With Exhibit ${v.letter}, the ${(v.weapon ?? "").toLowerCase()},`;
     case "room":
@@ -415,17 +643,22 @@ export const ROLL_PROMPT = {
 
 const ROLL_INTROS: Record<Tone, string[]> = {
   classic: ["Introducing {char}, played by {real}.", "Next, {char}. Better known as {real}.", "Say hello to {char}, played by {real}."],
-  adult: ["Introducing {char}, played by {real}, God help us.", "Next up, {char}, a.k.a. {real}.", "Look who crawled in: {char}, played by {real}."],
+  adult: [
+    "Introducing {char}, played by {real}, God help us.",
+    "Next up, {char}, a.k.a. {real}.",
+    "Look who crawled in: {char}, played by {real}.",
+    "Exhibit A: {char}, played by {real}.",
+    "From the files of the Chicago Police Department: {char}, played by {real}.",
+    "Please welcome {char}, played by {real}, who was not technically invited.",
+  ],
 };
 
-const hashOf = (s: string) => [...s].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
-
-/** "Introducing Velma, played by Jordan." Varied per guest so the roll call doesn't drone. */
-export function rollIntro(tone: Tone, char: string, real: string): string {
+/** "Introducing Velma, played by Jordan." Varied per guest (and, given a game's seed, per game) so it doesn't drone. */
+export function rollIntro(tone: Tone, char: string, real: string, seed = ""): string {
   const list = ROLL_INTROS[tone];
   const real1 = real.trim() || "a mystery guest";
   // Picked by the real name, so the caption and the recording (which may spell the name the guest's way) match.
-  return list[hashOf(real1) % list.length].replace("{char}", char).replace("{real}", real1);
+  return list[hashOf(`${seed}${real1}`) % list.length].replace("{char}", char).replace("{real}", real1);
 }
 
 const endStop = (s: string) => (/[.!?…"'”]$/.test(s) ? s : `${s}.`);
@@ -438,7 +671,7 @@ export function rollLineFor(p: { rollLine?: string; rumor?: string; who: string 
 }
 
 /** What the roll call (v2) says about one guest. The motive is theirs (first person) or the house's (second person). */
-export type RollParts = { name: string; real: string; signature: string; weapon: string; motive: string; motiveOwn: boolean; rumor: string; rumorLead?: string; roast: string };
+export type RollParts = { name: string; real: string; signature: string; weapon: string; motive: string; motiveOwn: boolean; rumor: string; rumorLead?: string; roast: string; seed?: string };
 
 /**
  * The v2 roll-call line: "Introducing Velma, played by Ana. Signature: … Weapon: the candlestick. Velma, your motive: …
@@ -447,7 +680,7 @@ export type RollParts = { name: string; real: string; signature: string; weapon:
  * can bring its rows in with the voice.
  */
 export function rollNarration(tone: Tone, p: RollParts) {
-  let text = rollIntro(tone, p.name, p.real);
+  let text = rollIntro(tone, p.name, p.real, p.seed);
   const add = (part: string) => {
     if (!part) return text.length;
     const at = text.length + 1;

@@ -167,6 +167,14 @@ with sync_playwright() as p:
     host.wait_for_timeout(5000)
     ok(host.locator(".tv-split .tv-wcard").count() == 6, "Round 1 lists the weapons in play")
     shot(host, "09-round1.png")
+    # A heckle in the lull, about a minute and a half in (convex/heckles.ts).
+    clips = cx("voice:clipsOf", {"slug": SLUG})
+    hk = [c for c in clips if c["purpose"].startswith("heckle:")]
+    ok(len(hk) >= 14 and all(c["status"] == "ready" for c in hk), f"the night's heckles are recorded ({len(hk)})")
+    ok(wait_for(lambda: host.locator(".tv-caption").count() == 1 and "round one" not in host.locator(".tv-caption").inner_text().lower(), 110), "a heckle plays in the lull")
+    host.wait_for_timeout(1500)
+    shot(host, "10-heckle.png")
+    print("heckle:", host.locator(".tv-caption .line").inner_text())
     clips = cx("voice:clipsOf", {"slug": SLUG})
     roll = [c for c in clips if c["purpose"].startswith("roll:")]
     ok(len(roll) == 6, f"a roll call voice for each guest ({len(roll)}; ready: {sum(1 for c in roll if c['status'] == 'ready')})")

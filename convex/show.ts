@@ -3,7 +3,7 @@
 // Pure layout, shared by the server (which fixes the times, so Round 1's clock and the phones agree)
 // and the TV (which lays out the lines inside each part the same way).
 import manifest from "../public/audio/narration/manifest.json";
-import { captionText, type CueKey, type HostKey, type Tone } from "./narration";
+import { captionText, cueFile, type CueKey, type HostKey, type Tone } from "./narration";
 
 const S = 1000;
 
@@ -30,9 +30,9 @@ const RECORDED = manifest as Manifest;
 /** Reading speed for a line nobody has recorded yet (the TV's live reader, or a missing clip). */
 export const readSecs = (text: string) => text.length / 14 + 0.4;
 
-/** How long a narrator line runs: the recording's length, else reading speed. */
-export function cueSecs(voice: string, tone: Tone, host: HostKey, cue: CueKey, rec: Manifest = RECORDED): number {
-  return rec[voice]?.[tone]?.[cue] ?? readSecs(captionText(cue, tone, host));
+/** How long a narrator line runs (version v of it): the recording's length, else reading speed. */
+export function cueSecs(voice: string, tone: Tone, host: HostKey, cue: CueKey, v = 0, rec: Manifest = RECORDED): number {
+  return rec[voice]?.[tone]?.[cueFile(cue, v)] ?? readSecs(captionText(cue, tone, host, v));
 }
 
 /** A drawing in /art, the house map, the jail bars, or a fan of weapon cards. */

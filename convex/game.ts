@@ -14,7 +14,8 @@ import { ensureAllCards, markerForCode } from "./cards";
 import { ACCUSE_MAX_MINUTES, MAX_CARDS, REVEAL } from "./shared";
 import { SHOW, cueSecs, howCues, howLayout, rollLayout } from "./show";
 import { inOrder, rollGuests, slotsFor } from "./rollCall";
-import type { CueKey } from "./narration";
+import { heckleWanted } from "./heckles";
+import { cueVariant, type CueKey } from "./narration";
 import { scheduleRecording } from "./voice";
 import { ensureRoomCode } from "./join";
 import { anyFreeFigure, fakeGuestPool, takenFigures } from "./figures";
@@ -618,7 +619,8 @@ export const advanceRound = mutation({
 const showSecs = (game: Doc<"games">) => {
   const n = narratorOf(game);
   const tone = game.tone ?? "classic";
-  return (cue: CueKey) => cueSecs(voiceOf(n), tone, n.host, cue);
+  // This game's version of each line (adult lines come in several), as the TV will play it.
+  return (cue: CueKey) => cueSecs(voiceOf(n), tone, n.host, cue, cueVariant(tone, cue, game.slug));
 };
 
 /** How long each recorded clip runs (null while it isn't recorded, or no longer says the right thing). */
@@ -920,7 +922,7 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
     };
     rollCall = { at: game.show.rollAt, items, slots: game.show.roll ?? slotsFor(guests, secondsOf), frozen: !!game.show.roll };
   }
-  if (beforeStart || !input) return { voice: voiceOf(n), rollCall, body: null, rooms: {} as Record<string, Clip>, reveal: null, winners: null };
+  if (beforeStart || !input) return { voice: voiceOf(n), rollCall, body: null, rooms: {} as Record<string, Clip>, reveal: null, winners: null, heckles: [] };
   const wanted = startWanted(tone, n, {
     players: all.filter((p) => p.inGame).map((p) => ({ id: p._id, charName: p.charName, sayAs: p.sayAs })),
     exhibits: input.exhibits.map((e) => ({ id: e.id, letter: e.letter, name: e.name })),
@@ -928,6 +930,7 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
     bodyRoomKey: game.bodyRoomKey,
     roomOrder: game.roomOrder,
     search: game.search ?? "all",
+    seed: game.slug,
   });
   const get = (purpose: string) => clip(wanted.find((w) => w.purpose === purpose));
   const rooms: Record<string, Clip> = {};
@@ -958,7 +961,13 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
       liar: liar ? await get(`winner:${liar}`) : null,
     };
   }
-  return { voice: voiceOf(n), rollCall, body: await get("body"), rooms, reveal, winners };
+  // The night's heckles for the lulls, the ones that are recorded (convex/heckles.ts).
+  const heckles = [];
+  for (const h of await heckleWanted(ctx, game)) {
+    const c = await clip(h);
+    if (c) heckles.push({ id: h.purpose, figure: h.line.figure, gag: h.line.gag, clip: c });
+  }
+  return { voice: voiceOf(n), rollCall, body: await get("body"), rooms, reveal, winners, heckles };
 }
 
 /** The weapons the guests in the game picked (v2), by name. */
