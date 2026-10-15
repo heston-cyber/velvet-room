@@ -203,9 +203,11 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
     if (round >= 1 && round <= 3 && vt && vt.round === round && (!vt.closedAt || now < (vt.nextAt ?? Infinity))) {
       const t = vt.at;
       const id = `vote:${t}`;
-      out.loop = "accuse";
+      out.loop = "vote";
       out.music = "rounds";
-      vo(`${id}:open`, vt.kind === "jail" ? "voteJail" : "voteRelease", t + 0.6 * S, false, `${round}`);
+      // The Jail Vote / The Release Vote title card, then the narrator.
+      out.holdUntil = card(vt.kind === "jail" ? "jailvote" : "release", t);
+      vo(`${id}:open`, vt.kind === "jail" ? "voteJail" : "voteRelease", t + 4.3 * S, false, `${round}`);
       // Heckles while the votes come in, then the last call.
       heckle(`${id}:0`, 23 + round * 3 + (vt.kind === "jail" ? 0 : 2), t + HECKLE.voteOpenFirst, "vote");
       heckle(`${id}:1`, 24 + round * 3 + (vt.kind === "jail" ? 0 : 2), t + HECKLE.voteOpenFirst + HECKLE.voteOpenEvery, "vote");
@@ -217,8 +219,13 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
         vo(`${id}:tally`, "voteTally", c + 0.4 * S, false, `${round}:${vt.kind}`);
         const at = c + VOTE.verdictAtMs;
         if (vt.outcome === "nobody") vo(`${id}:verdict`, vt.kind === "jail" ? "jailNobody" : "releaseNobody", at + 0.3 * S, false, `${round}`);
-        else {
-          fx(`${id}:door`, vt.outcome === "jailed" ? "lightsCut" : "chime", at);
+        else if (vt.outcome === "jailed") {
+          // Locked Up!: the bars slam down on the card, then the name over the drawing behind bars.
+          fx(`${id}:door`, "lightsCut", at);
+          const shown = card("lockedup", at);
+          clip(`${id}:verdict`, d.voice.verdict ?? undefined, shown + 0.1 * S);
+        } else {
+          fx(`${id}:door`, "chime", at);
           clip(`${id}:verdict`, d.voice.verdict ?? undefined, at + 0.5 * S);
         }
         const openPart = (e: Ev) => e.id === `${id}:open` || e.id === `${id}:last` || e.id.startsWith(`heckle:${id}`);
@@ -436,8 +443,9 @@ function show(d: Data, now: number, secs: (cue: CueKey) => number, out: Plan, { 
     out.roll = { titleUntil, steps, closeAt: lay.closeAt, phonesAt, end };
   }
 
-  // Check your phones: the roles are out. Round 1 follows.
-  vo(`phones:${phonesAt}`, "intro4", phonesAt + 0.2 * S);
+  // Check your phones: the roles are out (the Check Your Phones card, then the line). Round 1 follows.
+  const phonesCard = card("phones", phonesAt);
+  vo(`phones:${phonesAt}`, "intro4", phonesCard + 0.3 * S);
 
   if (part === "intro") {
     out.loop = "dark";
@@ -448,6 +456,7 @@ function show(d: Data, now: number, secs: (cue: CueKey) => number, out: Plan, { 
     out.loop = "dark";
     out.music = "intro";
     out.ambience = ["heartbeat"];
+    out.holdUntil = phonesCard;
   } else {
     out.loop = "rollcall";
     out.music = "lobby";

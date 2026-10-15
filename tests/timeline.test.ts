@@ -108,7 +108,9 @@ describe("TV timeline", () => {
     p = plan(data({ game: showGame(), voice: showVoice() }), PHONES + 100, secs);
     expect(p.part).toBe("phones");
     expect(p.loop).toBe("dark");
-    expect(p.events.find((e) => e.cue === "intro4")?.at).toBe(PHONES + 200);
+    // the Check Your Phones card (v2), then the line
+    expect(cardNow(p, PHONES + 100)?.key).toBe("phones");
+    expect(p.events.find((e) => e.cue === "intro4")?.at).toBe(PHONES + CARD_MS.phones + 300);
     p = plan(data({ game: showGame(), voice: showVoice() }), END + 10, secs);
     expect(p.part).toBeNull();
     expect(cardNow(p, END + 10)?.key).toBe("round1");
@@ -125,7 +127,7 @@ describe("TV timeline", () => {
     expect(p.part).toBe("phones");
     expect(p.events.some((e) => e.clip?.url === "u-b")).toBe(false);
     expect(p.events.some((e) => e.cue === "rollCallClose")).toBe(false);
-    expect(p.events.find((e) => e.cue === "intro4")?.at).toBe(cut + 200);
+    expect(p.events.find((e) => e.cue === "intro4")?.at).toBe(cut + CARD_MS.phones + 300);
     // Turns were fixed before b's voice came in, and it's longer than b's turn: the card shows, the voice doesn't play.
     const late = showVoice([item("a", 2), item("b", 30), item("c", null)]);
     p = plan(data({ game: showGame(), voice: { ...late, rollCall: { ...late.rollCall, frozen: true } } }), ROLL + 500, secs);
@@ -148,8 +150,10 @@ describe("TV timeline", () => {
     let p = plan(data({ game: g, voice: { heckles: hk } }) as never as Data & { vote: unknown }, V + 1000, secs);
     // (the vote rides on the data the TV query returns)
     p = plan({ ...data({ game: g, voice: { heckles: hk } }), vote } as unknown as Data, V + 1000, secs);
-    expect(p.loop).toBe("accuse");
-    expect(p.events.find((e) => e.cue === "voteJail")?.at).toBe(V + 600);
+    // v2: the vote loop and the Jail Vote card, then the narrator
+    expect(p.loop).toBe("vote");
+    expect(cardNow(p, V + 1000)?.key).toBe("jailvote");
+    expect(p.events.find((e) => e.cue === "voteJail")?.at).toBe(V + CARD_MS.jailvote + 300);
     expect(p.events.filter((e) => e.id.startsWith("heckle:vote")).length).toBe(2);
     expect(p.events.find((e) => e.cue === "voteLastCall")?.at).toBe(V + 75_000);
     // closed early (everyone voted) with a verdict: the open vote's leftovers drop, the tally and the verdict play
@@ -159,7 +163,12 @@ describe("TV timeline", () => {
     expect(p.events.some((e) => e.cue === "voteLastCall")).toBe(false);
     expect(p.events.filter((e) => e.id.startsWith("heckle:vote")).every((e) => e.at < V + 20_000)).toBe(true);
     expect(p.events.find((e) => e.cue === "voteTally")?.at).toBe(V + 20_400);
-    expect(p.events.find((e) => e.clip?.url === "v")?.at).toBe(V + 20_000 + 6_000 + 500);
+    // jailed: the Locked Up! card, then the name
+    expect(cardNow(p, V + 26_500)?.key).toBe("lockedup");
+    expect(p.events.find((e) => e.clip?.url === "v")?.at).toBe(V + 20_000 + 6_000 + CARD_MS.lockedup + 100);
+    // a release vote opens with its own card
+    p = plan({ ...data({ game: g, voice: { heckles: hk } }), vote: { ...vote, kind: "release" } } as unknown as Data, V + 1000, secs);
+    expect(cardNow(p, V + 1000)?.key).toBe("release");
     // nobody: the narrator says so
     p = plan({ ...data({ game: g, voice: { heckles: hk } }), vote: { ...closed, outcome: "nobody", target: null } } as unknown as Data, V + 21_000, secs);
     expect(p.events.some((e) => e.cue === "jailNobody")).toBe(true);
