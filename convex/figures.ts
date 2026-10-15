@@ -13,8 +13,9 @@ export const FIGURE_SETS: { label: string; keys: string[] }[] = [
 export const FIGURE_KEYS = FIGURE_SETS.flatMap((s) => s.keys);
 export const isFigure = (k: unknown): k is string => typeof k === "string" && FIGURE_KEYS.includes(k);
 
-/** Which way a drawing faces, so walkers on the TV face where they're going. */
-export const FACES_RIGHT = ["dapper"];
+/** Which way a drawing faces, so walkers on the TV face where they're going. Drawings face
+ *  front or to the left unless listed here (none at the moment: dapper was redrawn facing front). */
+export const FACES_RIGHT: string[] = [];
 
 /** The drawings already picked in this game (optionally not counting one guest's own). */
 export async function takenFigures(ctx: QueryCtx, gameId: Id<"games">, except?: Id<"players">): Promise<Set<string>> {
