@@ -22,6 +22,7 @@ async function setup() {
   await t.mutation(api.host.updateSettings, {
     slug: SLUG, hostKey, pacing: { mode: "timer", roundMinutes: 7 }, search: "waves", tone: "adult",
     wifi: { name: "Speakeasy", password: "bathtubgin" }, narrator: { host: "duke", unstable: true }, levels: { voice: 90, music: 50, sfx: 70 },
+    lookalikes: true,
   });
   await t.mutation(internal.game.seedFakeCast, { slug: SLUG, guests: 4, markers: 6, seed: 5, checkIn: true });
   const game = await t.run(async (ctx) => (await ctx.db.query("games").first())!);
@@ -48,6 +49,7 @@ describe("play again: New game", () => {
       title: "The Velvet Room · Game 2", status: "registration", registrationOpen: true, gameNumber: 2, isActive: true, isTest: true,
       hostKey, tvKey: game.tvKey, rooms: game.rooms, pacing: { mode: "timer", roundMinutes: 7 }, search: "waves", tone: "adult",
       wifi: { name: "Speakeasy", password: "bathtubgin" }, narrator: { host: "duke", unstable: true }, levels: { voice: 90, music: 50, sfx: 70 },
+      lookalikes: true,
     });
     expect(g2!.roomCode).toBeUndefined();
     expect(g1).toMatchObject({ nextSlug: slug, isActive: false });

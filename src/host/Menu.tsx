@@ -137,6 +137,14 @@ export default function Menu(props: { data: Roster; slug: string; hostKey: strin
 
         <Sec title="Sign-ups">
           <Toggle id="set-open" checked={game.registrationOpen} disabled={locked} onChange={(v) => save({ registrationOpen: v })} label="Accepting sign-ups" help="Turn off to close the guest list early." />
+          <Toggle
+            id="set-lookalikes"
+            checked={game.lookalikes}
+            disabled={locked}
+            onChange={(v) => save({ lookalikes: v })}
+            label="Show the guest look-alikes"
+            help="Adds a Tonight's guests row to the sign-up drawings: look-alikes of this party's guests, each with the person's name under it."
+          />
           <label className="hx-field">
             <span className="lab">Sign-ups close at the end of</span>
             <input

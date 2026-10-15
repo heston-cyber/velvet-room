@@ -272,31 +272,46 @@ export default function ProfileForm(props: {
             <span className="lab" id="l-figure">
               Pick your character drawing
             </span>
-            <span className="help">It's you on the TV tonight. Each drawing goes to one guest, so grab yours.</span>
+            <span className="help">
+              It's you on the TV tonight. Each drawing goes to one guest, so grab yours.
+              {gallery?.some((g) => g.figures.some((f) => f.name)) && " If there's a drawing of you, it's in the first row with your name on it."}
+            </span>
             <div className="figure-pick" role="radiogroup" aria-labelledby="l-figure" id="f-figure" tabIndex={-1}>
               {gallery === undefined && <span className="help">Loading the drawings…</span>}
               {gallery?.map((group) => (
                 <div className="figure-set" key={group.label}>
                   <span className="small">{group.label}</span>
-                  <div className="figure-grid">
-                    {group.figures.map((f) => (
-                      <button
-                        type="button"
-                        key={f.key}
-                        role="radio"
-                        aria-checked={values.figure === f.key}
-                        aria-label={f.taken ? "Taken" : `Drawing ${f.key}`}
-                        disabled={f.taken && values.figure !== f.key}
-                        className={`${values.figure === f.key ? "on" : ""} ${f.taken && values.figure !== f.key ? "taken" : ""}`}
-                        onClick={() => {
-                          set("figure", f.key);
-                          setNeedFigure(false);
-                        }}
-                      >
-                        <img src={faceUrl(f.key)} alt="" />
-                        {f.taken && values.figure !== f.key && <span>Taken</span>}
-                      </button>
-                    ))}
+                  <div className={`figure-grid${group.figures.some((f) => f.name) ? " named" : ""}`}>
+                    {group.figures.map((f) => {
+                      const takenByOther = f.taken && values.figure !== f.key;
+                      const button = (
+                        <button
+                          type="button"
+                          key={f.key}
+                          role="radio"
+                          aria-checked={values.figure === f.key}
+                          aria-label={takenByOther ? `${f.name ? `${f.name}'s drawing, ` : ""}taken` : f.name ? `${f.name}'s drawing` : `Drawing ${f.key}`}
+                          disabled={takenByOther}
+                          className={`${values.figure === f.key ? "on" : ""} ${takenByOther ? "taken" : ""}`}
+                          onClick={() => {
+                            set("figure", f.key);
+                            setNeedFigure(false);
+                          }}
+                        >
+                          <img src={faceUrl(f.key)} alt="" />
+                          {takenByOther && <span>Taken</span>}
+                        </button>
+                      );
+                      // A guest's look-alike carries their name underneath.
+                      return f.name ? (
+                        <div className="figure-cell" key={f.key}>
+                          {button}
+                          <span className="figure-name">{f.name}</span>
+                        </div>
+                      ) : (
+                        button
+                      );
+                    })}
                   </div>
                 </div>
               ))}

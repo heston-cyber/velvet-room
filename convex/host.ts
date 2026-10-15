@@ -76,6 +76,7 @@ export const roster = query({
         deadlineLabel: game.deadlineLabel,
         motiveMode: game.motiveMode,
         killerOptIn: game.killerOptIn,
+        lookalikes: !!game.lookalikes,
         rooms: game.rooms,
         pacing: game.pacing,
         tone: game.tone ?? "classic",
@@ -128,6 +129,7 @@ export const updateSettings = mutation({
     hostKey: v.string(),
     motiveMode: v.optional(v.union(v.literal("game"), v.literal("players"))),
     killerOptIn: v.optional(v.boolean()),
+    lookalikes: v.optional(v.boolean()),
     registrationOpen: v.optional(v.boolean()),
     registrationClosesAt: v.optional(v.number()),
     deadlineLabel: v.optional(v.string()),
@@ -197,7 +199,7 @@ export const updateSettings = mutation({
         update.mcPlayerId = mcPlayerId;
       }
     }
-    for (const key of ["motiveMode", "killerOptIn", "registrationOpen", "registrationClosesAt", "deadlineLabel", "tone", "mode", "search"] as const) {
+    for (const key of ["motiveMode", "killerOptIn", "lookalikes", "registrationOpen", "registrationClosesAt", "deadlineLabel", "tone", "mode", "search"] as const) {
       if (patch[key] !== undefined) (update as Record<string, unknown>)[key] = patch[key];
     }
     // Switching back to "everyone plays" means nobody is the MC.

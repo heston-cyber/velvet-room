@@ -11,7 +11,7 @@ import {
   registrationIsOpen,
   required,
 } from "./lib";
-import { FIGURE_SETS, isFigure, takenFigures } from "./figures";
+import { figureSets, isFigure, lookalikeName, takenFigures } from "./figures";
 
 const profileArgs = {
   realName: v.string(),
@@ -83,10 +83,10 @@ async function assertNameFree(
 }
 
 /** The drawing a guest picked: one of the cast, and nobody else's in this game. */
-async function checkFigure(ctx: MutationCtx, gameId: Id<"games">, figure: string | undefined, self?: Id<"players">) {
+async function checkFigure(ctx: MutationCtx, game: Doc<"games">, figure: string | undefined, self?: Id<"players">) {
   if (!figure) throw new ConvexError("Pick your character drawing.");
-  if (!isFigure(figure)) throw new ConvexError("That drawing isn't one of tonight's characters. Pick another.");
-  if ((await takenFigures(ctx, gameId, self)).has(figure)) throw new ConvexError("Someone just took that drawing. Pick another.");
+  if (!isFigure(figure, !!game.lookalikes)) throw new ConvexError("That drawing isn't one of tonight's characters. Pick another.");
+  if ((await takenFigures(ctx, game._id, self)).has(figure)) throw new ConvexError("Someone just took that drawing. Pick another.");
   return figure;
 }
 
@@ -103,7 +103,10 @@ export const figures = query({
     const game = me ? await ctx.db.get(me.gameId) : await gameBySlugOrActive(ctx, slug);
     if (!game) return null;
     const taken = await takenFigures(ctx, game._id, me?._id);
-    return FIGURE_SETS.map((set) => ({ label: set.label, figures: set.keys.map((key) => ({ key, taken: taken.has(key) })) }));
+    return figureSets(!!game.lookalikes).map((set) => ({
+      label: set.label,
+      figures: set.keys.map((key) => ({ key, taken: taken.has(key), name: set.guests ? lookalikeName(key) : null })),
+    }));
   },
 });
 
@@ -148,7 +151,7 @@ export const register = mutation({
 
     const p = validateProfile(game, args);
     await assertNameFree(ctx, game._id, p.charName);
-    const figure = await checkFigure(ctx, game._id, args.figure);
+    const figure = await checkFigure(ctx, game, args.figure);
 
     let token = randomCode(10);
     while (await ctx.db.query("players").withIndex("by_token", (q) => q.eq("token", token)).first()) {
@@ -266,7 +269,7 @@ export const update = mutation({
       ...(args.rumor !== undefined ? { rumor: p.rumor || undefined } : {}),
       ...(args.sayAs !== undefined ? { sayAs: p.sayAs || undefined } : {}),
       // A different drawing has to be free; the same one stays theirs.
-      ...(args.figure && args.figure !== player.figure ? { figure: await checkFigure(ctx, game._id, args.figure, player._id) } : {}),
+      ...(args.figure && args.figure !== player.figure ? { figure: await checkFigure(ctx, game, args.figure, player._id) } : {}),
       killerOk: p.killerOk,
       updatedAt: Date.now(),
     });

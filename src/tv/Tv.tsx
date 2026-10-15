@@ -6,7 +6,7 @@ import { INTRO_BEATS, INTRO_MS, REVEAL } from "../../convex/shared";
 import { Qr, wifiQrText } from "../lib/qr";
 import HouseMap from "./HouseMap";
 import { avatarSrc, figureUrl } from "../lib/figure";
-import { FACES_RIGHT, FIGURE_KEYS } from "../../convex/figures";
+import { ALL_FIGURE_KEYS, FACES_RIGHT } from "../../convex/figures";
 import { CARD_MS, cardUrl, loopUrl, useMediaBank, type LoopKey } from "./media";
 import { SoundEngine } from "./sound";
 import { cameosNow, cardNow, due, plan, type Cameo, type CharKey, type Data, type Plan } from "./timeline";
@@ -786,7 +786,7 @@ function Exhibits({ letters, caption }: { letters: string[]; caption?: string })
   );
 }
 
-const CAST: CharKey[] = ["don", "killer", ...FIGURE_KEYS];
+const CAST: CharKey[] = ["don", "killer", ...ALL_FIGURE_KEYS];
 const artUrl = (c: CharKey) => `/art/${c}.webp`;
 /** Which way each drawing faces, so walkers face where they're going. */
 const FACES_RIGHT_SET = new Set<CharKey>(FACES_RIGHT);

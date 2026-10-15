@@ -13,7 +13,7 @@ import { ensureAllCards, markerForCode } from "./cards";
 import { ACCUSE_MAX_MINUTES, INTRO_MS, MAX_CARDS, REVEAL } from "./shared";
 import { scheduleRecording } from "./voice";
 import { ensureRoomCode } from "./join";
-import { anyFreeFigure, takenFigures } from "./figures";
+import { anyFreeFigure, fakeGuestPool, takenFigures } from "./figures";
 import { clipMatches, levelsOf, narratorOf, rollWanted, startWanted, voiceOf, type Wanted } from "./voiceLines";
 import { rollLineFor } from "./narration";
 
@@ -1034,7 +1034,7 @@ export const seedFakeCast = internalMutation({
     const now = Date.now();
     const taken = new Set((await playersOf(ctx, game._id)).map((p) => p.charKey));
     for (const g of shuffle(rng, FAKE_GUESTS).filter((g) => !taken.has(g.name.toLowerCase().replace(/[^a-z0-9]+/g, ""))).slice(0, guests)) {
-      const figure = anyFreeFigure(await takenFigures(ctx, game._id), rng);
+      const figure = anyFreeFigure(await takenFigures(ctx, game._id), rng, fakeGuestPool(!!game.lookalikes));
       const playerId = await ctx.db.insert("players", {
         figure,
         gameId: game._id,

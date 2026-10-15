@@ -2,7 +2,7 @@ import { convexTest } from "convex-test";
 import { beforeAll, describe, expect, test } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
-import { FIGURE_KEYS, FIGURE_SETS, anyFreeFigure } from "../convex/figures";
+import { ALL_FIGURE_KEYS, FIGURE_KEYS, FIGURE_SETS, LOOKALIKES, anyFreeFigure, fakeGuestPool } from "../convex/figures";
 import { existsSync } from "node:fs";
 
 const modules = import.meta.glob("../convex/**/*.ts");
@@ -91,5 +91,62 @@ describe("drawn characters: guests pick their own, one guest per drawing", () =>
     await t.run((ctx) => ctx.db.patch(id, { status: "reveal", revealAt: Date.now() }));
     tv = await t.query(api.game.tv, { slug: SLUG, tvKey });
     expect(FIGURE_KEYS).toContain(tv!.results!.killerFigure);
+  });
+});
+
+describe("this party's look-alikes", () => {
+  test("Heston is curls and Emily is sweetheart; every look-alike has its art and face", () => {
+    expect(LOOKALIKES.slice(0, 2)).toEqual([{ key: "curls", name: "Heston" }, { key: "sweetheart", name: "Emily" }]);
+    expect(new Set(LOOKALIKES.map((l) => l.key)).size).toBe(LOOKALIKES.length);
+    for (const { key } of LOOKALIKES) {
+      expect(existsSync(`public/art/${key}.webp`), key).toBe(true);
+      expect(existsSync(`public/art/faces/${key}.webp`), key).toBe(true);
+    }
+    expect(ALL_FIGURE_KEYS).toEqual(expect.arrayContaining([...FIGURE_KEYS, ...LOOKALIKES.map((l) => l.key)]));
+  });
+
+  test("off by default: just the main 16, no names", async () => {
+    const { t, hostKey } = await setup();
+    expect((await t.query(api.host.roster, { slug: SLUG, hostKey }))!.game.lookalikes).toBe(false);
+    const g = (await t.query(api.registration.figures, { slug: SLUG }))!;
+    expect(g.map((s) => s.label)).toEqual(["Women", "Men"]);
+    expect(g.flatMap((s) => s.figures)).toHaveLength(16);
+    expect(g.flatMap((s) => s.figures).every((f) => f.name === null)).toBe(true);
+  });
+
+  test("on: a named Tonight's guests row first, and those drawings leave the main rows", async () => {
+    const { t, hostKey } = await setup();
+    await t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, lookalikes: true });
+    expect((await t.query(api.host.roster, { slug: SLUG, hostKey }))!.game.lookalikes).toBe(true);
+    const g = (await t.query(api.registration.figures, { slug: SLUG }))!;
+    expect(g[0].label).toBe("Tonight's guests");
+    expect(g[0].figures.map((f) => [f.key, f.name])).toEqual(LOOKALIKES.map((l) => [l.key, l.name]));
+    const rest = g.slice(1).flatMap((s) => s.figures);
+    expect(rest.some((f) => LOOKALIKES.some((l) => l.key === f.key))).toBe(false);
+    expect(rest.every((f) => f.name === null)).toBe(true);
+    expect(g.slice(1).map((s) => s.label)).toEqual(["Women", "Men"]);
+    // A guest takes their own look-alike; it's taken for everyone else.
+    const { token } = await t.mutation(api.registration.register, guest(0, "sweetheart"));
+    expect((await t.query(api.registration.me, { token }))!.figure).toBe("sweetheart");
+    await expect(t.mutation(api.registration.register, guest(1, "sweetheart"))).rejects.toThrow(/Someone just took/);
+    const after = (await t.query(api.registration.figures, { slug: SLUG }))!;
+    expect(after[0].figures.find((f) => f.key === "sweetheart")!.taken).toBe(true);
+  });
+
+  test("test guests never take a real guest's look-alike", async () => {
+    const { t, hostKey } = await setup();
+    await t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, lookalikes: true });
+    await t.mutation(internal.game.seedFakeCast, { slug: SLUG, guests: 12, markers: 0, seed: 9 });
+    const figs = await t.run(async (ctx) => (await ctx.db.query("players").collect()).map((p) => p.figure!));
+    expect(figs.length).toBeGreaterThan(5);
+    expect(figs.some((f) => LOOKALIKES.some((l) => l.key === f))).toBe(false);
+    expect(fakeGuestPool(false)).toEqual(FIGURE_KEYS);
+  });
+
+  test("the setting locks once the game starts", async () => {
+    const { t, hostKey } = await setup();
+    await t.mutation(internal.game.seedFakeCast, { slug: SLUG, guests: 4, markers: 6, seed: 4, checkIn: true });
+    await t.mutation(api.game.startGame, { slug: SLUG, hostKey });
+    await expect(t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, lookalikes: true })).rejects.toThrow(/locked/);
   });
 });

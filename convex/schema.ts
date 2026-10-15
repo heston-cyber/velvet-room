@@ -22,6 +22,8 @@ export default defineSchema({
     deadlineLabel: v.string(), // e.g. "Sat, Oct 24"
     motiveMode: v.union(v.literal("game"), v.literal("players")),
     killerOptIn: v.boolean(),
+    // This party's guest look-alikes get their own named row in the sign-up drawings (convex/figures.ts).
+    lookalikes: v.optional(v.boolean()),
     rooms: v.array(
       v.object({ key: v.string(), label: v.string(), houseName: v.string() }),
     ),

@@ -39,6 +39,7 @@ export const newGame = mutation({
       isTest: game.isTest,
       motiveMode: game.motiveMode,
       killerOptIn: game.killerOptIn,
+      lookalikes: game.lookalikes,
       rooms: game.rooms,
       pacing: game.pacing,
       search: game.search,
