@@ -15,12 +15,13 @@ export const FIGURE_KEYS = FIGURE_SETS.flatMap((s) => s.keys);
 
 /** This party's look-alikes (Heston, Oct 14): drawings of the real guests. A game with
  *  `lookalikes` on shows them in their own "Tonight's guests" row, each labeled with the person's
- *  name (honor system: anyone could tap one, the label says whose it is). Curls is Heston and
- *  sweetheart is Emily; they're in the main cast too, so in a look-alike game they move up to this
- *  row, and in other games they're regular characters. Add a guest: art in public/art(/faces), then a line here. */
+ *  name (honor system: anyone could tap one, the label says whose it is). A main-cast drawing can
+ *  stand in for someone (curls is Heston's until his own look-alike is final): in a look-alike game
+ *  it moves up to this row, and in other games it's a regular character again.
+ *  Add a guest: art in public/art(/faces), then a line here. */
 export const LOOKALIKES: { key: string; name: string }[] = [
   { key: "curls", name: "Heston" },
-  { key: "sweetheart", name: "Emily" },
+  { key: "emily", name: "Emily" },
   { key: "miranda", name: "Miranda" },
   { key: "sam", name: "Sam" },
   { key: "reily", name: "Reily" },

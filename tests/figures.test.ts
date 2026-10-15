@@ -95,8 +95,8 @@ describe("drawn characters: guests pick their own, one guest per drawing", () =>
 });
 
 describe("this party's look-alikes", () => {
-  test("Heston is curls and Emily is sweetheart; every look-alike has its art and face", () => {
-    expect(LOOKALIKES.slice(0, 2)).toEqual([{ key: "curls", name: "Heston" }, { key: "sweetheart", name: "Emily" }]);
+  test("Heston and Emily lead the row; every look-alike has its art and face", () => {
+    expect(LOOKALIKES.slice(0, 2).map((l) => l.name)).toEqual(["Heston", "Emily"]);
     expect(new Set(LOOKALIKES.map((l) => l.key)).size).toBe(LOOKALIKES.length);
     for (const { key } of LOOKALIKES) {
       expect(existsSync(`public/art/${key}.webp`), key).toBe(true);
@@ -126,11 +126,14 @@ describe("this party's look-alikes", () => {
     expect(rest.every((f) => f.name === null)).toBe(true);
     expect(g.slice(1).map((s) => s.label)).toEqual(["Women", "Men"]);
     // A guest takes their own look-alike; it's taken for everyone else.
-    const { token } = await t.mutation(api.registration.register, guest(0, "sweetheart"));
-    expect((await t.query(api.registration.me, { token }))!.figure).toBe("sweetheart");
-    await expect(t.mutation(api.registration.register, guest(1, "sweetheart"))).rejects.toThrow(/Someone just took/);
+    const { token } = await t.mutation(api.registration.register, guest(0, "emily"));
+    expect((await t.query(api.registration.me, { token }))!.figure).toBe("emily");
+    await expect(t.mutation(api.registration.register, guest(1, "emily"))).rejects.toThrow(/Someone just took/);
     const after = (await t.query(api.registration.figures, { slug: SLUG }))!;
-    expect(after[0].figures.find((f) => f.key === "sweetheart")!.taken).toBe(true);
+    expect(after[0].figures.find((f) => f.key === "emily")!.taken).toBe(true);
+    // A look-alike isn't offered when the row is off.
+    await expect(t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, lookalikes: false })).resolves.toBeTruthy();
+    await expect(t.mutation(api.registration.register, guest(2, "miranda"))).rejects.toThrow(/isn't one of tonight's/);
   });
 
   test("test guests never take a real guest's look-alike", async () => {
