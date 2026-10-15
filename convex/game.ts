@@ -11,7 +11,7 @@ import { randomCode, registrationIsOpen, requireHost, requireTv } from "./lib";
 import { seal } from "./seal";
 import { caseFor } from "./caseFile";
 import { ensureAllCards, markerForCode } from "./cards";
-import { ACCUSE_MAX_MINUTES, MAX_CARDS, REVEAL } from "./shared";
+import { ACCUSE_MAX_MINUTES, MAX_CARDS, REVEAL, VOTE } from "./shared";
 import { SHOW, cueSecs, howCues, howLayout, rollLayout } from "./show";
 import { inOrder, rollGuests, slotsFor } from "./rollCall";
 import { heckleWanted } from "./heckles";
@@ -111,8 +111,26 @@ async function scheduleTimer(ctx: MutationCtx, gameId: Id<"games">, round: numbe
   if (endsAt) await ctx.scheduler.runAt(endsAt, internal.game.timerTick, { gameId, round });
 }
 
-/** Moves the game on one step: Round 1 -> 2 -> 3 -> accusations -> reveal. */
+/**
+ * Moves the game on one step (the host's Next, a round's timer, or most guests tapping Ready). v2: a round ends in
+ * its votes (from Round 2, a release vote first if anyone is in jail, then the jail vote); the next step closes the
+ * open vote, the one after skips the verdict; then the next round (after Round 3, the lock-in); then the reveal.
+ */
 async function advance(ctx: MutationCtx, game: Doc<"games">) {
+  if (!isPlaying(game)) return;
+  const round = game.round ?? 1;
+  if (round >= 4) return nextRound(ctx, game);
+  const v = voteOf(game);
+  if (!v) {
+    const anyJailed = playingOf(game, await playersOf(ctx, game._id)).some((p) => p.jailed);
+    return startVote(ctx, game, round >= 2 && anyJailed ? "release" : "jail");
+  }
+  if (!v.closedAt) return closeVote(ctx, game);
+  return afterVoteNow(ctx, game);
+}
+
+/** Round 1 -> 2 -> 3 -> the lock-in -> the reveal. */
+async function nextRound(ctx: MutationCtx, game: Doc<"games">) {
   if (!isPlaying(game)) return;
   const round = game.round ?? 1;
   if (round >= 4) {
@@ -128,10 +146,156 @@ async function advance(ctx: MutationCtx, game: Doc<"games">) {
   await scheduleTimer(ctx, game._id, next, endsAt);
 }
 
+// ---------- votes (v2): jail and release, after every round ----------
+
+/** Guests in the game who aren't in jail: they search, vote and lock in. */
+const freeOf = (g: Doc<"games">, players: Doc<"players">[]) => playingOf(g, players).filter((p) => !p.jailed);
+
+/** This round's vote, open or showing its verdict. */
+const voteOf = (game: Doc<"games">) => (game.vote && game.vote.round === game.round ? game.vote : null);
+
+async function ballotsOf(ctx: QueryCtx, gameId: Id<"games">, voteAt: number) {
+  return await ctx.db
+    .query("ballots")
+    .withIndex("by_game_vote", (q) => q.eq("gameId", gameId).eq("voteAt", voteAt))
+    .collect();
+}
+
+/** Opens a vote. The voters are the free guests right now; more than half of them must agree. */
+async function startVote(ctx: MutationCtx, game: Doc<"games">, kind: "jail" | "release", exclude?: Id<"players">) {
+  const players = await playersOf(ctx, game._id);
+  const free = freeOf(game, players);
+  const candidates = kind === "jail" ? free.filter((p) => p._id !== exclude) : playingOf(game, players).filter((p) => p.jailed);
+  const at = Date.now();
+  const endsAt = at + VOTE.ms;
+  const vote = { kind, round: game.round ?? 1, at, endsAt, voters: free.map((p) => p._id), candidates: candidates.map((p) => p._id) };
+  await ctx.db.patch(game._id, { vote, roundEndsAt: undefined, paused: false });
+  // Nobody to vote, or nobody to vote for: it closes straight away with nobody.
+  if (!vote.voters.length || !vote.candidates.length) return closeVote(ctx, (await ctx.db.get(game._id))!);
+  await ctx.scheduler.runAt(endsAt, internal.game.voteTick, { gameId: game._id, at });
+}
+
+/** Counts the ballots. More than half of the voters on one guest jails (or frees) them; anything less is nobody. */
+async function closeVote(ctx: MutationCtx, game: Doc<"games">) {
+  const v = game.vote;
+  if (!v || v.closedAt) return;
+  const counts = new Map<string, number>();
+  for (const b of await ballotsOf(ctx, game._id, v.at)) if (b.targetId) counts.set(b.targetId, (counts.get(b.targetId) ?? 0) + 1);
+  let target: Id<"players"> | undefined;
+  for (const [id, n] of counts) if (n > v.voters.length / 2) target = id as Id<"players">;
+  const now = Date.now();
+  if (target) await ctx.db.patch(target, v.kind === "jail" ? { jailed: true, jailedAt: now, readyRound: 0 } : { jailed: false });
+  const outcome = !target ? ("nobody" as const) : v.kind === "jail" ? ("jailed" as const) : ("released" as const);
+  const nextAt = now + VOTE.nextMs;
+  await ctx.db.patch(game._id, { vote: { ...v, closedAt: now, outcome, targetId: target, nextAt } });
+  await ctx.scheduler.runAt(nextAt, internal.game.afterVote, { gameId: game._id, at: v.at });
+}
+
+/** After the verdict: a release vote leads to the jail vote; a jail vote leads to the next round. */
+async function afterVoteNow(ctx: MutationCtx, game: Doc<"games">) {
+  const v = game.vote;
+  if (!v || !v.closedAt) return;
+  if (v.kind === "release") return startVote(ctx, game, "jail", v.outcome === "released" ? v.targetId : undefined);
+  return nextRound(ctx, game);
+}
+
+export const voteTick = internalMutation({
+  args: { gameId: v.id("games"), at: v.number() },
+  handler: async (ctx, { gameId, at }) => {
+    const game = await ctx.db.get(gameId);
+    if (!game || !isPlaying(game) || game.vote?.at !== at || game.vote.closedAt) return;
+    await closeVote(ctx, game);
+  },
+});
+
+export const afterVote = internalMutation({
+  args: { gameId: v.id("games"), at: v.number() },
+  handler: async (ctx, { gameId, at }) => {
+    const game = await ctx.db.get(gameId);
+    if (!game || !isPlaying(game) || game.vote?.at !== at || !game.vote.closedAt || game.round !== game.vote.round) return;
+    await afterVoteNow(ctx, game);
+  },
+});
+
+/** A free guest votes on their phone: someone on the list, or nobody (null). They can change it until it closes. */
+export const castVote = mutation({
+  args: { token: v.string(), targetId: v.union(v.id("players"), v.null()) },
+  handler: async (ctx, { token, targetId }) => {
+    const { player, game } = await requirePlayer(ctx, token);
+    const vt = isPlaying(game) ? voteOf(game) : null;
+    if (!vt || vt.closedAt) throw new ConvexError("The vote is closed.");
+    if (!vt.voters.includes(player._id)) throw new ConvexError(player.jailed ? "You're in jail, so you can't vote. You can still bribe." : "You're not in this vote.");
+    if (targetId === player._id) throw new ConvexError("You can't vote for yourself.");
+    if (targetId && !vt.candidates.includes(targetId)) throw new ConvexError("Pick someone from the list, or nobody.");
+    const mine = (await ballotsOf(ctx, game._id, vt.at)).find((b) => b.voterId === player._id);
+    if (mine) await ctx.db.patch(mine._id, { targetId, at: Date.now() });
+    else await ctx.db.insert("ballots", { gameId: game._id, voteAt: vt.at, voterId: player._id, targetId, at: Date.now() });
+    // Everyone's voted: count it now.
+    if ((await ballotsOf(ctx, game._id, vt.at)).length >= vt.voters.length) await closeVote(ctx, (await ctx.db.get(game._id))!);
+    return { ok: true };
+  },
+});
+
+/** This guest's ballot in the open vote: undefined if they haven't voted, else who (null is nobody). */
+async function myBallot(ctx: QueryCtx, game: Doc<"games">, playerId: Id<"players">) {
+  const vt = voteOf(game);
+  if (!vt) return null;
+  const mine = (await ballotsOf(ctx, game._id, vt.at)).find((b) => b.voterId === playerId);
+  return { canVote: vt.voters.includes(playerId), voted: !!mine, targetId: mine?.targetId ?? null };
+}
+
+/** Each weapon row's pool key (for the art), by its id. */
+async function weaponKeys(ctx: QueryCtx, game: Doc<"games">) {
+  const rows = await ctx.db
+    .query("weapons")
+    .withIndex("by_game", (q) => q.eq("gameId", game._id))
+    .collect();
+  return new Map(rows.map((w) => [w._id as string, w.key ?? null]));
+}
+
+/** Who voted for whom, once a vote has closed (the TV and the phones show it). */
+async function tallyOf(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[]) {
+  const vt = voteOf(game);
+  if (!vt?.closedAt) return null;
+  const ballots = await ballotsOf(ctx, game._id, vt.at);
+  const p = (id: string) => all.find((x) => x._id === id);
+  const columns: (Id<"players"> | null)[] = [...vt.candidates, null];
+  return columns
+    .map((target) => ({
+      targetId: target,
+      name: target ? p(target)?.charName ?? "" : "Nobody",
+      figure: target ? p(target)?.figure ?? null : null,
+      voters: ballots.filter((b) => b.targetId === target).map((b) => ({ id: b.voterId, name: p(b.voterId)?.charName ?? "", figure: p(b.voterId)?.figure ?? null })),
+    }))
+    .filter((c) => c.voters.length || c.targetId);
+}
+
+/** The vote as the phones and the TV see it: never who voted for whom until it closes. */
+async function publicVote(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[]) {
+  const vt = voteOf(game);
+  if (!vt) return null;
+  const ballots = await ballotsOf(ctx, game._id, vt.at);
+  const p = (id: string) => all.find((x) => x._id === id);
+  return {
+    kind: vt.kind,
+    round: vt.round,
+    at: vt.at,
+    endsAt: vt.endsAt,
+    closedAt: vt.closedAt ?? null,
+    nextAt: vt.nextAt ?? null,
+    outcome: vt.outcome ?? null,
+    target: vt.targetId ? { id: vt.targetId, name: p(vt.targetId)?.charName ?? "", figure: p(vt.targetId)?.figure ?? null } : null,
+    candidates: vt.candidates.map((id) => ({ id, name: p(id)?.charName ?? "", figure: p(id)?.figure ?? null, jailed: !!p(id)?.jailed })),
+    voters: vt.voters.length,
+    voted: ballots.length,
+    tally: await tallyOf(ctx, game, all),
+  };
+}
+
 /** Ready votes: once most guests in the game are ready, the next round starts. */
 async function maybeAdvanceOnReady(ctx: MutationCtx, game: Doc<"games">) {
-  if (game.pacing.mode !== "ready" || game.paused || !game.round || game.round > 3) return;
-  const inGame = playingOf(game, await playersOf(ctx, game._id));
+  if (game.pacing.mode !== "ready" || game.paused || !game.round || game.round > 3 || voteOf(game)) return;
+  const inGame = freeOf(game, await playersOf(ctx, game._id));
   const ready = inGame.filter((p) => p.readyRound === game.round).length;
   if (inGame.length && ready > inGame.length / 2) await advance(ctx, game);
 }
@@ -139,7 +303,7 @@ async function maybeAdvanceOnReady(ctx: MutationCtx, game: Doc<"games">) {
 /** Accusations: once everyone in the game has accused, the reveal starts. */
 async function maybeRevealOnAccusations(ctx: MutationCtx, game: Doc<"games">) {
   if (!isPlaying(game) || (game.round ?? 0) < 4 || game.paused) return;
-  const inGame = playingOf(game, await playersOf(ctx, game._id));
+  const inGame = freeOf(game, await playersOf(ctx, game._id));
   const acc = await ctx.db
     .query("accusations")
     .withIndex("by_game", (q) => q.eq("gameId", game._id))
@@ -160,14 +324,28 @@ async function scoreGame(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile) {
     const score = Number(a.suspectId === sol.killerId) + Number(a.exhibitId === sol.exhibitId) + Number(a.roomKey === sol.roomKey);
     return { playerId: a.playerId, score, ace: score === 3, gotKiller: a.suspectId === sol.killerId, at: a.at };
   });
-  // The MC isn't a detective: if someone took over mid-game, their guess doesn't count.
-  const innocentScores = scores.filter((s) => s.playerId !== sol.killerId && s.playerId !== game.mcPlayerId);
-  const named = innocentScores.filter((s) => s.gotKiller).length;
-  // The killer wins if most guests accuse someone else. Exactly half is a win for the detectives.
-  const killerWins = innocentScores.length > 0 && innocentScores.length - named > innocentScores.length / 2;
-  const best = [...innocentScores].sort((a, b) => b.score - a.score || a.at - b.at)[0];
+  // v2: every lock-in counts, the killer's too (their last sabotage). The MC isn't a detective.
+  const locked = scores.filter((s) => s.playerId !== game.mcPlayerId);
+  const n = locked.length;
+  const named = locked.filter((s) => s.gotKiller).length;
+  const byId = new Map(accs.map((a) => [a.playerId as string, a]));
+  const rightWeapon = locked.filter((s) => byId.get(s.playerId)?.exhibitId === sol.exhibitId).length;
+  const rightRoom = locked.filter((s) => byId.get(s.playerId)?.roomKey === sol.roomKey).length;
+  // The group wins only if more than half of the lock-ins have the killer, more than half the weapon, and more than
+  // half the room (Heston: "No ties"). Otherwise the killer wins.
+  const groupWins = n > 0 && named > n / 2 && rightWeapon > n / 2 && rightRoom > n / 2;
+  const detectives = locked.filter((s) => s.playerId !== sol.killerId);
+  const best = [...detectives].sort((a, b) => b.score - a.score || a.at - b.at)[0];
   const name = (id: string) => players.find((p) => p._id === id)?.charName ?? "";
-  return { scores, killerWins, named, accusers: innocentScores.length, bestDetective: best && best.score > 0 ? { playerId: best.playerId, name: name(best.playerId), score: best.score } : null };
+  return {
+    scores,
+    killerWins: !groupWins,
+    named,
+    rightWeapon,
+    rightRoom,
+    accusers: n,
+    bestDetective: best && best.score > 0 ? { playerId: best.playerId, name: name(best.playerId), score: best.score } : null,
+  };
 }
 
 // ---------- party night: guests ----------
@@ -191,7 +369,7 @@ export const setReady = mutation({
   args: { token: v.string(), ready: v.boolean() },
   handler: async (ctx, { token, ready }) => {
     const { player, game } = await requirePlayer(ctx, token);
-    if (!isPlaying(game) || !player.inGame || player._id === game.mcPlayerId || !game.round || game.round > 3) return { ok: false };
+    if (!isPlaying(game) || !player.inGame || player.jailed || player._id === game.mcPlayerId || !game.round || game.round > 3) return { ok: false };
     await ctx.db.patch(player._id, { readyRound: ready ? game.round : 0 });
     await maybeAdvanceOnReady(ctx, (await ctx.db.get(game._id))!);
     return { ok: true };
@@ -209,6 +387,7 @@ export const scanMarker = mutation({
     if (!marker.roomKey) throw new ConvexError(`Marker ${marker.number} isn't in play tonight. Keep looking.`);
     if (game.status === "registration" || game.status === "lobby") throw new ConvexError("Nothing here yet. Markers come alive when the game starts.");
     if (!player.inGame) throw new ConvexError("Only guests who were checked in before the draw can read markers.");
+    if (player.jailed) throw new ConvexError("You're in jail. You can talk and bribe, but you can't search.");
     const opens = markerOpensIn(game, marker.roomKey);
     if (isPlaying(game) && (game.round ?? 1) < opens) {
       const room = game.rooms.find((r) => r.key === marker.roomKey)?.label ?? "This room";
@@ -238,23 +417,26 @@ export const saveNotebook = mutation({
 });
 
 export const accuse = mutation({
-  args: { token: v.string(), suspectId: v.string(), exhibitId: v.string(), roomKey: v.string() },
-  handler: async (ctx, { token, suspectId, exhibitId, roomKey }) => {
+  args: { token: v.string(), suspectId: v.string(), exhibitId: v.string(), roomKey: v.string(), accompliceId: v.optional(v.string()) },
+  handler: async (ctx, { token, suspectId, exhibitId, roomKey, accompliceId }) => {
     const { player, game } = await requirePlayer(ctx, token);
-    if (!isPlaying(game) || (game.round ?? 0) < 4) throw new ConvexError("Accusations open after the last evidence drop.");
-    if (!player.inGame) throw new ConvexError("Only guests in the game can accuse.");
+    if (!isPlaying(game) || (game.round ?? 0) < 4) throw new ConvexError("The lock-in opens after the last round.");
+    if (!player.inGame) throw new ConvexError("Only guests in the game can lock in.");
+    if (player.jailed) throw new ConvexError("You're in jail, so you can't lock in.");
     if (player._id === game.mcPlayerId) throw new ConvexError("You're the MC tonight, so you don't accuse.");
     if (suspectId === player._id) throw new ConvexError("You can't accuse yourself. Nice try.");
     const input = await caseInput(ctx, game);
     if (!input.suspects.some((s) => s.id === suspectId)) throw new ConvexError("Pick a suspect from the list.");
-    if (!input.exhibits.some((e) => e.id === exhibitId)) throw new ConvexError("Pick an exhibit from the list.");
+    if (!input.exhibits.some((e) => e.id === exhibitId)) throw new ConvexError("Pick a weapon from the list.");
     if (!input.rooms.some((r) => r.key === roomKey)) throw new ConvexError("Pick a room from the list.");
+    if (accompliceId && !input.suspects.some((s) => s.id === accompliceId)) throw new ConvexError("Pick an accomplice from the list, or leave it blank.");
     const existing = await ctx.db
       .query("accusations")
       .withIndex("by_player", (q) => q.eq("playerId", player._id))
       .unique();
-    if (existing) await ctx.db.patch(existing._id, { suspectId, exhibitId, roomKey, at: Date.now() });
-    else await ctx.db.insert("accusations", { gameId: game._id, playerId: player._id, suspectId, exhibitId, roomKey, at: Date.now() });
+    // v2: a lock-in is final.
+    if (existing) throw new ConvexError("You've already locked in.");
+    await ctx.db.insert("accusations", { gameId: game._id, playerId: player._id, suspectId, exhibitId, roomKey, accompliceId: accompliceId || undefined, at: Date.now() });
     await maybeRevealOnAccusations(ctx, game);
     return { ok: true };
   },
@@ -306,8 +488,10 @@ export const phone = query({
       .withIndex("by_game", (q) => q.eq("gameId", game._id))
       .collect();
     const inGame = playingOf(game, all);
+    const free = freeOf(game, all);
     const round = game.round ?? 0;
     const roomLabel = (key?: string) => game.rooms.find((r) => r.key === key)?.label ?? "";
+    const keyOf = await weaponKeys(ctx, game);
     const accs = started
       ? await ctx.db
           .query("accusations")
@@ -359,6 +543,7 @@ export const phone = query({
         figure: player.figure ?? null,
         checkedIn: player.checkedIn,
         inGame: !!player.inGame,
+        jailed: !!player.jailed,
         weaponIn: !!player.weaponIn,
         exhibitLetter: player.exhibitLetter ?? null,
         isMC: game.mcPlayerId === player._id,
@@ -373,10 +558,14 @@ export const phone = query({
       counts: {
         checkedIn: all.filter((p) => p.checkedIn).length,
         registered: all.length,
-        inGame: inGame.length,
-        ready: game.round ? inGame.filter((p) => p.readyRound === game.round).length : 0,
+        // v2: the free guests (not in jail) are the ones who search, vote and lock in.
+        inGame: free.length,
+        jailed: inGame.length - free.length,
+        ready: game.round ? free.filter((p) => p.readyRound === game.round).length : 0,
         accused: accs.filter((a) => a.playerId !== game.mcPlayerId).length,
       },
+      vote: started ? await publicVote(ctx, game, all) : null,
+      myBallot: started ? await myBallot(ctx, game, player._id) : null,
       briefing:
         brief && cf
           ? { role: brief.role, motive: brief.motive, secret: brief.secret, lines: brief.lines, tip: tip?.text ?? null, tipLabel: S.tipLabel }
@@ -403,18 +592,18 @@ export const phone = query({
             suspects: await Promise.all(
               input.suspects.map(async (s) => ({ id: s.id, name: s.name, signature: s.signature, photoUrl: await photo(all.find((p) => p._id === s.id)!), figure: all.find((p) => p._id === s.id)?.figure ?? null })),
             ),
-            exhibits: input.exhibits.map((e) => ({ id: e.id, letter: e.letter, name: e.name })),
+            exhibits: input.exhibits.map((e) => ({ id: e.id, letter: e.letter, name: e.name, key: keyOf.get(e.id) ?? null })),
             rooms: input.rooms,
           }
         : null,
-      myAccusation: myAcc ? { suspectId: myAcc.suspectId, exhibitId: myAcc.exhibitId, roomKey: myAcc.roomKey } : null,
+      myAccusation: myAcc ? { suspectId: myAcc.suspectId, exhibitId: myAcc.exhibitId, roomKey: myAcc.roomKey, accompliceId: myAcc.accompliceId ?? null } : null,
       results:
         scored && cf
           ? {
               killer: all.find((p) => p._id === cf.solution.killerId)?.charName ?? "",
               exhibit: (() => {
                 const e = input?.exhibits.find((x) => x.id === cf.solution.exhibitId);
-                return e ? { letter: e.letter, name: e.name } : null;
+                return e ? { letter: e.letter, name: e.name, key: keyOf.get(e.id) ?? null } : null;
               })(),
               room: game.rooms.find((r) => r.key === cf.solution.roomKey)?.label ?? "",
               killerWins: scored.killerWins,
@@ -1005,6 +1194,7 @@ export const tv = query({
       : [];
     const accused = new Set(accs.map((a) => a.playerId));
     const shown = started ? playingOf(game, all) : all.filter((p) => p._id !== game.mcPlayerId);
+    const free = shown.filter((p) => !p.jailed);
     const cf = started ? await caseFor(ctx, game) : null;
     const input = started ? await caseInput(ctx, game) : null;
     const revealed = game.status === "reveal" || game.status === "done";
@@ -1028,14 +1218,17 @@ export const tv = query({
         };
         awards = { bestDressed: tally("dressed"), bestLiar: tally("liar"), bestDetective: scored.bestDetective ? { name: scored.bestDetective.name, score: scored.bestDetective.score } : null };
       }
+      const keyOf = await weaponKeys(ctx, game);
       results = {
         killer: killer?.charName ?? "",
         killerPhoto: killer ? await photo(killer) : null,
         killerFigure: killer?.figure ?? null,
-        exhibit: exhibit ? { letter: exhibit.letter, name: exhibit.name } : null,
+        exhibit: exhibit ? { letter: exhibit.letter, name: exhibit.name, key: keyOf.get(exhibit.id) ?? null } : null,
         room: label(cf.solution.roomKey),
         killerWins: scored.killerWins,
         named: scored.named,
+        rightWeapon: scored.rightWeapon,
+        rightRoom: scored.rightRoom,
         accusers: scored.accusers,
         aces: scored.scores.filter((s) => s.ace && s.playerId !== game.mcPlayerId).map((s) => name(s.playerId)),
         awards,
@@ -1092,15 +1285,19 @@ export const tv = query({
             here: p.checkedIn,
             ready: !!round && p.readyRound === round,
             accused: accused.has(p._id),
+            jailed: !!p.jailed,
           })),
       ),
       counts: {
         registered: all.filter((p) => p._id !== game.mcPlayerId).length,
         here: all.filter((p) => p.checkedIn && p._id !== game.mcPlayerId).length,
-        playing: shown.length,
-        ready: started ? shown.filter((p) => p.readyRound === round).length : 0,
-        accused: shown.filter((p) => accused.has(p._id)).length,
+        // v2: the free guests search, vote and lock in; jailed ones sit it out.
+        playing: free.length,
+        jailed: shown.length - free.length,
+        ready: started ? free.filter((p) => p.readyRound === round).length : 0,
+        accused: free.filter((p) => accused.has(p._id)).length,
       },
+      vote: started ? await publicVote(ctx, game, all) : null,
       exhibits: input ? input.exhibits.map((e) => e.letter) : [],
       // v2: the weapons in play are public, like Clue. Picked at sign-up, one per guest.
       weapons: started ? await weaponsInPlay(ctx, game, shown) : [],

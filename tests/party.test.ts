@@ -2,6 +2,8 @@ import { convexTest } from "convex-test";
 import { beforeAll, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
+import { nextRound } from "./steps";
+import { VOTE } from "../convex/shared";
 
 const modules = import.meta.glob("../convex/**/*.ts");
 const FUTURE = Date.now() + 7 * 864e5;
@@ -54,12 +56,16 @@ describe("party night", () => {
     }
   });
 
-  test("ready votes: the next round starts once most guests are ready", async () => {
-    const { t, tokens } = await started({ guests: 6 });
+  test("ready votes: once most guests are ready, the round ends in the jail vote, then the next round starts", async () => {
+    const { t, hostKey, tokens } = await started({ guests: 6 });
     expect((await game(t)).round).toBe(1);
     for (const token of tokens.slice(0, 3)) await t.mutation(api.game.setReady, { token, ready: true });
-    expect((await game(t)).round).toBe(1); // 3 of 6 is not most
+    expect((await game(t)).vote).toBeUndefined(); // 3 of 6 is not most
     await t.mutation(api.game.setReady, { token: tokens[3], ready: true });
+    const g = await game(t);
+    expect(g.round).toBe(1);
+    expect(g.vote).toMatchObject({ kind: "jail", round: 1 });
+    await nextRound(t, SLUG, hostKey);
     expect((await game(t)).round).toBe(2);
     const phone = await t.query(api.game.phone, { token: tokens[0] });
     expect(phone!.evidence.length).toBeGreaterThan(0);
@@ -67,7 +73,7 @@ describe("party night", () => {
     expect(phone!.me.ready).toBe(false); // a new round starts fresh
   });
 
-  test("timer pacing: rounds end on their own, pausing keeps the time left", async () => {
+  test("timer pacing: rounds end on their own (then the vote runs its clock), pausing keeps the time left", async () => {
     vi.useFakeTimers();
     try {
       const { t, hostKey } = await started({ guests: 5, pacing: "timer" });
@@ -76,6 +82,13 @@ describe("party night", () => {
       await t.finishInProgressScheduledFunctions();
       expect((await game(t)).round).toBe(1);
       vi.advanceTimersByTime(2000);
+      await t.finishInProgressScheduledFunctions();
+      expect((await game(t)).vote?.kind).toBe("jail");
+      // nobody votes: it closes on its clock, the verdict shows, then Round 2
+      vi.advanceTimersByTime(VOTE.ms + 100);
+      await t.finishInProgressScheduledFunctions();
+      expect((await game(t)).vote?.outcome).toBe("nobody");
+      vi.advanceTimersByTime(VOTE.nextMs + 100);
       await t.finishInProgressScheduledFunctions();
       expect((await game(t)).round).toBe(2);
       await t.mutation(api.game.setPaused, { slug: SLUG, hostKey, paused: true });
@@ -119,8 +132,8 @@ describe("party night", () => {
     const board = (await t.query(api.game.phone, { token: tokens[0] }))!.board!;
     await expect(
       t.mutation(api.game.accuse, { token: tokens[0], suspectId: board.suspects[1].id, exhibitId: board.exhibits[0].id, roomKey: board.rooms[0].key }),
-    ).rejects.toThrow(/after the last evidence/);
-    for (let i = 0; i < 3; i++) await t.mutation(api.game.advanceRound, { slug: SLUG, hostKey });
+    ).rejects.toThrow(/after the last round/);
+    for (let i = 0; i < 3; i++) await nextRound(t, SLUG, hostKey);
     expect((await game(t)).round).toBe(4);
     await expect(
       t.mutation(api.game.accuse, { token: tokens[0], suspectId: players[0]._id, exhibitId: board.exhibits[0].id, roomKey: board.rooms[0].key }),
@@ -136,39 +149,50 @@ describe("party night", () => {
     expect(phone!.results!.mine).not.toBeNull();
   });
 
-  test("scoring: a point each for person, exhibit and room; the killer wins only if most guess wrong", async () => {
-    const { t, hostKey, tokens, killerToken } = await started({ guests: 5 });
-    for (let i = 0; i < 3; i++) await t.mutation(api.game.advanceRound, { slug: SLUG, hostKey });
-    // peek at the answer the way the reveal will, through the sealed file (test only)
-    const killer = (await t.query(api.game.phone, { token: killerToken }))!;
-    const board = killer.board!;
-    const line = killer.briefing!.lines[0];
-    const letter = /Exhibit ([A-Z])/.exec(line)![1];
-    const exhibit = board.exhibits.find((e) => e.letter === letter)!;
-    const room = board.rooms.find((r) => line.includes(r.label.replace(/^The /, "the ")))!;
-    const killerId = killer.me.id;
-    const innocents = tokens.filter((tk) => tk !== killerToken);
-    // two of four innocents name the killer (exactly half): detectives win
-    for (const [i, token] of innocents.entries()) {
-      const wrong = board.suspects.find((s) => s.id !== killerId && s.id !== (killer.lobby.find(() => false)?.id))!;
-      const me = (await t.query(api.game.phone, { token }))!.me.id;
-      const suspectId = i < 2 ? killerId : board.suspects.find((s) => s.id !== killerId && s.id !== me)!.id;
-      await t.mutation(api.game.accuse, { token, suspectId, exhibitId: exhibit.id, roomKey: i === 0 ? room.key : board.rooms.find((r) => r.key !== room.key)!.key });
-      void wrong;
-    }
-    const other = board.suspects.find((s) => s.id !== killerId)!;
-    await t.mutation(api.game.accuse, { token: killerToken, suspectId: other.id, exhibitId: exhibit.id, roomKey: room.key });
-    const res = (await t.query(api.game.results, { slug: SLUG }))!;
-    expect(res.killerWins).toBe(false);
-    expect(res.named).toBe(2);
-    expect(res.aces).toHaveLength(1);
-    const first = (await t.query(api.game.phone, { token: innocents[0] }))!.results!.mine!;
-    expect(first.score).toBe(3);
+  test("scoring (v2): the group wins only with more than half right on the killer, the weapon and the room", async () => {
+    const run = async (guests: number, plan: (i: number) => { person: boolean; weapon: boolean; room: boolean }) => {
+      const { t, hostKey, tokens, killerToken } = await started({ guests });
+      for (let i = 0; i < 3; i++) await nextRound(t, SLUG, hostKey);
+      // peek at the answer the way the reveal will, through the sealed file (test only)
+      const killer = (await t.query(api.game.phone, { token: killerToken }))!;
+      const board = killer.board!;
+      const line = killer.briefing!.lines[0];
+      const exhibit = board.exhibits.find((e) => e.letter === /Exhibit ([A-Z])/.exec(line)![1])!;
+      const room = board.rooms.find((r) => line.includes(r.label.replace(/^The /, "the ")))!;
+      const killerId = killer.me.id;
+      // Everyone locks in, the killer last (their pick counts too).
+      const order = [...tokens.filter((tk) => tk !== killerToken), killerToken];
+      for (const [i, token] of order.entries()) {
+        const me = (await t.query(api.game.phone, { token }))!.me.id;
+        const p = plan(i);
+        const wrongSuspect = board.suspects.find((s) => s.id !== killerId && s.id !== me)!.id;
+        await t.mutation(api.game.accuse, {
+          token,
+          suspectId: p.person && me !== killerId ? killerId : wrongSuspect,
+          exhibitId: p.weapon ? exhibit.id : board.exhibits.find((e) => e.id !== exhibit.id)!.id,
+          roomKey: p.room ? room.key : board.rooms.find((r) => r.key !== room.key)!.key,
+        });
+      }
+      await expect(t.mutation(api.game.accuse, { token: order[0], suspectId: killerId, exhibitId: exhibit.id, roomKey: room.key })).rejects.toThrow();
+      return { res: (await t.query(api.game.results, { slug: SLUG }))!, t, first: order[0] };
+    };
+    // 5 lock-ins: 3 get everything (more than half on each), so the group wins.
+    let r = await run(5, (i) => ({ person: i < 3, weapon: i < 3, room: i < 3 }));
+    expect(r.res.killerWins).toBe(false);
+    expect(r.res.named).toBe(3);
+    expect(r.res.aces).toHaveLength(3);
+    expect((await r.t.query(api.game.phone, { token: r.first }))!.results!.mine!.score).toBe(3);
+    // 4 lock-ins: exactly half on the killer is not enough, even with the weapon and room right.
+    r = await run(4, (i) => ({ person: i < 2, weapon: true, room: true }));
+    expect(r.res.killerWins).toBe(true);
+    // Most name the killer and the room, but not the weapon: the killer still wins.
+    r = await run(5, (i) => ({ person: i < 4, weapon: i < 2, room: true }));
+    expect(r.res.killerWins).toBe(true);
   });
 
   test("votes and awards: no self-votes, awards appear when the host finishes", async () => {
     const { t, hostKey, tokens, players } = await started({ guests: 4 });
-    for (let i = 0; i < 4; i++) await t.mutation(api.game.advanceRound, { slug: SLUG, hostKey });
+    for (let i = 0; i < 4; i++) await nextRound(t, SLUG, hostKey);
     expect((await game(t)).status).toBe("reveal");
     await expect(t.mutation(api.game.vote, { token: tokens[0], dressed: players[0]._id })).rejects.toThrow(/yourself/);
     for (const token of tokens.slice(1)) await t.mutation(api.game.vote, { token, dressed: players[0]._id, liar: players[0]._id });

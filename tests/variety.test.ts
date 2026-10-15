@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { ADULT_MORE, CUES, captionText, cueFile, cueFiles, cueVariant, cueVersions, customText, recordingText, type CueKey } from "../convex/narration";
+import { ADULT_MORE, CUES, NOISY, captionText, cleanVersions, cueFile, cueFiles, cueVariant, cueVersions, customText, isNoisy, recordingText, sprinkle, type CueKey } from "../convex/narration";
 import { HECKLES, heckleLines } from "../convex/heckles";
 import { howCues } from "../convex/show";
 import { REVEAL } from "../convex/shared";
@@ -12,8 +12,8 @@ const USED = (Object.keys(CUES) as CueKey[]).filter((c) => !RETIRED.includes(c))
 describe("adult script: several versions of every line, picked per game", () => {
   test("every line the night uses has at least three adult versions; classic keeps one", () => {
     for (const cue of USED) {
-      expect(cueVersions(cue, "adult").length, cue).toBeGreaterThanOrEqual(3);
-      expect(cueVersions(cue, "classic")).toHaveLength(1);
+      expect(cleanVersions(cue, "adult").length, cue).toBeGreaterThanOrEqual(3);
+      expect(cleanVersions(cue, "classic")).toHaveLength(1);
     }
     for (const lines of Object.values(ADULT_MORE)) for (const l of lines!) expect(l).not.toMatch(/marri/i);
   });
@@ -38,8 +38,8 @@ describe("adult script: several versions of every line, picked per game", () => 
     expect(cueFile("howJail", 0)).toBe("howJail");
     expect(cueFile("howJail", 2)).toBe("howJail.2");
     const adult = cueFiles("adult");
-    expect(adult.filter((f) => f.cue === "howJail").map((f) => f.file)).toEqual(["howJail", "howJail.1", "howJail.2"]);
-    expect(cueFiles("classic").length).toBe(Object.keys(CUES).length);
+    expect(adult.filter((f) => f.cue === "howJail").map((f) => f.file)).toEqual(["howJail", "howJail.1", "howJail.2", "howJail.3"]); // .3 is the noisy take
+    expect(cueFiles("classic").length).toBe(Object.keys(CUES).length + Object.keys(NOISY.classic).length);
     expect(captionText("intro3", "adult", "ivy", 2)).toBe("And one of you did it. Don't look so innocent. It doesn't suit you.");
     expect(recordingText("intro3", "adult", "ivy", false, 2)).toContain("[whispers]");
     expect(captionText("howLockIn", "adult", "ivy")).not.toMatch(/marri/i);
@@ -50,6 +50,47 @@ describe("adult script: several versions of every line, picked per game", () => 
     expect(k("g1", "Velma").replace("Velma", "X")).toBe(k("g1", "Lou").replace("Lou", "X"));
     expect(new Set(["g1", "g2", "g3", "g4", "g5", "g6"].map((s) => k(s, "X"))).size).toBeGreaterThan(1);
     expect(customText("killer", "classic", { name: "Velma", seed: "g1" })).toBe("Velma.");
+  });
+});
+
+describe("noises: an extra bank, played now and then", () => {
+  const NOISE = /\[(hiccups|burps|burps loudly|farts|sneezes|snorts|coughs|clears throat)[^\]]*\]|\b([A-Za-z])- \2-/i;
+
+  test("the clean lines have no noises; the noisy takes are a separate bank, each with one", () => {
+    for (const tone of ["classic", "adult"] as const) {
+      for (const cue of Object.keys(CUES) as CueKey[]) for (const t of cleanVersions(cue, tone)) expect(NOISE.test(t), `${tone} ${cue}: ${t}`).toBe(false);
+      for (const [cue, t] of Object.entries(NOISY[tone])) {
+        expect(NOISE.test(t!), `${tone} ${cue}`).toBe(true);
+        expect(isNoisy(cue as CueKey, tone, cueVersions(cue as CueKey, tone).length - 1)).toBe(true);
+      }
+    }
+    expect(Object.values(NOISY.classic).some((t) => /farts/.test(t!))).toBe(false);
+  });
+
+  test("about one line in ten heard is a noisy take", () => {
+    for (const tone of ["classic", "adult"] as const) {
+      let heard = 0;
+      let noisy = 0;
+      for (let g = 0; g < 400; g++) {
+        for (const cue of USED) {
+          heard++;
+          if (isNoisy(cue, tone, cueVariant(tone, cue, `game-${g}`))) noisy++;
+        }
+      }
+      expect(noisy / heard, tone).toBeGreaterThan(0.07);
+      expect(noisy / heard, tone).toBeLessThan(0.13);
+    }
+  });
+
+  test("per-game lines (roll call, heckles, names) get a noise about one time in ten; captions stay clean", () => {
+    const line = "Introducing Velma, played by Ana. Weapon: the rope. Ana has a heart of gold.";
+    const out = Array.from({ length: 1000 }, (_, i) => sprinkle(line, "adult", `game|roll:${i}`));
+    const changed = out.filter((t) => t !== line);
+    expect(changed.length / out.length).toBeGreaterThan(0.06);
+    expect(changed.length / out.length).toBeLessThan(0.14);
+    expect(changed.every((t) => NOISE.test(t))).toBe(true);
+    expect(out.filter((t) => /farts/.test(t)).length).toBeGreaterThan(0);
+    expect(Array.from({ length: 1000 }, (_, i) => sprinkle(line, "classic", `g|${i}`)).some((t) => /farts/.test(t))).toBe(false);
   });
 });
 

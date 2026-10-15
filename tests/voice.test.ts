@@ -2,6 +2,7 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
+import { nextRound } from "./steps";
 import type { Id } from "../convex/_generated/dataModel";
 
 const modules = import.meta.glob("../convex/**/*.ts");
@@ -157,12 +158,12 @@ describe("names for the intro, waves and reveal", () => {
     expect(tv.voice.body?.caption).toMatch(/found in/);
     expect(tv.voice.reveal).toBeNull();
     expect(tv.voice.winners).toBeNull();
-    for (let i = 0; i < 4; i++) await t.mutation(api.game.advanceRound, { slug: SLUG, hostKey });
+    for (let i = 0; i < 4; i++) await nextRound(t, SLUG, hostKey);
     tv = await t.query(api.game.tv, { slug: SLUG, tvKey });
     expect(tv.game.status).toBe("reveal");
     expect(tv.voice.reveal?.killer?.caption).toContain(tv.results!.killer.split(" ")[0]);
     expect(tv.voice.reveal?.room?.caption).toContain(tv.results!.room.replace(/^The /, ""));
-    expect(tv.voice.reveal?.exhibit?.caption).toContain(`Exhibit ${tv.results!.exhibit!.letter}`);
+    expect(tv.voice.reveal?.exhibit?.caption).toBe(`With the ${tv.results!.exhibit!.name.toLowerCase()},`); // v2: weapon names, no letters
     expect(tv.voice.winners).toBeNull();
     await t.mutation(api.game.finish, { slug: SLUG, hostKey });
     tv = await t.query(api.game.tv, { slug: SLUG, tvKey });
@@ -186,7 +187,7 @@ describe("narrator and levels", () => {
     let tv = await t.query(api.game.tv, { slug: SLUG, tvKey });
     expect(tv.game.doorsAt).not.toBeNull();
     await t.mutation(api.game.startGame, { slug: SLUG, hostKey });
-    await t.mutation(api.game.advanceRound, { slug: SLUG, hostKey });
+    await nextRound(t, SLUG, hostKey);
     await t.mutation(api.game.setPaused, { slug: SLUG, hostKey, paused: true });
     await t.mutation(api.game.setPaused, { slug: SLUG, hostKey, paused: false });
     tv = await t.query(api.game.tv, { slug: SLUG, tvKey });

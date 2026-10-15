@@ -2,6 +2,7 @@ import { convexTest } from "convex-test";
 import { beforeAll, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
+import { nextRound } from "./steps";
 import type { Id } from "../convex/_generated/dataModel";
 
 const modules = import.meta.glob("../convex/**/*.ts");
@@ -85,8 +86,8 @@ describe("Phase 4: drawn body room, waves, Self MC, Wi-Fi, the TV", () => {
     expect((await t.query(api.game.phone, { token: tokens[0] }))!.scans.map((s) => s.number)).toEqual([first.number]);
     const phone1 = await t.query(api.game.phone, { token: tokens[0] });
     expect(phone1!.game.openRooms).toHaveLength(2); // 2 of 5 open in Round 1
-    await t.mutation(api.game.advanceRound, { slug: SLUG, hostKey });
-    await t.mutation(api.game.advanceRound, { slug: SLUG, hostKey });
+    await nextRound(t, SLUG, hostKey);
+    await nextRound(t, SLUG, hostKey);
     expect((await game(t)).round).toBe(3);
     expect((await t.mutation(api.game.scanMarker, { token: tokens[0], code: late.code })).number).toBe(late.number);
     expect((await t.query(api.game.phone, { token: tokens[0] }))!.game.openRooms).toHaveLength(5);
@@ -113,7 +114,7 @@ describe("Phase 4: drawn body room, waves, Self MC, Wi-Fi, the TV", () => {
     expect(killer.briefing!.lines[0]).toContain(`Exhibit ${sheet!.exhibit.letter}`);
     expect(sheet!.clues.some((c) => c.twist)).toBe(true);
     expect(sheet!.bodyRoom).toBe(other!.game.bodyRoom);
-    for (let i = 0; i < 3; i++) await t.mutation(api.game.advanceRound, { slug: SLUG, hostKey });
+    for (let i = 0; i < 3; i++) await nextRound(t, SLUG, hostKey);
     const board = other!.board!;
     await expect(
       t.mutation(api.game.accuse, { token: tokens[0], suspectId: board.suspects[0].id, exhibitId: board.exhibits[0].id, roomKey: board.rooms[0].key }),
@@ -141,13 +142,14 @@ describe("Phase 4: drawn body room, waves, Self MC, Wi-Fi, the TV", () => {
     for (const token of tokens.slice(1, 4)) await t.mutation(api.game.setReady, { token, ready: true });
     expect((await game(t)).round).toBe(1);
     await t.mutation(api.game.switchToSelfMC, { slug: SLUG, hostKey, confirm: "SWITCH", mcPlayerId: players[0]._id });
-    expect((await game(t)).round).toBe(2);
+    expect((await game(t)).vote?.kind).toBe("jail"); // v2: most guests ready ends the round in the jail vote
     expect((await game(t)).mode).toBe("mc");
     expect(await t.query(api.host.mcSheet, { slug: SLUG, hostKey })).not.toBeNull();
     expect((await t.mutation(api.game.setReady, { token: tokens[0], ready: true })).ok).toBe(false);
     // accusations: once the other five are in, the reveal starts without the MC
-    await t.mutation(api.game.advanceRound, { slug: SLUG, hostKey });
-    await t.mutation(api.game.advanceRound, { slug: SLUG, hostKey });
+    await nextRound(t, SLUG, hostKey);
+    await nextRound(t, SLUG, hostKey);
+    await nextRound(t, SLUG, hostKey);
     const board = (await t.query(api.game.phone, { token: tokens[1] }))!.board!;
     for (const [i, token] of tokens.entries()) {
       if (i === 0) continue;
@@ -193,12 +195,12 @@ describe("Phase 4: drawn body room, waves, Self MC, Wi-Fi, the TV", () => {
       }
       for (const text of markerTexts) if (text.length > 30) expect(tv).not.toContain(text);
       expect(JSON.parse(tv).results).toBeNull();
-      if (r < 4) await t.mutation(api.game.advanceRound, { slug: SLUG, hostKey });
+      if (r < 4) await nextRound(t, SLUG, hostKey);
     }
     // Round 4 (accusations): everything the TV dropped is there, and still no answer
     const tv4 = await t.query(api.game.tv, { slug: SLUG, tvKey: await tvKey(t) });
     expect(tv4.evidence.some((e) => e.twist)).toBe(true);
-    await t.mutation(api.game.advanceRound, { slug: SLUG, hostKey });
+    await nextRound(t, SLUG, hostKey);
     const rv = await t.query(api.game.tv, { slug: SLUG, tvKey: await tvKey(t) });
     expect(rv.results!.killer).toBeTruthy();
     expect((await game(t)).revealAt).toBeGreaterThan(0);
@@ -226,7 +228,7 @@ describe("Phase 4: drawn body room, waves, Self MC, Wi-Fi, the TV", () => {
     expect((await t.query(api.game.tv, { slug: SLUG, tvKey: await tvKey(t) })).game.tvShowAll).toBe(true);
     await t.mutation(api.game.soundCheck, { slug: SLUG, hostKey });
     expect((await t.query(api.game.tv, { slug: SLUG, tvKey: await tvKey(t) })).game.soundCheckAt).toBeGreaterThan(0);
-    for (let i = 0; i < 4; i++) await t.mutation(api.game.advanceRound, { slug: SLUG, hostKey });
+    for (let i = 0; i < 4; i++) await nextRound(t, SLUG, hostKey);
     expect((await game(t)).tvShowAll).toBe(false); // the reveal takes the screen
     await expect(t.mutation(api.game.endNight, { slug: SLUG, hostKey })).rejects.toThrow(/awards first/);
     const players = await t.run((ctx) => ctx.db.query("players").collect());

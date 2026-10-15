@@ -15,6 +15,12 @@ export const REVEAL_VERDICT_MS = REVEAL.verdict;
 export const CARD_MS = 4_000;
 export const LIGHTS_OUT_MS = 3_000;
 
+/**
+ * The jail and release votes (v2): how long the phones stay open, and, after it closes, when the TV shows who
+ * voted for whom, the verdict, and when the night moves on.
+ */
+export const VOTE = { ms: 90_000, lastCallMs: 15_000, tallyMs: 0, verdictAtMs: 6_000, nextMs: 14_000 } as const;
+
 /** Accusations get a shorter clock than the evidence rounds. */
 export const ACCUSE_MAX_MINUTES = 5;
 

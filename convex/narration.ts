@@ -354,6 +354,7 @@ export const CUE_KEYS = Object.keys(CUES) as CueKey[];
  * A game picks one version per line (cueVariant). Written with Heston's comedy notes: deadpan and specific; swearing
  * rationed and inventive (a crude word plus an absurdly specific image), saved for moments under pressure; innuendo
  * implied under an innocent surface, ideally by a narrator who doesn't seem to notice. No marriage jokes.
+ * The noisy takes are a separate bank (NOISY below), played only now and then.
  */
 export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
   doors: [
@@ -541,11 +542,76 @@ const hashOf = (s: string) => {
   return h >>> 0;
 };
 
-/** Every version of a line in this script: one in Classic; in Adult, the CUES line and then ADULT_MORE's. */
-export function cueVersions(cue: CueKey, tone: Tone): string[] {
+/**
+ * The noisy bank (Heston, Oct 15): "random sounds they make before or after or mid sentence like a fart or burp or
+ * hiccup, or stutter … very very sparingly", "an extra bank of scripts that sometimes get played", never written
+ * into the clean lines. One noisy take for about half the lines, in each script; a game plays a line's noisy take
+ * NOISY_PCT of the time, so about one line in ten heard has a noise. ElevenLabs tags like [hiccups] (captions drop
+ * them) or a written stutter ("c- c- caught"). Classic has no farts.
+ */
+export const NOISY: Record<Tone, Partial<Record<CueKey, string>>> = {
+  classic: {
+    doors: "[warm, smoky voice] Welcome to the Velvet Room. I'm {host}, your host tonight. [hiccups] Drinks are on the house. [short pause] Mostly.",
+    howKiller: "[warm, conspiratorial] Here's how tonight works. One of you is the k- k- killer. [short pause] Everyone else has to prove it.",
+    howWeapons: "Every guest brought a weapon, and one of them did the deed. [hiccups] [short pause] That doesn't mean its owner did.",
+    howJail: "After every round, you vote someone into jail. [sneezes] Excuse me. It takes more than half of you, or nobody goes. Jailed guests can talk and bribe, but they can't search, vote or accuse.",
+    howTo7: "Talk to everyone. You may lie about your own secrets. [clears throat] [short pause] Only the killer may lie about the murder.",
+    rollLocked: "[low, grave] The doors are locked until we figure out who did it. [hiccups] [short pause] Now, let's meet the suspects.",
+    rollCallClose: "That's everyone. [short pause] Remember these faces. [hiccups]",
+    intro4: "Check your phone. [coughs] Press and hold your card, and keep it to yourself.",
+    round2: "Fresh evidence has come in. [burps] Pardon me.",
+    oneMinute: "One minute left in this round. [sneezes] Excuse me. One minute.",
+    twist: "[building] And now, the t- t- twist.",
+    reveal1: "[long pause] The killer of Don Carmine Velluto is… [hiccups] is…",
+    verdictDetectives: "The detectives got their killer. [short pause] C- c- confess, you rat.",
+    votePrompt: "Now vote on your phones: Best Dressed and [hiccups] Best Liar.",
+    awards: "And now, the awards. [clears throat]",
+    paused: "Hold everything. [sneezes] Excuse me.",
+    goodnight: "The Velvet Room is closed for the night. [hiccups] Settle your debts in chips.",
+  },
+  adult: {
+    doors: "[warm, smoky voice] Welcome to the Velvet Room. I'm {host}. The gin was made in a bathtub this afternoon, [hiccups] and the bathtub did its best.",
+    doorsReminder: "If you haven't opened your link yet, do it now. [burps] The bouncer has been told you're a fed.",
+    howKiller: "[warm, conspiratorial] Here's how this goes. One of you is a k- k- killer. [short pause] The rest of you have to nail them.",
+    howWeapons: "Everybody brought a weapon, and one of them did the job. [hiccups] [short pause] Doesn't mean its owner did.",
+    howJail: "After every round, you vote someone into jail. [farts] [short pause] That was the chair. More than half of you have to agree, or nobody goes. Jailbirds can talk and bribe. They can't search, vote or accuse.",
+    howTo7: "You may lie about your own secrets. Most of you have been practicing for years. [burps] [short pause] Only the killer gets to lie about the murder.",
+    howWin: "More than half of you need the right killer, more than half the right weapon, and more than half the right room. [sneezes] Excuse me. Exactly half is a tie, and ties go to the killer. [short pause] Then we vote for Best Dressed and Best Liar.",
+    rollLocked: "[low, grave] The doors are locked until we figure out which one of you did it. [hiccups] [short pause] Let's meet the suspects.",
+    rollCallClose: "And that's the lineup. [short pause] Take a good look. The police sketch artist is drunk. [hiccups]",
+    intro3: "[whispers] One of you did it. [short pause] And frankly, we're all a little impressed. [hiccups]",
+    intro4: "Phones out. Press and hold your card. [burps] If it says you did it, try to look less pleased about it.",
+    round1: "Round one. Search the house, find the markers, and question everyone. [clears throat] Everyone.",
+    round2: "Round two. Fresh evidence just came in, still warm. [burps] Pardon me.",
+    oneMinute: "Sixty seconds. [sneezes] Hurry it up, you overdressed herd of snails.",
+    twist: "[building] Hold on to something. [farts] [short pause] Not that.",
+    accuseLastCall: "Thirty seconds left. Lock it in. [hiccups] Lock it in.",
+    reveal1: "[long pause] The person who murdered Don Carmine Velluto, in his own club, in front of his own gin, is… [hiccups] is…",
+    verdictDetectives: "Justice, for once in Chicago. [short pause] The killer is c- c- caught, and is welcome to blame the gin.",
+    votePrompt: "Now vote on your phones: Best Dressed and Best Liar. Vote for yourself if you must. [snorts] Everyone will know.",
+    awards: "And now, the awards. [clears throat] [clears throat again] The trophies are real. The talent is debatable.",
+    awardLiar: "And Best Liar goes to someone who looked every one of you in the eye tonight and l- l- lied. Congratulations to…",
+    goodnight: "The Velvet Room is closed. [burps] Settle your debts in chips. If you're staying the night, the couch has seen worse.",
+    paused: "Freeze. Nobody move. [farts] [short pause] Nobody say a word, either.",
+  },
+};
+/** How often a line with a noisy take plays it (so about one line in ten heard has a noise). */
+export const NOISY_PCT: Record<Tone, number> = { classic: 25, adult: 20 };
+
+/** The clean versions of a line: one in Classic; in Adult, the CUES line and then ADULT_MORE's. */
+export function cleanVersions(cue: CueKey, tone: Tone): string[] {
   const c: Cue = CUES[cue];
   return tone === "adult" ? [c.adult, ...(ADULT_MORE[cue] ?? [])] : [c.classic];
 }
+
+/** Every version of a line in this script: the clean ones, then its noisy take (if it has one) last. */
+export function cueVersions(cue: CueKey, tone: Tone): string[] {
+  const noisy = NOISY[tone][cue];
+  return noisy ? [...cleanVersions(cue, tone), noisy] : cleanVersions(cue, tone);
+}
+
+/** Whether version v of a line is its noisy take. */
+export const isNoisy = (cue: CueKey, tone: Tone, v: number) => !!NOISY[tone][cue] && v === cleanVersions(cue, tone).length;
 
 /**
  * Which version of a line this game uses: picked from the game (its slug) so every replay sounds different, and the
@@ -553,7 +619,9 @@ export function cueVersions(cue: CueKey, tone: Tone): string[] {
  * which time it is, so it changes each time too.
  */
 export function cueVariant(tone: Tone, cue: CueKey, seed = "", occurrence = ""): number {
-  const n = cueVersions(cue, tone).length;
+  const n = cleanVersions(cue, tone).length;
+  // Now and then, the noisy take.
+  if (NOISY[tone][cue] && hashOf(`${seed}|${cue}|${occurrence}|noise`) % 100 < NOISY_PCT[tone]) return n;
   return n <= 1 ? 0 : hashOf(`${seed}|${cue}|${occurrence}`) % n;
 }
 
@@ -622,7 +690,8 @@ export function customText(
     case "killer":
       return adult ? pick([`${v.name}, you rotten bastard.`, `${v.name}. Of course it was.`, `${v.name}. We're not even surprised. We're a little proud.`]) : `${v.name}.`;
     case "exhibit":
-      return `With Exhibit ${v.letter}, the ${(v.weapon ?? "").toLowerCase()},`;
+      // v2: weapons have names, not exhibit letters.
+      return `With the ${(v.weapon ?? "").toLowerCase()},`;
     case "room":
       return `in ${mid(v.room!)}.`;
     case "winner":
@@ -697,6 +766,34 @@ export function rollNarration(tone: Tone, p: RollParts) {
   const roast = add([word, p.roast.trim() ? endStop(p.roast.trim()) : ""].filter(Boolean).join(" "));
   const share = (n: number) => Math.round((n / Math.max(1, text.length)) * 1000) / 1000;
   return { text, marks: { signature: share(sig), weapon: share(weapon), motive: share(motive), roast: share(roast) } };
+}
+
+const NOISES: Record<Tone, string[]> = {
+  classic: ["[hiccups]", "[burps]", "[sneezes]", "[coughs]", "[clears throat]", "[snorts]"],
+  adult: ["[hiccups]", "[burps]", "[sneezes]", "[coughs]", "[clears throat]", "[snorts]", "[farts]", "[burps loudly]"],
+};
+
+/**
+ * A custom line (roll call, heckles, the names) recorded per game: about one in ten gets a noise before, after or
+ * between its sentences, or a stutter on one word (Heston, Oct 15). Picked from the game's seed and the line, so the
+ * clean line is what most games hear. Captions use the clean text.
+ */
+export function sprinkle(text: string, tone: Tone, key: string): string {
+  const h = hashOf(`${key}|sprinkle`);
+  if (h % 10 !== 0) return text;
+  const pick = Math.floor(h / 10);
+  const kinds = NOISES[tone];
+  const where = pick % 4;
+  if (where === 3) {
+    // a stutter on the first longer word
+    const m = /\b([A-Za-z])([a-z]{3,})\b/.exec(text.replace(/\[[^\]]*\]/g, (t) => " ".repeat(t.length)));
+    if (m) return text.slice(0, m.index) + `${m[1]}- ${m[1].toLowerCase()}- ` + text.slice(m.index);
+  }
+  const noise = kinds[Math.floor(pick / 4) % kinds.length];
+  if (where === 0) return `${noise} ${text}`;
+  if (where === 1) return `${text} ${noise}`;
+  const cut = text.search(/[.!?…]\s/);
+  return cut > 0 ? `${text.slice(0, cut + 1)} ${noise}${text.slice(cut + 1)}` : `${text} ${noise}`;
 }
 
 /** The text sent to ElevenLabs for a custom line; Unstable adds a wild direction. */

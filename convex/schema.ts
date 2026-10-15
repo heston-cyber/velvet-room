@@ -85,6 +85,23 @@ export default defineSchema({
     ),
     // Phones show the roles from "check your phones" on (v2). Games without a show had them at Start.
     rolesOut: v.optional(v.boolean()),
+    // v2 votes: after every round, a jail vote (from Round 2, a release vote first if anyone is in jail).
+    // voters: the free guests when it opened (the majority is more than half of them). candidates: who can be
+    // picked. When it closes: the outcome, then the verdict shows until nextAt, and the night moves on.
+    vote: v.optional(
+      v.object({
+        kind: v.union(v.literal("jail"), v.literal("release")),
+        round: v.number(),
+        at: v.number(),
+        endsAt: v.number(),
+        voters: v.array(v.id("players")),
+        candidates: v.array(v.id("players")),
+        closedAt: v.optional(v.number()),
+        outcome: v.optional(v.union(v.literal("jailed"), v.literal("released"), v.literal("nobody"))),
+        targetId: v.optional(v.id("players")),
+        nextAt: v.optional(v.number()),
+      }),
+    ),
     // The narrator: Ivy or Duke, steady or Unstable. Volume levels 0 to 100 (0 is off).
     narrator: v.optional(v.object({ host: v.union(v.literal("ivy"), v.literal("duke")), unstable: v.boolean() })),
     levels: v.optional(v.object({ voice: v.number(), music: v.number(), sfx: v.number() })),
@@ -120,6 +137,9 @@ export default defineSchema({
     rumor: v.optional(v.string()), // roll call: the word on the street about their character
     sayAs: v.optional(v.string()), // how the narrator should say the character's name
     rollLine: v.optional(v.string()), // the host's edit of the roll-call line
+    // v2 jail: voted in after a round, voted out at a release vote. Jailed guests can talk and bribe, nothing else.
+    jailed: v.optional(v.boolean()),
+    jailedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -169,10 +189,22 @@ export default defineSchema({
     suspectId: v.string(),
     exhibitId: v.string(),
     roomKey: v.string(),
+    // v2: an optional guess at the accomplice (killer + accomplice games). It doesn't change who wins.
+    accompliceId: v.optional(v.string()),
     at: v.number(),
   })
     .index("by_game", ["gameId"])
     .index("by_player", ["playerId"]),
+  // v2: the jail and release votes, one ballot per guest per vote. targetId null is "nobody".
+  ballots: defineTable({
+    gameId: v.id("games"),
+    voteAt: v.number(), // the vote it belongs to (games.vote.at)
+    voterId: v.id("players"),
+    targetId: v.union(v.id("players"), v.null()),
+    at: v.number(),
+  })
+    .index("by_game_vote", ["gameId", "voteAt"])
+    .index("by_voter", ["voterId"]),
 
   votes: defineTable({
     gameId: v.id("games"),

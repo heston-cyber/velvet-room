@@ -2,7 +2,7 @@
 // intro, the waves and the reveal. Pure functions, shared by the server (recording, the TV query)
 // and the host laptop. Nothing here is secret: every guest, exhibit and room gets a clip, so the
 // set of recordings never points at the answer.
-import { customRecordingText, customText, rollNarration, voiceKey, type HostKey, type Tone } from "./narration";
+import { customRecordingText, customText, rollNarration, sprinkle, voiceKey, type HostKey, type Tone } from "./narration";
 import { openRoomsIn } from "./engine/build";
 
 export type Narrator = { host: HostKey; unstable: boolean };
@@ -27,9 +27,13 @@ export type Wanted = {
   voice: string;
 };
 
-/** The caption shows names as written; the recording says them the guest's way ("say it like"). */
-function make(purpose: string, caption: string, n: Narrator, spoken = caption): Wanted {
-  return { purpose, caption, text: customRecordingText(spoken, n.unstable), voice: voiceOf(n) };
+/**
+ * The caption shows names as written; the recording says them the guest's way ("say it like"). Given the game's
+ * script and seed, about one recording in ten gets a noise sprinkled in (narration.ts sprinkle); captions stay clean.
+ */
+function make(purpose: string, caption: string, n: Narrator, spoken = caption, noise?: { tone: Tone; seed?: string }): Wanted {
+  const said = noise ? sprinkle(spoken, noise.tone, `${noise.seed ?? ""}|${purpose}`) : spoken;
+  return { purpose, caption, text: customRecordingText(said, n.unstable), voice: voiceOf(n) };
 }
 
 /** What the roll call says about one guest (v2): the caption as written, the recording the guest's way. */
@@ -54,7 +58,7 @@ export function rollWanted(tone: Tone, n: Narrator, p: RollLine): Wanted & { mar
   const base = { real: p.realName, signature: p.signature, weapon: p.weapon, motive: p.motive, motiveOwn: p.motiveOwn, rumor: p.rumor, rumorLead: p.rumorLead, roast: p.roast, seed: p.seed };
   const shown = rollNarration(tone, { ...base, name: p.charName });
   const said = rollNarration(tone, { ...base, name: spokenName(p) });
-  return { ...make(`roll:${p.id}`, shown.text, n, said.text), marks: shown.marks };
+  return { ...make(`roll:${p.id}`, shown.text, n, said.text, { tone, seed: p.seed }), marks: shown.marks };
 }
 
 type StartInfo = {
@@ -80,19 +84,20 @@ export function newRoomsIn(round: number, order: string[], search: "all" | "wave
 export function startWanted(tone: Tone, n: Narrator, s: StartInfo): Wanted[] {
   const label = (key: string) => s.rooms.find((r) => r.key === key)?.label ?? "";
   const out: Wanted[] = [];
-  if (s.bodyRoomKey) out.push(make("body", customText("body", tone, { room: label(s.bodyRoomKey), seed: s.seed }), n));
+  const nz = { tone, seed: s.seed };
+  if (s.bodyRoomKey) out.push(make("body", customText("body", tone, { room: label(s.bodyRoomKey), seed: s.seed }), n, undefined, nz));
   if (s.search === "waves" && s.roomOrder) {
     for (const round of [1, 2, 3]) {
       const fresh = newRoomsIn(round, s.roomOrder, s.search);
-      if (fresh.length) out.push(make(`rooms:${round}`, customText("rooms", tone, { rooms: fresh.map(label), seed: s.seed }), n));
+      if (fresh.length) out.push(make(`rooms:${round}`, customText("rooms", tone, { rooms: fresh.map(label), seed: s.seed }), n, undefined, nz));
     }
   }
   for (const p of s.players) {
-    out.push(make(`killer:${p.id}`, customText("killer", tone, { name: p.charName, seed: s.seed }), n, customText("killer", tone, { name: spokenName(p), seed: s.seed })));
-    out.push(make(`winner:${p.id}`, customText("winner", tone, { name: p.charName }), n, customText("winner", tone, { name: spokenName(p) })));
+    out.push(make(`killer:${p.id}`, customText("killer", tone, { name: p.charName, seed: s.seed }), n, customText("killer", tone, { name: spokenName(p), seed: s.seed }), nz));
+    out.push(make(`winner:${p.id}`, customText("winner", tone, { name: p.charName }), n, customText("winner", tone, { name: spokenName(p) }), nz));
   }
-  for (const e of s.exhibits) out.push(make(`exhibit:${e.id}`, customText("exhibit", tone, { letter: e.letter, weapon: e.name }), n));
-  for (const r of s.rooms) out.push(make(`room:${r.key}`, customText("room", tone, { room: r.label }), n));
+  for (const e of s.exhibits) out.push(make(`exhibit:${e.id}`, customText("exhibit", tone, { letter: e.letter, weapon: e.name }), n, undefined, nz));
+  for (const r of s.rooms) out.push(make(`room:${r.key}`, customText("room", tone, { room: r.label }), n, undefined, nz));
   return out;
 }
 

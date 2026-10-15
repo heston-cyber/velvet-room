@@ -5,7 +5,7 @@
 // Recorded at Start with the guests' real first names (custom lines, like the roll call). Drafts for Heston's review.
 import type { Doc } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
-import { customRecordingText, plain, type Tone } from "./narration";
+import { customRecordingText, plain, sprinkle, type Tone } from "./narration";
 import { firstOf } from "./roasts";
 import { narratorOf, voiceOf, type Wanted } from "./voiceLines";
 
@@ -185,7 +185,7 @@ export async function heckleWanted(ctx: QueryCtx, game: Doc<"games">): Promise<(
   return heckleLines(game.tone ?? "classic", game.slug, guests).map((line) => ({
     purpose: line.purpose,
     caption: plain(line.text),
-    text: customRecordingText(line.text, n.unstable),
+    text: customRecordingText(sprinkle(line.text, game.tone ?? "classic", `${game.slug}|${line.purpose}`), n.unstable),
     voice: voiceOf(n),
     line,
   }));
