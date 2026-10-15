@@ -7,7 +7,7 @@ import { Deco } from "../components/MemberCard";
 import { navigate } from "../lib/router";
 import { saveToken, savedToken } from "../lib/storage";
 
-export default function Register({ slug }: { slug?: string }) {
+export default function Register({ slug, walkIn }: { slug?: string; walkIn?: string }) {
   const game = useQuery(api.registration.publicGame, { slug });
   const [another, setAnother] = useState(false);
 
@@ -21,6 +21,25 @@ export default function Register({ slug }: { slug?: string }) {
           <h1 className="title-xl">The Velvet Room</h1>
           <p className="lede">The doors are locked. Check back soon.</p>
         </div>
+      </Shell>
+    );
+  }
+
+  // Party night: someone new at the door signs up with the room code (Join → "New here? Sign up").
+  if (walkIn && game.partyOn) {
+    return (
+      <Shell>
+        <ProfileForm
+          game={game}
+          mode="new"
+          roomCode={walkIn}
+          initial={EMPTY_PROFILE}
+          onDone={(token) => {
+            saveToken(game.slug, token);
+            navigate(`/p/${token}`);
+          }}
+          onCancel={() => navigate(`/join?code=${walkIn}`)}
+        />
       </Shell>
     );
   }

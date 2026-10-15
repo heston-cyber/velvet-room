@@ -18,5 +18,5 @@ export default function App() {
   if (path.replace(/\/$/, "") === "/host") {
     return <Host slug={params.get("game") ?? ""} hostKey={params.get("key") ?? ""} />;
   }
-  return <Register slug={params.get("game") ?? undefined} />;
+  return <Register slug={params.get("game") ?? undefined} walkIn={params.get("walkin") ?? undefined} />;
 }

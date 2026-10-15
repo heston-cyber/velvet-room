@@ -92,7 +92,7 @@ async function caseInput(ctx: QueryCtx, game: Doc<"games">): Promise<CaseInput> 
 }
 
 /** Deals a random unused exhibit letter, so letters can't reveal arrival order. */
-async function dealLetter(ctx: MutationCtx, game: Doc<"games">): Promise<string> {
+export async function dealLetter(ctx: MutationCtx, game: Doc<"games">): Promise<string> {
   const players = await playersOf(ctx, game._id);
   const used = new Set(players.map((p) => p.exhibitLetter).filter(Boolean));
   const size = Math.max(players.length, used.size + 1);

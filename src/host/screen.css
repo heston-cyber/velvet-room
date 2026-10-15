@@ -27,10 +27,9 @@
 .hs-deco { width: 30cqw; height: 1.6cqw; position: relative;
   background: linear-gradient(var(--brass), var(--brass)) center 30% / 100% 1px no-repeat, linear-gradient(var(--brass), var(--brass)) center 70% / 100% 1px no-repeat; }
 .hs-deco::after { content: ""; position: absolute; left: 50%; top: 50%; width: 1.1cqw; height: 1.1cqw; background: var(--felt); border: 1px solid var(--brass); transform: translate(-50%, -50%) rotate(45deg); }
-.hs-title .hs-btn.big { margin-top: 2.4cqw; }
+.hs-title .hs-buttons { margin-top: 2.4cqw; }
 .hs-test { font-family: var(--label); font-size: 1cqw; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--ink); background: var(--manila); padding: .3cqw .7cqw .2cqw; }
-.hs-buttons { display: grid; gap: 1.4cqw; justify-items: stretch; width: 26cqw; }
-.hs-menu .hs-btn { width: 100%; }
+.hs-buttons { display: grid; gap: 1.2cqw; justify-items: center; }
 @keyframes hs-in { from { opacity: 0; } to { opacity: 1; } }
 
 /* Options: the game settings, full screen, scrolling. */

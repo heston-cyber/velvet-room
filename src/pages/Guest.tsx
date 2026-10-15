@@ -118,7 +118,8 @@ export default function Guest({ token }: { token: string }) {
             </a>
           </div>
           <span className="help">
-            Bookmark this page or add it to your Home Screen. It's how you get back in on party night.
+            Bookmark this page or add it to your Home Screen. On party night, open it and keep it open: when the host opens the doors,
+            you're let in automatically.
           </span>
         </div>
         {me.game.open ? (

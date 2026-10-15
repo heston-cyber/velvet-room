@@ -153,3 +153,46 @@ describe("room code: join Jackbox style, each name once", () => {
     expect(other).not.toBe(code);
   });
 });
+
+describe("walk-ins (v2): new guests sign up at the door with the room code", () => {
+  const walkIn = (code: string, figure: string, weapon: string) => ({
+    slug: SLUG, roomCode: code, realName: "Walk In", charName: "Late Larry", who: "Showed up uninvited.", signature: "Wet umbrella", weapon, killerOk: true, figure,
+  });
+  async function freePicks(t: Awaited<ReturnType<typeof setup>>["t"]) {
+    const figs = (await t.query(api.registration.figures, { slug: SLUG }))!.flatMap((s) => s.figures).find((f) => !f.taken)!.key;
+    const weapon = (await t.query(api.registration.weapons, { slug: SLUG }))!.find((w) => !w.taken)!.key;
+    return { figs, weapon };
+  }
+
+  test("with tonight's code a walk-in signs up after the deadline, is checked in, and the TV announces them", async () => {
+    const { t, code, tvKey } = await setup();
+    // Sign-ups closed weeks ago; the room code still lets someone at the door in.
+    await t.run(async (ctx) => ctx.db.patch((await ctx.db.query("games").first())!._id, { registrationClosesAt: Date.now() - 1000, registrationOpen: false }));
+    const { figs, weapon } = await freePicks(t);
+    const { token } = await t.mutation(api.registration.register, walkIn(code.toLowerCase(), figs, weapon));
+    const me = await t.run(async (ctx) => (await ctx.db.query("players").withIndex("by_token", (q) => q.eq("token", token)).unique())!);
+    expect(me).toMatchObject({ checkedIn: true, weaponIn: true });
+    expect(me.claimedAt).toBeGreaterThan(0);
+    expect((await t.query(api.game.tv, { slug: SLUG, tvKey }))!.game.lastJoin?.name).toBe("Late Larry");
+  });
+
+  test("without the right code, or before the doors open, sign-ups stay closed", async () => {
+    const { t, code } = await setup();
+    await t.run(async (ctx) => ctx.db.patch((await ctx.db.query("games").first())!._id, { registrationClosesAt: Date.now() - 1000 }));
+    const { figs, weapon } = await freePicks(t);
+    const wrong = code === "BCDF" ? "BCDG" : "BCDF";
+    await expect(t.mutation(api.registration.register, walkIn(wrong, figs, weapon))).rejects.toThrow(/closed/);
+    const before = await setup({ open: false });
+    await before.t.run(async (ctx) => ctx.db.patch((await ctx.db.query("games").first())!._id, { registrationClosesAt: Date.now() - 1000, roomCode: "BCDF" }));
+    const p2 = await freePicks(before.t);
+    await expect(before.t.mutation(api.registration.register, walkIn("BCDF", p2.figs, p2.weapon))).rejects.toThrow(/closed/);
+  });
+
+  test("a guest who signed up before is let in by their own phone (check-in needs no weapon bag)", async () => {
+    const { t, players } = await setup();
+    await t.mutation(api.game.checkIn, { token: players[0].token, weaponIn: true });
+    const p = await t.run((ctx) => ctx.db.get(players[0]._id));
+    expect(p).toMatchObject({ checkedIn: true });
+    expect(p!.claimedAt).toBeGreaterThan(0);
+  });
+});

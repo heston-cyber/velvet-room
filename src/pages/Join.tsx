@@ -144,6 +144,12 @@ export default function Join({ initialCode }: { initialCode: string }) {
           ))}
         </ul>
         <p className="help">Faded names already have a phone. If one of them is yours, ask the host to free it.</p>
+        <div className="sealed">
+          <p className="help">Not on the list? Make your character now and you're in.</p>
+          <button type="button" className="primary" onClick={() => navigate(`/?game=${encodeURIComponent(room.slug)}&walkin=${code}`)}>
+            New here? Sign up
+          </button>
+        </div>
         <button type="button" className="back" onClick={() => setCode("")}>
           Wrong room? Change the code
         </button>

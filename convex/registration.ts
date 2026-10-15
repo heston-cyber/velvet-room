@@ -13,6 +13,13 @@ import {
 } from "./lib";
 import { figureSets, isFigure, lookalikeName, takenFigures } from "./figures";
 import { WEAPONS, isWeapon, takenWeapons, weaponName } from "./weapons";
+import { normalizeCode } from "./join";
+import { dealLetter } from "./game";
+
+/** Walk-ins (v2): once the doors are open, anyone with tonight's room code can sign up on the spot. */
+function walkInOk(game: Doc<"games">, roomCode: string | undefined) {
+  return !!roomCode && game.status === "lobby" && !game.endedAt && !!game.roomCode && game.roomCode === normalizeCode(roomCode);
+}
 
 const profileArgs = {
   realName: v.string(),
@@ -154,10 +161,10 @@ export const publicGame = query({
 });
 
 export const generateUploadUrl = mutation({
-  args: { slug: v.optional(v.string()) },
-  handler: async (ctx, { slug }) => {
+  args: { slug: v.optional(v.string()), roomCode: v.optional(v.string()) },
+  handler: async (ctx, { slug, roomCode }) => {
     const game = await gameBySlugOrActive(ctx, slug);
-    if (!game || !registrationIsOpen(game, Date.now())) {
+    if (!game || !(registrationIsOpen(game, Date.now()) || walkInOk(game, roomCode))) {
       throw new ConvexError("Registration is closed.");
     }
     return await ctx.storage.generateUploadUrl();
@@ -165,12 +172,13 @@ export const generateUploadUrl = mutation({
 });
 
 export const register = mutation({
-  args: { slug: v.optional(v.string()), ...profileArgs },
+  args: { slug: v.optional(v.string()), roomCode: v.optional(v.string()), ...profileArgs },
   handler: async (ctx, args) => {
     const game = await gameBySlugOrActive(ctx, args.slug);
     if (!game) throw new ConvexError("This game doesn't exist.");
     const now = Date.now();
-    if (!registrationIsOpen(game, now)) throw new ConvexError("Registration is closed.");
+    const walkIn = walkInOk(game, args.roomCode);
+    if (!walkIn && !registrationIsOpen(game, now)) throw new ConvexError("Registration is closed.");
 
     const p = validateProfile(game, args);
     await assertNameFree(ctx, game._id, p.charName);
@@ -202,6 +210,11 @@ export const register = mutation({
       updatedAt: now,
     });
     await ctx.db.insert("weapons", { gameId: game._id, playerId, key: weapon, name: weaponName(weapon)!, description: "" });
+    if (walkIn) {
+      // A walk-in is in the room already: they're checked in, and the TV announces them like any join.
+      await ctx.db.patch(playerId, { checkedIn: true, weaponIn: true, exhibitLetter: await dealLetter(ctx, game), claimedAt: now });
+      await ctx.db.patch(game._id, { lastJoin: { name: p.charName, at: now } });
+    }
     return { token };
   },
 });

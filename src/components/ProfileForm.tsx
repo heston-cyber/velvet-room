@@ -68,6 +68,8 @@ export default function ProfileForm(props: {
   initial: ProfileValues;
   initialPhotoUrl?: string | null;
   token?: string;
+  /** Walk-ins sign up on party night with the room code from the TV. */
+  roomCode?: string;
   onDone: (token: string) => void;
   onCancel?: () => void;
 }) {
@@ -168,12 +170,12 @@ export default function ProfileForm(props: {
       let photoId: Id<"_storage"> | undefined;
       if (photoFile) {
         const blob = await shrinkPhoto(photoFile);
-        const url = await generateUploadUrl({ slug: game.slug });
+        const url = await generateUploadUrl({ slug: game.slug, roomCode: props.roomCode });
         photoId = (await uploadPhoto(url, blob)) as Id<"_storage">;
       }
       const payload = { ...values, figure: values.figure || undefined, photoId };
       if (mode === "new") {
-        const { token } = await register({ slug: game.slug, ...payload });
+        const { token } = await register({ slug: game.slug, roomCode: props.roomCode, ...payload });
         props.onDone(token);
       } else {
         await update({ token: props.token!, ...payload, removePhoto });
@@ -249,7 +251,9 @@ export default function ProfileForm(props: {
               Step inside
             </button>
           </div>
-          <span className="small">About 3 minutes. You can change your answers until {game.deadlineLabel}.</span>
+          <span className="small">
+            {props.roomCode ? "About 3 minutes. The game starts once everyone's in, so be quick." : `About 3 minutes. You can change your answers until ${game.deadlineLabel}.`}
+          </span>
         </div>
       );
       break;

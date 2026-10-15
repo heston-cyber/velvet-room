@@ -128,7 +128,7 @@ function HostSetup({ onLink }: { onLink: (l: Link) => void }) {
 
 // ---------- the screen ----------
 
-type Stage = "title" | "menu" | "options" | "game";
+type Stage = "title" | "options" | "game";
 
 function HostScreen({ slug, hostKey, onGame }: { slug: string; hostKey: string; onGame: (slug: string) => void }) {
   const data = useQuery(api.host.roster, { slug, hostKey });
@@ -141,7 +141,7 @@ function HostScreen({ slug, hostKey, onGame }: { slug: string; hostKey: string; 
   }, [needsTvKey, ensureTvKey, slug, hostKey]);
 
   const [stage, setStage] = useState<Stage | null>(null);
-  const [back, setBack] = useState<Stage>("menu");
+  const [back, setBack] = useState<Stage>("title");
   const [menuOpen, setMenuOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const status = data?.game.status;
@@ -150,7 +150,7 @@ function HostScreen({ slug, hostKey, onGame }: { slug: string; hostKey: string; 
   useEffect(() => {
     if (!status) return;
     if (stage === null) setStage(status === "registration" ? "title" : "game");
-    else if (status !== "registration" && (stage === "title" || stage === "menu")) setStage("game");
+    else if (status !== "registration" && stage === "title") setStage("game");
   }, [status, stage]);
 
   // Esc opens and closes the pause menu during the game.
@@ -203,8 +203,7 @@ function HostScreen({ slug, hostKey, onGame }: { slug: string; hostKey: string; 
 
   const overlay = (
     <>
-      {stage === "title" && <TitleScreen title={data.game.title} isTest={data.game.isTest} onPlay={() => setStage("menu")} />}
-      {stage === "menu" && <MainMenu title={data.game.title} onStart={start} onOptions={() => openOptions("menu")} />}
+      {stage === "title" && <TitleScreen title={data.game.title} isTest={data.game.isTest} onPlay={start} onOptions={() => openOptions("title")} />}
       {stage === "options" && (
         <Options onBack={() => setStage(back)} error={error}>
           <Menu data={data} slug={slug} hostKey={hostKey} save={save} onError={setError} />
@@ -226,30 +225,21 @@ function HostScreen({ slug, hostKey, onGame }: { slug: string; hostKey: string; 
     </>
   );
 
-  return <TvStage slug={slug} tvKey={data.game.tvKey} onNext={follow} overlay={overlay} hostMode bare={stage === "title" || stage === "menu"} />;
+  return <TvStage slug={slug} tvKey={data.game.tvKey} onNext={follow} overlay={overlay} hostMode bare={stage === "title"} />;
 }
 
-function TitleScreen({ title, isTest, onPlay }: { title: string; isTest: boolean; onPlay: () => void }) {
+// The title screen: Play opens the doors (the lobby); Options sits right under it.
+function TitleScreen({ title, isTest, onPlay, onOptions }: { title: string; isTest: boolean; onPlay: () => Promise<void>; onOptions: () => void }) {
+  const { busy, run } = useBusy();
   return (
     <div className="hs-cover hs-title">
       <span className="hs-kick">Chicago · October 31, 1929</span>
       <div className="hs-deco" aria-hidden="true" />
       <h1 className="hs-logo">{title.replace(/\s*\(.*\)$/, "")}</h1>
       {isTest && <span className="hs-test">Test game</span>}
-      <button type="button" className="hs-btn big" onClick={onPlay} autoFocus>
-        Play
-      </button>
-    </div>
-  );
-}
-
-function MainMenu({ title, onStart, onOptions }: { title: string; onStart: () => void; onOptions: () => void }) {
-  const { busy, run } = useBusy();
-  return (
-    <div className="hs-cover hs-menu" aria-label={`${title} menu`}>
       <nav className="hs-buttons">
-        <button type="button" className="hs-btn big" disabled={busy} onClick={() => run(async () => onStart())} autoFocus>
-          Start
+        <button type="button" className="hs-btn big" disabled={busy} onClick={() => run(onPlay)} autoFocus>
+          Play
         </button>
         <button type="button" className="hs-btn" onClick={onOptions}>
           Options

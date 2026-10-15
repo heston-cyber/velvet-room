@@ -198,36 +198,36 @@ function TopLine({ data }: { data: Phone }) {
   );
 }
 
+/** Waiting at the door (v2): when the host presses Start, a signed-up guest with their page open is let in on their own. */
 function Arrive({ token, name }: { token: string; name: string }) {
   const checkIn = useMutation(api.game.checkIn);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  async function go(weaponIn: boolean) {
-    setBusy(true);
+  const [tries, setTries] = useState(0);
+  useEffect(() => {
+    let live = true;
     setError(null);
-    try {
-      await checkIn({ token, weaponIn });
-    } catch (e) {
-      setError(friendlyError(e));
-    } finally {
-      setBusy(false);
-    }
-  }
+    checkIn({ token, weaponIn: true }).catch((e) => live && setError(friendlyError(e)));
+    return () => {
+      live = false;
+    };
+  }, [checkIn, token, tries]);
   return (
     <div className="screen center">
       <span className="eyebrow">The Velvet Room</span>
       <Deco />
       <h1 className="title-lg">Good evening, {firstName(name)}.</h1>
-      <p className="lede">Put your weapon in an evidence bag where nobody can see it. Then tap below.</p>
-      <div className="actions wide">
-        <button type="button" className="primary" disabled={busy} onClick={() => go(true)}>
-          My weapon's bagged
-        </button>
-        <button type="button" className="back center-text" disabled={busy} onClick={() => go(false)}>
-          I forgot my weapon. Check me in anyway
-        </button>
-      </div>
-      {error && <div className="errbox">{error}</div>}
+      {error ? (
+        <>
+          <div className="errbox">{error}</div>
+          <div className="actions wide">
+            <button type="button" className="primary" onClick={() => setTries((n) => n + 1)}>
+              Try again
+            </button>
+          </div>
+        </>
+      ) : (
+        <p className="lede">The doors are open. Letting you in…</p>
+      )}
     </div>
   );
 }
@@ -270,23 +270,9 @@ function Lobby({ data }: { data: Phone }) {
   const { me, lobby } = data;
   return (
     <div className="screen">
-      {me.exhibitLetter && (
-        <div className="letter-row">
-          <div className="letter-tag" aria-label={`Your exhibit letter is ${me.exhibitLetter}`}>
-            <span className="t1">Evidence</span>
-            <span className="big">{me.exhibitLetter}</span>
-            <span className="t3">Write this on your bag</span>
-          </div>
-          <p className="lede">
-            Write <b>{me.exhibitLetter}</b> on your bag and drop it in the evidence box. Letters are dealt at random, so
-            yours says nothing about you.
-          </p>
-        </div>
-      )}
-      {!me.weaponIn && <p className="help">No weapon? No problem. Tell the host, and you can still play.</p>}
-      <span className="eyebrow">You're checked in</span>
+      <span className="eyebrow">You're in</span>
       <h1 className="title-lg">Mingle in character.</h1>
-      <p className="lede">When the host starts the game, the lights drop and your phone shows your role.</p>
+      <p className="lede">When everyone's here, the lights drop and the show begins. Your role arrives on this phone after the roll call.</p>
       <ul className="guests">
         {lobby.map((p) => (
           <li key={p.id} className={p.checkedIn ? "" : "away"}>
@@ -295,7 +281,7 @@ function Lobby({ data }: { data: Phone }) {
           </li>
         ))}
       </ul>
-      <p className="help">Faded guests haven't checked in yet. Anyone who arrives after the draw watches instead.</p>
+      <p className="help">Faded guests aren't in yet. Anyone who arrives after the lights drop watches instead.</p>
       <WifiCard data={data} />
     </div>
   );

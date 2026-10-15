@@ -557,7 +557,7 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
               <span className="tv-kick">The doors are open</span>
               <h2 className="tv-h2" style={{ fontSize: "5.4cqw" }}>The Velvet Room</h2>
               <p className="tv-sub">
-                {g.roomCode ? "Scan the code or open your personal link, then tap check in." : "Open your personal link and tap check in."} Bag your weapon. Mingle in character.
+                {g.roomCode ? "Signed up? Open your link and you're in. New here? Scan the code to join." : "Open your personal link and you're in."} Mingle in character.
               </p>
               <Guests guests={d.guests} mark="here" />
             </div>
