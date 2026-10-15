@@ -3,7 +3,6 @@ import type { FunctionReturnType } from "convex/server";
 import type { api } from "../../convex/_generated/api";
 
 export type Roster = FunctionReturnType<typeof api.host.roster>;
-export type Game = Roster["game"];
 
 export const TZ = "America/Chicago";
 
@@ -14,17 +13,6 @@ export function useNow(ms: number) {
     return () => window.clearInterval(id);
   }, [ms]);
   return now;
-}
-
-export const clock = (ms: number) => {
-  const s = Math.max(0, Math.ceil(ms / 1000));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-};
-
-/** Time left on the round clock (a paused clock stores its remaining time as a negative number). */
-export function timeLeft(g: Game, now: number): number | null {
-  if (g.roundEndsAt === null) return null;
-  return g.roundEndsAt < 0 ? -g.roundEndsAt : Math.max(0, g.roundEndsAt - now);
 }
 
 /** Two-tap confirm for anything that can't be undone. The second tap must come within 5 seconds. */
@@ -53,13 +41,6 @@ export function useBusy() {
     }
   }, [busy]);
   return { busy, run };
-}
-
-/** Opens the TV with its own key (never the host key), which the TV then removes from its address bar. */
-export function openTvWindow(slug: string, tvKey: string | null) {
-  if (!tvKey) return;
-  const url = `/tv?game=${encodeURIComponent(slug)}&key=${encodeURIComponent(tvKey)}`;
-  window.open(url, "velvet-room-tv", "popup,width=1280,height=720");
 }
 
 export const initials = (n: string) => {

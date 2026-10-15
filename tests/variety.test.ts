@@ -130,7 +130,7 @@ describe("heckles in the lulls", () => {
       game: {
         title: "T", isTest: true, slug: "velvet-2026", status: "playing", round: 1, paused: false, pacing: { mode: "timer", roundMinutes: 10 }, roundEndsAt: null,
         startedAt: T0 - 600_000, introEndsAt: T0, revealAt: null, endedAt: null, doorsAt: null, roundStartedAt: null, pausedAt: null, resumedAt: null, doneAt: null, rulesAt: null,
-        tone: "adult", narrator: { host: "ivy", unstable: false }, levels: { voice: 100, music: 55, sfx: 80 }, mode: "play", search: "all", wifi: null, tvShowAll: false,
+        tone: "adult", narrator: { host: "ivy", unstable: false }, levels: { voice: 100, music: 55, sfx: 80 }, search: "all", wifi: null, tvShowAll: false,
         soundCheckAt: null, lastRescue: null, bodyRoom: "", rooms: [], openRooms: [], show: null, ...game,
       },
       guests: [],

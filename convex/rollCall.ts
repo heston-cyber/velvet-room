@@ -20,7 +20,7 @@ export type RollGuest = {
   wanted: ReturnType<typeof rollWanted>;
 };
 
-/** Everyone who could be in a roll call (all guests but the MC), in sign-up order. Motives only once the case exists. */
+/** Everyone who could be in a roll call (every guest), in sign-up order. Motives only once the case exists. */
 export async function rollGuests(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile | null): Promise<RollGuest[]> {
   const tone = game.tone ?? "classic";
   const players = (
@@ -28,9 +28,7 @@ export async function rollGuests(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile
       .query("players")
       .withIndex("by_game", (q) => q.eq("gameId", game._id))
       .collect()
-  )
-    .filter((p) => !(game.mode === "mc" && p._id === game.mcPlayerId))
-    .sort((a, b) => a.createdAt - b.createdAt);
+  ).sort((a, b) => a.createdAt - b.createdAt);
   const weapons = await ctx.db
     .query("weapons")
     .withIndex("by_game", (q) => q.eq("gameId", game._id))

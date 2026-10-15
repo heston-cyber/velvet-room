@@ -6,7 +6,7 @@ import type { Id } from "../../convex/_generated/dataModel";
 import { MAX_CARDS, estimateMinutes, suggestedMarkers } from "../../convex/shared";
 import { friendlyError } from "../lib/errors";
 import { Swap } from "../lib/Swap";
-import { TZ, initials, openTvWindow, useConfirm, type Roster } from "./common";
+import { TZ, initials, useConfirm, type Roster } from "./common";
 import { downloadCardsPdf } from "./printCards";
 import { NarratorSection, RollCallSection } from "./Voice";
 import { MIN_ACCOMPLICE } from "../../convex/engine/build";
@@ -66,7 +66,7 @@ export function Sec(props: { title: ReactNode; children: ReactNode; className?: 
 
 export default function Menu(props: { data: Roster; slug: string; hostKey: string; save: (p: SettingsPatch) => Promise<void>; onError: (m: string | null) => void }) {
   const { data, slug, hostKey, save, onError } = props;
-  const { game, players } = data;
+  const { game } = data;
   const locked = game.status !== "registration" && game.status !== "lobby";
   const timer = game.pacing.mode === "timer";
 
@@ -222,7 +222,7 @@ function Pacing({ game, locked, save, timer }: { game: Roster["game"]; locked: b
       </div>
       <Swap show={timer ? 0 : 1}>
         <span className="help">3 rounds, plus the intro, accusations, reveal and awards. Accusations get 5 minutes at most.</span>
-        <span className="help">Each round ends once most guests tap ready. You can always move it on from the Live tab.</span>
+        <span className="help">Each round ends once most guests tap ready. You can always move it on from the host menu.</span>
       </Swap>
     </Sec>
   );
@@ -506,10 +506,7 @@ function Guests({ data, slug, hostKey, locked, onError }: { data: Roster; slug: 
             <li key={p.id}>
               <div className="card-ph sm">{p.photoUrl ? <img src={p.photoUrl} alt="" /> : initials(p.charName)}</div>
               <div className="main">
-                <div className="nm">
-                  {p.charName}
-                  {p.isMC && <span className="hx-tag">MC</span>}
-                </div>
+                <div className="nm">{p.charName}</div>
                 <div className="sub">
                   {p.realName} · signed up {when(p.registeredAt)}
                 </div>

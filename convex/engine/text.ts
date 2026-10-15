@@ -32,7 +32,6 @@ export function fill(template: string, signature: string): string {
 }
 
 export type KillerFacts = {
-  letter: string;
   weapon: string;
   room: string; // label
   ownWeapon: boolean;

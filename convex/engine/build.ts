@@ -364,7 +364,6 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
     const m = motives.get(s.id)!;
     if (s.id === sol.killerId) {
       const lines = S.killerLines({
-        letter: ex.letter,
         weapon: ex.name,
         room: room.label,
         ownWeapon: ex.ownerId === s.id,

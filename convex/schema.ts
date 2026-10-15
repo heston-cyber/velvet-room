@@ -36,9 +36,10 @@ export default defineSchema({
     // The order rooms open in when searching in waves. Drawn at Start, independent of the answer.
     roomOrder: v.optional(v.array(v.string())),
     search: v.optional(v.union(v.literal("all"), v.literal("waves"))),
-    // "play": the game runs itself and the host plays. "mc": one person runs the night and sees the answer.
+    // deprecated: Self MC was removed in v2; old documents may still carry it. The server ignores both fields
+    // (every game is "everyone plays") and never writes them.
     mode: v.optional(v.union(v.literal("play"), v.literal("mc"))),
-    mcPlayerId: v.optional(v.id("players")), // a signed-up guest who is the MC (not a suspect)
+    mcPlayerId: v.optional(v.id("players")),
     wifi: v.optional(v.object({ name: v.string(), password: v.string() })),
     pacing: v.object({
       mode: v.union(v.literal("ready"), v.literal("timer")),
@@ -55,16 +56,17 @@ export default defineSchema({
     tvShowAll: v.optional(v.boolean()), // TV shows every piece of evidence released so far
     soundCheckAt: v.optional(v.number()), // bumps when the host presses Sound check
     endedAt: v.optional(v.number()), // the host closed the night
-    // The TV's own key: it can only run the TV, so it's safe in the TV window's address bar.
+    // The TV's own key: it can only read the TV. The host screen runs the TV stage with it.
     tvKey: v.optional(v.string()),
     // The last "rescue a phone": that guest got a new link and the old one stopped working. The TV says so.
     lastRescue: v.optional(v.object({ name: v.string(), at: v.number() })),
     // Jackbox-style joining: a 4-letter code on the TV. Made when the doors open.
     roomCode: v.optional(v.string()),
     lastJoin: v.optional(v.object({ name: v.string(), at: v.number() })), // the TV announces each name claimed with the code
-    tvSeenAt: v.optional(v.number()), // the TV window checks in every 20 seconds
-    tvSound: v.optional(v.boolean()), // and says whether sound is allowed
-    tvMedia: v.optional(v.boolean()), // and whether all the videos have loaded
+    // The TV stage checks in every 20 seconds (game.tvPing). Nothing shows these since the separate TV window was removed.
+    tvSeenAt: v.optional(v.number()),
+    tvSound: v.optional(v.boolean()), // whether sound is allowed
+    tvMedia: v.optional(v.boolean()), // whether all the videos have loaded
     // When each turn of the night began, so the TV can play its title card and sounds on time.
     doorsAt: v.optional(v.number()),
     roundStartedAt: v.optional(v.number()), // rounds 2 to 4 (Round 1 starts when the intro ends)

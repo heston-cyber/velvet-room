@@ -1,9 +1,5 @@
 // Timings shared by the server and the TV screen. Pure constants, safe to import anywhere.
 
-/** The TV intro after Start: four beats. Round 1's timer starts when it ends (or when the host skips it). */
-export const INTRO_MS = 60_000;
-export const INTRO_BEATS = 4;
-
 /**
  * The reveal on the TV, in ms from the moment it starts: the title card, "The killer is…",
  * the name, the exhibit and room, (v2) the accomplice in a killer + accomplice game, then the verdict.
@@ -19,7 +15,6 @@ export const REVEAL_ACC: RevealTimes = { ...REVEAL, accomplice: 20_000, verdict:
 export const REVEAL_ACC_ADULT: RevealTimes = { ...REVEAL_ACC, verdict: 31_000 };
 export const revealTimes = (accomplice: boolean, tone: "classic" | "adult" = "classic"): RevealTimes =>
   !accomplice ? REVEAL : tone === "adult" ? REVEAL_ACC_ADULT : REVEAL_ACC;
-export const REVEAL_VERDICT_MS = REVEAL.verdict;
 
 /** The TV title cards are 4 seconds (Lights Out is 3). Scenes fade in after them. */
 export const CARD_MS = 4_000;

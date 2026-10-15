@@ -2,16 +2,14 @@
 through a whole night against the dev backend with a fake cast.
 
 Run from the repo with the preview server up (vite preview on :4173, built against dev):
-  python3 tests/e2e/phase4.py            # everyone plays, rooms open in waves, round timer
-  MODE=mc python3 tests/e2e/phase4.py    # Self MC
+  python3 tests/e2e/phase4.py            # rooms open in waves, round timer
 Screenshots go to $OUT (default ./e2e-out).
 """
 import json, os, re, subprocess, sys, time
 from playwright.sync_api import sync_playwright
 
 BASE = os.environ.get("BASE", "http://localhost:4173")
-MODE = os.environ.get("MODE", "play")
-SLUG = os.environ.get("SLUG", f"p4-e2e-{MODE}")
+SLUG = os.environ.get("SLUG", "p4-e2e-play")
 OUT = os.environ.get("OUT", "e2e-out")
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.makedirs(OUT, exist_ok=True)
@@ -45,7 +43,7 @@ try:
     cx("admin:deleteTestGame", {"slug": SLUG})
 except Exception:
     pass
-created = cx("admin:createGame", {"slug": SLUG, "title": f"Phase 4 e2e ({MODE})", "isTest": True, "makeActive": False,
+created = cx("admin:createGame", {"slug": SLUG, "title": "Phase 4 e2e", "isTest": True, "makeActive": False,
                                   "registrationClosesAt": int(time.time() * 1000) + 7 * 864e5, "deadlineLabel": "Sat, Oct 24"})
 KEY = created["hostKey"]
 cx("game:seedFakeCast", {"slug": SLUG, "guests": 7, "markers": 10, "seed": 11, "checkIn": False})
@@ -83,7 +81,7 @@ with sync_playwright() as p:
         host.set_viewport_size({"width": width, "height": 900})
         host.wait_for_timeout(300)
         base = layout(host)
-        for group, (a, bb) in {"How you're playing": ("Self MC", "Everyone plays"), "Script": ("Adult (explicit)", "Classic"),
+        for group, (a, bb) in {"Script": ("Adult (explicit)", "Classic"),
                                "Motives and secrets": ("Players write their own", "Game writes them"), "Pacing": ("Round timer", "Players tap ready"),
                                "Searching": ("Rooms open in waves", "All rooms open")}.items():
             for label in (a, bb):
@@ -93,11 +91,6 @@ with sync_playwright() as p:
     host.set_viewport_size({"width": 1440, "height": 900})
 
     # ---------- settings through the menu ----------
-    if MODE == "mc":
-        host.locator('.hx-seg[aria-label="How you\'re playing"] button', has_text="Self MC").click()
-        host.wait_for_timeout(500)
-        host.locator("select.inp").first.select_option(players[0]["id"])
-        host.wait_for_timeout(600)
     host.locator('.hx-seg[aria-label="Pacing"] button', has_text="Round timer").click()
     host.wait_for_timeout(500)
     for _ in range(9):
@@ -164,10 +157,6 @@ with sync_playwright() as p:
         ph = watch(b.new_page(viewport={"width": 390, "height": 844}), f"phone{i}")
         ph.goto(f"{BASE}/p/{players[i]['token']}")
         phones.append(ph)
-    mcphone = None
-    if MODE == "mc":
-        mcphone = watch(b.new_page(viewport={"width": 390, "height": 844}), "mc-phone")
-        mcphone.goto(f"{BASE}/p/{players[0]['token']}")
 
     host.get_by_role("button", name="Open the doors").click()
     host.wait_for_timeout(1500)
@@ -184,9 +173,6 @@ with sync_playwright() as p:
     phones[0].get_by_role("button", name="My weapon's bagged").click()
     phones[0].wait_for_timeout(1500)
     ok(has(phones[0].inner_text("body"), "VelvetRoom"), "a checked-in phone shows the guest Wi-Fi")
-    if mcphone:
-        mcphone.wait_for_timeout(1000)
-        ok(has(mcphone.inner_text("body"), "You're the MC tonight"), "the MC's phone says they're the MC")
     cx("game:seedFakeCast", {"slug": SLUG, "guests": 0, "markers": 0, "checkIn": True})
     tv.wait_for_timeout(1500)
     tv.screenshot(path=os.path.join(OUT, "02-tv-lobby.png"))
@@ -209,13 +195,6 @@ with sync_playwright() as p:
     ph = phones[0]
     ph.wait_for_selector(".hold-card", timeout=20000)
     ok(re.sub(r"^The ", "", body_room) in ph.inner_text("body"), "the phone says where the body was found")
-    if MODE == "mc":
-        sheet = host.inner_text(".hx-mc")
-        ok(has(sheet, "MC sheet") and has(sheet, "Body found in"), "Self MC: the Live tab shows the MC sheet")
-        ok(has(sheet, "He was found in"), "the MC sheet has the intro lines to read")
-        ok(tv.locator(".tv-caption .who").inner_text().strip().upper() == "MC", "Self MC: TV captions are marked MC")
-    else:
-        ok(host.locator(".hx-mc").count() == 0, "everyone plays: no MC sheet on the laptop")
     box = ph.locator(".hold-card").bounding_box()
     ph.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
     ph.mouse.down(); ph.wait_for_timeout(300)
@@ -279,8 +258,6 @@ with sync_playwright() as p:
     host.get_by_role("button", name="Next round").click(); host.wait_for_timeout(4500)
     ok(tv.locator(".tv-ev.twist").count() == 1, "TV Round 3 ends on the twist")
     tv.screenshot(path=os.path.join(OUT, "11-tv-r3.png"))
-    if MODE == "mc":
-        ok(has(host.inner_text(".hx-mc"), "And now, the twist") or "twist" in host.inner_text(".hx-mc").lower(), "the MC sheet has the twist to read")
 
     # ---------- accusations and the reveal ----------
     host.get_by_role("button", name="Open accusations").click(); host.wait_for_timeout(2000)
@@ -307,8 +284,6 @@ with sync_playwright() as p:
     tv.wait_for_timeout(13000)
     ok(has(tv.inner_text(".tv-stage"), "The verdict"), "the reveal ends on the verdict")
     tv.screenshot(path=os.path.join(OUT, "15-tv-verdict.png"))
-    if MODE == "mc":
-        ok(killer in host.inner_text(".hx-mc"), "the MC sheet reads out the killer")
     ph.locator(".pick", has=ph.locator(".eyebrow", has_text="Best Dressed")).locator(".opts button").first.click()
     ph.get_by_role("button", name="Cast my votes").click(); ph.wait_for_timeout(1000)
     host.get_by_role("button", name="Show the awards").click(); tv.wait_for_timeout(3000)

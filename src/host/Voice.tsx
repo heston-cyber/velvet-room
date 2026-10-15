@@ -41,7 +41,7 @@ export function NarratorSection({ game, locked, save }: { game: Game; locked: bo
         </button>
       </div>
       <Levels game={game} save={save} />
-      <span className="help">Levels change the TV right away, even mid-game. 0 turns that part off. In Self MC, set Voice to 0 if the MC would rather read the lines.</span>
+      <span className="help">Levels change the TV right away, even mid-game. 0 turns that part off.</span>
     </Sec>
   );
 }

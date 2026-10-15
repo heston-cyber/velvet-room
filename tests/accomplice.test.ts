@@ -222,7 +222,7 @@ describe("the TV reveal with an accomplice", () => {
   const data = (accomplice: boolean, tone: "classic" | "adult" = "classic") =>
     ({
       now: T,
-      game: { title: "T", isTest: true, status: "reveal", round: 4, paused: false, pacing: { mode: "ready", roundMinutes: 10 }, roundEndsAt: null, startedAt: T - 1e6, introEndsAt: T - 9e5, revealAt: T, endedAt: null, doorsAt: T - 2e6, roundStartedAt: null, pausedAt: null, resumedAt: null, doneAt: null, rulesAt: null, tone, narrator: { host: "ivy", unstable: false }, levels: { voice: 100, music: 55, sfx: 80 }, mode: "play", search: "all", wifi: null, tvShowAll: false, soundCheckAt: null, lastRescue: null, bodyRoom: "", rooms: [], openRooms: [], slug: "s", accomplice },
+      game: { title: "T", isTest: true, status: "reveal", round: 4, paused: false, pacing: { mode: "ready", roundMinutes: 10 }, roundEndsAt: null, startedAt: T - 1e6, introEndsAt: T - 9e5, revealAt: T, endedAt: null, doorsAt: T - 2e6, roundStartedAt: null, pausedAt: null, resumedAt: null, doneAt: null, rulesAt: null, tone, narrator: { host: "ivy", unstable: false }, levels: { voice: 100, music: 55, sfx: 80 }, search: "all", wifi: null, tvShowAll: false, soundCheckAt: null, lastRescue: null, bodyRoom: "", rooms: [], openRooms: [], slug: "s", accomplice },
       guests: [],
       counts: { registered: 8, here: 8, playing: 8, ready: 0, accused: 8 },
       exhibits: [],

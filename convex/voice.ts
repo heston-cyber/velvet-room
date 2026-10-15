@@ -233,16 +233,6 @@ export const setRollLine = mutation({
   },
 });
 
-/** Records every roll-call line that isn't recorded yet. */
-export const recordRollCall = mutation({
-  args: { slug: v.string(), hostKey: v.string() },
-  handler: async (ctx, { slug, hostKey }) => {
-    const game = await requireHost(ctx, slug, hostKey);
-    await scheduleRecording(ctx, game._id, "roll");
-    return { ok: true };
-  },
-});
-
 /** For the CLI and tests: what's recorded for a game. */
 export const clipsOf = internalQuery({
   args: { slug: v.string() },

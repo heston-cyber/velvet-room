@@ -113,8 +113,7 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
 
   let body: JSX.Element;
   let showNav = false;
-  if (me.isMC && (game.status === "lobby" || game.status === "playing")) body = <McPhone data={data} />;
-  else if (game.status === "lobby" && !me.checkedIn) body = <Arrive token={token} name={me.charName} />;
+  if (game.status === "lobby" && !me.checkedIn) body = <Arrive token={token} name={me.charName} />;
   else if (game.status === "lobby") body = <Lobby data={data} />;
   else if (game.status === "playing" && !me.inGame) body = <Late data={data} />;
   else if (game.status === "playing" && !game.rolesOut) body = <ShowWait data={data} />;
@@ -268,18 +267,6 @@ function WifiCard({ data }: { data: Phone }) {
         )}
       </p>
       <span className="help">Or scan the code on the TV.</span>
-    </div>
-  );
-}
-
-function McPhone({ data }: { data: Phone }) {
-  return (
-    <div className="screen center">
-      <span className="eyebrow">Self MC</span>
-      <Deco />
-      <h1 className="title-lg">You're the MC tonight.</h1>
-      <p className="lede">Run the night from the host laptop: it shows the answer, every clue and the lines to read. You don't get a role, and you don't accuse.</p>
-      <WifiCard data={data} />
     </div>
   );
 }
@@ -1011,9 +998,7 @@ function RevealVotes({ token, data }: { token: string; data: Phone }) {
     );
   }
   const mine = r?.mine;
-  const headline = data.me.isMC
-    ? "You ran the night."
-    : r?.iWasKiller
+  const headline = r?.iWasKiller
     ? r.killerWins
       ? "You got away with it."
       : "They caught you."
