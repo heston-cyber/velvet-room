@@ -115,50 +115,50 @@ export const CUES = {
   howKiller: {
     when: "How to play v2, card 1 (the masked killer)",
     classic: "[warm, conspiratorial] Here's how tonight works. One of you is the killer. [short pause] Everyone else has to prove it.",
-    adult: "[warm, conspiratorial] Here's how this goes. One of you is a killer. [short pause] The rest of you have to nail them.",
+    adult: "[warm, conspiratorial] Here's how this goes. One of you is a killer. The rest of you are witnesses with a drinking problem. [short pause] Nail the killer anyway.",
     wild: ["[clapping hands, way over the top]", "[cackles]"],
   },
   howRoles: {
     when: "How to play v2, card 2 (your phone)",
     classic: "After the roll call, your phone shows your secret role. Press and hold to read it, and keep your screen to yourself.",
-    adult: "After the roll call, your phone shows your secret role. Press and hold to read it, and keep your nosy eyes off everyone else's.",
+    adult: "After the roll call, your phone shows your secret role. Press and hold to read it. Looking at somebody else's screen is a felony in this house.",
     wild: ["[conspiratorial whisper]", "[giggles]"],
   },
   howWeapons: {
     when: "How to play v2, card 3 (the weapons)",
     classic: "Every guest brought a weapon, and one of them did the deed. [short pause] That doesn't mean its owner did.",
-    adult: "Everybody brought a weapon, and one of them did the job. [short pause] Doesn't mean its owner did.",
+    adult: "Everybody brought a weapon, and one of them did the job. [short pause] Owning the murder weapon doesn't make you the murderer. It just makes you weird.",
     wild: ["[deadly serious]", "[giggles nervously]"],
   },
   howJail: {
     when: "How to play v2, the jail vote",
     classic: "After every round, you vote someone into jail. It takes more than half of you, or nobody goes. [short pause] Jailed guests can talk and bribe, but they can't search, vote or accuse.",
-    adult: "After every round, you vote somebody into the slammer. It takes more than half of you, or nobody goes. [short pause] Jailbirds can talk and bribe, but no searching, no voting, no accusing.",
+    adult: "After every round, you vote somebody into jail. It takes more than half of you, or nobody goes. [short pause] Jailbirds can talk and bribe. They can't search, vote or accuse. This is called the justice system.",
     wild: ["[banging on the bars, shouting]", "[evil laugh]"],
   },
   howRelease: {
     when: "How to play v2, the release vote",
     classic: "From the second vote on, you can spring someone first. Same rule: more than half of you.",
-    adult: "From the second vote on, you can spring somebody first. Same deal: more than half of you.",
+    adult: "From the second vote on, you can spring somebody first. Same rule, more than half of you. Bail, like everything else in Chicago, is a popularity contest.",
     wild: ["[jingling keys, way too excited]", ""],
   },
   howLockIn: {
     when: "How to play v2, the lock-in",
     classic: "After the last round, everyone who's free locks in on their phone: who did it, with which weapon, and in which room.",
-    adult: "After the last round, everybody who isn't behind bars locks in: who did it, with what, and where.",
+    adult: "After the last round, everybody who isn't behind bars locks in on their phone: who did it, with what, and where. No take-backs. This isn't a marriage.",
     wild: ["[building to a frenzy]", ""],
   },
   howWin: {
     when: "How to play v2, winning",
     classic: "Most of you need the right killer, the right weapon and the right room. Exactly half won't do. [short pause] Miss, and the killer walks. Then we vote for Best Dressed and Best Liar. Good luck.",
-    adult: "Most of you need the right killer, the right weapon and the right room. Half doesn't count. [short pause] Blow it, and the killer walks. Then we vote for Best Dressed and Best Liar. Good luck. You're gonna need it.",
+    adult: "More than half of you need the right killer, more than half the right weapon, and more than half the right room. Exactly half is a tie, and ties go to the killer. [short pause] Then we vote for Best Dressed and Best Liar.",
     wild: ["[maniacal laughter]", "[cackles]"],
   },
   // ---- roll call, v2: after How to play ----
   rollLocked: {
     when: "Roll call v2 begins",
     classic: "[low, grave] The doors are locked until we figure out who did it. [short pause] Now, let's meet the suspects.",
-    adult: "[low, grave] The doors are locked until we figure out which one of you did it. [short pause] Let's meet the suspects.",
+    adult: "[low, grave] The doors are locked until we figure out which one of you did it. The fire marshal has been informed, and does not care. [short pause] Let's meet the suspects.",
     wild: ["[slamming the door, shouting]", "[cackles]"],
   },
   // ---- roll call (before the murder) ----
@@ -410,7 +410,7 @@ export function customText(kind: CustomKind, tone: Tone, v: { name?: string; who
 export const ROLL_PROMPT = {
   label: "Roll call: what's the word on the street about you?",
   placeholder: "e.g. Once cheated a priest at cards, and won.",
-  help: "Before the murder, the narrator introduces every guest on the TV. Keep it short and funny. Everyone will hear it.",
+  help: "At the roll call, the narrator reads this out right before your roast. Keep it short and funny. Everyone will hear it.",
 };
 
 const ROLL_INTROS: Record<Tone, string[]> = {
@@ -438,11 +438,13 @@ export function rollLineFor(p: { rollLine?: string; rumor?: string; who: string 
 }
 
 /** What the roll call (v2) says about one guest. The motive is theirs (first person) or the house's (second person). */
-export type RollParts = { name: string; real: string; signature: string; weapon: string; motive: string; motiveOwn: boolean; roast: string };
+export type RollParts = { name: string; real: string; signature: string; weapon: string; motive: string; motiveOwn: boolean; rumor: string; rumorLead?: string; roast: string };
 
 /**
- * The v2 roll-call line: "Introducing Velma, played by Ana. Signature: … Weapon: the candlestick. Motive: … [roast]"
- * Also where each part starts, as a share of the line, so the TV card can bring its rows in with the voice.
+ * The v2 roll-call line: "Introducing Velma, played by Ana. Signature: … Weapon: the candlestick. Velma, your motive: …
+ * Overheard at the bar: … [roast]". The motive goes with the character's name (Heston, Oct 15), and the guest's
+ * "word on the street" leads into the roast, each guest with a different lead-in (convex/roasts.ts). Also where each part starts, as a share of the line, so the TV card
+ * can bring its rows in with the voice.
  */
 export function rollNarration(tone: Tone, p: RollParts) {
   let text = rollIntro(tone, p.name, p.real);
@@ -455,8 +457,11 @@ export function rollNarration(tone: Tone, p: RollParts) {
   const sig = add(p.signature.trim() ? `Signature: ${endStop(p.signature.trim())}` : "");
   const weapon = add(p.weapon ? `Weapon: the ${p.weapon.toLowerCase()}.` : "");
   const m = p.motive.trim();
-  const motive = add(m ? (p.motiveOwn ? `Motive, in their own words: “${endStop(m)}”` : `Motive: ${endStop(m)}`) : "");
-  const roast = add(p.roast.trim() ? endStop(p.roast.trim()) : "");
+  const motive = add(m ? (p.motiveOwn ? `${p.name}'s motive, in their own words: “${endStop(m)}”` : `${p.name}, your motive: ${endStop(m)}`) : "");
+  // No lead at all is allowed: the guest's line lands flat, as fact.
+  const lead = p.rumorLead === undefined ? "Word on the street:" : p.rumorLead.trim();
+  const word = p.rumor.trim() ? [lead, endStop(p.rumor.trim())].filter(Boolean).join(" ") : "";
+  const roast = add([word, p.roast.trim() ? endStop(p.roast.trim()) : ""].filter(Boolean).join(" "));
   const share = (n: number) => Math.round((n / Math.max(1, text.length)) * 1000) / 1000;
   return { text, marks: { signature: share(sig), weapon: share(weapon), motive: share(motive), roast: share(roast) } };
 }

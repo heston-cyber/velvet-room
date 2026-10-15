@@ -193,6 +193,8 @@ export const rollCallSheet = query({
           figure: p.figure ?? null,
           checkedIn: p.checkedIn,
           weapon: g.weapon?.name ?? "",
+          rumor: g.rumor,
+          rumorLead: g.rumorLead,
           roast: g.roast,
           edited: g.roastEdited,
           voice: !started ? "later" : ok ? "ready" : row && row.text === w.text && row.voice === w.voice ? row.status : "none",

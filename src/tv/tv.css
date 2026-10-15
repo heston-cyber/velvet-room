@@ -298,10 +298,11 @@
 .tv-facts dt { font-family: var(--label); font-size: 1.05cqw; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--brass); }
 .tv-facts dd { margin: 0; font-size: 1.85cqw; line-height: 1.25; color: var(--paper);
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.tv-roast { margin: 1cqw 0 0; max-width: 52cqw; padding-left: 1.4cqw; border-left: .25cqw solid var(--brass);
+.tv-roast { display: grid; gap: .5cqw; margin: 1cqw 0 0; max-width: 52cqw; padding-left: 1.4cqw; border-left: .25cqw solid var(--brass);
   font-family: var(--display); font-size: 2.3cqw; line-height: 1.2; color: var(--manila); text-wrap: balance; }
 @media (prefers-reduced-motion: reduce) { .tv-wcard.hip, .tv-wfan.enter, .tv-jailed.enter, .tv-roll-fig.enter { animation: none; } }
 /* Round 1's left column: the weapons in one row, shrinking to fit however many there are. */
 .tv-left .tv-wrow { flex-wrap: nowrap; justify-content: flex-start; max-width: 100%; gap: .7cqw; margin: .4cqw 0 0; }
 .tv-left .tv-wcard { flex: 1 1 0; min-width: 0; max-width: 6.2cqw; padding: .3cqw; }
 .tv-left .tv-wcard .nm { font-size: .58cqw; letter-spacing: .04em; }
+.tv-roast .word { font-family: var(--body); font-style: italic; font-size: 1.8cqw; line-height: 1.25; color: var(--paper); }

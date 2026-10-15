@@ -1,7 +1,7 @@
 """The v2 show end-to-end, against the dev backend: the host presses Play and Everyone is in, then the TV
 (the host screen) runs the intro, How to play, the roll call and "check your phones" before Round 1. Phones
 wait on "Eyes on the TV" until the roles are out. The host skips through the parts from the host menu.
-  BASE=http://localhost:4174 python3 tests/e2e/show.py
+  BASE=http://localhost:4174 [TONE=adult] python3 tests/e2e/show.py
 Screenshots go to $OUT (default ./e2e-out/show).
 """
 import json, os, subprocess, time
@@ -57,6 +57,8 @@ except Exception:
 created = cx("admin:createGame", {"slug": SLUG, "title": "The Velvet Room", "isTest": True, "makeActive": False,
                                   "registrationClosesAt": int(time.time() * 1000) + 7 * 864e5, "deadlineLabel": "Sat, Oct 31"})
 KEY = created["hostKey"]
+TONE = os.environ.get("TONE", "classic")  # TONE=adult runs the adult script
+cx("host:updateSettings", {"slug": SLUG, "hostKey": KEY, "tone": TONE})
 cx("game:seedFakeCast", {"slug": SLUG, "guests": 6, "markers": 8, "seed": 21, "checkIn": False})
 guests = cx("admin:testPlayers", {"slug": SLUG})
 roster = lambda: cx("host:roster", {"slug": SLUG, "hostKey": KEY})

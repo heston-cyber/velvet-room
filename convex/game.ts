@@ -906,6 +906,8 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
         signature: g.player.signature,
         weapon: g.weapon,
         motive: g.motive,
+        rumor: g.rumor,
+        rumorLead: g.rumorLead,
         roast: g.roast,
         line: g.wanted.caption,
         marks: g.wanted.marks,
@@ -1169,11 +1171,13 @@ export const seedFakeCast = internalMutation({
         figure,
         gameId: game._id,
         token: randomCode(10),
-        realName: `Test ${g.name.split(" ")[0]}`,
+        // "Tommy (test guest)": roasts use the first word of the real name, so it reads "Tommy".
+        realName: `${g.name.replace(/[“”"][^“”"]*[“”"]/g, "").trim().split(/\s+/)[0]} (test guest)`,
         charName: g.name,
         charKey: g.name.toLowerCase().replace(/[^a-z0-9]+/g, ""),
         who: g.who,
         signature: g.signature,
+        rumor: g.rumor,
         killerOk: rng() < 0.8,
         checkedIn: false,
         createdAt: now,
@@ -1271,7 +1275,7 @@ export const fakeGuestsAct = internalMutation({
       .withIndex("by_slug", (q) => q.eq("slug", slug))
       .unique();
     if (!game || !game.isTest) throw new ConvexError("Test games only.");
-    const fakes = (await playersOf(ctx, game._id)).filter((p) => p.inGame && p.realName.startsWith("Test "));
+    const fakes = (await playersOf(ctx, game._id)).filter((p) => p.inGame && (p.realName.endsWith("(test guest)") || p.realName.startsWith("Test ")));
     if (action === "ready") {
       for (const p of fakes) await ctx.db.patch(p._id, { readyRound: game.round });
       await maybeAdvanceOnReady(ctx, (await ctx.db.get(game._id))!);

@@ -75,7 +75,8 @@ describe("roll call (v2)", () => {
     expect(sheet.guests).toHaveLength(6);
     expect(new Set(sheet.guests.map((g) => g.roast)).size).toBe(6);
     for (const g of sheet.guests) {
-      expect(g.roast.includes(g.charName) || g.roast.includes(g.realName)).toBe(true);
+      expect(g.roast).toContain(g.realName.split(" ")[0]); // roasts use the real name
+      expect(g.roast).not.toContain(g.charName);
       expect(g.roast).not.toMatch(/[{}]/);
       expect(g.voice).toBe("later");
       expect(g.weapon).toBeTruthy();
@@ -101,7 +102,7 @@ describe("roll call (v2)", () => {
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     const roll = said.filter((s) => s.text.includes("Weapon: the"));
     expect(roll).toHaveLength(4);
-    expect(roll.every((s) => /Motive/.test(s.text) && /Signature: /.test(s.text))).toBe(true);
+    expect(roll.every((s) => /your motive: /.test(s.text) && /Signature: /.test(s.text))).toBe(true);
     expect(roll.some((s) => s.text.includes("DOH-lor-ez") && !s.text.includes(players[0].charName))).toBe(true);
     expect(new Set(said.map((s) => s.voice))).toEqual(new Set(["QzTKubutNn9TjrB7Xb2Q"])); // Duke
     const sheet = await t.query(api.voice.rollCallSheet, { slug: SLUG, hostKey });

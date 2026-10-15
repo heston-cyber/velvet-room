@@ -85,8 +85,8 @@ export function RollCallSection({ slug, hostKey, locked, onError }: { slug: stri
   return (
     <Sec title={<>Roll call · {c.total} guests</>}>
       <span className="help">
-        After How to play, the narrator introduces every guest on the TV: their drawing, name, signature item, weapon and motive, then a roast. Each guest gets a
-        different roast. Rewrite any of them here before the game starts; the voices record when it starts.
+        After How to play, the narrator introduces every guest on the TV: their drawing, name, signature item, weapon and motive, then their word on the street
+        and a roast (by their real name). Each guest gets a different roast. Rewrite any of them here before the game starts; the voices record when it starts.
       </span>
       {sheet.started && (
         <span className={`hx-status ${c.failed ? "warn" : ""}`}>
@@ -134,6 +134,11 @@ function RollRow({ g, slug, hostKey, locked, onError }: { g: Row; slug: string; 
         <div className="nm">
           {g.charName} <span className="sub">· {g.realName}{g.weapon ? ` · ${g.weapon}` : ""}</span>
         </div>
+        {g.rumor && (
+          <span className="help">
+            {g.rumorLead} {g.rumor}
+          </span>
+        )}
         <textarea
           className="inp area"
           rows={2}

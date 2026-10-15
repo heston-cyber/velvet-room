@@ -3,14 +3,17 @@
 import type { Doc, Id } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
 import type { CaseFile } from "./engine/types";
-import { fillRoast, ROASTS, roastIndex } from "./roasts";
-import { narratorOf, rollWanted, spokenName, type Wanted } from "./voiceLines";
+import { fillRoast, roastTemplate, rumorLead } from "./roasts";
+import { narratorOf, rollWanted, type Wanted } from "./voiceLines";
 import { readSecs, rollSlotMs } from "./show";
 
 export type RollGuest = {
   player: Doc<"players">;
   weapon: { key: string; name: string } | null;
   motive: string;
+  /** The guest's own "word on the street" from sign-up, and how the narrator leads into it (different per guest). */
+  rumor: string;
+  rumorLead: string;
   roast: string;
   /** The host rewrote this guest's roast in Options. */
   roastEdited: boolean;
@@ -32,13 +35,13 @@ export async function rollGuests(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile
     .query("weapons")
     .withIndex("by_game", (q) => q.eq("gameId", game._id))
     .collect();
-  const list = ROASTS[tone];
   return players.map((p, rank) => {
     const w = weapons.find((x) => x.playerId === p._id);
     const weapon = w?.key ? { key: w.key, name: w.name } : null;
     const own = p.rollLine?.trim();
-    const template = list[roastIndex(String(game._id), rank, list.length)];
-    const fill = (char: string) => (own ? own : fillRoast(template, { char, real: p.realName, weapon: weapon?.name ?? "" }));
+    // Adult games roast each guest about their own weapon (convex/roasts.ts WEAPON_ROASTS).
+    const roast = own || fillRoast(roastTemplate(tone, String(game._id), rank, weapon?.key), { real: p.realName, weapon: weapon?.name ?? "", fallback: p.charName });
+    const lead = rumorLead(tone, String(game._id), rank, p.realName, p.charName);
     const brief = cf?.briefings.find((b) => b.playerId === p._id);
     const motive = brief?.motive ?? "";
     const motiveOwn = game.motiveMode === "players" && !!p.motive?.trim() && motive.trim() === p.motive.trim();
@@ -51,9 +54,11 @@ export async function rollGuests(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile
       weapon: weapon?.name ?? "",
       motive,
       motiveOwn,
-      roast: { caption: fill(p.charName), spoken: fill(spokenName(p)) },
+      rumor: p.rumor?.trim() ?? "",
+      rumorLead: lead,
+      roast,
     });
-    return { player: p, weapon, motive, roast: fill(p.charName), roastEdited: !!own, wanted };
+    return { player: p, weapon, motive, rumor: p.rumor?.trim() ?? "", rumorLead: lead, roast, roastEdited: !!own, wanted };
   });
 }
 

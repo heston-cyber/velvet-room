@@ -42,14 +42,16 @@ export type RollLine = {
   weapon: string;
   motive: string;
   motiveOwn: boolean;
-  roast: { caption: string; spoken: string };
+  rumor: string;
+  rumorLead: string;
+  roast: string;
 };
 
-/** One guest's roll-call intro: name, played by, signature, weapon, motive, roast. */
+/** One guest's roll-call intro: name, played by, signature, weapon, motive, word on the street, roast. */
 export function rollWanted(tone: Tone, n: Narrator, p: RollLine): Wanted & { marks: ReturnType<typeof rollNarration>["marks"] } {
-  const base = { real: p.realName, signature: p.signature, weapon: p.weapon, motive: p.motive, motiveOwn: p.motiveOwn };
-  const shown = rollNarration(tone, { ...base, name: p.charName, roast: p.roast.caption });
-  const said = rollNarration(tone, { ...base, name: spokenName(p), roast: p.roast.spoken });
+  const base = { real: p.realName, signature: p.signature, weapon: p.weapon, motive: p.motive, motiveOwn: p.motiveOwn, rumor: p.rumor, rumorLead: p.rumorLead, roast: p.roast };
+  const shown = rollNarration(tone, { ...base, name: p.charName });
+  const said = rollNarration(tone, { ...base, name: spokenName(p) });
   return { ...make(`roll:${p.id}`, shown.text, n, said.text), marks: shown.marks };
 }
 

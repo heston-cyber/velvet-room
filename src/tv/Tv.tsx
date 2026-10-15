@@ -827,8 +827,13 @@ function RollCard({ step, index, count }: { step: RollStep; index: number; count
               </div>
             )}
           </dl>
-          {it.roast && (
+          {(it.rumor || it.roast) && (
             <p className="tv-roast fade" style={{ animationDelay: at(it.marks.roast) }}>
+              {it.rumor && (
+                <span className="word">
+                  {it.rumorLead} {it.rumor}
+                </span>
+              )}
               {it.roast}
             </p>
           )}

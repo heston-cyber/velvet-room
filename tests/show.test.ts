@@ -3,7 +3,8 @@ import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
 import { SHOW, cueSecs, howCues, howLayout } from "../convex/show";
-import { ROASTS, roastIndex } from "../convex/roasts";
+import { ROASTS, RUMOR_LEADS, WEAPON_ROASTS, roastIndex, roastFor, rumorLead } from "../convex/roasts";
+import { WEAPON_KEYS, weaponName } from "../convex/weapons";
 import { rollNarration } from "../convex/narration";
 
 const modules = import.meta.glob("../convex/**/*.ts");
@@ -65,6 +66,8 @@ describe("the show (v2): Start → intro → How to play → roll call → check
       expect(it.motive.length).toBeGreaterThan(10);
       expect(it.line).toContain(`Weapon: the ${it.weapon!.name.toLowerCase()}.`);
       expect(it.line).toContain(it.roast);
+      expect(it.line).toContain(`${it.charName}, your motive: `);
+      expect(it.roast).toContain(it.realName.split(" ")[0]);
       expect(it.marks.weapon).toBeGreaterThan(it.marks.signature);
       expect(it.marks.roast).toBeGreaterThan(it.marks.motive);
     }
@@ -146,19 +149,62 @@ describe("roasts and the roll-call line", () => {
       expect(new Set(picks).size).toBe(n);
     }
     expect(ROASTS.classic.length).toBeGreaterThanOrEqual(40);
-    expect(ROASTS.adult.length).toBeGreaterThanOrEqual(40);
-    for (const r of [...ROASTS.classic, ...ROASTS.adult]) expect(/\{char\}|\{real\}/.test(r)).toBe(true);
+    expect(ROASTS.adult.length).toBeGreaterThanOrEqual(20); // adult: the fallback; weapons have their own
+    // Roasts use the player's real name (the motive uses the character's).
+    for (const r of [...ROASTS.classic, ...ROASTS.adult]) {
+      expect(r).toContain("{real}");
+      expect(r).not.toContain("{char}");
+    }
   });
 
-  test("the line reads the motive in the guest's own words, or the house's", () => {
-    const base = { name: "Velma", real: "Ana", signature: "A silver case", weapon: "Lawn Gnome", roast: "She cheats at cards." };
+  test("adult games roast each guest about their own weapon, so no two roasts in a game match", () => {
+    for (const key of WEAPON_KEYS) {
+      expect(WEAPON_ROASTS[key]?.length).toBeGreaterThanOrEqual(2);
+      for (const r of WEAPON_ROASTS[key]) expect(r).toContain("{real}");
+    }
+    const roasts = WEAPON_KEYS.map((key, rank) => roastFor("adult", "k57game", rank, { real: "Ana Ruiz", weapon: weaponName(key)!, weaponKey: key }));
+    expect(new Set(roasts).size).toBe(WEAPON_KEYS.length);
+    expect(roasts.every((r) => r.includes("Ana") && !r.includes("{"))).toBe(true);
+    // Classic games keep the general list.
+    const n = ROASTS.classic.length;
+    expect(roastFor("classic", "k57game", 0, { real: "Ana", weapon: "Rope", weaponKey: "rope" })).toBe(
+      ROASTS.classic[roastIndex("k57game", 0, n)].replaceAll("{real}", "Ana").replaceAll("{weapon}", "rope"),
+    );
+  });
+
+  test("each guest's word on the street gets a different lead-in, so the roasts don't all open the same way", () => {
+    for (const tone of ["classic", "adult"] as const) {
+      expect(RUMOR_LEADS[tone].length).toBeGreaterThanOrEqual(12);
+      // Each guest gets a different slot; the blank leads (said flat, as fact) are the only repeats.
+      const n = RUMOR_LEADS[tone].length;
+      const slots = Array.from({ length: n }, (_, rank) => roastIndex("k57game:word", rank, n));
+      expect(new Set(slots).size).toBe(n);
+      const leads = Array.from({ length: n }, (_, rank) => rumorLead(tone, "k57game", rank, "Ana Ruiz"));
+      const said = leads.filter(Boolean);
+      expect(new Set(said).size).toBe(said.length);
+      expect(leads.filter((l) => !l).length).toBeGreaterThanOrEqual(2);
+      for (const l of said) {
+        expect(l).not.toContain("{real}");
+        expect(l.endsWith(":")).toBe(true);
+      }
+      expect(said.filter((l) => /rumou?r|word on|overheard|little bird|loose lips|dirt on/i.test(l)).length).toBeLessThan(said.length / 2);
+    }
+    const said = rollNarration("classic", { name: "Velma", real: "Ana", signature: "", weapon: "Rope", motive: "", motiveOwn: false, rumor: "Owes every bookie in Cicero", rumorLead: "The dirt on Ana:", roast: "Ana keeps a little black book. It's mostly IOUs." });
+    expect(said.text.endsWith("The dirt on Ana: Owes every bookie in Cicero. Ana keeps a little black book. It's mostly IOUs.")).toBe(true);
+    const flat = rollNarration("classic", { name: "Velma", real: "Ana", signature: "", weapon: "Rope", motive: "", motiveOwn: false, rumor: "Owes every bookie in Cicero", rumorLead: "", roast: "Ana keeps a little black book." });
+    expect(flat.text.endsWith("Weapon: the rope. Owes every bookie in Cicero. Ana keeps a little black book.")).toBe(true);
+  });
+
+  test("the line: the motive with the character's name, then the word on the street leading into the roast", () => {
+    const base = { name: "Velma", real: "Ana Ruiz", signature: "A silver case", weapon: "Lawn Gnome", rumor: "Once cheated a priest at cards, and won", roast: "Ana has a heart of gold. Stolen, but gold." };
     const own = rollNarration("classic", { ...base, motive: "He owes me three months of tips", motiveOwn: true });
     expect(own.text).toContain("Signature: A silver case.");
     expect(own.text).toContain("Weapon: the lawn gnome.");
-    expect(own.text).toContain("Motive, in their own words: “He owes me three months of tips.”");
-    expect(own.text.endsWith("She cheats at cards.")).toBe(true);
-    const house = rollNarration("adult", { ...base, motive: "The Don owed you a small fortune.", motiveOwn: false });
-    expect(house.text).toContain("Motive: The Don owed you a small fortune.");
+    expect(own.text).toContain("Velma's motive, in their own words: “He owes me three months of tips.”");
+    expect(own.text.endsWith("Word on the street: Once cheated a priest at cards, and won. Ana has a heart of gold. Stolen, but gold.")).toBe(true);
+    const house = rollNarration("adult", { ...base, rumor: "", motive: "The Don owed you a small fortune.", motiveOwn: false });
+    expect(house.text).toContain("Velma, your motive: The Don owed you a small fortune.");
+    expect(house.text).not.toContain("Word on the street");
     expect(house.marks.signature).toBeLessThan(house.marks.weapon);
     expect(house.marks.motive).toBeLessThan(house.marks.roast);
   });
