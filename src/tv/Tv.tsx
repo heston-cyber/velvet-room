@@ -104,7 +104,12 @@ function useNow(ms: number) {
   return now;
 }
 
-function TvInner({ slug, tvKey, onNext }: { slug: string; tvKey: string; onNext: (slug: string) => void }) {
+/** The TV stage. The host screen (src/pages/Host.tsx) runs the same stage with its own controls laid over it. */
+export function TvStage(props: { slug: string; tvKey: string; onNext: (slug: string) => void; overlay?: ReactNode; hostMode?: boolean; bare?: boolean }) {
+  return <TvInner {...props} />;
+}
+
+function TvInner({ slug, tvKey, onNext, overlay, hostMode, bare }: { slug: string; tvKey: string; onNext: (slug: string) => void; overlay?: ReactNode; hostMode?: boolean; bare?: boolean }) {
   const data = useQuery(api.game.tv, { slug, tvKey });
   const nextSlug = data?.game.nextSlug ?? null;
   useEffect(() => {
@@ -279,6 +284,7 @@ function TvInner({ slug, tvKey, onNext }: { slug: string; tvKey: string; onNext:
           <div className="tv-scene">
             <span className="tv-kick">The Velvet Room</span>
           </div>
+          {overlay}
         </div>
       </div>
     );
@@ -296,48 +302,54 @@ function TvInner({ slug, tvKey, onNext }: { slug: string; tvKey: string; onNext:
     <div className={`tv-page ${chrome ? "" : "hide-cursor"}`}>
       <div className="tv-stage" data-scene={scene.key}>
         <Backdrop loop={p.loop} src={bank.src} />
-        {!held && <CameoLayer list={cameosNow(p, now, scene.key, false)} layer="back" />}
-        <div className={`tv-content ${held ? "held" : ""}`} key={`${scene.key}:${held ? "hold" : "go"}`}>
-          {scene.node}
-        </div>
-        {!held && <CameoLayer list={cameosNow(p, now, scene.key, false)} layer="front" />}
-        {card && <TitleCard key={`${card.key}:${card.at}`} cardKey={card.key} at={card.at} src={bank.src} />}
-        <CameoLayer list={cameosNow(p, now, scene.key, true)} layer="over" />
-        {g.paused && g.status === "playing" && (
-          <div className="tv-overlay">
-            <span className="tv-kick">Paused</span>
-            <h2 className="tv-h2">Hold everything.</h2>
-            <p className="tv-sub">The host paused the game. The clock is stopped.</p>
-          </div>
+        {/* The host's title screen and main menu show only the backdrop. */}
+        {!bare && (
+          <>
+            {!held && <CameoLayer list={cameosNow(p, now, scene.key, false)} layer="back" />}
+            <div className={`tv-content ${held ? "held" : ""}`} key={`${scene.key}:${held ? "hold" : "go"}`}>
+              {scene.node}
+            </div>
+            {!held && <CameoLayer list={cameosNow(p, now, scene.key, false)} layer="front" />}
+            {card && <TitleCard key={`${card.key}:${card.at}`} cardKey={card.key} at={card.at} src={bank.src} />}
+            <CameoLayer list={cameosNow(p, now, scene.key, true)} layer="over" />
+            {g.paused && g.status === "playing" && (
+              <div className="tv-overlay">
+                <span className="tv-kick">Paused</span>
+                <h2 className="tv-h2">Hold everything.</h2>
+                <p className="tv-sub">The host paused the game. The clock is stopped.</p>
+              </div>
+            )}
+            {g.tvShowAll && g.status === "playing" && <AllEvidence data={data} />}
+            {say && (
+              <div className="tv-caption" key={say}>
+                <span className="who">{who}</span>
+                <span className="line">{say}</span>
+              </div>
+            )}
+            <div className="tv-foot">
+              {g.isTest && <span className="tv-test">Test game</span>}
+              {g.roomCode && !card && scene.key !== "doors" && (g.status === "lobby" || (g.status === "playing" && !(g.introEndsAt && now < g.introEndsAt))) && (
+                <span className="tv-room">
+                  Room code <b>{g.roomCode}</b> · {window.location.host}/join
+                </span>
+              )}
+            </div>
+            {g.mode === "mc" && g.status === "playing" && <span className="tv-mc">Self MC</span>}
+            {g.lastRescue && now - g.lastRescue.at < 12_000 && (
+              <div className="tv-toast" key={g.lastRescue.at}>
+                New link for <b>{g.lastRescue.name}</b>. Their old link no longer works.
+              </div>
+            )}
+            {toast && now - toast.at < 6000 && !(g.lastRescue && now - g.lastRescue.at < 12_000) && (
+              <div className="tv-toast" key={toast.at}>
+                {toast.text}
+              </div>
+            )}
+          </>
         )}
-        {g.tvShowAll && g.status === "playing" && <AllEvidence data={data} />}
-        {say && (
-          <div className="tv-caption" key={say}>
-            <span className="who">{who}</span>
-            <span className="line">{say}</span>
-          </div>
-        )}
-        <div className="tv-foot">
-          {g.isTest && <span className="tv-test">Test game</span>}
-          {g.roomCode && !card && scene.key !== "doors" && (g.status === "lobby" || (g.status === "playing" && !(g.introEndsAt && now < g.introEndsAt))) && (
-            <span className="tv-room">
-              Room code <b>{g.roomCode}</b> · {window.location.host}/join
-            </span>
-          )}
-        </div>
-        {g.mode === "mc" && g.status === "playing" && <span className="tv-mc">Self MC</span>}
-        {g.lastRescue && now - g.lastRescue.at < 12_000 && (
-          <div className="tv-toast" key={g.lastRescue.at}>
-            New link for <b>{g.lastRescue.name}</b>. Their old link no longer works.
-          </div>
-        )}
-        {toast && now - toast.at < 6000 && !(g.lastRescue && now - g.lastRescue.at < 12_000) && (
-          <div className="tv-toast" key={toast.at}>
-            {toast.text}
-          </div>
-        )}
+        {overlay}
       </div>
-      <div className={`tv-controls ${chrome ? "" : "gone"}`}>
+      <div className={`tv-controls ${chrome && !hostMode ? "" : "gone"}`}>
         <span className="tv-load">{bank.ready ? "Videos ready" : `Loading videos ${bank.loaded} of ${bank.total}`}</span>
         <button type="button" onClick={(e) => { e.stopPropagation(); fullScreen(); }}>
           Full screen

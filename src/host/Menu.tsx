@@ -67,46 +67,15 @@ export default function Menu(props: { data: Roster; slug: string; hostKey: strin
   const { data, slug, hostKey, save, onError } = props;
   const { game, players } = data;
   const locked = game.status !== "registration" && game.status !== "lobby";
-  const mc = game.mode === "mc";
   const timer = game.pacing.mode === "timer";
 
   return (
     <div className="hx-cols">
       <div className="hx-col">
         <Swap show={locked ? 1 : 0} className="hx-note">
-          <span>
-            {mc
-              ? "Self MC: once the game starts, the Live tab shows the answer to whoever runs the night."
-              : "Spoiler-free: this laptop never shows weapons, roles, motives, guesses or the answer."}
-          </span>
+          <span>Spoiler-free: nothing in Options shows roles, guesses or the answer.</span>
           <span>The game is running, so the game settings are locked. Guest Wi-Fi can still be changed.</span>
         </Swap>
-
-        <Sec title="How you're playing">
-          <Seg label="How you're playing" value={game.mode} options={[["play", "Everyone plays"], ["mc", "Self MC"]]} disabled={locked} onPick={(mode) => save({ mode })} />
-          <Swap show={mc ? 1 : 0}>
-            <span className="help">The game runs itself. You play as a regular guest and never see the answer.</span>
-            <div className="hx-stack">
-              <span className="help">One person runs the night and controls every step. They see the answer, so they don't play.</span>
-              <label className="hx-field">
-                <span className="lab">Who's the MC?</span>
-                <select
-                  className="inp"
-                  value={game.mcPlayerId ?? ""}
-                  disabled={locked}
-                  onChange={(e) => save({ mcPlayerId: (e.target.value || null) as Id<"players"> | null })}
-                >
-                  <option value="">Someone who isn't signed up</option>
-                  {players.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.charName} ({p.realName})
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          </Swap>
-        </Sec>
 
         <Sec title="The game">
           <span className="lab">Script</span>
@@ -168,14 +137,11 @@ export default function Menu(props: { data: Roster; slug: string; hostKey: strin
         <Rooms game={game} markers={data.markers} locked={locked} save={save} />
         <Markers data={data} slug={slug} hostKey={hostKey} locked={locked} onError={onError} />
 
-        <Sec title="TV and sound">
+        <Sec title="Sound">
           <div className="row">
-            <button type="button" className="btn" onClick={() => openTvWindow(slug, data.game.tvKey)}>
-              Open the TV window
-            </button>
             <SoundCheck slug={slug} hostKey={hostKey} />
           </div>
-          <span className="help">Drag the TV window onto the big screen, click Full screen, then click it once to allow sound.</span>
+          <span className="help">This screen is the TV. Full screen is in the host menu (Menu button, or Esc).</span>
         </Sec>
 
         <NarratorSection game={game} locked={locked} save={save} />

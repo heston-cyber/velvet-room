@@ -225,7 +225,7 @@ export default function Live({ data, slug, hostKey, onError }: { data: Roster; s
   );
 }
 
-function Rescue({ data, slug, hostKey }: { data: Roster; slug: string; hostKey: string }) {
+export function Rescue({ data, slug, hostKey }: { data: Roster; slug: string; hostKey: string }) {
   const rescuePhone = useMutation(api.host.rescuePhone);
   const [who, setWho] = useState<Id<"players"> | "">("");
   const [link, setLink] = useState<{ charName: string; token: string } | null>(null);
