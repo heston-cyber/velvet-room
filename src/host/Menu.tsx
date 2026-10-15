@@ -130,8 +130,8 @@ export default function Menu(props: { data: Roster; slug: string; hostKey: strin
             checked={game.lookalikes}
             disabled={locked}
             onChange={(v) => save({ lookalikes: v })}
-            label="Show the guest look-alikes"
-            help="Adds a Tonight's guests row to the sign-up drawings: look-alikes of this party's guests, each with the person's name under it."
+            label="Use the party cast"
+            help="Guests find their own face and go by their name and nickname, on screen and in the narration. Anyone not on the list picks one of the other drawings. Test guests are the cast too."
           />
           <label className="hx-field">
             <span className="lab">Sign-ups close at the end of</span>

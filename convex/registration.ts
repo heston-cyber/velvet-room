@@ -11,7 +11,7 @@ import {
   registrationIsOpen,
   required,
 } from "./lib";
-import { figureSets, isFigure, lookalikeName, takenFigures } from "./figures";
+import { castMember, castName, figureSets, isCastFigure, isFigure, takenFigures } from "./figures";
 import { WEAPONS, isWeapon, takenWeapons, weaponName } from "./weapons";
 import { normalizeCode } from "./join";
 import { dealLetter } from "./game";
@@ -50,6 +50,12 @@ type ProfileInput = {
   sayAs?: string;
   figure?: string;
 };
+
+/** In a cast game, a cast member's drawing comes with their name (and how to say it): whatever the page sent. */
+function castProfile<T extends ProfileInput>(game: Doc<"games">, input: T, figure: string | undefined): T {
+  const m = isCastFigure(figure, !!game.lookalikes) ? castMember(figure) : null;
+  return m ? { ...input, charName: castName(m), sayAs: m.sayAs ?? "" } : input;
+}
 
 function validateProfile(game: Doc<"games">, input: ProfileInput) {
   const out = {
@@ -135,7 +141,11 @@ export const figures = query({
     const taken = await takenFigures(ctx, game._id, me?._id);
     return figureSets(!!game.lookalikes).map((set) => ({
       label: set.label,
-      figures: set.keys.map((key) => ({ key, taken: taken.has(key), name: set.guests ? lookalikeName(key) : null })),
+      extra: set.extra,
+      figures: set.keys.map((key) => {
+        const m = set.guests ? castMember(key) : null;
+        return { key, taken: taken.has(key), name: m?.name ?? null, castName: m ? castName(m) : null };
+      }),
     }));
   },
 });
@@ -180,9 +190,10 @@ export const register = mutation({
     const walkIn = walkInOk(game, args.roomCode);
     if (!walkIn && !registrationIsOpen(game, now)) throw new ConvexError("Registration is closed.");
 
-    const p = validateProfile(game, args);
-    await assertNameFree(ctx, game._id, p.charName);
+    const p = validateProfile(game, castProfile(game, args, args.figure));
+    // The drawing first: in a cast game a taken face is also a taken name, and the drawing is what they tapped.
     const figure = await checkFigure(ctx, game, args.figure);
+    await assertNameFree(ctx, game._id, p.charName);
     const weapon = await checkWeapon(ctx, game, args.weapon);
 
     let token = randomCode(10);
@@ -277,7 +288,9 @@ export const update = mutation({
       throw new ConvexError("Registration is closed, so changes are locked.");
     }
 
-    const p = validateProfile(game, args);
+    const p = validateProfile(game, castProfile(game, args, args.figure ?? player.figure));
+    // A different drawing has to be free; the same one stays theirs. Checked before the name (see register).
+    const figure = args.figure && args.figure !== player.figure ? await checkFigure(ctx, game, args.figure, player._id) : undefined;
     await assertNameFree(ctx, game._id, p.charName, player._id);
     const weapon = await ctx.db
       .query("weapons")
@@ -306,9 +319,8 @@ export const update = mutation({
       secret: p.secret || undefined,
       // Older pages don't send these: leave what's there.
       ...(args.rumor !== undefined ? { rumor: p.rumor || undefined } : {}),
-      ...(args.sayAs !== undefined ? { sayAs: p.sayAs || undefined } : {}),
-      // A different drawing has to be free; the same one stays theirs.
-      ...(args.figure && args.figure !== player.figure ? { figure: await checkFigure(ctx, game, args.figure, player._id) } : {}),
+      ...(args.sayAs !== undefined || isCastFigure(args.figure ?? player.figure, !!game.lookalikes) ? { sayAs: p.sayAs || undefined } : {}),
+      ...(figure ? { figure } : {}),
       killerOk: p.killerOk,
       updatedAt: Date.now(),
     });

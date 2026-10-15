@@ -4,6 +4,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
 import type { CaseFile } from "./engine/types";
 import { fillRoast, roastTemplate, rumorLead } from "./roasts";
+import { isCastFigure } from "./figures";
 import { narratorOf, rollWanted, type Wanted } from "./voiceLines";
 import { readSecs, rollSlotMs } from "./show";
 
@@ -56,6 +57,7 @@ export async function rollGuests(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile
       rumorLead: lead,
       roast,
       seed: game.slug,
+      cast: isCastFigure(p.figure, !!game.lookalikes),
     });
     return { player: p, weapon, motive, rumor: p.rumor?.trim() ?? "", rumorLead: lead, roast, roastEdited: !!own, wanted };
   });

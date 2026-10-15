@@ -11,7 +11,7 @@ import { weaponUrl } from "../lib/weapon";
 import { ALL_FIGURE_KEYS, FACES_RIGHT } from "../../convex/figures";
 import { CARD_MS, cardUrl, loopUrl, useMediaBank, type LoopKey } from "./media";
 import { SoundEngine } from "./sound";
-import { cameosNow, cardNow, due, plan, type Cameo, type CharKey, type Data, type Plan } from "./timeline";
+import { cameosNow, cardNow, dress, due, plan, type Cameo, type CharKey, type Data, type Plan } from "./timeline";
 import type { MapData } from "./HouseMap";
 import "./tv.css";
 
@@ -680,11 +680,11 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
               ) : step.art === "weapons" ? (
                 <WeaponFan weapons={d.weapons} />
               ) : step.art === "bars" ? (
-                <Jailed figure={d.guests.find((x) => x.figure)?.figure ?? "bodyguard"} className="enter" />
+                <Jailed figure={d.standIns ? dress(d, "bodyguard") : d.guests.find((x) => x.figure)?.figure ?? "bodyguard"} className="enter" />
               ) : step.art === "pair" ? (
                 // The accomplice: the masked killer, with someone at their shoulder.
                 <div className="tv-how-pair">
-                  <img className="enter behind" src={artUrl("slick")} alt="" />
+                  <img className="enter behind" src={artUrl(dress(d, "slick"))} alt="" />
                   <img className="enter" src={artUrl("killer")} alt="" />
                 </div>
               ) : (
@@ -847,7 +847,7 @@ function RollCard({ step, index, count }: { step: RollStep; index: number; count
             Roll call · {index + 1} of {count}
           </span>
           <h2 className="tv-h2 fade" style={{ animationDelay: ".25s" }}>{it.charName}</h2>
-          <span className="tv-played fade" style={{ animationDelay: ".45s" }}>Played by {it.realName}</span>
+          {!it.cast && <span className="tv-played fade" style={{ animationDelay: ".45s" }}>Played by {it.realName}</span>}
           <dl className="tv-facts">
             {it.signature && (
               <div className="fade" style={{ animationDelay: at(it.marks.signature) }}>

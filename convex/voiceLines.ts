@@ -51,11 +51,13 @@ export type RollLine = {
   roast: string;
   /** The game's seed (its slug): picks this game's versions of the wording. */
   seed?: string;
+  /** A party cast member: introduced by their own name, no "played by". */
+  cast?: boolean;
 };
 
 /** One guest's roll-call intro: name, played by, signature, weapon, motive, word on the street, roast. */
 export function rollWanted(tone: Tone, n: Narrator, p: RollLine): Wanted & { marks: ReturnType<typeof rollNarration>["marks"] } {
-  const base = { real: p.realName, signature: p.signature, weapon: p.weapon, motive: p.motive, motiveOwn: p.motiveOwn, rumor: p.rumor, rumorLead: p.rumorLead, roast: p.roast, seed: p.seed };
+  const base = { real: p.realName, signature: p.signature, weapon: p.weapon, motive: p.motive, motiveOwn: p.motiveOwn, rumor: p.rumor, rumorLead: p.rumorLead, roast: p.roast, seed: p.seed, cast: p.cast };
   const shown = rollNarration(tone, { ...base, name: p.charName });
   const said = rollNarration(tone, { ...base, name: spokenName(p) });
   return { ...make(`roll:${p.id}`, shown.text, n, said.text, { tone, seed: p.seed }), marks: shown.marks };

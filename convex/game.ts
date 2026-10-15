@@ -7,7 +7,7 @@ import { buildCase, checkInput, MIN_ACCOMPLICE, openRound, openRoomsIn, scriptFo
 import { secure, seeded, shuffle } from "./engine/rng";
 import { FAKE_GUESTS, LETTERS } from "./engine/fake";
 import type { CaseFile, CaseInput } from "./engine/types";
-import { randomCode, registrationIsOpen, requireHost, requireTv } from "./lib";
+import { charKeyOf, randomCode, registrationIsOpen, requireHost, requireTv } from "./lib";
 import { seal } from "./seal";
 import { caseFor } from "./caseFile";
 import { ensureAllCards, markerForCode } from "./cards";
@@ -18,7 +18,7 @@ import { heckleWanted } from "./heckles";
 import { cueVariant, type CueKey } from "./narration";
 import { scheduleRecording } from "./voice";
 import { ensureRoomCode } from "./join";
-import { anyFreeFigure, fakeGuestPool, takenFigures } from "./figures";
+import { anyFreeFigure, castMember, castName, fakeGuestPool, isCastFigure, standIns, takenFigures } from "./figures";
 import { anyFreeWeapon, takenWeapons, weaponName } from "./weapons";
 import { clipMatches, levelsOf, narratorOf, startWanted, voiceOf, type Wanted } from "./voiceLines";
 
@@ -1086,6 +1086,7 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
         id: g.player._id,
         charName: g.player.charName,
         realName: g.player.realName,
+        cast: isCastFigure(g.player.figure, !!game.lookalikes),
         photoUrl: g.player.photoId ? await ctx.storage.getUrl(g.player.photoId) : null,
         figure: g.player.figure ?? null,
         who: g.player.who,
@@ -1320,6 +1321,9 @@ export const tv = query({
       reveal: revealTimes(started && !!game.hasAccomplice, game.tone ?? "classic"),
       voice: await tvVoice(ctx, game, all, input, cf),
       map: await tvMap(ctx, game),
+      // A cast game's TV dresses How to play, the accomplice card, the awards and empty line-ups in the cast's
+      // drawings (this game's guests first) instead of the old ones.
+      standIns: game.lookalikes ? standIns(true, all.filter((p) => p.figure).sort((a, b) => a.createdAt - b.createdAt).map((p) => p.figure!)) : null,
     };
   },
 });
@@ -1371,6 +1375,26 @@ export const tvPing = mutation({
 
 // ---------- test mode (internal: CLI or dashboard only) ----------
 
+/** The test guests a game can still take. In a cast game they're the free cast members, by name and drawing,
+ *  each with a made-up profile of the same sex (reused when there are more of them than profiles); otherwise
+ *  the made-up characters. */
+export function fakeGuestsFor(cast: boolean, takenFigs: Set<string>, takenNames: Set<string>, rng: () => number) {
+  const people = shuffle(rng, FAKE_GUESTS);
+  const first = (name: string) => name.replace(/[“”"][^“”"]*[“”"]/g, "").trim().split(/\s+/)[0];
+  if (!cast) {
+    return people.filter((g) => !takenNames.has(charKeyOf(g.name))).map((g) => ({ ...g, first: first(g.name), figure: null as string | null }));
+  }
+  const used: Record<"m" | "f", number> = { m: 0, f: 0 };
+  return shuffle(rng, fakeGuestPool(true))
+    .map((k) => castMember(k)!)
+    .filter((m) => !takenFigs.has(m.key) && !takenNames.has(charKeyOf(castName(m))))
+    .map((m) => {
+      const same = people.filter((g) => g.sex === m.sex);
+      const g = same[used[m.sex]++ % same.length];
+      return { ...g, name: castName(m), first: m.name, figure: m.key as string | null };
+    });
+}
+
 /** Fills a TEST game with fake guests, checks them in, and logs markers. */
 export const seedFakeCast = internalMutation({
   args: { slug: v.string(), guests: v.number(), markers: v.number(), seed: v.optional(v.number()), checkIn: v.optional(v.boolean()) },
@@ -1384,16 +1408,15 @@ export const seedFakeCast = internalMutation({
     const rng = seed ? seeded(seed) : secure();
     const now = Date.now();
     const taken = new Set((await playersOf(ctx, game._id)).map((p) => p.charKey));
-    for (const g of shuffle(rng, FAKE_GUESTS).filter((g) => !taken.has(g.name.toLowerCase().replace(/[^a-z0-9]+/g, ""))).slice(0, guests)) {
-      const figure = anyFreeFigure(await takenFigures(ctx, game._id), rng, fakeGuestPool(!!game.lookalikes));
+    for (const g of fakeGuestsFor(!!game.lookalikes, await takenFigures(ctx, game._id), taken, rng).slice(0, guests)) {
       const playerId = await ctx.db.insert("players", {
-        figure,
+        figure: g.figure ?? anyFreeFigure(await takenFigures(ctx, game._id), rng, fakeGuestPool(false)),
         gameId: game._id,
         token: randomCode(10),
         // "Tommy (test guest)": roasts use the first word of the real name, so it reads "Tommy".
-        realName: `${g.name.replace(/[“”"][^“”"]*[“”"]/g, "").trim().split(/\s+/)[0]} (test guest)`,
+        realName: `${g.first} (test guest)`,
         charName: g.name,
-        charKey: g.name.toLowerCase().replace(/[^a-z0-9]+/g, ""),
+        charKey: charKeyOf(g.name),
         who: g.who,
         signature: g.signature,
         rumor: g.rumor,

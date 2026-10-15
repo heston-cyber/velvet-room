@@ -3,7 +3,8 @@ import { beforeAll, describe, expect, test } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
 import { WEAPON_KEYS } from "../convex/weapons";
-import { ALL_FIGURE_KEYS, FIGURE_KEYS, FIGURE_SETS, LOOKALIKES, anyFreeFigure, fakeGuestPool } from "../convex/figures";
+import { ALL_FIGURE_KEYS, FIGURE_KEYS, FIGURE_SETS, LOOKALIKES, anyFreeFigure, castName, fakeGuestPool, standIns } from "../convex/figures";
+import { rollNarration } from "../convex/narration";
 import { existsSync } from "node:fs";
 
 const modules = import.meta.glob("../convex/**/*.ts");
@@ -95,15 +96,21 @@ describe("drawn characters: guests pick their own, one guest per drawing", () =>
   });
 });
 
-describe("this party's look-alikes", () => {
-  test("Heston and Emily lead the row; every look-alike has its art and face", () => {
+describe("the party cast (look-alikes of the real guests, by name)", () => {
+  test("Heston and Emily lead; every cast member has art, a face, and is a guy or a girl", () => {
     expect(LOOKALIKES.slice(0, 2).map((l) => l.name)).toEqual(["Heston", "Emily"]);
     expect(new Set(LOOKALIKES.map((l) => l.key)).size).toBe(LOOKALIKES.length);
-    for (const { key } of LOOKALIKES) {
+    for (const { key, sex } of LOOKALIKES) {
       expect(existsSync(`public/art/${key}.webp`), key).toBe(true);
       expect(existsSync(`public/art/faces/${key}.webp`), key).toBe(true);
+      expect(["m", "f"]).toContain(sex);
     }
     expect(ALL_FIGURE_KEYS).toEqual(expect.arrayContaining([...FIGURE_KEYS, ...LOOKALIKES.map((l) => l.key)]));
+  });
+
+  test("a cast member goes by first name and nickname", () => {
+    expect(castName({ key: "josh", name: "Josh", sex: "m", nickname: "Two-Tone" })).toBe("Josh “Two-Tone”");
+    expect(castName({ key: "josh", name: "Josh", sex: "m" })).toBe("Josh");
   });
 
   test("off by default: just the main 16, no names", async () => {
@@ -111,40 +118,92 @@ describe("this party's look-alikes", () => {
     expect((await t.query(api.host.roster, { slug: SLUG, hostKey }))!.game.lookalikes).toBe(false);
     const g = (await t.query(api.registration.figures, { slug: SLUG }))!;
     expect(g.map((s) => s.label)).toEqual(["Women", "Men"]);
+    expect(g.every((s) => !s.extra)).toBe(true);
     expect(g.flatMap((s) => s.figures)).toHaveLength(16);
-    expect(g.flatMap((s) => s.figures).every((f) => f.name === null)).toBe(true);
+    expect(g.flatMap((s) => s.figures).every((f) => f.name === null && f.castName === null)).toBe(true);
   });
 
-  test("on: a named Tonight's guests row first, and those drawings leave the main rows", async () => {
+  test("on: the cast first (guys, then girls, named); the old drawings only as extras", async () => {
     const { t, hostKey } = await setup();
     await t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, lookalikes: true });
     expect((await t.query(api.host.roster, { slug: SLUG, hostKey }))!.game.lookalikes).toBe(true);
     const g = (await t.query(api.registration.figures, { slug: SLUG }))!;
-    expect(g[0].label).toBe("Tonight's guests");
-    expect(g[0].figures.map((f) => [f.key, f.name])).toEqual(LOOKALIKES.map((l) => [l.key, l.name]));
-    const rest = g.slice(1).flatMap((s) => s.figures);
+    expect(g.map((s) => [s.label, s.extra])).toEqual([["The guys", false], ["The girls", false], ["Women", true], ["Men", true]]);
+    const cast = g.slice(0, 2).flatMap((s) => s.figures);
+    expect(cast.map((f) => f.key).sort()).toEqual(LOOKALIKES.map((l) => l.key).sort());
+    expect(g[0].figures.every((f) => LOOKALIKES.find((l) => l.key === f.key)!.sex === "m")).toBe(true);
+    expect(cast.every((f) => f.name && f.castName)).toBe(true);
+    const rest = g.slice(2).flatMap((s) => s.figures);
     expect(rest.some((f) => LOOKALIKES.some((l) => l.key === f.key))).toBe(false);
     expect(rest.every((f) => f.name === null)).toBe(true);
-    expect(g.slice(1).map((s) => s.label)).toEqual(["Women", "Men"]);
-    // A guest takes their own look-alike; it's taken for everyone else.
+    // A guest takes their own face; it's taken for everyone else.
     const { token } = await t.mutation(api.registration.register, guest(0, "emily"));
     expect((await t.query(api.registration.me, { token }))!.figure).toBe("emily");
     await expect(t.mutation(api.registration.register, guest(1, "emily"))).rejects.toThrow(/Someone just took/);
     const after = (await t.query(api.registration.figures, { slug: SLUG }))!;
-    expect(after[0].figures.find((f) => f.key === "emily")!.taken).toBe(true);
-    // A look-alike isn't offered when the row is off.
+    expect(after[1].figures.find((f) => f.key === "emily")!.taken).toBe(true);
+    // The cast isn't offered when the setting is off.
     await expect(t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, lookalikes: false })).resolves.toBeTruthy();
     await expect(t.mutation(api.registration.register, guest(2, "miranda"))).rejects.toThrow(/isn't one of tonight's/);
   });
 
-  test("test guests never take a real guest's look-alike", async () => {
+  test("a cast face brings its name, whatever the page sends; another drawing keeps the typed one", async () => {
     const { t, hostKey } = await setup();
     await t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, lookalikes: true });
-    await t.mutation(internal.game.seedFakeCast, { slug: SLUG, guests: 12, markers: 0, seed: 9 });
-    const figs = await t.run(async (ctx) => (await ctx.db.query("players").collect()).map((p) => p.figure!));
-    expect(figs.length).toBeGreaterThan(5);
-    expect(figs.some((f) => LOOKALIKES.some((l) => l.key === f))).toBe(false);
+    const { token } = await t.mutation(api.registration.register, { ...guest(0, "josh"), sayAs: "nope" });
+    const me = (await t.query(api.registration.me, { token }))!;
+    expect(me.charName).toBe(castName(LOOKALIKES.find((l) => l.key === "josh")!));
+    expect(me.sayAs).toBe("");
+    // Switching off the list: they type their own name.
+    const { slug: _s, ...edit } = guest(0, "slick");
+    await t.mutation(api.registration.update, { ...edit, token, charName: "Lefty Lou" });
+    expect((await t.query(api.registration.me, { token }))!.charName).toBe("Lefty Lou");
+    // And back: the cast name again.
+    await t.mutation(api.registration.update, { ...edit, token, figure: "sam", charName: "Whatever" });
+    expect((await t.query(api.registration.me, { token }))!.charName).toBe(castName(LOOKALIKES.find((l) => l.key === "sam")!));
+    // A walk-in off the list with their own drawing and name.
+    const other = await t.mutation(api.registration.register, guest(1, "flapper"));
+    expect((await t.query(api.registration.me, { token: other.token }))!.charName).toBe("Character B");
+  });
+
+  test("test guests in a cast game are the cast, by name, with a profile of the same sex", async () => {
+    const { t, hostKey } = await setup();
+    await t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, lookalikes: true });
+    await t.mutation(internal.game.seedFakeCast, { slug: SLUG, guests: 8, markers: 0, seed: 9 });
+    const players = await t.run(async (ctx) => await ctx.db.query("players").collect());
+    expect(players).toHaveLength(8);
+    for (const p of players) {
+      const m = LOOKALIKES.find((l) => l.key === p.figure)!;
+      expect(m, p.figure).toBeTruthy();
+      expect(p.charName).toBe(castName(m));
+      expect(p.realName).toBe(`${m.name} (test guest)`);
+    }
+    expect(new Set(players.map((p) => p.figure)).size).toBe(8);
+    // Off: the made-up characters, never a cast face.
     expect(fakeGuestPool(false)).toEqual(FIGURE_KEYS);
+  });
+
+  test("the roll call introduces a cast member by name, with no played by", () => {
+    const parts = { name: "Josh “Two-Tone”", real: "Josh", signature: "Fedora", weapon: "Knife", motive: "", motiveOwn: false, rumor: "", roast: "" };
+    for (const tone of ["classic", "adult"] as const) {
+      for (const seed of ["a", "b", "c", "d", "e", "f"]) {
+        const cast = rollNarration(tone, { ...parts, seed, cast: true }).text;
+        expect(cast).toContain("Josh “Two-Tone”");
+        expect(cast).not.toMatch(/played by|a\.k\.a\.|better known/i);
+      }
+    }
+    expect(rollNarration("classic", { ...parts, seed: "a" }).text).toMatch(/played by|better known/i);
+  });
+
+  test("the TV's stand-in drawings: this game's guests first, then the rest of the cast", async () => {
+    expect(standIns(true, ["sam", "flapper", "emily", "sam"]).slice(0, 2)).toEqual(["sam", "emily"]);
+    expect(standIns(true, [])).toEqual(LOOKALIKES.map((l) => l.key));
+    const { t, hostKey } = await setup();
+    const tvKey = await t.run(async (ctx) => (await ctx.db.query("games").first())!.tvKey!);
+    expect((await t.query(api.game.tv, { slug: SLUG, tvKey }))!.standIns).toBeNull();
+    await t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, lookalikes: true });
+    await t.mutation(api.registration.register, guest(0, "reily"));
+    expect((await t.query(api.game.tv, { slug: SLUG, tvKey }))!.standIns![0]).toBe("reily");
   });
 
   test("the setting locks once the game starts", async () => {

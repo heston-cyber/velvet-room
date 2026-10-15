@@ -13,40 +13,57 @@ export const FIGURE_SETS: { label: string; keys: string[] }[] = [
 ];
 export const FIGURE_KEYS = FIGURE_SETS.flatMap((s) => s.keys);
 
-/** This party's look-alikes (Heston, Oct 14): drawings of the real guests. A game with
- *  `lookalikes` on shows them in their own "Tonight's guests" row, each labeled with the person's
- *  name (honor system: anyone could tap one, the label says whose it is). A main-cast drawing can
- *  also stand in for someone: in a look-alike game it moves up to this row, and in other games
- *  it's a regular character again. (Curls and sweetheart were Heston's and Emily's stand-ins until
- *  their own look-alikes were drawn.)
- *  Add a guest: art in public/art(/faces), then a line here. */
-export const LOOKALIKES: { key: string; name: string }[] = [
-  { key: "heston", name: "Heston" },
-  { key: "emily", name: "Emily" },
-  { key: "miranda", name: "Miranda" },
-  { key: "sam", name: "Sam" },
-  { key: "reily", name: "Reily" },
-  { key: "madison", name: "Madison" },
-  { key: "josh", name: "Josh" },
-  { key: "sophia", name: "Sophia" },
-  { key: "chrissie", name: "Chrissie" },
+/** The party cast (Heston, Oct 15: "fill up a full 16 character roster with even amount of girls and guys"):
+ *  drawings of the real guests, each going by their first name and a 1920s nickname ("Josh “Two-Tone”"),
+ *  on screen and in the narration. A game with `lookalikes` on is a cast game: sign-up shows the cast first
+ *  (tap your face and your name fills in; honor system, the label says whose it is), and the old drawings
+ *  only behind "Not on the list?" for anyone who isn't one of them. Whoever picks a character plays.
+ *  Test guests in a cast game are cast members too (Heston: "Use their names").
+ *  Add someone: art in public/art(/faces) via scripts/process-art.py, a line here, and their face in FACE_X
+ *  (src/lib/figure.ts). `sayAs` only if the narrator gets the name wrong. */
+export type CastMember = { key: string; name: string; sex: "m" | "f"; nickname?: string; sayAs?: string };
+export const LOOKALIKES: CastMember[] = [
+  { key: "heston", name: "Heston", sex: "m" },
+  { key: "emily", name: "Emily", sex: "f" },
+  { key: "miranda", name: "Miranda", sex: "f" },
+  { key: "sam", name: "Sam", sex: "m" },
+  { key: "reily", name: "Reily", sex: "m" },
+  { key: "madison", name: "Madison", sex: "f" },
+  { key: "josh", name: "Josh", sex: "m" },
+  { key: "sophia", name: "Sophia", sex: "f" },
+  { key: "chrissie", name: "Chrissie", sex: "f" },
 ];
 const LOOKALIKE_KEYS = LOOKALIKES.map((l) => l.key);
-export const lookalikeName = (key: string) => LOOKALIKES.find((l) => l.key === key)?.name ?? null;
+export const castMember = (key: string | null | undefined) => (key ? LOOKALIKES.find((l) => l.key === key) ?? null : null);
+export const lookalikeName = (key: string) => castMember(key)?.name ?? null;
+/** What a cast member goes by: "Josh “Two-Tone”" (just "Josh" until the nickname is in). */
+export const castName = (m: CastMember) => (m.nickname ? `${m.name} “${m.nickname}”` : m.name);
 
 /** Every drawing any game can hand out (for preloading art). */
 export const ALL_FIGURE_KEYS = [...new Set([...FIGURE_KEYS, ...LOOKALIKE_KEYS])];
 
-/** The sign-up gallery's rows for a game. */
-export function figureSets(lookalikes: boolean): { label: string; keys: string[]; guests: boolean }[] {
-  const main = FIGURE_SETS.map((s) => ({ label: s.label, keys: lookalikes ? s.keys.filter((k) => !LOOKALIKE_KEYS.includes(k)) : s.keys, guests: false }));
-  return lookalikes ? [{ label: "Tonight's guests", keys: LOOKALIKE_KEYS, guests: true }, ...main] : main;
+/** The sign-up gallery's rows for a game. In a cast game the old drawings are `extra`: "Not on the list?". */
+export function figureSets(lookalikes: boolean): { label: string; keys: string[]; guests: boolean; extra: boolean }[] {
+  const main = FIGURE_SETS.map((s) => ({ label: s.label, keys: lookalikes ? s.keys.filter((k) => !LOOKALIKE_KEYS.includes(k)) : s.keys, guests: false, extra: lookalikes }));
+  if (!lookalikes) return main;
+  const row = (label: string, sex: "m" | "f") => ({ label, keys: LOOKALIKES.filter((l) => l.sex === sex).map((l) => l.key), guests: true, extra: false });
+  return [row("The guys", "m"), row("The girls", "f"), ...main];
 }
 export const figureKeysFor = (lookalikes: boolean) => figureSets(lookalikes).flatMap((s) => s.keys);
 export const isFigure = (k: unknown, lookalikes = false): k is string => typeof k === "string" && figureKeysFor(lookalikes).includes(k);
+/** A cast member's drawing, in a cast game. */
+export const isCastFigure = (k: string | null | undefined, lookalikes: boolean) => lookalikes && !!castMember(k);
 
-/** Test guests never take a real guest's look-alike. */
-export const fakeGuestPool = (lookalikes: boolean) => (lookalikes ? FIGURE_KEYS.filter((k) => !LOOKALIKE_KEYS.includes(k)) : FIGURE_KEYS);
+/** Test guests: in a cast game they're cast members (the real people, by name); otherwise the old drawings. */
+export const fakeGuestPool = (lookalikes: boolean) => (lookalikes ? LOOKALIKE_KEYS : FIGURE_KEYS);
+
+/** Drawings that stand in on the TV (How to play, the accomplice card, the awards, empty line-ups): in a cast
+ *  game the game's own guests first, then the rest of the cast; otherwise the old drawings. */
+export function standIns(lookalikes: boolean, guestFigures: string[]): string[] {
+  if (!lookalikes) return FIGURE_KEYS;
+  const mine = [...new Set(guestFigures.filter((f) => !!castMember(f)))];
+  return [...mine, ...LOOKALIKE_KEYS.filter((k) => !mine.includes(k))];
+}
 
 /** Which way a drawing faces, so walkers on the TV face where they're going. Drawings face
  *  front or to the left unless listed here (none at the moment: dapper was redrawn facing front). */

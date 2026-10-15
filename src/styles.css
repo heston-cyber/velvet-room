@@ -315,6 +315,7 @@ img { max-width: 100%; }
 .figure-cell { display: grid; gap: 4px; justify-items: center; }
 .figure-cell button { width: 100%; }
 .figure-name { font-family: var(--label); font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--brass); text-align: center; overflow-wrap: anywhere; }
+.figure-more { justify-self: start; background: none; border: 0; border-bottom: 1px dotted var(--muted); color: var(--muted); font-family: var(--label); font-size: 13px; letter-spacing: .06em; cursor: pointer; padding: 4px 0; }
 .figure-chosen { display: grid; grid-template-columns: 96px 1fr; gap: 12px; align-items: end; }
 .figure-chosen img { height: 200px; width: auto; max-width: 96px; object-fit: contain; object-position: bottom; filter: drop-shadow(0 6px 12px rgba(0, 0, 0, .45)); }
 .weapon-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; outline: none; }

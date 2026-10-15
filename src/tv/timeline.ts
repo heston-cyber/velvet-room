@@ -51,6 +51,15 @@ export type Plan = {
 export type CharKey = string;
 /** Stand-ins when a game has no guests with drawings yet. */
 export const GUESTS: CharKey[] = ["flapper", "dapper", "lady", "bodyguard", "sleuth", "detective"];
+
+/** The old drawings the show uses as decoration, in the order a cast game swaps in its own (this game's guests first). */
+const DECO = ["flapper", "dapper", "bodyguard", "lady", "detective", "slick"];
+/** A decorative drawing as this game shows it: in a cast game, one of the cast instead of the old drawing. */
+export function dress<T extends string>(d: Pick<Data, "standIns">, art: T): T | CharKey {
+  const i = DECO.indexOf(art);
+  if (i < 0 || !d.standIns?.length) return art;
+  return d.standIns[i % d.standIns.length];
+}
 export type CameoAnim =
   | "stand" // slides in from the side and stays
   | "standRight"
@@ -103,7 +112,7 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
   const withFigure = (list: Data["guests"]) => list.filter((x) => !!x.figure) as (Data["guests"][number] & { figure: string })[];
   const present = withFigure(d.guests.filter((x) => x.here));
   const pool: CharKey[] = (present.length ? present : withFigure(d.guests)).map((x) => x.figure);
-  const walkers = pool.length ? pool : GUESTS;
+  const walkers = pool.length ? pool : d.standIns ?? GUESTS;
   /** Someone crosses the screen every few minutes while a scene sits still. */
   const strollers = (id: string, from: number, every: number, on: string, creep: boolean, sfx?: SfxKey) => {
     for (let k = 1; k <= 30; k++) {
@@ -163,7 +172,7 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
       // Sign-ups on the TV (the replay's main screen): everyone signed up so far lines up along the
       // bottom with their name; stand-ins fill the row until there are six.
       const signed = withFigure(d.guests).slice(0, 10).map((x) => ({ char: x.figure, label: x.charName }));
-      const fill = GUESTS.filter((f) => !signed.some((x) => x.char === f)).slice(0, Math.max(0, 6 - signed.length)).map((char) => ({ char, label: undefined }));
+      const fill = (d.standIns ?? GUESTS).filter((f) => !signed.some((x) => x.char === f)).slice(0, Math.max(0, 6 - signed.length)).map((char) => ({ char, label: undefined }));
       const row = [...signed, ...fill];
       row.forEach((x, i) => cameo({ id: `signup:${i}:${x.char}`, char: x.char, label: x.label, anim: "lineup", slot: i, count: row.length, at: 0, until: Infinity, on: "waiting" }));
     }
@@ -284,7 +293,7 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
     vo(`acc:${t}`, "accuse", t + 4.3 * S);
     // The suspects line up along the bottom in their drawings, with the masked one in the middle.
     const suspects = withFigure(d.guests).slice(0, 10).map((x) => ({ char: x.figure, label: x.charName as string | undefined }));
-    const line = suspects.length ? suspects : GUESTS.map((char) => ({ char, label: undefined }));
+    const line = suspects.length ? suspects : (d.standIns ?? GUESTS).slice(0, 6).map((char) => ({ char, label: undefined as string | undefined }));
     line.splice(Math.floor(line.length / 2), 0, { char: "killer", label: undefined });
     line.forEach((x, i) =>
       cameo({ id: `acc:${t}:line:${i}:${x.char}`, char: x.char, label: x.label, anim: "lineup", slot: i, count: line.length, at: out.holdUntil + i * 0.18 * S, until: t + FOREVER, on: "accuse" }),
@@ -354,8 +363,8 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
     out.music = "awards";
     out.holdUntil = card("awards", t);
     fx(`aw:${t}:applause`, "applause", t + 0.2 * S);
-    cameo({ id: `aw:${t}:detective`, char: "detective", anim: "stand", at: out.holdUntil + 0.4 * S, until: t + FOREVER, on: "awards" });
-    cameo({ id: `aw:${t}:flapper`, char: "flapper", anim: "standRight", at: out.holdUntil + 0.8 * S, until: t + FOREVER, on: "awards" });
+    cameo({ id: `aw:${t}:detective`, char: dress(d, "detective"), anim: "stand", at: out.holdUntil + 0.4 * S, until: t + FOREVER, on: "awards" });
+    cameo({ id: `aw:${t}:flapper`, char: dress(d, "flapper"), anim: "standRight", at: out.holdUntil + 0.8 * S, until: t + FOREVER, on: "awards" });
     let e = vo(`aw:${t}`, "awards", t + 4.3 * S);
     const order: [CueKey, Clip | undefined][] = [
       ["awardDetective", w?.detective ?? undefined],
@@ -424,7 +433,7 @@ function show(d: Data, now: number, secs: (cue: CueKey) => number, out: Plan, { 
     fx(`how:${howAt}:${st.cue}:flip`, st.art === "map" ? "cardFlip" : "whoosh", st.at);
     vo(`how:${howAt}:${st.cue}`, st.cue, st.voiceAt, true);
   }
-  out.rules = { steps: how.steps.filter((st) => st.at < rollAt).map((st) => ({ ...st, v: pick(st.cue) })), end: Math.min(how.end, rollAt) };
+  out.rules = { steps: how.steps.filter((st) => st.at < rollAt).map((st) => ({ ...st, art: dress(d, st.art), v: pick(st.cue) })), end: Math.min(how.end, rollAt) };
 
   // The roll call: "the doors are locked", then each guest, then "remember these faces".
   let titleUntil = rollAt;

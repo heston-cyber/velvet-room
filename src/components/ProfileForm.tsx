@@ -93,6 +93,26 @@ export default function ProfileForm(props: {
   const gallery = useQuery(api.registration.figures, mode === "new" ? { slug: game.slug } : { token: props.token });
   const rack = useQuery(api.registration.weapons, mode === "new" ? { slug: game.slug } : { token: props.token });
   const weaponName = rack?.find((w) => w.key === values.weapon)?.name ?? "";
+  // A cast game (the party's real guests): tapping your own face fills in your name.
+  const allFigures = gallery?.flatMap((g) => g.figures) ?? [];
+  const castNames = new Set(allFigures.map((f) => f.castName).filter(Boolean));
+  const castPick = allFigures.find((f) => f.key === values.figure && f.castName) ?? null;
+  const hasExtra = !!gallery?.some((g) => g.extra);
+  const [showExtra, setShowExtra] = useState(false);
+  const extraOpen = showExtra || (!!values.figure && !!gallery?.some((g) => g.extra && g.figures.some((f) => f.key === values.figure)));
+  function pickFigure(f: { key: string; name: string | null; castName: string | null }) {
+    setValues((v) => {
+      if (f.castName) return { ...v, figure: f.key, charName: f.castName, sayAs: "", realName: v.realName.trim() ? v.realName : f.name ?? "" };
+      // Off the cast list: a name left over from a cast face goes, so they type their own.
+      return { ...v, figure: f.key, charName: castNames.has(v.charName) ? "" : v.charName };
+    });
+    setBad((b) => {
+      const n = new Set(b);
+      n.delete("realName");
+      return n;
+    });
+    setNeedFigure(false);
+  }
   const topRef = useRef<HTMLDivElement>(null);
 
   const generateUploadUrl = useMutation(api.registration.generateUploadUrl);
@@ -272,12 +292,13 @@ export default function ProfileForm(props: {
               Pick your character drawing
             </span>
             <span className="help">
-              It's you on the TV tonight. Each drawing goes to one guest, so grab yours.
-              {gallery?.some((g) => g.figures.some((f) => f.name)) && " If there's a drawing of you, it's in the first row with your name on it."}
+              {hasExtra
+                ? "Find your face and tap it: that's you on the TV tonight, and your name fills in."
+                : "It's you on the TV tonight. Each drawing goes to one guest, so grab yours."}
             </span>
             <div className="figure-pick" role="radiogroup" aria-labelledby="l-figure" id="f-figure" tabIndex={-1}>
               {gallery === undefined && <span className="help">Loading the drawings…</span>}
-              {gallery?.map((group) => (
+              {gallery?.filter((group) => !group.extra || extraOpen).map((group) => (
                 <div className="figure-set" key={group.label}>
                   <span className="small">{group.label}</span>
                   <div className={`figure-grid${group.figures.some((f) => f.name) ? " named" : ""}`}>
@@ -292,10 +313,7 @@ export default function ProfileForm(props: {
                           aria-label={takenByOther ? `${f.name ? `${f.name}'s drawing, ` : ""}taken` : f.name ? `${f.name}'s drawing` : `Drawing ${f.key}`}
                           disabled={takenByOther}
                           className={`${values.figure === f.key ? "on" : ""} ${takenByOther ? "taken" : ""}`}
-                          onClick={() => {
-                            set("figure", f.key);
-                            setNeedFigure(false);
-                          }}
+                          onClick={() => pickFigure(f)}
                         >
                           <img src={faceUrl(f.key)} alt="" />
                           {takenByOther && <span>Taken</span>}
@@ -314,6 +332,11 @@ export default function ProfileForm(props: {
                   </div>
                 </div>
               ))}
+              {hasExtra && !extraOpen && (
+                <button type="button" className="figure-more" onClick={() => setShowExtra(true)}>
+                  Not on the list? Pick another drawing
+                </button>
+              )}
             </div>
             {values.figure && (
               <div className="figure-chosen">
@@ -331,13 +354,22 @@ export default function ProfileForm(props: {
       body = (
         <>
           {progress}
-          <h2>Who are you tonight?</h2>
-          <p className="lede">Anyone at all. Random and funny is welcome.</p>
-          {field("charName", "Character name", { ph: "e.g. Velma “Two-Bits” Kowalski" })}
-          {field("sayAs", "Say it like · optional", {
-            ph: "e.g. VEL-muh too-BITS koh-WAL-skee",
-            help: "Only if the name is tricky. It's how the narrator will pronounce it.",
-          })}
+          {castPick ? (
+            <>
+              <h2>You're {castPick.castName}</h2>
+              <p className="lede">That's what the narrator calls you tonight. The rest is up to you: random and funny is welcome.</p>
+            </>
+          ) : (
+            <>
+              <h2>Who are you tonight?</h2>
+              <p className="lede">Anyone at all. Random and funny is welcome.</p>
+              {field("charName", "Character name", { ph: "e.g. Velma “Two-Bits” Kowalski" })}
+              {field("sayAs", "Say it like · optional", {
+                ph: "e.g. VEL-muh too-BITS koh-WAL-skee",
+                help: "Only if the name is tricky. It's how the narrator will pronounce it.",
+              })}
+            </>
+          )}
           {field("who", "Who they are, in a line or two", {
             area: true,
             ph: "e.g. Cigarette girl who knows every secret in the joint and sells them by the pack.",

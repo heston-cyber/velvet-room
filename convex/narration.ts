@@ -828,9 +828,22 @@ const ROLL_INTROS: Record<Tone, string[]> = {
   ],
 };
 
+/** A cast member is who they are (Heston, Oct 15: the party cast goes by their own names), so no "played by". */
+const CAST_INTROS: Record<Tone, string[]> = {
+  classic: ["Introducing {char}.", "Next, {char}.", "Say hello to {char}."],
+  adult: [
+    "Introducing {char}, God help us.",
+    "Next up, {char}.",
+    "Look who crawled in: {char}.",
+    "Exhibit A: {char}.",
+    "From the files of the New York Police Department: {char}.",
+    "Please welcome {char}, who was not technically invited.",
+  ],
+};
+
 /** "Introducing Velma, played by Jordan." Varied per guest (and, given a game's seed, per game) so it doesn't drone. */
-export function rollIntro(tone: Tone, char: string, real: string, seed = ""): string {
-  const list = ROLL_INTROS[tone];
+export function rollIntro(tone: Tone, char: string, real: string, seed = "", cast = false): string {
+  const list = (cast ? CAST_INTROS : ROLL_INTROS)[tone];
   const real1 = real.trim() || "a mystery guest";
   // Picked by the real name, so the caption and the recording (which may spell the name the guest's way) match.
   return list[hashOf(`${seed}${real1}`) % list.length].replace("{char}", char).replace("{real}", real1);
@@ -839,7 +852,7 @@ export function rollIntro(tone: Tone, char: string, real: string, seed = ""): st
 const endStop = (s: string) => (/[.!?…"'”]$/.test(s) ? s : `${s}.`);
 
 /** What the roll call (v2) says about one guest. The motive is theirs (first person) or the house's (second person). */
-export type RollParts = { name: string; real: string; signature: string; weapon: string; motive: string; motiveOwn: boolean; rumor: string; rumorLead?: string; roast: string; seed?: string };
+export type RollParts = { name: string; real: string; signature: string; weapon: string; motive: string; motiveOwn: boolean; rumor: string; rumorLead?: string; roast: string; seed?: string; cast?: boolean };
 
 /**
  * The v2 roll-call line: "Introducing Velma, played by Ana. Signature: … Weapon: the candlestick. Velma, your motive: …
@@ -848,7 +861,7 @@ export type RollParts = { name: string; real: string; signature: string; weapon:
  * can bring its rows in with the voice.
  */
 export function rollNarration(tone: Tone, p: RollParts) {
-  let text = rollIntro(tone, p.name, p.real, p.seed);
+  let text = rollIntro(tone, p.name, p.real, p.seed, p.cast);
   const add = (part: string) => {
     if (!part) return text.length;
     const at = text.length + 1;
