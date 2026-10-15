@@ -16,7 +16,7 @@ export const REVEAL: RevealTimes = { card: 0, line: 4_300, name: 9_000, how: 14_
  * names run longer, so it gets a few more seconds.
  */
 export const REVEAL_ACC: RevealTimes = { ...REVEAL, accomplice: 20_000, verdict: 27_000 };
-export const REVEAL_ACC_ADULT: RevealTimes = { ...REVEAL_ACC, verdict: 30_000 };
+export const REVEAL_ACC_ADULT: RevealTimes = { ...REVEAL_ACC, verdict: 31_000 };
 export const revealTimes = (accomplice: boolean, tone: "classic" | "adult" = "classic"): RevealTimes =>
   !accomplice ? REVEAL : tone === "adult" ? REVEAL_ACC_ADULT : REVEAL_ACC;
 export const REVEAL_VERDICT_MS = REVEAL.verdict;
