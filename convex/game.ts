@@ -14,6 +14,7 @@ import { ACCUSE_MAX_MINUTES, INTRO_MS, MAX_CARDS, REVEAL } from "./shared";
 import { scheduleRecording } from "./voice";
 import { ensureRoomCode } from "./join";
 import { anyFreeFigure, fakeGuestPool, takenFigures } from "./figures";
+import { anyFreeWeapon, takenWeapons, weaponName } from "./weapons";
 import { clipMatches, levelsOf, narratorOf, rollWanted, startWanted, voiceOf, type Wanted } from "./voiceLines";
 import { rollLineFor } from "./narration";
 
@@ -1049,7 +1050,9 @@ export const seedFakeCast = internalMutation({
         createdAt: now,
         updatedAt: now,
       });
-      await ctx.db.insert("weapons", { gameId: game._id, playerId, name: g.weapon, description: g.weaponDesc });
+      // Test guests pick from the weapon pool like everyone else (one guest per weapon).
+      const weapon = anyFreeWeapon(await takenWeapons(ctx, game._id), rng);
+      await ctx.db.insert("weapons", { gameId: game._id, playerId, key: weapon, name: weaponName(weapon)!, description: "" });
     }
     const players = await playersOf(ctx, game._id);
     if (checkIn !== false) {

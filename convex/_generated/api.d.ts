@@ -29,6 +29,7 @@ import type * as seal from "../seal.js";
 import type * as shared from "../shared.js";
 import type * as voice from "../voice.js";
 import type * as voiceLines from "../voiceLines.js";
+import type * as weapons from "../weapons.js";
 
 import type {
   ApiFromModules,
@@ -58,6 +59,7 @@ declare const fullApi: ApiFromModules<{
   shared: typeof shared;
   voice: typeof voice;
   voiceLines: typeof voiceLines;
+  weapons: typeof weapons;
 }>;
 
 /**

@@ -7,6 +7,7 @@ import { shrinkPhoto, uploadPhoto } from "../lib/photo";
 import { friendlyError } from "../lib/errors";
 import { ROLL_PROMPT } from "../../convex/narration";
 import { avatarSrc, faceUrl, figureUrl } from "../lib/figure";
+import { weaponUrl } from "../lib/weapon";
 
 export type GameInfo = {
   slug: string;
@@ -24,8 +25,8 @@ export type ProfileValues = {
   signature: string;
   motive: string;
   secret: string;
+  /** The weapon they picked from the pool (a key). */
   weapon: string;
-  weaponDesc: string;
   killerOk: boolean;
   rumor: string;
   sayAs: string;
@@ -41,37 +42,25 @@ export const EMPTY_PROFILE: ProfileValues = {
   motive: "",
   secret: "",
   weapon: "",
-  weaponDesc: "",
   killerOk: true,
   rumor: "",
   sayAs: "",
   figure: "",
 };
 
-const MAX: Record<keyof Omit<ProfileValues, "killerOk" | "figure">, number> = {
+const MAX: Record<keyof Omit<ProfileValues, "killerOk" | "figure" | "weapon">, number> = {
   realName: 60,
   charName: 60,
   who: 280,
   signature: 120,
   motive: 280,
   secret: 280,
-  weapon: 80,
-  weaponDesc: 280,
   rumor: 140,
   sayAs: 80,
 };
 
 type StepId = "door" | "you" | "character" | "motive" | "weapon" | "review";
 type TextKey = keyof typeof MAX;
-
-function LockIcon() {
-  return (
-    <svg className="lock" viewBox="0 0 18 18" aria-hidden="true">
-      <rect x="3" y="8" width="12" height="9" fill="none" stroke="currentColor" strokeWidth="1.3" />
-      <path d="M5.5 8V5.5a3.5 3.5 0 0 1 7 0V8" fill="none" stroke="currentColor" strokeWidth="1.3" />
-    </svg>
-  );
-}
 
 export default function ProfileForm(props: {
   game: GameInfo;
@@ -98,7 +87,10 @@ export default function ProfileForm(props: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needFigure, setNeedFigure] = useState(false);
+  const [needWeapon, setNeedWeapon] = useState(false);
   const gallery = useQuery(api.registration.figures, mode === "new" ? { slug: game.slug } : { token: props.token });
+  const rack = useQuery(api.registration.weapons, mode === "new" ? { slug: game.slug } : { token: props.token });
+  const weaponName = rack?.find((w) => w.key === values.weapon)?.name ?? "";
   const topRef = useRef<HTMLDivElement>(null);
 
   const generateUploadUrl = useMutation(api.registration.generateUploadUrl);
@@ -125,8 +117,6 @@ export default function ProfileForm(props: {
         return ["charName", "who", "signature"];
       case "motive":
         return game.motiveMode === "players" ? ["motive", "secret"] : [];
-      case "weapon":
-        return ["weapon", "weaponDesc"];
       default:
         return [];
     }
@@ -154,6 +144,11 @@ export default function ProfileForm(props: {
     if (step === "you" && !values.figure) {
       setNeedFigure(true);
       document.getElementById("f-figure")?.focus();
+      return;
+    }
+    if (step === "weapon" && !values.weapon) {
+      setNeedWeapon(true);
+      document.getElementById("f-weapon")?.focus();
       return;
     }
     setError(null);
@@ -433,24 +428,38 @@ export default function ProfileForm(props: {
       body = (
         <>
           {progress}
-          <h2>What did you bring?</h2>
-          <div className="tag" aria-hidden="true">
-            <span className="t1">Evidence · Exhibit ?</span>
-            <span className="t2">{values.weapon || "Your weapon"}</span>
-            <span className="t3">Letter assigned at the door</span>
-          </div>
-          {field("weapon", "Name it", { ph: "e.g. A brass candlestick" })}
-          {field("weaponDesc", "Describe it", {
-            area: true,
-            ph: "e.g. About a foot tall, heavy, dented at the base.",
-            help: "Color, size, what it's made of. The game uses this to write clues.",
-          })}
-          <div className="private">
-            <LockIcon />
-            <span>
-              <b>Only the game sees this.</b> Not the host, not the other guests. Bring it in a bag so nobody spots
-              it on the way in.
+          <h2>Pick your weapon</h2>
+          <p className="lede">Every guest gets a murder weapon. Each one goes to one guest, so grab yours.</p>
+          <div className={`field${needWeapon ? " bad" : ""}`}>
+            <span className="lab" id="l-weapon">
+              Your weapon
             </span>
+            <span className="help public">Everyone will see the weapons in play, and the TV shows yours with your character.</span>
+            <div className="weapon-grid" role="radiogroup" aria-labelledby="l-weapon" id="f-weapon" tabIndex={-1}>
+              {rack === undefined && <span className="help">Loading the weapons…</span>}
+              {rack?.map((w) => {
+                const takenByOther = w.taken && values.weapon !== w.key;
+                return (
+                  <button
+                    type="button"
+                    key={w.key}
+                    role="radio"
+                    aria-checked={values.weapon === w.key}
+                    aria-label={takenByOther ? `${w.name}, taken` : w.name}
+                    disabled={takenByOther}
+                    className={`${values.weapon === w.key ? "on" : ""} ${takenByOther ? "taken" : ""}`}
+                    onClick={() => {
+                      set("weapon", w.key);
+                      setNeedWeapon(false);
+                    }}
+                  >
+                    <img src={weaponUrl(w.key)} alt="" />
+                    <span className="weapon-name">{takenByOther ? "Taken" : w.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {needWeapon && <span className="err">Pick a weapon to continue.</span>}
           </div>
           {nav("Next: review")}
         </>
@@ -466,7 +475,7 @@ export default function ProfileForm(props: {
             who={values.who}
             signature={values.signature}
             photoUrl={avatarSrc(removePhoto ? null : photoPreview, values.figure)}
-            weaponSealed
+            weapon={values.weapon ? { key: values.weapon, name: weaponName } : null}
           />
           {game.killerOptIn && (
             <label className="optin" htmlFor="f-killer">

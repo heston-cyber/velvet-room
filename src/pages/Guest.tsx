@@ -48,7 +48,6 @@ export default function Guest({ token }: { token: string }) {
             motive: me.motive,
             secret: me.secret,
             weapon: me.weapon,
-            weaponDesc: me.weaponDesc,
             killerOk: me.killerOk,
             rumor: me.rumor,
             sayAs: me.sayAs,
@@ -91,7 +90,13 @@ export default function Guest({ token }: { token: string }) {
         {me.game.isTest && <div className="testflag">Test game · not the real party</div>}
         <span className="eyebrow">You're on the list</span>
         <h1 className="title-lg">See you inside, {first}.</h1>
-        <MemberCard charName={me.charName} who={me.who} signature={me.signature} photoUrl={avatarSrc(me.photoUrl, me.figure)} />
+        <MemberCard
+          charName={me.charName}
+          who={me.who}
+          signature={me.signature}
+          photoUrl={avatarSrc(me.photoUrl, me.figure)}
+          weapon={me.weapon ? { key: me.weapon, name: me.weaponName } : null}
+        />
         {me.figure && (
           <figure className="my-figure">
             <img src={figureUrl(me.figure)} alt="Your character drawing" />

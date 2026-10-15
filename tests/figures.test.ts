@@ -2,6 +2,7 @@ import { convexTest } from "convex-test";
 import { beforeAll, describe, expect, test } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
+import { WEAPON_KEYS } from "../convex/weapons";
 import { ALL_FIGURE_KEYS, FIGURE_KEYS, FIGURE_SETS, LOOKALIKES, anyFreeFigure, fakeGuestPool } from "../convex/figures";
 import { existsSync } from "node:fs";
 
@@ -18,7 +19,7 @@ beforeAll(() => {
 
 const guest = (i: number, figure?: string) => ({
   slug: SLUG, realName: `Guest ${i}`, charName: `Character ${String.fromCharCode(65 + i)}`, who: "Someone.", signature: `Item ${i}`,
-  weapon: `Weapon ${i}`, weaponDesc: "Plain.", killerOk: true, ...(figure ? { figure } : {}),
+  weapon: WEAPON_KEYS[i], killerOk: true, ...(figure ? { figure } : {}),
 });
 
 async function setup() {

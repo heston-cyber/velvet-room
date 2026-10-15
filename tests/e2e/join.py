@@ -60,9 +60,12 @@ def free_figure():
     """A drawing no fake guest has taken yet (each drawing belongs to one guest)."""
     sets = cx("registration:figures", {"slug": SLUG})
     return next(f["key"] for s in sets for f in s["figures"] if not f["taken"])
+def free_weapon():
+    """A weapon from the pool no fake guest has taken yet (each weapon belongs to one guest)."""
+    return next(w["key"] for w in cx("registration:weapons", {"slug": SLUG}) if not w["taken"])
 
 me = cx("registration:register", {"slug": SLUG, "realName": "Heston Test", "charName": "Velma Kowalski", "who": "Cigarette girl who sells secrets.",
-                                  "signature": "Silver cigarette case", "weapon": "Brass candlestick", "weaponDesc": "Heavy, dented base.", "killerOk": True, "figure": free_figure()})
+                                  "signature": "Silver cigarette case", "weapon": free_weapon(), "killerOk": True, "figure": free_figure()})
 roster = cx("host:roster", {"slug": SLUG, "hostKey": KEY})
 ok(roster["game"]["roomCode"] is None, "no room code while sign-ups run")
 cx("game:openDoors", {"slug": SLUG, "hostKey": KEY})

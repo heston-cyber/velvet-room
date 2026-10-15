@@ -189,6 +189,7 @@ export default defineSchema({
   weapons: defineTable({
     gameId: v.id("games"),
     playerId: v.id("players"),
+    key: v.optional(v.string()), // one of the weapon pool (convex/weapons.ts); older guests typed their own
     name: v.string(),
     description: v.string(),
   })

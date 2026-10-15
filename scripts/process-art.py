@@ -2,6 +2,7 @@
   public/art/<key>.webp        the full figure, cropped to the drawing, 1100px tall
   public/art/faces/<key>.webp  a 320px square head-and-shoulders crop on the velvet background
   python3 scripts/process-art.py [--isolate] <key>=<path.png> [<key>=<path.png> ...]
+  python3 scripts/process-art.py --weapon <key>=<path.png> ...   (public/art/weapons/<key>.webp, 480px square)
 Some generations come back with a faint paper haze over the transparent area; alpha under ~48 is
 dropped and the soft band above it is stretched back to full, so edges stay smooth.
 A few come back with a heavy, blotchy haze. --isolate keeps only the solid figure (plus a thin
@@ -64,9 +65,28 @@ def face(im: Image.Image) -> Image.Image:
     return bg.crop((x0, pad, x0 + side, pad + side)).convert("RGB").resize((320, 320), Image.LANCZOS)
 
 
+def weapon(im: Image.Image, size: int = 480, pad: float = 0.06) -> Image.Image:
+    """A weapon drawing, cropped to the object and centred in a transparent square."""
+    im = clean(im.convert("RGBA"))
+    im = im.crop(im.getchannel("A").getbbox())
+    inner = round(size * (1 - 2 * pad))
+    s = inner / max(im.width, im.height)
+    im = im.resize((max(1, round(im.width * s)), max(1, round(im.height * s))), Image.LANCZOS)
+    out = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    out.alpha_composite(im, ((size - im.width) // 2, (size - im.height) // 2))
+    return out
+
+
 if __name__ == "__main__":
     args = sys.argv[1:]
     iso = "--isolate" in args
+    if "--weapon" in args:
+        os.makedirs(os.path.join(ART, "weapons"), exist_ok=True)
+        for arg in (a for a in args if a != "--weapon"):
+            key, path = arg.split("=", 1)
+            weapon(Image.open(path)).save(os.path.join(ART, "weapons", f"{key}.webp"), quality=84, method=6)
+            print(f"weapon {key}")
+        sys.exit(0)
     for arg in (a for a in args if a != "--isolate"):
         key, path = arg.split("=", 1)
         fig = figure(Image.open(path), iso)

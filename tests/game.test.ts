@@ -2,6 +2,7 @@ import { convexTest } from "convex-test";
 import { beforeAll, describe, expect, test } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
+import { WEAPON_KEYS } from "../convex/weapons";
 
 const modules = import.meta.glob("../convex/**/*.ts");
 const FUTURE = Date.now() + 7 * 864e5;
@@ -73,7 +74,7 @@ describe("the draw, sealed", () => {
       if (b && "role" in b) privateTexts.push(b.motive, b.secret, ...(b.tip ? [b.tip] : []), ...b.lines);
     }
     const weapons = await t.run((ctx) => ctx.db.query("weapons").collect());
-    privateTexts.push(...weapons.map((w) => w.name), ...weapons.map((w) => w.description));
+    privateTexts.push(...weapons.map((w) => w.name), ...weapons.map((w) => w.description).filter(Boolean));
     expect(privateTexts.length).toBeGreaterThan(30);
     for (const text of privateTexts) expect(roster).not.toContain(text);
     expect(roster).not.toMatch(/Exhibit [A-Z]/);
@@ -154,7 +155,7 @@ describe("the draw, sealed", () => {
     for (const [i, name] of ["Ada Ace", "Bo Bell", "Cy Cole", "Di Dunn"].entries()) {
       const { token } = await t.mutation(api.registration.register, {
         slug: "test-checkin", realName: `Guest ${i}`, charName: name, who: "Someone.", signature: `Item ${i}`,
-        weapon: `Weapon ${i}`, weaponDesc: "Plain.", killerOk: true, figure: ["flapper", "dapper", "singer", "curls"][i],
+        weapon: WEAPON_KEYS[i], killerOk: true, figure: ["flapper", "dapper", "singer", "curls"][i],
       });
       tokens.push(token);
     }

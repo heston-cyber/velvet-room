@@ -12,6 +12,7 @@ import {
   required,
 } from "./lib";
 import { figureSets, isFigure, lookalikeName, takenFigures } from "./figures";
+import { WEAPONS, isWeapon, takenWeapons, weaponName } from "./weapons";
 
 const profileArgs = {
   realName: v.string(),
@@ -20,8 +21,8 @@ const profileArgs = {
   signature: v.string(),
   motive: v.optional(v.string()),
   secret: v.optional(v.string()),
-  weapon: v.string(),
-  weaponDesc: v.string(),
+  weapon: v.string(), // a key from the weapon pool (convex/weapons.ts)
+  weaponDesc: v.optional(v.string()), // older pages still send a description; it's ignored
   killerOk: v.boolean(),
   photoId: v.optional(v.id("_storage")),
   rumor: v.optional(v.string()),
@@ -37,7 +38,6 @@ type ProfileInput = {
   motive?: string;
   secret?: string;
   weapon: string;
-  weaponDesc: string;
   killerOk: boolean;
   rumor?: string;
   sayAs?: string;
@@ -50,8 +50,6 @@ function validateProfile(game: Doc<"games">, input: ProfileInput) {
     charName: required(input.charName, LIMITS.charName, "Character name"),
     who: required(input.who, LIMITS.who, "Who they are"),
     signature: required(input.signature, LIMITS.signature, "Signature item or habit"),
-    weapon: required(input.weapon, LIMITS.weapon, "Weapon name"),
-    weaponDesc: required(input.weaponDesc, LIMITS.weaponDesc, "Weapon description"),
     motive: clean(input.motive, LIMITS.motive),
     secret: clean(input.secret, LIMITS.secret),
     rumor: clean(input.rumor, LIMITS.rumor),
@@ -89,6 +87,31 @@ async function checkFigure(ctx: MutationCtx, game: Doc<"games">, figure: string 
   if ((await takenFigures(ctx, game._id, self)).has(figure)) throw new ConvexError("Someone just took that drawing. Pick another.");
   return figure;
 }
+
+/** The weapon a guest picked: one from the pool, and nobody else's in this game. */
+async function checkWeapon(ctx: MutationCtx, game: Doc<"games">, weapon: string | undefined, self?: Id<"players">) {
+  if (!weapon) throw new ConvexError("Pick your weapon.");
+  if (!isWeapon(weapon)) throw new ConvexError("Pick a weapon from the list.");
+  if ((await takenWeapons(ctx, game._id, self)).has(weapon)) throw new ConvexError("Someone just took that weapon. Pick another.");
+  return weapon;
+}
+
+/** The sign-up weapon rack: every weapon and whether another guest already has it. Nothing private. */
+export const weapons = query({
+  args: { slug: v.optional(v.string()), token: v.optional(v.string()) },
+  handler: async (ctx, { slug, token }) => {
+    const me = token
+      ? await ctx.db
+          .query("players")
+          .withIndex("by_token", (q) => q.eq("token", token))
+          .unique()
+      : null;
+    const game = me ? await ctx.db.get(me.gameId) : await gameBySlugOrActive(ctx, slug);
+    if (!game) return null;
+    const taken = await takenWeapons(ctx, game._id, me?._id);
+    return WEAPONS.map((w) => ({ key: w.key, name: w.name, taken: taken.has(w.key) }));
+  },
+});
 
 /** The sign-up gallery: every drawing and whether another guest already has it. Nothing private. */
 export const figures = query({
@@ -152,6 +175,7 @@ export const register = mutation({
     const p = validateProfile(game, args);
     await assertNameFree(ctx, game._id, p.charName);
     const figure = await checkFigure(ctx, game, args.figure);
+    const weapon = await checkWeapon(ctx, game, args.weapon);
 
     let token = randomCode(10);
     while (await ctx.db.query("players").withIndex("by_token", (q) => q.eq("token", token)).first()) {
@@ -177,12 +201,7 @@ export const register = mutation({
       createdAt: now,
       updatedAt: now,
     });
-    await ctx.db.insert("weapons", {
-      gameId: game._id,
-      playerId,
-      name: p.weapon,
-      description: p.weaponDesc,
-    });
+    await ctx.db.insert("weapons", { gameId: game._id, playerId, key: weapon, name: weaponName(weapon)!, description: "" });
     return { token };
   },
 });
@@ -224,8 +243,9 @@ export const me = query({
       sayAs: player.sayAs ?? "",
       figure: player.figure ?? null,
       killerOk: player.killerOk,
-      weapon: weapon?.name ?? "",
-      weaponDesc: weapon?.description ?? "",
+      // The pool key ("" for a guest who typed their own weapon before the pool, so they pick again).
+      weapon: weapon?.key ?? "",
+      weaponName: weapon?.name ?? "",
     };
   },
 });
@@ -246,6 +266,12 @@ export const update = mutation({
 
     const p = validateProfile(game, args);
     await assertNameFree(ctx, game._id, p.charName, player._id);
+    const weapon = await ctx.db
+      .query("weapons")
+      .withIndex("by_player", (q) => q.eq("playerId", player._id))
+      .unique();
+    // A different weapon has to be free; the same one stays theirs.
+    const weaponKey = args.weapon === weapon?.key ? args.weapon : await checkWeapon(ctx, game, args.weapon, player._id);
 
     let photoId = player.photoId;
     if (args.photoId && args.photoId !== player.photoId) {
@@ -273,20 +299,9 @@ export const update = mutation({
       killerOk: p.killerOk,
       updatedAt: Date.now(),
     });
-    const weapon = await ctx.db
-      .query("weapons")
-      .withIndex("by_player", (q) => q.eq("playerId", player._id))
-      .unique();
-    if (weapon) {
-      await ctx.db.patch(weapon._id, { name: p.weapon, description: p.weaponDesc });
-    } else {
-      await ctx.db.insert("weapons", {
-        gameId: game._id,
-        playerId: player._id,
-        name: p.weapon,
-        description: p.weaponDesc,
-      });
-    }
+    const row = { key: weaponKey, name: weaponName(weaponKey)!, description: "" };
+    if (weapon) await ctx.db.patch(weapon._id, row);
+    else await ctx.db.insert("weapons", { gameId: game._id, playerId: player._id, ...row });
     return { ok: true };
   },
 });

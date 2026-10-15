@@ -1,3 +1,5 @@
+import { weaponUrl } from "../lib/weapon";
+
 export function initials(name: string): string {
   const letters = name
     .trim()
@@ -17,7 +19,7 @@ export default function MemberCard(props: {
   who: string;
   signature: string;
   photoUrl?: string | null;
-  weaponSealed?: boolean;
+  weapon?: { key: string; name: string } | null;
 }) {
   return (
     <div className="card">
@@ -35,10 +37,13 @@ export default function MemberCard(props: {
       <dl>
         <dt>Signature</dt>
         <dd>{props.signature || "—"}</dd>
-        {props.weaponSealed && (
+        {props.weapon && (
           <>
             <dt>Weapon</dt>
-            <dd className="sealed-val">Sealed. Only the game knows.</dd>
+            <dd className="card-weapon">
+              <img src={weaponUrl(props.weapon.key)} alt="" />
+              {props.weapon.name}
+            </dd>
           </>
         )}
       </dl>

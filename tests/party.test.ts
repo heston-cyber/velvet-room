@@ -191,7 +191,7 @@ describe("party night", () => {
       slug: SLUG, title: "x", isTest: true, makeActive: false, registrationClosesAt: FUTURE, deadlineLabel: "x",
     });
     const { token } = await t.mutation(api.registration.register, {
-      slug: SLUG, realName: "A", charName: "Ace", who: "x", signature: "x", weapon: "x", weaponDesc: "x", killerOk: true, figure: "slick",
+      slug: SLUG, realName: "A", charName: "Ace", who: "x", signature: "x", weapon: "candlestick", killerOk: true, figure: "slick",
     });
     const r = await t.mutation(api.game.checkIn, { token, weaponIn: false });
     expect(r.exhibitLetter).toBeNull();

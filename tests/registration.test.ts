@@ -7,9 +7,9 @@ const modules = import.meta.glob("../convex/**/*.ts");
 const FUTURE = Date.now() + 7 * 864e5;
 
 const guests = [
-  { realName: "Ana Ruiz", charName: "Velma “Two-Bits” Kowalski", who: "Cigarette girl who sells secrets.", signature: "Silver cigarette case", weapon: "Brass candlestick", weaponDesc: "Heavy, a foot tall, dented base.", killerOk: true, figure: "flapper" },
-  { realName: "Ben Cho", charName: "Father Malone", who: "A priest who drinks too much.", signature: "Rosary he twirls", weapon: "Rubber chicken", weaponDesc: "Yellow, squeaks when squeezed.", killerOk: false, figure: "dapper" },
-  { realName: "Cal Ortiz", charName: "Lucky Lou", who: "Bookie with bad luck.", signature: "Lucky green dice", weapon: "Pool cue", weaponDesc: "Snapped in half, chalk on the tip.", killerOk: true, figure: "gambler" },
+  { realName: "Ana Ruiz", charName: "Velma “Two-Bits” Kowalski", who: "Cigarette girl who sells secrets.", signature: "Silver cigarette case", weapon: "candlestick", killerOk: true, figure: "flapper" },
+  { realName: "Ben Cho", charName: "Father Malone", who: "A priest who drinks too much.", signature: "Rosary he twirls", weapon: "gnome", killerOk: false, figure: "dapper" },
+  { realName: "Cal Ortiz", charName: "Lucky Lou", who: "Bookie with bad luck.", signature: "Lucky green dice", weapon: "rope", killerOk: true, figure: "gambler" },
 ];
 
 async function setup(motiveMode: "game" | "players" = "game", closesAt = FUTURE) {
@@ -52,7 +52,6 @@ describe("registration", () => {
     for (const g of guests) {
       expect(json).toContain(g.charName);
       expect(json).not.toContain(g.weapon);
-      expect(json).not.toContain(g.weaponDesc);
       expect(json).not.toContain(`Motive of ${g.realName}`);
       expect(json).not.toContain(`Secret of ${g.realName}`);
     }
@@ -82,7 +81,7 @@ describe("registration", () => {
 
   test("required fields are enforced", async () => {
     const { t } = await setup();
-    await expect(t.mutation(api.registration.register, { ...guests[0], weapon: "  " })).rejects.toThrow(/Weapon/);
+    await expect(t.mutation(api.registration.register, { ...guests[0], weapon: "  " })).rejects.toThrow(/weapon/);
     await expect(t.mutation(api.registration.register, { ...guests[0], signature: "" })).rejects.toThrow(/Signature/);
   });
 
@@ -96,9 +95,32 @@ describe("registration", () => {
   test("a guest can edit their entry, weapon included", async () => {
     const { t } = await setup();
     const { token } = await t.mutation(api.registration.register, guests[0]);
-    await t.mutation(api.registration.update, { token, ...guests[0], weapon: "Velvet rope", weaponDesc: "Red, six feet long." });
+    await t.mutation(api.registration.update, { token, ...guests[0], weapon: "knife" });
     const me = await t.query(api.registration.me, { token });
-    expect(me?.weapon).toBe("Velvet rope");
+    expect(me?.weapon).toBe("knife");
+    expect(me?.weaponName).toBe("Knife");
+  });
+
+  test("weapons come from the pool, one guest per weapon", async () => {
+    const { t } = await setup();
+    await expect(t.mutation(api.registration.register, { ...guests[0], weapon: "Rubber chicken" })).rejects.toThrow(/from the list/);
+    const { token } = await t.mutation(api.registration.register, guests[0]);
+    await expect(t.mutation(api.registration.register, { ...guests[1], weapon: "candlestick" })).rejects.toThrow(/Someone just took that weapon/);
+    const rack = (await t.query(api.registration.weapons, { slug: "test-unit" }))!;
+    expect(rack).toHaveLength(22);
+    expect(rack.filter((w) => w.taken).map((w) => w.key)).toEqual(["candlestick"]);
+    // A guest's own weapon isn't "taken" for them, and saving without changing it is fine.
+    const mine = (await t.query(api.registration.weapons, { token }))!;
+    expect(mine.some((w) => w.taken)).toBe(false);
+    await t.mutation(api.registration.update, { token, ...guests[0], who: "Changed." });
+    // Switching frees the old weapon for everyone else.
+    const { token: t2 } = await t.mutation(api.registration.register, guests[1]);
+    await expect(t.mutation(api.registration.update, { token: t2, ...guests[1], weapon: "candlestick" })).rejects.toThrow(/Someone just took/);
+    await t.mutation(api.registration.update, { token, ...guests[0], weapon: "wrench" });
+    await t.mutation(api.registration.update, { token: t2, ...guests[1], weapon: "candlestick" });
+    expect((await t.query(api.registration.me, { token: t2 }))?.weapon).toBe("candlestick");
+    const stored = await t.run((ctx) => ctx.db.query("weapons").collect());
+    expect(stored.map((w) => [w.key, w.name]).sort()).toEqual([["candlestick", "Candlestick"], ["wrench", "Wrench"]]);
   });
 
   test("when the opt-in is off, everyone is eligible", async () => {
