@@ -95,8 +95,8 @@ export const CUES = {
   },
   howTo7: {
     when: "How to play, card 7 (lying)",
-    classic: "Talk to everyone. You may lie about your own secrets. [short pause] Only the killer may lie about the murder.",
-    adult: "Talk to everybody. Lie about your own secrets all you want. [short pause] Only the killer gets to lie about the murder.",
+    classic: "Talk to everyone. You may lie about your own secrets. [short pause] Only the guilty may lie about the murder.",
+    adult: "Talk to everybody. Lie about your own secrets all you want. [short pause] Only the guilty get to lie about the murder.",
     wild: ["[deadly serious]", "[bursts out laughing]"],
   },
   howTo8: {
@@ -132,8 +132,8 @@ export const CUES = {
   },
   howWeapons: {
     when: "How to play v2, card 3 (the weapons)",
-    classic: "Every guest brought a weapon, and one of them did the deed. [short pause] That doesn't mean its owner did.",
-    adult: "Everybody brought a weapon, and one of them did the job. [short pause] Owning the murder weapon doesn't make you the murderer. It just makes you weird.",
+    classic: "Every guest brought a weapon, and one of them is about to do the deed. [short pause] That doesn't mean its owner did.",
+    adult: "Everybody brought a weapon, and one of them is about to do the job. [short pause] Owning the murder weapon doesn't make you the murderer. It just makes you weird.",
     wild: ["[deadly serious]", "[giggles nervously]"],
   },
   howJail: {
@@ -171,8 +171,8 @@ export const CUES = {
   // rule. Same rules as v2, fewer words. Drafts for Heston's review. ----
   howCase: {
     when: "How to play v3, card 1 (one of you did it; your phone; lying)",
-    classic: "[warm, conspiratorial] One of you killed Don Ray Sanders. Your phone will tell you if it was you. [short pause] Only the guilty may lie about the murder.",
-    adult: "[warm, conspiratorial] One of you killed Don Ray Sanders. Your phone will tell you if it was you. [short pause] Only the guilty get to lie about the murder. Everyone else, lie about everything else.",
+    classic: "[warm, conspiratorial] Here's how tonight works. Any minute now, Don Ray Sanders is going to die, and one of you will have done it. Your phone will tell you if it was you. [short pause] Only the guilty may lie about the murder.",
+    adult: "[warm, conspiratorial] Here's how this goes. Any minute now, Don Ray Sanders is going to drop dead, and one of you sick bastards will have done it. Your phone will tell you if it was you. [short pause] Only the guilty get to lie about the murder. Everyone else, lie about everything else.",
     wild: ["[clapping hands, way over the top]", "[cackles]"],
   },
   howSearch: {
@@ -183,8 +183,8 @@ export const CUES = {
   },
   howJail2: {
     when: "How to play v3, the jail vote",
-    classic: "After each round, vote someone into jail. It takes more than half of you. [short pause] Jailbirds can't search or vote, and next round you can vote them out.",
-    adult: "After each round, vote somebody into jail. More than half of you have to agree. [short pause] Jailbirds can't search or vote. They can bribe. Next round, you can spring them.",
+    classic: "After Round 2, you can vote one guest into jail. You don't have to: if you're not sure, vote nobody. It takes more than half of you. [short pause] Jailbirds can't search, vote or lock in. After Round 3, you can vote them back out.",
+    adult: "After Round 2, you can vote one person into jail. You don't have to. Nobody is always on the ballot. More than half of you have to agree. [short pause] Jailbirds can't search, vote or lock in. After Round 3, you can spring them. If you're feeling generous. Or bribed.",
     wild: ["[banging on the bars, shouting]", "[evil laugh]"],
   },
   howWin2: {
@@ -208,9 +208,9 @@ export const CUES = {
     wild: ["[banging a gavel, way too hard]", ""],
   },
   voteRelease: {
-    when: "The release vote opens (before the jail vote, from Round 2, if anyone is in jail)",
-    classic: "Before the jail vote: does anyone get out of jail? Vote on your phone.",
-    adult: "Before we lock anyone else up: does anybody get out? Vote on your phone.",
+    when: "The release vote opens (after Round 3, before the lock-in, if anyone is in jail)",
+    classic: "Before the lock-in: does anyone get out of jail? Vote on your phone.",
+    adult: "Before the lock-in: does anybody get out of jail? Vote on your phone. Choose wisely. Or drunkenly. Same thing in here.",
     wild: ["[jingling keys, giggling]", ""],
   },
   voteLastCall: {
@@ -460,8 +460,8 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
     "After the roll call, check your phone for your secret role. Press and hold to read it. If someone leans over to look, lean back. Harder.",
   ],
   howWeapons: [
-    "Every guest brought a weapon, and one of them was used on the Don. [short pause] If it's yours, that doesn't make you the killer. It does make you a person who owns that.",
-    "Each of you brought a weapon, which is not normal party etiquette. [short pause] One of them did the job. Its owner may be completely innocent. Its owner may also be lying.",
+    "Every guest brought a weapon, and one of them is about to be used on the Don. [short pause] If it's yours, that doesn't make you the killer. It does make you a person who owns that.",
+    "Each of you brought a weapon, which is not normal party etiquette. [short pause] One of them is about to do the job. Its owner may be completely innocent. Its owner may also be full of shit.",
   ],
   voteJail: [
     "Jail vote. Look around the room, find the face you trust least, and vote on your phone.",
@@ -512,8 +512,8 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
     "Starting with the second vote, you can let someone out first. It takes more than half of you. Bribe the judge. The judge is all of you.",
   ],
   howTo7: [
-    "Talk to everybody. Lie about your own secrets. It's encouraged. [short pause] Only the killer may lie about the murder. Everyone else, tell the truth about that one thing, just this once.",
-    "You may lie about your own secrets. Most of you have been practicing for years. [short pause] Only the killer gets to lie about the murder.",
+    "Talk to everybody. Lie about your own secrets. It's encouraged. [short pause] Only the guilty may lie about the murder. Everyone else, tell the truth about that one thing, just this once.",
+    "You may lie about your own secrets. Most of you have been practicing for years. [short pause] Only the guilty get to lie about the murder.",
   ],
   howTo7Acc: [
     "Talk to everybody. Lie about your own secrets. It's encouraged. [short pause] Only the killer and the accomplice may lie about the murder. Everyone else, tell the truth about that one thing, just this once.",
@@ -528,16 +528,16 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
     "More than half of you have to get the killer, more than half the weapon, and more than half the room. Miss one, and the killer walks out a free and very smug individual. [short pause] Then we vote for Best Dressed and Best Liar.",
   ],
   howCase: [
-    "[warm, conspiratorial] Somebody in this room killed the Don. Check your phone after the roll call to find out if it was you. [short pause] Only the guilty may lie about the murder.",
-    "[warm, conspiratorial] One of you is a killer, and your phone knows which. Keep your screen to yourself. [short pause] Only the guilty may lie about the murder. The rest of you, try honesty. It's new.",
+    "[warm, conspiratorial] Quick rules, before the Don hits the floor. One of you is about to become a killer, and your phone knows which. Keep your screen to yourself. [short pause] Only the guilty may lie about the murder. The rest of you, try honesty. It's new.",
+    "[warm, conspiratorial] Enjoy the Don while you can. He's got about a minute left, and one of you is the reason. Check your phone after the roll call. [short pause] Only the guilty may lie about the murder. Everybody else, keep your bullshit to the small stuff.",
   ],
   howSearch: [
     "Three rounds of searching. Find the evidence cards, scan them with your phone, and put things back where you found them. [short pause] The evidence lands on this screen.",
     "Three rounds. Hunt down the evidence cards and scan them. Drawers, closets, under the couch. [short pause] Whatever you find shows up here.",
   ],
   howJail2: [
-    "Every round ends with a jail vote. Majority rules. [short pause] Jailbirds can't search or vote, but they can still talk, which is the real punishment for everyone else.",
-    "After each round, you vote someone behind bars. More than half of you, or nobody goes. [short pause] Next round you can vote them back out. This is called the justice system.",
+    "Round 2 ends with a jail vote. Lock somebody up, or don't. Nobody's making you. It takes more than half of you. [short pause] Jailbirds can't search, vote or lock in, but they can still talk, which is the real punishment for everyone else. After Round 3, you can let them out.",
+    "After Round 2, you may throw one of these degenerates in jail. May. Not must. Vote nobody if your gut says nobody. [short pause] Jailbirds sit out the searching, the voting and the lock-in. After Round 3, you can vote them back out. This is called the justice system.",
   ],
   howWin2: [
     "After the last round, everybody who's free locks in who, with what, and where. No take-backs. [short pause] Most of you right on all three, you win. Otherwise, the killer goes home happy.",
@@ -687,9 +687,9 @@ export const NOISY: Record<Tone, Partial<Record<CueKey, string>>> = {
   classic: {
     doors: "[warm, smoky voice] Welcome to the Velvet Room. I'm {host}, your host tonight. [hiccups] Drinks are on the house. [short pause] Mostly.",
     howKiller: "[warm, conspiratorial] Here's how tonight works. One of you is the k- k- killer. [short pause] Everyone else has to prove it.",
-    howWeapons: "Every guest brought a weapon, and one of them did the deed. [hiccups] [short pause] That doesn't mean its owner did.",
+    howWeapons: "Every guest brought a weapon, and one of them is about to do the deed. [hiccups] [short pause] That doesn't mean its owner did.",
     howJail: "After every round, you vote someone into jail. [sneezes] Excuse me. It takes more than half of you, or nobody goes. Jailed guests can talk and bribe, but they can't search, vote or accuse.",
-    howTo7: "Talk to everyone. You may lie about your own secrets. [clears throat] [short pause] Only the killer may lie about the murder.",
+    howTo7: "Talk to everyone. You may lie about your own secrets. [clears throat] [short pause] Only the guilty may lie about the murder.",
     rollLocked: "[low, grave] The doors are locked until we figure out who did it. [hiccups] [short pause] Now, let's meet the suspects.",
     rollCallClose: "That's everyone. [short pause] Remember these faces. [hiccups]",
     intro4: "Check your phone. [coughs] Press and hold your card, and keep it to yourself.",
@@ -711,9 +711,9 @@ export const NOISY: Record<Tone, Partial<Record<CueKey, string>>> = {
     doors: "[warm, smoky voice] Welcome to the Velvet Room. I'm {host}. The gin was made in a bathtub this afternoon, [hiccups] and the bathtub did its best.",
     doorsReminder: "If you haven't opened your link yet, do it now. [burps] The bouncer has been told you're a fed.",
     howKiller: "[warm, conspiratorial] Here's how this goes. One of you is a k- k- killer. [short pause] The rest of you have to nail them.",
-    howWeapons: "Everybody brought a weapon, and one of them did the job. [hiccups] [short pause] Doesn't mean its owner did.",
+    howWeapons: "Everybody brought a weapon, and one of them is about to do the job. [hiccups] [short pause] Doesn't mean its owner did.",
     howJail: "After every round, you vote someone into jail. [farts] [short pause] That was the chair. More than half of you have to agree, or nobody goes. Jailbirds can talk and bribe. They can't search, vote or accuse.",
-    howTo7: "You may lie about your own secrets. Most of you have been practicing for years. [burps] [short pause] Only the killer gets to lie about the murder.",
+    howTo7: "You may lie about your own secrets. Most of you have been practicing for years. [burps] [short pause] Only the guilty get to lie about the murder.",
     howWin: "More than half of you need the right killer, more than half the right weapon, and more than half the right room. [sneezes] Excuse me. Exactly half is a tie, and ties go to the killer. [short pause] Then we vote for Best Dressed and Best Liar.",
     rollLocked: "[low, grave] The doors are locked until we figure out which one of you did it. [hiccups] [short pause] Let's meet the suspects.",
     rollCallClose: "And that's the lineup. [short pause] Take a good look. The police sketch artist is drunk. [hiccups]",

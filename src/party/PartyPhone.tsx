@@ -550,7 +550,7 @@ function Pacing({ token, data }: { token: string; data: Phone }) {
         onClick={() => setReady({ token, ready: !me.ready })}
       >
         <Swap show={me.ready ? 1 : 0}>
-          <span>{game.round === 3 ? "Ready for the last vote" : "Ready to end the round"}</span>
+          <span>{game.round === 3 ? "Ready for the lock-in" : "Ready to end the round"}</span>
           <span>You're ready ✓</span>
         </Swap>
       </button>
@@ -559,7 +559,12 @@ function Pacing({ token, data }: { token: string; data: Phone }) {
       </div>
       <span className="help">
         {counts.ready} of {counts.inGame} ready.{" "}
-        The round ends in a jail vote once most of the free guests are ready.
+        {/* Oct 16: Round 1 has no vote, Round 2 ends in the jail vote, Round 3 in the release vote (if anyone's in jail). */}
+        {game.round === 1
+          ? "Round 2 starts once most of the free guests are ready."
+          : game.round === 2
+            ? "The round ends in a jail vote once most of the free guests are ready. Jailing anyone is optional."
+            : "Once most of the free guests are ready: a release vote if anyone's in jail, then the lock-in."}
       </span>
     </div>
   );

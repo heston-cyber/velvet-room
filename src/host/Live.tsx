@@ -46,8 +46,14 @@ export function useNextStep(data: Roster, slug: string, hostKey: string, now: nu
     // v2: a round ends in its votes; the host can close a vote early and skip its verdict.
     const vt = g.round <= 3 ? g.vote : null;
     if (vt && !vt.closedAt) return { label: "Close the vote", help: "Counts the votes now. More than half on one guest is needed.", run: () => advance(args) };
-    if (vt && vt.closedAt && (vt.nextAt ?? 0) > now) return { label: vt.kind === "release" ? "On to the jail vote" : g.round === 3 ? "On to the lock-in" : `On to Round ${g.round + 1}`, help: "Skips the rest of the verdict.", run: () => advance(args) };
-    if (g.round <= 3) return { label: `End Round ${g.round}`, help: g.round === 1 ? "Ends the round in the jail vote." : "Ends the round in the votes (release first, if anyone is in jail).", run: () => advance(args) };
+    if (vt && vt.closedAt && (vt.nextAt ?? 0) > now) return { label: g.round === 3 ? "On to the lock-in" : `On to Round ${g.round + 1}`, help: "Skips the rest of the verdict.", run: () => advance(args) };
+    if (g.round <= 3)
+      return {
+        label: `End Round ${g.round}`,
+        // Oct 16: Round 1 has no vote, Round 2 ends in the jail vote, Round 3 in the release vote (if anyone's in jail).
+        help: g.round === 1 ? "On to Round 2. No vote after Round 1." : g.round === 2 ? "Ends the round in the jail vote." : "Ends the round in the release vote if anyone's in jail, then the lock-in.",
+        run: () => advance(args),
+      };
     const allIn = c.accused >= c.inGame;
     return {
       label: "Start the reveal",

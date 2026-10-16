@@ -11,7 +11,7 @@ import { charKeyOf, randomCode, registrationIsOpen, requireHost, requireTv } fro
 import { seal } from "./seal";
 import { caseFor } from "./caseFile";
 import { ensureAllCards, markerForCode } from "./cards";
-import { ACCUSE_MAX_MINUTES, MAX_CARDS, revealTimes, VOTE } from "./shared";
+import { ACCUSE_MAX_MINUTES, MAX_CARDS, revealTimes, VOTE, voteAfterRound } from "./shared";
 import { SHOW, cueSecs, howCues, howLayout, rollLayout } from "./show";
 import { inOrder, rollGuests, slotsFor } from "./rollCall";
 import { heckleWanted } from "./heckles";
@@ -114,9 +114,10 @@ async function scheduleTimer(ctx: MutationCtx, gameId: Id<"games">, round: numbe
 }
 
 /**
- * Moves the game on one step (the host's Next, a round's timer, or most guests tapping Ready). v2: a round ends in
- * its votes (from Round 2, a release vote first if anyone is in jail, then the jail vote); the next step closes the
- * open vote, the one after skips the verdict; then the next round (after Round 3, the lock-in); then the reveal.
+ * Moves the game on one step (the host's Next, a round's timer, or most guests tapping Ready). A round ends in its
+ * vote, if it has one (voteAfterRound: Round 2 the jail vote, Round 3 the release vote if anyone's in jail); the next
+ * step closes the open vote, the one after skips the verdict; then the next round (after Round 3, the lock-in); then
+ * the reveal.
  */
 async function advance(ctx: MutationCtx, game: Doc<"games">) {
   if (!isPlaying(game)) return;
@@ -125,7 +126,8 @@ async function advance(ctx: MutationCtx, game: Doc<"games">) {
   const v = voteOf(game);
   if (!v) {
     const anyJailed = playingOf(await playersOf(ctx, game._id)).some((p) => p.jailed);
-    return startVote(ctx, game, round >= 2 && anyJailed ? "release" : "jail");
+    const kind = voteAfterRound(round, anyJailed);
+    return kind ? startVote(ctx, game, kind) : nextRound(ctx, game);
   }
   if (!v.closedAt) return closeVote(ctx, game);
   return afterVoteNow(ctx, game);
@@ -193,11 +195,10 @@ async function closeVote(ctx: MutationCtx, game: Doc<"games">) {
   await ctx.scheduler.runAt(nextAt, internal.game.afterVote, { gameId: game._id, at: v.at });
 }
 
-/** After the verdict: a release vote leads to the jail vote; a jail vote leads to the next round. */
+/** After the verdict, the next round (after Round 3, the lock-in). Each round ends in one vote at most (Oct 16). */
 async function afterVoteNow(ctx: MutationCtx, game: Doc<"games">) {
   const v = game.vote;
   if (!v || !v.closedAt) return;
-  if (v.kind === "release") return startVote(ctx, game, "jail", v.outcome === "released" ? v.targetId : undefined);
   return nextRound(ctx, game);
 }
 

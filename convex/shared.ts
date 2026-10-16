@@ -26,6 +26,18 @@ export const LIGHTS_OUT_MS = 3_000;
  */
 export const VOTE = { ms: 90_000, lastCallMs: 15_000, tallyMs: 0, verdictAtMs: 7_500, nextMs: 16_000 } as const;
 
+/**
+ * Which vote ends a round (Heston, Oct 16: "jail vote only can happen on round 2, no votes to release. round 3 no
+ * voting to put anyone in jail, but we can vote to release. (so its rnd 2 vote to lock up, rnd 3 vote to release)").
+ * Round 1 ends with no vote; Round 3's release vote comes at its end, right before the lock-in, and only if someone is
+ * in jail. Jailing is never required: nobody is always on the ballot.
+ */
+export function voteAfterRound(round: number, anyoneJailed: boolean): "jail" | "release" | null {
+  if (round === 2) return "jail";
+  if (round === 3 && anyoneJailed) return "release";
+  return null;
+}
+
 /** Accusations get a shorter clock than the evidence rounds. */
 export const ACCUSE_MAX_MINUTES = 5;
 

@@ -56,21 +56,25 @@ describe("party night", () => {
     }
   });
 
-  test("ready votes: once most guests are ready, the round ends in the jail vote, then the next round starts", async () => {
+  test("ready votes: once most guests are ready the round ends; Round 1 has no vote, Round 2 ends in the jail vote (Oct 16)", async () => {
     const { t, hostKey, tokens } = await started({ guests: 6 });
     expect((await game(t)).round).toBe(1);
     for (const token of tokens.slice(0, 3)) await t.mutation(api.game.setReady, { token, ready: true });
-    expect((await game(t)).vote).toBeUndefined(); // 3 of 6 is not most
+    expect((await game(t)).round).toBe(1); // 3 of 6 is not most
     await t.mutation(api.game.setReady, { token: tokens[3], ready: true });
-    const g = await game(t);
-    expect(g.round).toBe(1);
-    expect(g.vote).toMatchObject({ kind: "jail", round: 1 });
-    await nextRound(t, SLUG, hostKey);
-    expect((await game(t)).round).toBe(2);
+    let g = await game(t);
+    expect(g.round).toBe(2); // no vote after Round 1
+    expect(g.vote).toBeUndefined();
     const phone = await t.query(api.game.phone, { token: tokens[0] });
     expect(phone!.evidence.length).toBeGreaterThan(0);
     expect(phone!.evidence.every((e) => e.round === 2)).toBe(true);
     expect(phone!.me.ready).toBe(false); // a new round starts fresh
+    for (const token of tokens.slice(0, 4)) await t.mutation(api.game.setReady, { token, ready: true });
+    g = await game(t);
+    expect(g.round).toBe(2);
+    expect(g.vote).toMatchObject({ kind: "jail", round: 2 });
+    await nextRound(t, SLUG, hostKey);
+    expect((await game(t)).round).toBe(3);
   });
 
   test("timer pacing: rounds end on their own (then the vote runs its clock), pausing keeps the time left", async () => {
@@ -83,22 +87,27 @@ describe("party night", () => {
       expect((await game(t)).round).toBe(1);
       vi.advanceTimersByTime(2000);
       await t.finishInProgressScheduledFunctions();
+      // Round 1 has no vote: straight on to Round 2 (Oct 16)
+      expect((await game(t)).round).toBe(2);
+      expect((await game(t)).vote).toBeUndefined();
+      vi.advanceTimersByTime(10 * 60_000 + 1000);
+      await t.finishInProgressScheduledFunctions();
       expect((await game(t)).vote?.kind).toBe("jail");
-      // nobody votes: it closes on its clock, the verdict shows, then Round 2
+      // nobody votes: it closes on its clock, the verdict shows, then Round 3
       vi.advanceTimersByTime(VOTE.ms + 100);
       await t.finishInProgressScheduledFunctions();
       expect((await game(t)).vote?.outcome).toBe("nobody");
       vi.advanceTimersByTime(VOTE.nextMs + 100);
       await t.finishInProgressScheduledFunctions();
-      expect((await game(t)).round).toBe(2);
+      expect((await game(t)).round).toBe(3);
       await t.mutation(api.game.setPaused, { slug: SLUG, hostKey, paused: true });
       vi.advanceTimersByTime(30 * 60_000);
       await t.finishInProgressScheduledFunctions();
-      expect((await game(t)).round).toBe(2); // paused: no change
+      expect((await game(t)).round).toBe(3); // paused: no change
       await t.mutation(api.game.setPaused, { slug: SLUG, hostKey, paused: false });
       vi.advanceTimersByTime(10 * 60_000 + 1000);
       await t.finishAllScheduledFunctions(vi.runAllTimers);
-      expect((await game(t)).round).toBeGreaterThanOrEqual(3);
+      expect((await game(t)).round).toBeGreaterThanOrEqual(4);
     } finally {
       vi.useRealTimers();
     }
