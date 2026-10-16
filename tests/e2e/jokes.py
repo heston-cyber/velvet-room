@@ -130,8 +130,11 @@ with sync_playwright() as p:
     ok("[" not in cap, "captions show no delivery directions")
     host.screenshot(path=os.path.join(OUT, "03-sailor-how.png"))
     clips = cx("voice:clipsOf", {"slug": slug})
-    ok(wait_for(lambda: all(c["status"] == "ready" for c in cx("voice:clipsOf", {"slug": slug}) if c["purpose"].startswith(("killer:", "heckle:"))), 120), "the per-game lines record in Duke's Sailor voice")
+    ok(wait_for(lambda: all(c["status"] == "ready" for c in cx("voice:clipsOf", {"slug": slug}) if c["purpose"].startswith(("killer:", "heckle:"))), 240), "the per-game lines record in Duke's Sailor voice")
     clips = cx("voice:clipsOf", {"slug": slug})
+    late = [(c["purpose"], c["status"], c["error"]) for c in clips if c["status"] != "ready"]
+    if late:
+        print("not ready:", late[:8])
     ok(all(c["voice"] == "duke-sailor" for c in clips), "every per-game clip is Sailor Duke")
     browser.close()
 

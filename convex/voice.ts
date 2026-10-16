@@ -135,6 +135,20 @@ async function tts(text: string, voice: string): Promise<ArrayBuffer> {
   return await res.arrayBuffer();
 }
 
+/** The voice service turns requests away when too many arrive at once (two games starting together, say): wait and
+ *  try again, up to three times. */
+async function ttsRetry(text: string, voice: string): Promise<ArrayBuffer> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await tts(text, voice);
+    } catch (err) {
+      const busy = /said (429|500|502|503)/.test((err as Error).message);
+      if (!busy || attempt >= 3) throw err;
+      await new Promise((r) => setTimeout(r, 2000 * attempt + Math.random() * 1000));
+    }
+  }
+}
+
 /** Records every line in the scope that isn't recorded yet (four at a time). */
 export const record = internalAction({
   args: {
@@ -150,7 +164,7 @@ export const record = internalAction({
       while (i < todo.length) {
         const w = todo[i++];
         try {
-          const audio = await tts(w.text, w.voice);
+          const audio = await ttsRetry(w.text, w.voice);
           const storageId = await ctx.storage.store(new Blob([audio], { type: "audio/mpeg" }));
           await ctx.runMutation(internal.voice.saveClip, { gameId, purpose: w.purpose, text: w.text, voice: w.voice, storageId, seconds: secondsOfMp3(audio.byteLength) });
         } catch (err) {
