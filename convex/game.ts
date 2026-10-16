@@ -782,9 +782,12 @@ export const openDoors = mutation({
   handler: async (ctx, { slug, hostKey }) => {
     const game = await requireHost(ctx, slug, hostKey);
     if (game.status !== "registration") throw new ConvexError("The doors are already open.");
-    // Oct 16 (Heston: "eliminate the setup options for number of rooms and markers to better optimize the gameplay
-    // based on player count"): the evidence cards for this many sign-ups, locked from here on.
-    await writeMarkers(ctx, game, cardPlan((await playersOf(ctx, game._id)).length, game.rooms));
+    // Oct 16: a host who set no evidence cards gets the recommended ones for this many sign-ups, dealt round the rooms.
+    const hasCards = await ctx.db
+      .query("markers")
+      .withIndex("by_game", (q) => q.eq("gameId", game._id))
+      .first();
+    if (!hasCards) await writeMarkers(ctx, game, cardPlan((await playersOf(ctx, game._id)).length, game.rooms));
     await ctx.db.patch(game._id, { status: "lobby", doorsAt: Date.now() });
     await ensureRoomCode(ctx, game);
     return { ok: true };
