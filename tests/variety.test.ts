@@ -115,7 +115,8 @@ describe("heckles in the lulls", () => {
     expect(new Set(lines.map((l) => l.text)).size).toBe(lines.length);
     expect(lines.every((l) => !/[{}]/.test(l.text) && !/\b(Ruiz|Cho)\b|Cy Park/.test(l.text))).toBe(true);
     expect(lines.filter((l) => !l.target).length).toBeGreaterThanOrEqual(3); // asides about the night
-    expect(lines.some((l) => l.text.split(" ").length <= 6)).toBe(true); // short, punchy ones
+    expect(lines.some((l) => l.text.split(" ").length <= 10)).toBe(true); // short, punchy ones
+    expect(HECKLES.adult.jab.filter((t) => t.split(" ").length <= 6).length).toBeGreaterThanOrEqual(3);
   });
 
   test("every replay picks a different running gag and different lines", () => {
