@@ -116,8 +116,13 @@ export default defineSchema({
         nextAt: v.optional(v.number()),
       }),
     ),
-    // The narrator: Ivy or Duke, steady or Unstable. Volume levels 0 to 100 (0 is off).
-    narrator: v.optional(v.object({ host: v.union(v.literal("ivy"), v.literal("duke")), unstable: v.boolean() })),
+    // The narrator: Ivy or Duke, steady or Unstable, or Sailor mode (Duke's own furious script; Oct 16). Volume
+    // levels 0 to 100 (0 is off).
+    narrator: v.optional(v.object({ host: v.union(v.literal("ivy"), v.literal("duke")), unstable: v.boolean(), sailor: v.optional(v.boolean()) })),
+    // Picked at Start from what the host laptop heard lately (Oct 16, Heston: "a better selection system for each
+    // game that picks what lines will be used, so that jokes are not repeated"): a version of each line, whether
+    // tonight has a running gag (every third game on that laptop), and the heckles to keep for last.
+    lines: v.optional(v.object({ picks: v.record(v.string(), v.number()), gag: v.boolean(), avoid: v.array(v.string()) })),
     levels: v.optional(v.object({ voice: v.number(), music: v.number(), sfx: v.number() })),
     // Play again: game 2 is a fresh game with the same house setup. The old game points at it.
     gameNumber: v.optional(v.number()),

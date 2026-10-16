@@ -15,12 +15,12 @@ import { ACCUSE_MAX_MINUTES, LOCKED_UP_MS, MAX_CARDS, revealTimes, VOTE, voteAft
 import { SHOW, cueSecs, howCues, howLayout, introLayout, revealLayout, rollLayout, showParts } from "./show";
 import { inOrder, rollGuests, slotsFor } from "./rollCall";
 import { heckleWanted } from "./heckles";
-import { cueVariant, type CueKey } from "./narration";
+import { customCounts, pickLines, type CueKey } from "./narration";
 import { scheduleRecording } from "./voice";
 import { ensureRoomCode } from "./join";
 import { castMember, castName, fakeGuestPool, shortName, standIns, takenFigures } from "./figures";
 import { anyFreeWeapon, takenWeapons, weaponName } from "./weapons";
-import { clipMatches, levelsOf, narratorOf, startWanted, voiceOf, type Wanted } from "./voiceLines";
+import { clipMatches, levelsOf, narratorOf, scriptOf, startWanted, variantOf, voiceOf, type GameLines, type Wanted } from "./voiceLines";
 
 // ---------- shared helpers ----------
 
@@ -221,9 +221,8 @@ async function closeVote(ctx: MutationCtx, game: Doc<"games">) {
     verdictSecs = row?.seconds ?? 4;
   } else {
     const n = narratorOf(game);
-    const tone = game.tone ?? "classic";
     const cue = v.kind === "jail" ? "jailNobody" : "releaseNobody";
-    verdictSecs = cueSecs(voiceOf(n), tone, n.host, cue, cueVariant(tone, cue, game.slug, `${v.round}`));
+    verdictSecs = cueSecs(voiceOf(n), scriptOf(game), n.host, cue, variantOf(game, cue, `${v.round}`));
   }
   const saidAt = now + VOTE.verdictAtMs + (outcome === "jailed" ? LOCKED_UP_MS + 100 : 500);
   const nextAt = Math.max(now + VOTE.nextMs, saidAt + verdictSecs * 1000 + 1500);
@@ -782,9 +781,22 @@ export const openDoors = mutation({
 });
 
 /** Host: the secret draw. Builds and seals the case. Returns counts only, never the answer. */
+/** What the host laptop heard in its last few games (Oct 16): per line, the versions, oldest first; the heckles. */
+const heardArg = v.optional(v.object({ lines: v.record(v.string(), v.array(v.number())), heckles: v.array(v.string()) }));
+
+/** A new game's picks: the versions this laptop heard least lately, a running gag only if the laptop says it's due. */
+function linesFor(game: Doc<"games">, heard: { lines: Record<string, number[]>; heckles: string[] } | undefined, gag: boolean | undefined): GameLines {
+  const tone = scriptOf(game);
+  return {
+    picks: pickLines(tone, game.slug, heard?.lines ?? {}, customCounts(tone)),
+    gag: gag ?? false,
+    avoid: (heard?.heckles ?? []).slice(-120),
+  };
+}
+
 export const startGame = mutation({
-  args: { slug: v.string(), hostKey: v.string() },
-  handler: async (ctx, { slug, hostKey }) => {
+  args: { slug: v.string(), hostKey: v.string(), heard: heardArg, gag: v.optional(v.boolean()) },
+  handler: async (ctx, { slug, hostKey, heard, gag }) => {
     const game = await requireHost(ctx, slug, hostKey);
     if (game.status !== "registration" && game.status !== "lobby") throw new ConvexError("This game has already started.");
     const input = await caseInput(ctx, game);
@@ -810,11 +822,14 @@ export const startGame = mutation({
       secure(),
       (await playersOf(ctx, game._id)).filter((p) => p.inGame).map((p) => p._id),
     );
+    // This game's lines, picked so this laptop hears the jokes it heard least lately (layouts below time them).
+    const lines = linesFor(game, heard, gag);
+    const picked = { ...game, lines };
     // Oct 16 (Heston): How to play first, then the Don dies, then the roll call.
     const howAt = now;
-    const introAt = howLayout(howAt, howCues({ search: game.search ?? "all", pacing: game.pacing, accomplice: !!input.accomplice }), showSecs(game)).end;
-    const rollAt = introLayout(introAt, showSecs(game)).end;
-    const est = await rollPlan(ctx, game, rollAt, order, file as CaseFile);
+    const introAt = howLayout(howAt, howCues({ search: game.search ?? "all", pacing: game.pacing, accomplice: !!input.accomplice }), showSecs(picked)).end;
+    const rollAt = introLayout(introAt, showSecs(picked)).end;
+    const est = await rollPlan(ctx, picked, rollAt, order, file as CaseFile);
     const introEndsAt = est.end;
     const timed = game.pacing.mode === "timer";
     const endsAt = timed ? introEndsAt + game.pacing.roundMinutes * 60_000 : undefined;
@@ -832,6 +847,7 @@ export const startGame = mutation({
       rulesAt: undefined,
       rollCallAt: undefined,
       show: { howAt, introAt, rollAt, order },
+      lines,
       rolesOut: false,
       // v2: a killer and an accomplice only with 7+ players; otherwise one killer.
       hasAccomplice: !!input.accomplice,
@@ -868,9 +884,9 @@ export const advanceRound = mutation({
 
 const showSecs = (game: Doc<"games">) => {
   const n = narratorOf(game);
-  const tone = game.tone ?? "classic";
+  const tone = scriptOf(game);
   // This game's version of each line (adult lines come in several), as the TV will play it.
-  return (cue: CueKey) => cueSecs(voiceOf(n), tone, n.host, cue, cueVariant(tone, cue, game.slug));
+  return (cue: CueKey) => cueSecs(voiceOf(n), tone, n.host, cue, variantOf(game, cue));
 };
 
 /** How long each recorded clip runs (null while it isn't recorded, or no longer says the right thing). */
@@ -1119,7 +1135,7 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
     const url = await ctx.storage.getUrl(row!.storageId);
     return url ? { url, caption: w.caption, seconds: row!.seconds ?? 0 } : null;
   };
-  const tone = game.tone ?? "classic";
+  const tone = scriptOf(game);
   const n = narratorOf(game);
   const beforeStart = game.status === "registration" || game.status === "lobby";
   // The roll call (v2) plays during the show, after How to play: each guest's turn, fixed once it begins.
@@ -1155,6 +1171,7 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
     search: game.search ?? "all",
     seed: game.slug,
     accomplice: !!game.hasAccomplice,
+    picks: game.lines?.picks,
   });
   const get = (purpose: string) => clip(wanted.find((w) => w.purpose === purpose));
   const rooms: Record<string, Clip> = {};
@@ -1308,6 +1325,9 @@ export const tv = query({
         // v2: the show between Start and Round 1 (convex/show.ts). phonesAt is set once the roll call begins.
         show: game.show ? { howAt: game.show.howAt, introAt: game.show.introAt ?? null, rollAt: game.show.rollAt, phonesAt: game.show.phonesAt ?? null } : null,
         tone: game.tone ?? "classic",
+        // The script the narrator reads (Sailor mode reads its own), and the versions this game picked at Start.
+        script: scriptOf(game),
+        lines: game.lines ? { picks: game.lines.picks } : null,
         narrator: narratorOf(game),
         levels: levelsOf(game),
         search: game.search ?? "all",

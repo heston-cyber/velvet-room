@@ -5,7 +5,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
 import type { CaseFile } from "./engine/types";
 import { castMember, castNickname, castRealName } from "./figures";
-import { narratorOf, rollWanted, type Wanted } from "./voiceLines";
+import { narratorOf, rollWanted, scriptOf, type Wanted } from "./voiceLines";
 import { readSecs, rollSlotMs } from "./show";
 
 export type RollGuest = {
@@ -18,7 +18,7 @@ export type RollGuest = {
 
 /** Everyone who could be in a roll call (every guest), in sign-up order. */
 export async function rollGuests(ctx: QueryCtx, game: Doc<"games">, _cf: CaseFile | null): Promise<RollGuest[]> {
-  const tone = game.tone ?? "classic";
+  const tone = scriptOf(game);
   const players = (
     await ctx.db
       .query("players")

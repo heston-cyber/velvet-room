@@ -12,7 +12,7 @@ import type { Doc } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
 import { customRecordingText, plain, sprinkle, type Tone } from "./narration";
 import { firstOf } from "./roasts";
-import { narratorOf, voiceOf, type Wanted } from "./voiceLines";
+import { narratorOf, scriptOf, voiceOf, type Wanted } from "./voiceLines";
 
 type Pools = {
   /** A bit about one guest, in a borrowed format (a bulletin, a telegram, a notice). {real}, {weapon}. */
@@ -25,7 +25,7 @@ type Pools = {
   aside: string[];
 };
 
-export const HECKLES: Record<Tone, Pools> = {
+export const HECKLES: Record<"classic" | "adult", Pools> & { sailor?: Pools } = {
   classic: {
     bit: [
       "A message from management: {real}, please stop offering the {weapon} to people as a party favor.",
@@ -170,35 +170,57 @@ function shuffled<T>(xs: T[], seed: string): T[] {
 }
 
 export type HeckleGuest = { id: string; real: string; weapon: string; figure: string | null };
-export type HeckleLine = { purpose: string; text: string; target: string | null; figure: string | null; gag: boolean };
+export type HeckleLine = { purpose: string; text: string; target: string | null; figure: string | null; gag: boolean; /** Which line of which pool ("adult:bit:12"), so a laptop can avoid it next game. */ id: string };
+
+/** Sailor mode's heckles (Duke, furious). Until they're written, Adult's. */
+export const SAILOR_HECKLES: Partial<Pools> = {};
+const poolsFor = (tone: Tone): Pools => (tone === "sailor" ? { ...HECKLES.adult, ...Object.fromEntries(Object.entries(SAILOR_HECKLES).filter(([, v]) => v?.length)) } : HECKLES[tone]);
+const poolTag = (tone: Tone, kind: string) => `${tone === "sailor" && SAILOR_HECKLES[kind as keyof Pools]?.length ? "sailor" : tone === "classic" ? "classic" : "adult"}:${kind}`;
+
+/** Options a game picked at Start (Oct 16): the running gag only every third game on a laptop, and lines that laptop
+ *  heard lately go last. Older games: a gag every game, nothing avoided. */
+export type HeckleOpts = { gag?: boolean; avoid?: string[] };
 
 /**
  * A night's heckles, in order. The game's seed picks the running gag's guest, the order of the others and which
  * lines are used, so no line repeats in a game and every replay is different.
  */
-export function heckleLines(tone: Tone, seed: string, guests: HeckleGuest[]): HeckleLine[] {
+export function heckleLines(tone: Tone, seed: string, guests: HeckleGuest[], opts: HeckleOpts = {}): HeckleLine[] {
   if (!guests.length) return [];
-  const pools = HECKLES[tone];
+  const pools = poolsFor(tone);
+  const gagNight = opts.gag ?? true;
+  const avoid = new Set(opts.avoid ?? []);
   const order = shuffled(guests, `${seed}|guests`);
   const gagGuest = order[0];
-  const others = order.length > 1 ? order.slice(1) : order;
-  const left = { bit: shuffled(pools.bit, `${seed}|bit`), jab: shuffled(pools.jab, `${seed}|jab`), aside: shuffled(pools.aside, `${seed}|aside`) };
+  // Without a running gag, everyone takes turns.
+  const others = !gagNight ? order : order.length > 1 ? order.slice(1) : order;
+  // Each pool in this game's order, with the lines this laptop heard lately moved to the back.
+  const deal = (kind: "bit" | "jab" | "aside") => {
+    const tagged = pools[kind].map((t, i) => ({ t, id: `${poolTag(tone, kind)}:${i}` }));
+    const mixed = shuffled(tagged, `${seed}|${kind}`);
+    return [...mixed.filter((x) => !avoid.has(x.id)), ...mixed.filter((x) => avoid.has(x.id))];
+  };
+  const left = { bit: deal("bit"), jab: deal("jab"), aside: deal("aside") };
   let gags = 0;
+  let swaps = 0;
   let next = 0;
   const out: HeckleLine[] = [];
-  for (const kind of PATTERN) {
-    let template: string | undefined;
+  for (const slot of PATTERN) {
+    // No gag tonight: its turns go to bits and jabs.
+    const kind = slot === "gag" && !gagNight ? (swaps++ % 2 ? "jab" : "bit") : slot;
+    let pickd: { t: string; id: string } | undefined;
     let who: HeckleGuest | null = null;
     if (kind === "gag") {
-      template = pools.gag[gags++];
+      const i = gags++;
+      pickd = pools.gag[i] === undefined ? undefined : { t: pools.gag[i], id: `${poolTag(tone, "gag")}:${i}` };
       who = gagGuest;
     } else {
-      template = left[kind].shift();
+      pickd = left[kind].shift();
       if (kind !== "aside") who = others[next++ % others.length];
     }
-    if (!template) continue;
-    const text = template.replaceAll("{real}", firstOf(who?.real ?? "") || "this one").replaceAll("{weapon}", (who?.weapon ?? "weapon").toLowerCase());
-    out.push({ purpose: `heckle:${out.length}`, text, target: who?.id ?? null, figure: who?.figure ?? null, gag: kind === "gag" });
+    if (!pickd) continue;
+    const text = pickd.t.replaceAll("{real}", firstOf(who?.real ?? "") || "this one").replaceAll("{weapon}", (who?.weapon ?? "weapon").toLowerCase());
+    out.push({ purpose: `heckle:${out.length}`, text, target: who?.id ?? null, figure: who?.figure ?? null, gag: kind === "gag", id: pickd.id });
   }
   return out;
 }
@@ -219,10 +241,11 @@ export async function heckleWanted(ctx: QueryCtx, game: Doc<"games">): Promise<(
     .sort((a, b) => a.createdAt - b.createdAt)
     .map((p) => ({ id: p._id as string, real: p.realName, weapon: weapons.find((w) => w.playerId === p._id)?.name ?? "", figure: p.figure ?? null }));
   const n = narratorOf(game);
-  return heckleLines(game.tone ?? "classic", game.slug, guests).map((line) => ({
+  const tone = scriptOf(game);
+  return heckleLines(tone, game.slug, guests, { gag: game.lines?.gag, avoid: game.lines?.avoid }).map((line) => ({
     purpose: line.purpose,
     caption: plain(line.text),
-    text: customRecordingText(sprinkle(line.text, game.tone ?? "classic", `${game.slug}|${line.purpose}`), n.unstable),
+    text: customRecordingText(sprinkle(line.text, tone, `${game.slug}|${line.purpose}`), n.unstable),
     voice: voiceOf(n),
     line,
   }));

@@ -5,7 +5,7 @@
 // uses the character's), {weapon} the weapon they picked (lower case, no article: "lawn gnome").
 // Guests are "they" so every line works for anyone.
 // No AI at the party: these are fixed, and each guest in a game gets a different one.
-import type { Tone } from "./narration";
+import type { GameTone as Tone } from "./narration";
 
 export const ROASTS: Record<Tone, string[]> = {
   classic: [

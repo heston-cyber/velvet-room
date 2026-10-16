@@ -4,7 +4,13 @@
 // Lines are generic on purpose (no guest names), so one set of recordings serves every party.
 // Bracketed tags are delivery direction for ElevenLabs Eleven v4; captions and the live reader drop them.
 
-export type Tone = "classic" | "adult";
+/**
+ * Which script the narrator reads. A game's own setting is Classic or Adult (GameTone); Sailor mode (Oct 16, Heston:
+ * "a toggle in the voice setup area that is 'Sailor mode'", "totally unhinged, delivered with utmost intensity and
+ * seriousness") is Duke reading his own furious, filthy script over an Adult game.
+ */
+export type Tone = "classic" | "adult" | "sailor";
+export type GameTone = "classic" | "adult";
 export type HostKey = "ivy" | "duke";
 
 export const HOSTS: Record<HostKey, { name: string; voiceId: string; describe: string }> = {
@@ -16,11 +22,14 @@ export const HOSTS: Record<HostKey, { name: string; voiceId: string; describe: s
 export const VOICE_SETTINGS = {
   steady: { stability: 0.45, similarity_boost: 0.8 },
   unstable: { stability: 0.0, similarity_boost: 0.75 },
+  /** Sailor: Duke with more range, so the fury comes through. */
+  sailor: { stability: 0.3, similarity_boost: 0.8 },
 };
+export const settingsFor = (voice: string) => (voice.endsWith("-sailor") ? VOICE_SETTINGS.sailor : voice.endsWith("-unstable") ? VOICE_SETTINGS.unstable : VOICE_SETTINGS.steady);
 export const TTS_MODEL = "eleven_v4";
 
-/** Folder name for one recorded set: ivy, ivy-unstable, duke, duke-unstable. */
-export const voiceKey = (host: HostKey, unstable: boolean) => `${host}${unstable ? "-unstable" : ""}`;
+/** Folder name for one recorded set: ivy, ivy-unstable, duke, duke-unstable, duke-sailor. */
+export const voiceKey = (host: HostKey, unstable: boolean, sailor = false) => (sailor ? "duke-sailor" : `${host}${unstable ? "-unstable" : ""}`);
 
 type Cue = {
   when: string;
@@ -737,35 +746,88 @@ export const NOISY: Record<Tone, Partial<Record<CueKey, string>>> = {
     howAccomplice: "Tonight the killer brought a friend. [hiccups] The accomplice didn't do it, but they'll lie to your face for the one who did. [short pause] Guess them when you lock in.",
     revealAccomplice: "And the accomplice, who lied to all of you with a straight face, is… [burps] is…",
   },
+  sailor: {},
 };
 /** How often a line with a noisy take plays it (so about one line in ten heard has a noise). */
-export const NOISY_PCT: Record<Tone, number> = { classic: 25, adult: 20 };
+export const NOISY_PCT: Record<Tone, number> = { classic: 25, adult: 20, sailor: 0 };
 
-/** The clean versions of a line: one in Classic; in Adult, the CUES line and then ADULT_MORE's. */
+/**
+ * Adult version D (Oct 16, Heston: "add another layer adult D also that mixes the noisy and cussing together"): its own
+ * joke per line, with noises and swearing together. Plays D_PCT of the time in games that pick their lines at Start.
+ */
+export const ADULT_D: Partial<Record<CueKey, string>> = {};
+export const D_PCT = 10;
+
+/** Sailor mode's script: Duke, furious, swearing hard (two versions a line). Lines it lacks fall back to Adult. */
+export const SAILOR: Partial<Record<CueKey, string[]>> = {};
+
+/** The clean versions of a line: one in Classic; in Adult, the CUES line and then ADULT_MORE's; Sailor's own. */
 export function cleanVersions(cue: CueKey, tone: Tone): string[] {
   const c: Cue = CUES[cue];
+  if (tone === "sailor") return SAILOR[cue]?.length ? SAILOR[cue]! : cleanVersions(cue, "adult");
   return tone === "adult" ? [c.adult, ...(ADULT_MORE[cue] ?? [])] : [c.classic];
 }
 
-/** Every version of a line in this script: the clean ones, then its noisy take (if it has one) last. */
+/** Every version of a line in this script: the clean ones, then its noisy take (if it has one), then Adult D. */
 export function cueVersions(cue: CueKey, tone: Tone): string[] {
   const noisy = NOISY[tone][cue];
-  return noisy ? [...cleanVersions(cue, tone), noisy] : cleanVersions(cue, tone);
+  const d = tone === "adult" ? ADULT_D[cue] : undefined;
+  return [...cleanVersions(cue, tone), ...(noisy ? [noisy] : []), ...(d ? [d] : [])];
 }
 
 /** Whether version v of a line is its noisy take. */
 export const isNoisy = (cue: CueKey, tone: Tone, v: number) => !!NOISY[tone][cue] && v === cleanVersions(cue, tone).length;
+/** Whether version v of a line is Adult D. */
+export const isD = (cue: CueKey, tone: Tone, v: number) => tone === "adult" && !!ADULT_D[cue] && v === cueVersions(cue, tone).length - 1;
+
+/** A game's own picks (Oct 16): made at Start so this laptop doesn't hear the same jokes game after game. */
+export type LinePicks = {
+  /** Which clean version each line starts from (a line that repeats in a game moves on from there). */
+  picks: Record<string, number>;
+  /** Games that pick their lines also get Adult D now and then. */
+  d?: boolean;
+};
+
+/** "2" → 2; the empty first time → 0; anything else, a stable number. */
+const occIndex = (occurrence: string) => (occurrence === "" ? 0 : /^\d+$/.test(occurrence) ? Number(occurrence) : hashOf(occurrence));
 
 /**
  * Which version of a line this game uses: picked from the game (its slug) so every replay sounds different, and the
  * server, the TV and the recordings agree. A line that repeats in one game (the one-minute warning, say) passes
- * which time it is, so it changes each time too.
+ * which time it is, so it changes each time too. Games that picked their lines at Start (`lines`) start from those
+ * picks, so the jokes this laptop heard lately come last.
  */
-export function cueVariant(tone: Tone, cue: CueKey, seed = "", occurrence = ""): number {
+export function cueVariant(tone: Tone, cue: CueKey, seed = "", occurrence = "", lines?: LinePicks): number {
   const n = cleanVersions(cue, tone).length;
-  // Now and then, the noisy take.
-  if (NOISY[tone][cue] && hashOf(`${seed}|${cue}|${occurrence}|noise`) % 100 < NOISY_PCT[tone]) return n;
-  return n <= 1 ? 0 : hashOf(`${seed}|${cue}|${occurrence}`) % n;
+  const noisyAt = NOISY[tone][cue] ? n : -1;
+  // Now and then, the noisy take; in games that pick their lines, now and then Adult D.
+  if (noisyAt >= 0 && hashOf(`${seed}|${cue}|${occurrence}|noise`) % 100 < NOISY_PCT[tone]) return noisyAt;
+  if (lines?.d && isD(cue, tone, cueVersions(cue, tone).length - 1) && hashOf(`${seed}|${cue}|${occurrence}|d`) % 100 < D_PCT) return cueVersions(cue, tone).length - 1;
+  if (n <= 1) return 0;
+  const base = lines?.picks[cue];
+  return base === undefined ? hashOf(`${seed}|${cue}|${occurrence}`) % n : (base + occIndex(occurrence)) % n;
+}
+
+/**
+ * Picks a version of each line for a new game, putting the ones this laptop heard lately last (Heston, Oct 16: "a
+ * better selection system for each game that picks what lines will be used, so that jokes are not repeated").
+ * heard: per line, the versions heard in recent games, oldest first.
+ */
+export function pickLines(tone: Tone, seed: string, heard: Record<string, number[]> = {}, counts: Record<string, number> = {}): Record<string, number> {
+  const out: Record<string, number> = {};
+  const keys = [...CUE_KEYS.map((c) => [c, cleanVersions(c, tone).length] as const), ...Object.entries(counts)];
+  for (const [key, n] of keys) {
+    if (n <= 1) continue;
+    const recent = heard[key] ?? [];
+    // Never heard first; then the one heard longest ago. Ties go by the game's seed.
+    const score = (v: number) => {
+      const i = recent.lastIndexOf(v);
+      return i < 0 ? -1 : i;
+    };
+    const order = Array.from({ length: n }, (_, v) => v).sort((a, b) => score(a) - score(b) || hashOf(`${seed}|${key}|${a}`) - hashOf(`${seed}|${key}|${b}`));
+    out[key] = order[0];
+  }
+  return out;
 }
 
 /** The recording's file name (without .mp3): version 0 is the cue's own name, the rest add their number. */
@@ -810,30 +872,57 @@ const mid = (l: string) => l.replace(/^The /, "the ");
 
 export type CustomKind = "arrival" | "body" | "rooms" | "killer" | "accomplice" | "exhibit" | "room" | "winner" | "roll" | "jailed" | "released";
 
-/** The words for a custom line. Pass a name as it should sound (the guest's "say it like", when they gave one). */
+/** Adult's per-game lines, in versions (a game picks one of each). {room}, {rooms}, {name}. */
+export const ADULT_CUSTOM: Partial<Record<CustomKind, string[]>> = {
+  body: ["They found him in {room}. What a mess.", "He was found in {room}. Face down. On the good rug.", "They found him in {room}, looking surprised, which for the Don was a first."],
+  rooms: ["Now open: {rooms}. Go dig.", "Now open: {rooms}. Wipe your feet.", "Unlocked: {rooms}. Behave. Or don't, but quietly."],
+  killer: ["{name}, you rotten bastard.", "{name}. Of course it was.", "{name}. We're not even surprised. We're a little proud."],
+  accomplice: ["{name}. The getaway driver, minus the car.", "{name}, who has been nodding along all night.", "{name}. Loyal, quiet, and no help to anyone else."],
+  jailed: ["{name} is going to jail. Think about what you did.", "{name}, into the cell. Mind the bars.", "{name} is going to jail. Bring a sweater."],
+  released: ["{name} is out. Behave.", "{name} walks. For now.", "{name} is free. The cell will miss you."],
+};
+/** Sailor mode's per-game lines (Duke, furious). Kinds it lacks use Adult's. */
+export const SAILOR_CUSTOM: Partial<Record<CustomKind, string[]>> = {};
+
+/** The per-game kinds that come in versions, and how many each script has (for picking at Start). */
+export function customCounts(tone: Tone): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const kind of Object.keys(ADULT_CUSTOM) as CustomKind[]) {
+    const pool = customPool(kind, tone);
+    if (pool) out[`custom:${kind}`] = pool.length;
+  }
+  return out;
+}
+const customPool = (kind: CustomKind, tone: Tone) => (tone === "classic" ? undefined : tone === "sailor" && SAILOR_CUSTOM[kind]?.length ? SAILOR_CUSTOM[kind] : ADULT_CUSTOM[kind]);
+
+/**
+ * The words for a custom line. Pass a name as it should sound (the guest's "say it like", when they gave one).
+ * `pick`: the version this game picked at Start (otherwise one by the game's seed).
+ */
 export function customText(
   kind: CustomKind,
   tone: Tone,
-  v: { name?: string; who?: string; room?: string; rooms?: string[]; letter?: string; weapon?: string; real?: string; line?: string; seed?: string },
+  v: { name?: string; who?: string; room?: string; rooms?: string[]; letter?: string; weapon?: string; real?: string; line?: string; seed?: string; pick?: number },
 ): string {
-  const adult = tone === "adult";
-  // Adult lines come in versions, picked per game (by its seed) so replays sound different.
-  const pick = (xs: string[]) => xs[hashOf(`${v.seed ?? ""}|${kind}`) % xs.length];
+  const pool = customPool(kind, tone);
+  if (pool) {
+    // Adult and Sailor lines come in versions, picked per game so replays sound different.
+    const t = pool[(v.pick ?? hashOf(`${v.seed ?? ""}|${kind}`)) % pool.length];
+    return t
+      .replaceAll("{name}", v.name ?? "")
+      .replaceAll("{rooms}", list((v.rooms ?? []).map(mid)))
+      .replaceAll("{room}", v.room ? mid(v.room) : "");
+  }
   switch (kind) {
     case "arrival":
       return `Now arriving: ${v.name}.${v.who ? ` ${v.who}` : ""}`;
-    case "body": {
-      const r = mid(v.room!);
-      return adult ? pick([`They found him in ${r}. What a mess.`, `He was found in ${r}. Face down. On the good rug.`, `They found him in ${r}, looking surprised, which for the Don was a first.`]) : `He was found in ${r}.`;
-    }
-    case "rooms": {
-      const rs = list((v.rooms ?? []).map(mid));
-      return adult ? pick([`Now open: ${rs}. Go dig.`, `Now open: ${rs}. Wipe your feet.`, `Unlocked: ${rs}. Behave. Or don't, but quietly.`]) : `Now open: ${rs}.`;
-    }
+    case "body":
+      return `He was found in ${mid(v.room!)}.`;
+    case "rooms":
+      return `Now open: ${list((v.rooms ?? []).map(mid))}.`;
     case "killer":
-      return adult ? pick([`${v.name}, you rotten bastard.`, `${v.name}. Of course it was.`, `${v.name}. We're not even surprised. We're a little proud.`]) : `${v.name}.`;
     case "accomplice":
-      return adult ? pick([`${v.name}. The getaway driver, minus the car.`, `${v.name}, who has been nodding along all night.`, `${v.name}. Loyal, quiet, and no help to anyone else.`]) : `${v.name}.`;
+      return `${v.name}.`;
     case "exhibit":
       // v2: weapons have names, not exhibit letters.
       return `With the ${(v.weapon ?? "").toLowerCase()},`;
@@ -842,9 +931,9 @@ export function customText(
     case "winner":
       return `${v.name}!`;
     case "jailed":
-      return adult ? pick([`${v.name} is going to jail. Think about what you did.`, `${v.name}, into the cell. Mind the bars.`, `${v.name} is going to jail. Bring a sweater.`]) : `${v.name} is going to jail.`;
+      return `${v.name} is going to jail.`;
     case "released":
-      return adult ? pick([`${v.name} is out. Behave.`, `${v.name} walks. For now.`, `${v.name} is free. The cell will miss you.`]) : `${v.name} is free to go.`;
+      return `${v.name} is free to go.`;
     case "roll":
       return `${rollIntro(tone, v.name ?? "", v.real ?? "")} ${v.line ?? ""}`.trim();
   }
@@ -853,7 +942,7 @@ export function customText(
 // ---------- roll call ----------
 
 /** Older games: a made-up character, played by a guest. */
-const ROLL_INTROS: Record<Tone, string[]> = {
+const ROLL_INTROS: Record<GameTone, string[]> = {
   classic: ["Introducing {char}, played by {real}.", "Next, {char}. Better known as {real}.", "Say hello to {char}, played by {real}."],
   adult: [
     "Introducing {char}, played by {real}, God help us.",
@@ -871,7 +960,7 @@ const ROLL_INTROS: Record<Tone, string[]> = {
  * name and their nickname, nothing else. {real} is "Josh Lee", {aka} is ", a.k.a. Two-Tone" (empty until the
  * nickname is in).
  */
-const CAST_INTROS: Record<Tone, string[]> = {
+export const CAST_INTROS: Record<Tone, string[]> = {
   classic: ["Introducing {real}{aka}.", "Next, {real}{aka}.", "Say hello to {real}{aka}."],
   adult: [
     "{real}{aka}. God help us.",
@@ -881,6 +970,7 @@ const CAST_INTROS: Record<Tone, string[]> = {
     "From the files of the New York Police Department: {real}{aka}.",
     "Please welcome {real}{aka}, who was not technically invited.",
   ],
+  sailor: [],
 };
 
 /** "Introducing Josh Lee, a.k.a. Two-Tone." Varied per guest (and, given a game's seed, per game) so it doesn't drone. */
@@ -889,10 +979,10 @@ export function rollIntro(tone: Tone, char: string, real: string, seed = "", cas
   // Picked by the real name, so the caption and the recording (which may spell the name the guest's way) match.
   const h = hashOf(`${seed}${real1}`);
   if (cast) {
-    const list = CAST_INTROS[tone];
+    const list = CAST_INTROS[tone].length ? CAST_INTROS[tone] : CAST_INTROS.adult;
     return list[h % list.length].replace("{real}", real1).replace("{aka}", nickname.trim() ? `, a.k.a. ${nickname.trim()}` : "");
   }
-  const list = ROLL_INTROS[tone];
+  const list = ROLL_INTROS[tone === "classic" ? "classic" : "adult"];
   return list[h % list.length].replace("{char}", char).replace("{real}", real1);
 }
 
@@ -907,6 +997,7 @@ export function rollNarration(tone: Tone, p: RollParts) {
 const NOISES: Record<Tone, string[]> = {
   classic: ["[hiccups]", "[burps]", "[sneezes]", "[coughs]", "[clears throat]", "[snorts]"],
   adult: ["[hiccups]", "[burps]", "[sneezes]", "[coughs]", "[clears throat]", "[snorts]", "[farts]", "[burps loudly]"],
+  sailor: [],
 };
 
 /**
@@ -916,7 +1007,7 @@ const NOISES: Record<Tone, string[]> = {
  */
 export function sprinkle(text: string, tone: Tone, key: string): string {
   const h = hashOf(`${key}|sprinkle`);
-  if (h % 10 !== 0) return text;
+  if (h % 10 !== 0 || !NOISES[tone].length) return text;
   const pick = Math.floor(h / 10);
   const kinds = NOISES[tone];
   const where = pick % 4;

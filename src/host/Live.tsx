@@ -1,5 +1,7 @@
 // The host's game steps and the phone rescue, used by the host screen (src/pages/Host.tsx).
 import { showParts } from "../../convex/show";
+import { scriptOf } from "../../convex/voiceLines";
+import { heardForStart } from "../lib/heard";
 import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -33,7 +35,7 @@ export function useNextStep(data: Roster, slug: string, hostKey: string, now: nu
       label: "Start the game",
       confirm: `Tap again to start · ${c.checkedIn} of ${c.total} checked in`,
       help: "Runs the secret draw and picks where the body turns up. Anyone not checked in can't join after this.",
-      run: () => startGame(args),
+      run: () => startGame({ ...args, ...heardForStart(scriptOf(g)) }),
     };
   if (intro && g.show) {
     // The show (v2): skip one part at a time.
