@@ -17,13 +17,14 @@ const longest = (voice: string, tone: string) => (cue: CueKey) => {
   return Math.max(0, ...files.map(([, secs]) => secs));
 };
 const VOICES = Object.keys(M);
-const TONES = ["classic", "adult"];
+/** The scripts each voice set has (Sailor mode: Duke's own set, only the sailor script). */
+const tonesOf = (voice: string) => Object.keys(M[voice]);
 /** Long per-game clips: a name with a long nickname and last name, a long weapon, a long room. */
 const LONG = { body: 6, killer: 6.5, exhibit: 3.5, room: 3.5, accomplice: 6.5 };
 
 describe("slides wait for the narrator", () => {
   for (const voice of VOICES)
-    for (const tone of TONES) {
+    for (const tone of tonesOf(voice)) {
       const secs = longest(voice, tone);
       test(`${voice} ${tone}: the Don dies (each of its three slides waits for the lines before it)`, () => {
         const L = introLayout(0, secs, LONG.body);
@@ -40,7 +41,7 @@ describe("slides wait for the narrator", () => {
       });
       for (const accomplice of [false, true])
         test(`${voice} ${tone}${accomplice ? " with an accomplice" : ""}: the reveal (each step waits for the line before it)`, () => {
-          const R = revealLayout(revealTimes(accomplice, tone as "classic" | "adult"), secs, LONG);
+          const R = revealLayout(revealTimes(accomplice, tone === "classic" ? "classic" : "adult"), secs, LONG);
           expect(R.line + secs("reveal1") * S).toBeLessThanOrEqual(R.name);
           expect(R.name + 0.3 * S + LONG.killer * S).toBeLessThanOrEqual(R.how);
           const howEnd = R.how + 0.3 * S + (LONG.exhibit + 0.1 + LONG.room) * S;
