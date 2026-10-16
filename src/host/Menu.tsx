@@ -3,7 +3,8 @@ import { useConvex, useMutation } from "convex/react";
 import type { FunctionArgs } from "convex/server";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
-import { MAX_CARDS, estimateMinutes, suggestedMarkers } from "../../convex/shared";
+import { MAX_CARDS, estimateMinutes } from "../../convex/shared";
+import { cardPlan } from "../../convex/engine/setup";
 import { friendlyError } from "../lib/errors";
 import { Swap } from "../lib/Swap";
 import { TZ, initials, useConfirm, type Roster } from "./common";
@@ -13,9 +14,6 @@ import { MIN_ACCOMPLICE } from "../../convex/engine/build";
 
 export type SettingsPatch = Omit<FunctionArgs<typeof api.host.updateSettings>, "slug" | "hostKey">;
 
-const MIN_ROOMS = 2;
-const MAX_ROOMS = 8;
-const MAX_MARKERS = MAX_CARDS;
 
 function endOfDayChicago(day: string): number {
   const hourIn = (t: number) => new Intl.DateTimeFormat("en-US", { timeZone: TZ, hour: "2-digit", hourCycle: "h23" }).format(t);
@@ -145,7 +143,7 @@ export default function Menu(props: { data: Roster; slug: string; hostKey: strin
       </div>
 
       <div className="hx-col">
-        <Rooms game={game} markers={data.markers} locked={locked} save={save} />
+        <Rooms game={game} locked={locked} save={save} />
         <Markers data={data} slug={slug} hostKey={hostKey} locked={locked} onError={onError} />
 
         <Sec title="Sound">
@@ -254,24 +252,16 @@ function Wifi({ game, save }: { game: Roster["game"]; save: (p: SettingsPatch) =
 
 type RoomRow = { key: string; label: string; houseName: string };
 
-function Rooms({ game, markers, locked, save }: { game: Roster["game"]; markers: Roster["markers"]; locked: boolean; save: (p: SettingsPatch) => Promise<void> }) {
+function Rooms({ game, locked, save }: { game: Roster["game"]; locked: boolean; save: (p: SettingsPatch) => Promise<void> }) {
   const [rows, setRows] = useState<RoomRow[]>(game.rooms);
   const [dirty, setDirty] = useState(false);
   const [status, setStatus] = useState(" ");
   const pending = useRef<number | undefined>(undefined);
-  const list = useRef<HTMLDivElement>(null);
-  const focusLast = useRef(false);
   const serverRooms = JSON.stringify(game.rooms);
   useEffect(() => {
     if (!dirty) setRows(game.rooms);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverRooms]);
-  useEffect(() => {
-    if (focusLast.current) {
-      focusLast.current = false;
-      list.current?.querySelector<HTMLInputElement>(".r:last-child input")?.focus();
-    }
-  }, [rows.length]);
 
   function problem(rs: RoomRow[]): string | null {
     if (rs.some((r) => !r.label.trim())) return "Name every room to save.";
@@ -298,16 +288,13 @@ function Rooms({ game, markers, locked, save }: { game: Roster["game"]; markers:
       now ? 0 : 600,
     );
   }
-  const newKey = () => `r${Date.now().toString(36)}${Math.floor(Math.random() * 1e4).toString(36)}`;
-  const inRoom = (key: string) => markers.filter((m) => m.roomKey === key).length;
 
   return (
     <Sec title={<>Rooms in play · {rows.length}</>}>
-      <div className="hx-rooms" ref={list}>
+      <div className="hx-rooms">
         <div className="r head">
           <span>Name in the game</span>
           <span>Room in your house</span>
-          <span />
         </div>
         {rows.map((r, i) => (
           <div className="r" key={r.key}>
@@ -329,122 +316,48 @@ function Rooms({ game, markers, locked, save }: { game: Roster["game"]; markers:
               aria-label={`Room ${i + 1}: room in your house`}
               onChange={(e) => change(rows.map((x, j) => (j === i ? { ...x, houseName: e.target.value } : x)))}
             />
-            <button
-              type="button"
-              className="hx-x"
-              disabled={locked || rows.length <= MIN_ROOMS}
-              aria-label={`Remove room ${i + 1}`}
-              title={inRoom(r.key) ? `${inRoom(r.key)} marker(s) here will need a new room` : "Remove this room"}
-              onClick={() => change(rows.filter((_, j) => j !== i), true)}
-            >
-              ×
-            </button>
           </div>
         ))}
       </div>
-      <div className="row">
-        <button
-          type="button"
-          className="btn"
-          disabled={locked || rows.length >= MAX_ROOMS}
-          onClick={() => {
-            focusLast.current = true;
-            change([...rows, { key: newKey(), label: "", houseName: "" }]);
-          }}
-        >
-          + Add a room
-        </button>
-      </div>
-      <span className="help">
-        {MIN_ROOMS} to {MAX_ROOMS} rooms. Where the body turns up is drawn when the game starts.
-      </span>
+      <span className="help">The rooms on the house map. Rename them, and say which room in your house each one is. Where the body turns up is drawn when the game starts.</span>
       <span className={`hx-status ${status.startsWith("Name") || status.startsWith("Two") ? "warn" : ""}`}>{status}</span>
     </Sec>
   );
 }
 
-function Markers({ data, slug, hostKey, locked, onError }: { data: Roster; slug: string; hostKey: string; locked: boolean; onError: (m: string | null) => void }) {
-  const saveMarkers = useMutation(api.game.saveMarkers);
-  const [list, setList] = useState(data.markers);
-  const server = JSON.stringify(data.markers);
-  useEffect(() => setList(data.markers), [server]); // eslint-disable-line react-hooks/exhaustive-deps
+/**
+ * The evidence cards (Oct 16, Heston: "eliminate the setup options for number of rooms and markers to better optimize
+ * the gameplay based on player count"): the game picks how many from the sign-ups (about one per guest) and deals them
+ * round the rooms. The count follows sign-ups until Play, then it's locked.
+ */
+function Markers({ data, slug, hostKey, onError }: { data: Roster; slug: string; hostKey: string; locked: boolean; onError: (m: string | null) => void }) {
   const rooms = data.game.rooms;
-  async function commit(next: typeof list) {
-    setList(next);
-    onError(null);
-    try {
-      await saveMarkers({ slug, hostKey, markers: next });
-    } catch (err) {
-      onError(friendlyError(err));
-      setList(data.markers);
-    }
-  }
-  const placed = list.filter((m) => m.roomKey && rooms.some((r) => r.key === m.roomKey)).length;
-  const suggested = suggestedMarkers(rooms.length);
+  const before = data.game.status === "registration";
+  const list = before ? cardPlan(data.counts.total, rooms) : data.markers;
+  const inRoom = (key: string) => list.filter((m) => m.roomKey === key).map((m) => m.number);
+  const lastCard = list.length ? Math.max(...list.map((m) => m.number)) : 0;
   return (
-    <Sec title={<>Evidence markers · {list.length}</>}>
-      <div className="hx-kv">
-        <span className="lab">How many</span>
-        <span className="hx-stepper hx-ctl">
-          <button type="button" aria-label="One fewer marker" disabled={locked || !list.length} onClick={() => commit(list.slice(0, -1))}>
-            −
-          </button>
-          <b>{list.length}</b>
-          <button
-            type="button"
-            aria-label="One more marker"
-            disabled={locked || list.length >= MAX_MARKERS}
-            onClick={() => commit([...list, { number: (list[list.length - 1]?.number ?? 0) + 1, roomKey: "" }])}
-          >
-            +
-          </button>
-        </span>
+    <Sec title={<>Evidence cards · {list.length}</>}>
+      <div className="hx-cards">
+        {rooms.map((r) => (
+          <div className="r" key={r.key}>
+            <span className="lab">
+              {r.label.replace(/^The /, "")}
+              {r.houseName ? <em> · {r.houseName}</em> : null}
+            </span>
+            <b>{inRoom(r.key).join(", ") || "none"}</b>
+          </div>
+        ))}
       </div>
-      {list.length > 0 && (
-        <div className="hx-markers">
-          {list.map((m) => {
-            const ok = !!m.roomKey && rooms.some((r) => r.key === m.roomKey);
-            return (
-              <label key={m.number} className={ok ? "" : "none"}>
-                <b>{m.number}</b>
-                <select
-                  value={ok ? m.roomKey : ""}
-                  disabled={locked}
-                  aria-label={`Marker ${m.number} room`}
-                  onChange={(e) => commit(list.map((x) => (x.number === m.number ? { ...x, roomKey: e.target.value } : x)))}
-                >
-                  <option value="">No room</option>
-                  {rooms.map((r) => (
-                    <option key={r.key} value={r.key}>
-                      {r.label.replace(/^The /, "")}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            );
-          })}
-        </div>
-      )}
       <div className="row">
         <PrintCards slug={slug} hostKey={hostKey} title={data.game.title} onError={onError} />
-        <button
-          type="button"
-          className="btn"
-          disabled={locked || list.length === suggested}
-          onClick={() =>
-            commit(
-              Array.from({ length: suggested }, (_, i) => list.find((m) => m.number === i + 1) ?? { number: i + 1, roomKey: "" }),
-            )
-          }
-        >
-          Use {suggested} (3 per room)
-        </button>
       </div>
       <span className="help">
-        The PDF has all {MAX_CARDS} cards, the same every game. This game uses cards 1 to {list.length || "N"}; the rest stay in the box and get no clue.
-        Place them, then pick each marker's room here. Clues are written at the draw.
+        {before
+          ? `For ${data.counts.total} sign-up${data.counts.total === 1 ? "" : "s"}: hide cards 1 to ${lastCard}, each in its room. The count follows sign-ups until you press Play, then it's locked, so hide them after sign-ups close.`
+          : `Locked at Play: cards 1 to ${lastCard}.`}{" "}
+        The PDF has all {MAX_CARDS} cards, the same every game; the rest stay in the box.
       </span>
-      <span className={`hx-status ${placed < list.length ? "warn" : ""}`}>{list.length ? `${placed} of ${list.length} markers have a room` : "No markers: Round 1 evidence goes on the TV instead."}</span>
     </Sec>
   );
 }

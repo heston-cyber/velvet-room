@@ -181,7 +181,7 @@ export const CLASSIC: Script = {
     "A matchbook from a joint across town. Plenty of people here drink there.",
     "A cold cigar in an ashtray, barely smoked. The Don hated waste. Odd, but it proves nothing.",
   ],
-  tipLabel: "A tip, just for you. Use it, trade it or keep it to yourself.",
+  tipLabel: "A tip. A few other guests got this same one: if someone tells it differently, ask why. Use it, trade it or keep it to yourself.",
   motives: [
     "The Don owed you a small fortune and laughed when you asked for it.",
     "He caught you skimming from the till and promised you'd regret it.",

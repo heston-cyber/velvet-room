@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
 import { nextRound } from "./steps";
+import { setupFor } from "../convex/engine/setup";
 import type { Id } from "../convex/_generated/dataModel";
 
 const modules = import.meta.glob("../convex/**/*.ts");
@@ -175,20 +176,24 @@ describe("Phase 4: drawn body room, waves, Wi-Fi, the TV", () => {
     expect((await game(t)).revealAt).toBeGreaterThan(0);
   });
 
-  test("removing a room unassigns its markers, and the game won't start until they have a room", async () => {
-    const { t, hostKey } = await setup({ start: false, markers: 10 });
+  // Oct 16 (Heston: "eliminate the setup options for number of rooms and markers to better optimize the gameplay
+  // based on player count"): Play deals the evidence cards from the sign-ups, round the rooms, and locks them.
+  test("Play deals the evidence cards for the sign-ups (about one each), round the rooms, then they're locked", async () => {
+    const { t, hostKey } = await setup({ start: false, guests: 8, markers: 3 });
     const g = await game(t);
+    // a room taken out before Play gets no cards
     await t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, rooms: g.rooms.filter((r) => r.key !== "bar") });
-    const markers = await t.run((ctx) => ctx.db.query("markers").collect());
-    const loose = markers.filter((m) => m.roomKey === "");
-    expect(loose.length).toBe(2); // markers 2 and 7 were in the Bar
     await t.mutation(api.game.openDoors, { slug: SLUG, hostKey });
-    await expect(t.mutation(api.game.startGame, { slug: SLUG, hostKey })).rejects.toThrow(/Marker \d+ needs a room/);
-    await t.mutation(api.game.saveMarkers, {
-      slug: SLUG, hostKey, markers: markers.map((m) => ({ number: m.number, roomKey: m.roomKey || "office" })),
-    });
+    const markers = await t.run((ctx) => ctx.db.query("markers").collect());
+    expect(markers.map((m) => m.number).sort((a, b) => a - b)).toEqual(Array.from({ length: setupFor(8).markers }, (_, i) => i + 1));
+    const rooms = g.rooms.filter((r) => r.key !== "bar").map((r) => r.key);
+    expect(markers.every((m) => rooms.includes(m.roomKey))).toBe(true);
+    const per = rooms.map((k) => markers.filter((m) => m.roomKey === k).length);
+    expect(Math.max(...per) - Math.min(...per)).toBeLessThanOrEqual(1);
+    // the card list is fixed once the doors are open
     await t.mutation(api.game.startGame, { slug: SLUG, hostKey });
     expect((await game(t)).status).toBe("playing");
+    expect(await t.run((ctx) => ctx.db.query("markers").collect())).toHaveLength(setupFor(8).markers);
   });
 
   test("host controls: show all evidence, sound check, awards, end of the night", async () => {
@@ -215,13 +220,13 @@ describe("Phase 4: drawn body room, waves, Wi-Fi, the TV", () => {
     const sheet = await t.query(api.host.markerCards, { slug: SLUG, hostKey });
     expect(sheet.cards).toHaveLength(36);
     expect(new Set(sheet.cards.map((c) => c.code)).size).toBe(36);
-    expect(sheet.markers).toHaveLength(6);
+    expect(sheet.markers).toHaveLength(setupFor(8).markers); // dealt at Play for 8 guests
     // card N is the same code in the game as on the sheet
     for (const m of sheet.markers) expect(m.code).toBe(sheet.cards[m.number - 1].code);
     // a card past the ones in play: a friendly "not tonight", and no clue
     await expect(t.mutation(api.game.scanMarker, { token: tokens[0], code: sheet.cards[20].code })).rejects.toThrow(/Card 21 isn't in play tonight/);
     expect(await t.query(api.game.readMarker, { token: tokens[0], code: sheet.cards[20].code })).toMatchObject({ error: expect.stringMatching(/Card 21/) });
-    // the case file only has clues for the 6 markers in play
+    // the case file only has clues for the markers in play
     expect((await t.mutation(api.game.scanMarker, { token: tokens[0], code: sheet.cards[5].code.toUpperCase() })).number).toBe(6);
     // a second game uses the same printed cards
     await t.mutation(internal.admin.createGame, { slug: "test-p4b", title: "Second", isTest: true, makeActive: false, registrationClosesAt: FUTURE, deadlineLabel: "x" });

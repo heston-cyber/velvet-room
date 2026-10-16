@@ -5,6 +5,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { buildCase, checkInput, MIN_ACCOMPLICE, openRound, openRoomsIn, scriptFor } from "./engine/build";
 import { secure, seeded, shuffle } from "./engine/rng";
+import { cardPlan } from "./engine/setup";
 import { FAKE_GUESTS, LETTERS } from "./engine/fake";
 import type { CaseFile, CaseInput } from "./engine/types";
 import { charKeyOf, randomCode, registrationIsOpen, requireHost, requireTv } from "./lib";
@@ -743,32 +744,37 @@ export const saveMarkers = mutation({
   handler: async (ctx, { slug, hostKey, markers }) => {
     const game = await requireHost(ctx, slug, hostKey);
     if (game.status !== "registration" && game.status !== "lobby") throw new ConvexError("The game has started, so markers are locked.");
-    const rooms = new Set(game.rooms.map((r) => r.key));
-    const numbers = new Set<number>();
-    if (markers.length > MAX_CARDS) throw new ConvexError(`The printed sheet has ${MAX_CARDS} cards, so use ${MAX_CARDS} markers at most.`);
-    for (const m of markers) {
-      if (!Number.isInteger(m.number) || m.number < 1 || m.number > MAX_CARDS) throw new ConvexError(`Markers are numbered 1 to ${MAX_CARDS}.`);
-      // "" means not placed yet: the game won't start until every marker has a room.
-      if (m.roomKey !== "" && !rooms.has(m.roomKey)) throw new ConvexError(`Marker ${m.number} is in a room that isn't in play.`);
-      if (numbers.has(m.number)) throw new ConvexError(`Marker ${m.number} is listed twice.`);
-      numbers.add(m.number);
-    }
-    const existing = await ctx.db
-      .query("markers")
-      .withIndex("by_game", (q) => q.eq("gameId", game._id))
-      .collect();
-    const byNumber = new Map(existing.map((m) => [m.number, m]));
-    const codes = await ensureAllCards(ctx); // card N's code is the same in every game
-    for (const m of existing) if (!numbers.has(m.number)) await ctx.db.delete(m._id);
-    for (const m of markers) {
-      const old = byNumber.get(m.number);
-      const code = codes.get(m.number)!;
-      if (old) await ctx.db.patch(old._id, { roomKey: m.roomKey, code });
-      else await ctx.db.insert("markers", { gameId: game._id, number: m.number, roomKey: m.roomKey, code });
-    }
+    await writeMarkers(ctx, game, markers);
     return { ok: true };
   },
 });
+
+/** Sets a game's markers (card numbers and their rooms); card N's code is the same in every game. */
+async function writeMarkers(ctx: MutationCtx, game: Doc<"games">, markers: { number: number; roomKey: string }[]) {
+  const rooms = new Set(game.rooms.map((r) => r.key));
+  const numbers = new Set<number>();
+  if (markers.length > MAX_CARDS) throw new ConvexError(`The printed sheet has ${MAX_CARDS} cards, so use ${MAX_CARDS} markers at most.`);
+  for (const m of markers) {
+    if (!Number.isInteger(m.number) || m.number < 1 || m.number > MAX_CARDS) throw new ConvexError(`Markers are numbered 1 to ${MAX_CARDS}.`);
+    // "" means not placed yet: the game won't start until every marker has a room.
+    if (m.roomKey !== "" && !rooms.has(m.roomKey)) throw new ConvexError(`Marker ${m.number} is in a room that isn't in play.`);
+    if (numbers.has(m.number)) throw new ConvexError(`Marker ${m.number} is listed twice.`);
+    numbers.add(m.number);
+  }
+  const existing = await ctx.db
+    .query("markers")
+    .withIndex("by_game", (q) => q.eq("gameId", game._id))
+    .collect();
+  const byNumber = new Map(existing.map((m) => [m.number, m]));
+  const codes = await ensureAllCards(ctx);
+  for (const m of existing) if (!numbers.has(m.number)) await ctx.db.delete(m._id);
+  for (const m of markers) {
+    const old = byNumber.get(m.number);
+    const code = codes.get(m.number)!;
+    if (old) await ctx.db.patch(old._id, { roomKey: m.roomKey, code });
+    else await ctx.db.insert("markers", { gameId: game._id, number: m.number, roomKey: m.roomKey, code });
+  }
+}
 
 /** Host: party night begins. Guests can check in. */
 export const openDoors = mutation({
@@ -776,6 +782,9 @@ export const openDoors = mutation({
   handler: async (ctx, { slug, hostKey }) => {
     const game = await requireHost(ctx, slug, hostKey);
     if (game.status !== "registration") throw new ConvexError("The doors are already open.");
+    // Oct 16 (Heston: "eliminate the setup options for number of rooms and markers to better optimize the gameplay
+    // based on player count"): the evidence cards for this many sign-ups, locked from here on.
+    await writeMarkers(ctx, game, cardPlan((await playersOf(ctx, game._id)).length, game.rooms));
     await ctx.db.patch(game._id, { status: "lobby", doorsAt: Date.now() });
     await ensureRoomCode(ctx, game);
     return { ok: true };

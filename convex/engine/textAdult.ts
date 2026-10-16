@@ -91,7 +91,7 @@ export const ADULT: Script = {
     "A whoopee cushion under the Don's chair. Childish. Hilarious. Useless.",
     "A cold cigar, barely smoked. The Don hated wasting a good cigar almost as much as he hated all of you.",
   ],
-  tipLabel: "Psst. A tip, just for you. Share it, trade it or keep your damn mouth shut.",
+  tipLabel: "Psst. A tip. A few others got the same one, so if somebody tells it differently, somebody's lying. Share it, trade it or keep your damn mouth shut.",
   motives: [
     "The Don owed you a fortune and laughed in your face when you asked for it. Then he farted. On purpose.",
     "He caught you skimming from the till and swore he'd break your goddamn kneecaps.",

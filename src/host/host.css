@@ -58,11 +58,16 @@
 
 /* rooms: fixed columns so every row's boxes line up */
 .hx-rooms { display: grid; gap: 6px; }
-.hx-rooms .r { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 38px; gap: 8px; align-items: center; }
+.hx-rooms .r { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 8px; align-items: center; }
 .hx-rooms .r.head span { font-family: var(--label); font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 .hx-x { width: 38px; height: 38px; border: 1px solid var(--rule); background: none; color: var(--muted); font-size: 20px; cursor: pointer; }
 .hx-x:disabled { opacity: .3; cursor: default; }
 
+/* The evidence cards, by room (Oct 16: the game picks them from the sign-ups). */
+.hx-cards { display: grid; gap: 4px; }
+.hx-cards .r { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: baseline; border-bottom: 1px solid var(--rule); padding: 6px 0; }
+.hx-cards .r em { font-style: normal; color: var(--muted); font-size: 13px; }
+.hx-cards .r b { font-family: var(--display); font-weight: 400; font-size: 18px; color: var(--brass); letter-spacing: .02em; }
 .hx-markers { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
 .hx-markers label { display: grid; grid-template-columns: 30px minmax(0, 1fr); align-items: center; border: 1px solid var(--rule); background: var(--felt); height: 38px; padding-left: 6px; }
 .hx-markers label.none { border-color: var(--blood); }
