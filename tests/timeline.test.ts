@@ -1,8 +1,10 @@
 import { describe, expect, test } from "vitest";
-import { REVEAL } from "../convex/shared";
+import { REVEAL, revealTimes, VOTE } from "../convex/shared";
 const INTRO_MS = 60_000;
 import { CARD_MS } from "../src/tv/media";
-import { cameosNow, cardNow, due, plan, type Data } from "../src/tv/timeline";
+import { readFileSync } from "node:fs";
+import { cueFile } from "../convex/narration";
+import { cameosNow, cardNow, due, plan, sequence, VOICE_GAP_MS, type Data, type Secs } from "../src/tv/timeline";
 
 const T0 = 1_800_000_000_000;
 const secs = () => 3; // every narrator line runs 3 s
@@ -164,8 +166,8 @@ describe("TV timeline", () => {
     expect(p.events.filter((e) => e.id.startsWith("heckle:vote")).every((e) => e.at < V + 20_000)).toBe(true);
     expect(p.events.find((e) => e.cue === "voteTally")?.at).toBe(V + 20_400);
     // jailed: the Locked Up! card, then the name
-    expect(cardNow(p, V + 26_500)?.key).toBe("lockedup");
-    expect(p.events.find((e) => e.clip?.url === "v")?.at).toBe(V + 20_000 + 6_000 + CARD_MS.lockedup + 100);
+    expect(cardNow(p, V + 20_000 + VOTE.verdictAtMs + 500)?.key).toBe("lockedup");
+    expect(p.events.find((e) => e.clip?.url === "v")?.at).toBe(V + 20_000 + VOTE.verdictAtMs + CARD_MS.lockedup + 100);
     // a release vote opens with its own card
     p = plan({ ...data({ game: g, voice: { heckles: hk } }), vote: { ...vote, kind: "release" } } as unknown as Data, V + 1000, secs);
     expect(cardNow(p, V + 1000)?.key).toBe("release");
@@ -238,6 +240,64 @@ describe("TV timeline", () => {
     p = plan(data({ game: { status: "reveal", round: 4, revealAt: t } }), t + REVEAL.line + 100, secs);
     expect(cameosNow(p, t + REVEAL.line + 100, "reveal0", false).map((c) => c.anim)).toEqual(["spot"]);
     expect(cameosNow(p, t + REVEAL.name + 100, "reveal1", true).map((c) => c.anim)).toEqual(["unmask"]);
+  });
+
+  test("never two narrator lines at once, with the real recordings (the longest take of each line)", () => {
+    const man = JSON.parse(readFileSync("public/audio/narration/manifest.json", "utf8")) as Record<string, Record<string, Record<string, number>>>;
+    for (const tone of ["classic", "adult"] as const) {
+      const longest: Secs = (cue, v = 0) => Math.max(...Object.values(man).map((t) => t[tone]?.[cueFile(cue, v).replace(/\.mp3$/, "")] ?? 3));
+      const tg = (game: Record<string, unknown>) => ({ ...game, tone });
+      const clean = (p: ReturnType<typeof plan>) => {
+        const talk = p.events.filter((e) => !e.sfx && (e.cue || e.clip)).sort((a, b) => a.at - b.at);
+        for (let i = 1; i < talk.length; i++) {
+          const prev = talk[i - 1];
+          expect(talk[i].at, `${tone}: ${talk[i].id} starts while ${prev.id} is still talking`).toBeGreaterThanOrEqual(prev.at + prev.secs * 1000);
+        }
+      };
+      const hk = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => ({ id: `heckle:${i}`, figure: "lady", gag: false, clip: { url: `h${i}`, caption: `H${i}`, seconds: 9 } }));
+      const c = (s: string, n = 4) => ({ url: s, caption: s, seconds: n });
+      // the intro, with a long body line
+      clean(plan(data({ game: tg(showGame()), voice: { ...showVoice(), body: c("body", 5) } }), T0 + 500, longest));
+      // a timed round with heckles all the way to the one-minute warning
+      const t = T0 + 900_000;
+      const evidence = [{ round: 3, text: "a", twist: false }, { round: 3, text: "twist", twist: true }];
+      clean(plan(data({ game: tg({ status: "playing", round: 3, startedAt: T0, introEndsAt: T0 + INTRO_MS, roundStartedAt: t, pacing: { mode: "timer", roundMinutes: 6 }, roundEndsAt: t + 6 * 60_000 }), evidence, voice: { heckles: hk } }), t + 100, longest));
+      // a vote that closed early while a heckle was due, then the verdict
+      const V = T0 + 2_000_000;
+      const vote = { kind: "jail", round: 2, at: V, endsAt: V + 90_000, closedAt: V + 27_000, nextAt: V + 27_000 + VOTE.nextMs, outcome: "jailed", target: { id: "p1", name: "Josh", figure: "josh" }, candidates: [], voters: 5, voted: 5, tally: null };
+      clean(plan({ ...data({ game: tg({ status: "playing", round: 2, startedAt: T0, introEndsAt: T0 + 60_000, roundStartedAt: T0 + 1_000_000 }), voice: { heckles: hk, verdict: c("v", 4) } }), vote } as unknown as Data, V + 28_000, longest));
+      // the reveal, with an accomplice, long names
+      for (const acc of [false, true]) {
+        const R = revealTimes(acc, tone);
+        const p = plan(
+          { ...data({ game: tg({ status: "reveal", round: 4, revealAt: T0 }), voice: { heckles: hk, reveal: { killer: c("k", 3.5), exhibit: c("e", 2.5), room: c("r", 2.5), accomplice: acc ? c("a", 3) : null } }, results: { killerWins: true, accomplice: acc ? { name: "Emily", figure: "emily" } : null } }), reveal: R } as unknown as Data,
+          T0 + 100,
+          longest,
+        );
+        clean(p);
+        // nothing still talking when the verdict lands
+        const talk = p.events.filter((e) => !e.sfx && (e.cue || e.clip) && e.at < T0 + R.verdict);
+        for (const e of talk) expect(e.at + e.secs * 1000, `${tone} ${acc}: ${e.id} runs into the verdict`).toBeLessThanOrEqual(T0 + R.verdict + 800);
+      }
+    }
+  });
+
+  test("a heckle with no room is dropped, along with its drawing", () => {
+    const p = { loop: "vote", music: null, ambience: [], cards: [], holdUntil: 0, twistAt: null, awardsAt: [], part: null, rules: null, roll: null,
+      events: [
+        { id: "a", at: 0, secs: 10, cue: "voteJail" },
+        { id: "heckle:x", at: 5000, secs: 9, clip: { url: "h", caption: "h" }, filler: true },
+        { id: "b", at: 12_000, secs: 5, cue: "voteLastCall" },
+        { id: "c", at: 16_000, secs: 20, cue: "voteTally" },
+      ],
+      cameos: [{ id: "heckle:x:peek", char: "lady", anim: "peek", at: 4600, until: 11_600 }],
+    } as unknown as ReturnType<typeof plan>;
+    const out = sequence(p);
+    // a line never moves earlier; one that would start on top of the line before waits for it
+    expect(out.events.find((e) => e.id === "b")!.at).toBe(12_000);
+    expect(out.events.find((e) => e.id === "c")!.at).toBe(17_000 + VOICE_GAP_MS);
+    expect(out.events.some((e) => e.id === "heckle:x")).toBe(false);
+    expect(out.cameos).toHaveLength(0);
   });
 
   test("each event fires once, and only while fresh", () => {

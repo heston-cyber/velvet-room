@@ -15,7 +15,7 @@ import schema from "../convex/schema";
 import { REVEAL, revealTimes } from "../convex/shared";
 import { howCues } from "../convex/show";
 import { startWanted } from "../convex/voiceLines";
-import { plan, type Data } from "../src/tv/timeline";
+import { VOICE_GAP_MS, plan, type Data } from "../src/tv/timeline";
 import { nextRound } from "./steps";
 
 const modules = import.meta.glob("../convex/**/*.ts");
@@ -238,7 +238,8 @@ describe("the TV reveal with an accomplice", () => {
     const p = plan(data(true), T + R.accomplice! + 500, secs);
     const lead = p.events.find((e) => e.cue === "revealAccomplice")!;
     expect(lead.at).toBe(T + R.accomplice! + 400);
-    expect(p.events.find((e) => e.id.endsWith(":acc:name"))!.at).toBe(lead.at + 3000 + 200);
+    // the name follows the lead-in after a breath (never on top of it)
+    expect(p.events.find((e) => e.id.endsWith(":acc:name"))!.at).toBe(lead.at + 3000 + VOICE_GAP_MS);
     expect(p.cameos.some((c) => c.char === "flapper" && c.on === "reveal3")).toBe(true);
     expect(p.events.find((e) => e.sfx === "sinisterBrass")!.at).toBe(T + R.verdict);
     expect(R.verdict).toBeGreaterThan(REVEAL.verdict);

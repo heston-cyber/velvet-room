@@ -6,15 +6,15 @@
  * Phones keep the answer hidden until the verdict.
  */
 export type RevealTimes = { card: number; line: number; name: number; how: number; accomplice: number | null; verdict: number };
-export const REVEAL: RevealTimes = { card: 0, line: 4_300, name: 9_000, how: 14_000, accomplice: null, verdict: 20_000 };
-/**
- * With an accomplice: their name after the weapon and the room, then the verdict. The adult script's lead-in and
- * names run longer, so it gets a few more seconds.
- */
-export const REVEAL_ACC: RevealTimes = { ...REVEAL, accomplice: 20_000, verdict: 27_000 };
-export const REVEAL_ACC_ADULT: RevealTimes = { ...REVEAL_ACC, verdict: 31_000 };
+// Each step waits for the longest recorded version of the line before it (Oct 16, after lines ran into each other):
+// classic "The killer is…" runs up to 4.9 s, adult up to 8.8 s; the accomplice lead-in up to 3.4 s / 6.9 s.
+export const REVEAL: RevealTimes = { card: 0, line: 4_300, name: 9_800, how: 14_500, accomplice: null, verdict: 20_500 };
+export const REVEAL_ADULT: RevealTimes = { card: 0, line: 4_300, name: 13_600, how: 19_000, accomplice: null, verdict: 25_500 };
+/** With an accomplice: their name after the weapon and the room, then the verdict. */
+export const REVEAL_ACC: RevealTimes = { ...REVEAL, accomplice: 20_500, verdict: 27_500 };
+export const REVEAL_ACC_ADULT: RevealTimes = { ...REVEAL_ADULT, accomplice: 25_500, verdict: 36_000 };
 export const revealTimes = (accomplice: boolean, tone: "classic" | "adult" = "classic"): RevealTimes =>
-  !accomplice ? REVEAL : tone === "adult" ? REVEAL_ACC_ADULT : REVEAL_ACC;
+  tone === "adult" ? (accomplice ? REVEAL_ACC_ADULT : REVEAL_ADULT) : accomplice ? REVEAL_ACC : REVEAL;
 
 /** The TV title cards are 4 seconds (Lights Out is 3). Scenes fade in after them. */
 export const CARD_MS = 4_000;
@@ -24,7 +24,7 @@ export const LIGHTS_OUT_MS = 3_000;
  * The jail and release votes (v2): how long the phones stay open, and, after it closes, when the TV shows who
  * voted for whom, the verdict, and when the night moves on.
  */
-export const VOTE = { ms: 90_000, lastCallMs: 15_000, tallyMs: 0, verdictAtMs: 6_000, nextMs: 14_000 } as const;
+export const VOTE = { ms: 90_000, lastCallMs: 15_000, tallyMs: 0, verdictAtMs: 7_500, nextMs: 16_000 } as const;
 
 /** Accusations get a shorter clock than the evidence rounds. */
 export const ACCUSE_MAX_MINUTES = 5;

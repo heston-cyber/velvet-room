@@ -25,6 +25,8 @@ export type Ev = {
   sfx?: SfxKey;
   /** Roll-call clips: the guest's card already shows the line. */
   quiet?: boolean;
+  /** A heckle: plays only in a gap it fits (see sequence). */
+  filler?: boolean;
 };
 
 export type Plan = {
@@ -101,7 +103,58 @@ const REMIND_EVERY = 5 * 60 * S;
 /** When heckles fill the lulls: while searching, at the lock-in, and during the votes. */
 export const HECKLE = { roundFirst: 80 * S, roundEvery: 150 * S, lockFirst: 35 * S, lockEvery: 60 * S, voteFirst: 12 * S, voteEvery: 32 * S, voteOpenFirst: 24 * S, voteOpenEvery: 30 * S };
 
+/** The breath between two narrator lines. */
+export const VOICE_GAP_MS = 350;
+/** How far a heckle may slide to find a gap before it's dropped. */
+const FILLER_SLIDE_MS = 20 * 1000;
+
+/**
+ * Never two narrator lines at once (Heston, Oct 16: "sometimes it would overlap with the next line"). The lines play
+ * in order, each waiting for the one before it plus a breath; a heckle only plays where it fits whole (sliding a
+ * little if it has to), else it's dropped, and its drawing goes with it.
+ */
+export function sequence(p: Plan): Plan {
+  const talks = (e: Ev) => !e.sfx && !!(e.cue || e.clip);
+  const byTime = (a: Ev, b: Ev) => a.at - b.at;
+  const lines = p.events.filter((e) => talks(e) && !e.filler).sort(byTime);
+  const busy: [number, number][] = [];
+  let end = -Infinity;
+  for (const e of lines) {
+    if (e.at < end + VOICE_GAP_MS) e.at = end + VOICE_GAP_MS;
+    end = e.at + e.secs * S;
+    busy.push([e.at, end]);
+  }
+  const moved = new Map<string, number>();
+  const dropped = new Set<string>();
+  for (const e of p.events.filter((x) => talks(x) && x.filler).sort(byTime)) {
+    const len = e.secs * S;
+    const fits = (s: number) => busy.every(([a, b]) => s + len + VOICE_GAP_MS <= a || s >= b + VOICE_GAP_MS);
+    const tries = [e.at, ...busy.map(([, b]) => b + VOICE_GAP_MS).filter((s) => s > e.at && s <= e.at + FILLER_SLIDE_MS).sort((a, b) => a - b)];
+    const at = tries.find(fits);
+    if (at === undefined) {
+      dropped.add(e.id);
+      continue;
+    }
+    if (at !== e.at) moved.set(e.id, at - e.at);
+    e.at = at;
+    busy.push([at, at + len]);
+  }
+  p.events = p.events.filter((e) => !dropped.has(e.id));
+  // A heckle's drawing (`<id>:peek`) leans in with it, or not at all.
+  p.cameos = p.cameos
+    .filter((c) => !(c.id.endsWith(":peek") && dropped.has(c.id.slice(0, -5))))
+    .map((c) => {
+      const dt = c.id.endsWith(":peek") ? moved.get(c.id.slice(0, -5)) : undefined;
+      return dt ? { ...c, at: c.at + dt, until: c.until + dt } : c;
+    });
+  return p;
+}
+
 export function plan(d: Data, now: number, secs: Secs): Plan {
+  return sequence(planRaw(d, now, secs));
+}
+
+function planRaw(d: Data, now: number, secs: Secs): Plan {
   const g = d.game;
   const events: Ev[] = [];
   const cards: Plan["cards"] = [];
@@ -132,9 +185,9 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
     events.push({ id, at, secs: s, cue, v, quiet });
     return at + s * S;
   };
-  const clip = (id: string, c: Clip | undefined, at: number, quiet = false) => {
+  const clip = (id: string, c: Clip | undefined, at: number, quiet = false, filler = false) => {
     if (!c) return at;
-    events.push({ id, at, secs: c.seconds, clip: { url: c.url, caption: c.caption }, quiet });
+    events.push({ id, at, secs: c.seconds, clip: { url: c.url, caption: c.caption }, quiet, ...(filler ? { filler } : {}) });
     return at + c.seconds * S;
   };
   const fx = (id: string, sfx: SfxKey, at: number) => events.push({ id, at, secs: 0, sfx });
@@ -144,7 +197,7 @@ export function plan(d: Data, now: number, secs: Secs): Plan {
   const heckle = (id: string, n: number, at: number, on: string) => {
     if (!heckles.length || g.paused) return;
     const h = heckles[n % heckles.length];
-    clip(`heckle:${id}`, h.clip, at);
+    clip(`heckle:${id}`, h.clip, at, false, true);
     if (h.figure) cameo({ id: `heckle:${id}:peek`, char: h.figure, anim: "peek", at: at - 0.4 * S, until: at + 6.6 * S, on });
   };
   const card = (key: CardKey, at: number) => {

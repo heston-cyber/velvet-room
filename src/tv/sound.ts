@@ -170,18 +170,43 @@ export class SoundEngine {
     for (const k of this.media.music) void this.load(this.musicUrl(k as MusicKey));
   }
 
-  /** The narrator (or a party clip). Music dips underneath while it plays. */
+  /** The line the narrator is saying now, so a new one can take over. */
+  private speaking: { src: AudioBufferSourceNode; gain: GainNode } | null = null;
+
+  /**
+   * The narrator (or a party clip). Music dips underneath while it plays. One voice at a time: the TV lays the lines
+   * out one after another, and if the night jumps ahead (a skip, a vote closing early) the new line takes over and
+   * the old one fades out fast instead of talking over it.
+   */
   async voice(url: string, gain = 1): Promise<number> {
     const buf = await this.load(url);
     if (!buf || !this.ctx) return 0;
+    const t = this.ctx.currentTime;
+    const takeOver = !!this.speaking;
+    if (this.speaking) {
+      const old = this.speaking;
+      old.gain.gain.cancelScheduledValues(t);
+      old.gain.gain.setValueAtTime(old.gain.gain.value, t);
+      old.gain.gain.linearRampToValueAtTime(0, t + 0.12);
+      try {
+        old.src.stop(t + 0.13);
+      } catch {
+        /* already stopped */
+      }
+    }
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     const g = this.ctx.createGain();
     g.gain.value = gain;
     src.connect(g).connect(this.voiceBus);
     this.duck(1);
-    src.onended = () => this.duck(-1);
-    src.start();
+    const me = { src, gain: g };
+    this.speaking = me;
+    src.onended = () => {
+      this.duck(-1);
+      if (this.speaking === me) this.speaking = null;
+    };
+    src.start(takeOver ? t + 0.12 : t);
     return buf.duration;
   }
 
