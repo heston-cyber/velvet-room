@@ -225,7 +225,7 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
     if (g.status === "registration") {
       // Sign-ups on the TV (the replay's main screen): everyone signed up so far lines up along the
       // bottom with their name; stand-ins fill the row until there are six.
-      const signed = withFigure(d.guests).slice(0, 10).map((x) => ({ char: x.figure, label: x.charName }));
+      const signed = withFigure(d.guests).slice(0, 10).map((x) => ({ char: x.figure, label: x.short ?? x.charName }));
       const fill = stand.filter((f) => !signed.some((x) => x.char === f)).slice(0, Math.max(0, 6 - signed.length)).map((char) => ({ char, label: undefined }));
       const row = [...signed, ...fill];
       row.forEach((x, i) => cameo({ id: `signup:${i}:${x.char}`, char: x.char, label: x.label, anim: "lineup", slot: i, count: row.length, at: 0, until: Infinity, on: "waiting" }));
@@ -345,10 +345,11 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
     out.holdUntil = card("accuse", t);
     fx(`acc:${t}:stamp`, "stamp", t + 1.0 * S);
     vo(`acc:${t}`, "accuse", t + 4.3 * S);
-    // The suspects line up along the bottom in their drawings, with the masked one in the middle.
-    const suspects = withFigure(d.guests).slice(0, 10).map((x) => ({ char: x.figure, label: x.charName as string | undefined }));
-    const line = suspects.length ? suspects : stand.slice(0, 6).map((char) => ({ char, label: undefined as string | undefined }));
-    line.splice(Math.floor(line.length / 2), 0, { char: "killer", label: undefined });
+    // The suspects line up along the bottom in their drawings, with the masked one in the middle (a small party only:
+    // with more than 8 guests the line-up would sit on top of the lock-in grid).
+    const suspects = d.guests.length > 8 ? [] : withFigure(d.guests).slice(0, 10).map((x) => ({ char: x.figure, label: (x.short ?? x.charName) as string | undefined }));
+    const line = suspects.length || d.guests.length > 8 ? suspects : stand.slice(0, 6).map((char) => ({ char, label: undefined as string | undefined }));
+    if (line.length) line.splice(Math.floor(line.length / 2), 0, { char: "killer", label: undefined });
     line.forEach((x, i) =>
       cameo({ id: `acc:${t}:line:${i}:${x.char}`, char: x.char, label: x.label, anim: "lineup", slot: i, count: line.length, at: out.holdUntil + i * 0.18 * S, until: t + FOREVER, on: "accuse" }),
     );

@@ -57,8 +57,8 @@ except Exception:
 created = cx("admin:createGame", {"slug": SLUG, "title": "The Velvet Room", "isTest": True, "makeActive": False,
                                   "registrationClosesAt": int(time.time() * 1000) + 7 * 864e5, "deadlineLabel": "Sat, Oct 31"})
 KEY = created["hostKey"]
-cx("host:updateSettings", {"slug": SLUG, "hostKey": KEY, "lookalikes": True})
-CAST = [f["key"] for s in cx("registration:figures", {"slug": SLUG}) if not s["extra"] for f in s["figures"]]
+CAST = [f["key"] for s in cx("registration:figures", {"slug": SLUG}) for f in s["figures"]]
+NAMES = [f["name"] for s in cx("registration:figures", {"slug": SLUG}) for f in s["figures"]]
 roster = lambda: cx("host:roster", {"slug": SLUG, "hostKey": KEY})
 phone = dict(viewport={"width": 390, "height": 844}, device_scale_factor=2, is_mobile=True, has_touch=True)
 
@@ -66,21 +66,26 @@ with sync_playwright() as p:
     browser = p.chromium.launch()
     errors = []
 
-    # Sign-up: the cast first, by name; tap your face and your name fills in.
+    # Sign-up: only the cast, by name; tap your face, then your last name and nickname.
     pg = browser.new_context(**phone).new_page()
     pg.on("pageerror", lambda e: errors.append(str(e)))
     pg.goto(f"{BASE}/?game={SLUG}")
     pg.get_by_role("button", name="Step inside").click(timeout=20000)
-    ok(wait_for(lambda: pg.get_by_text("The guys", exact=True).count() == 1 and pg.get_by_text("The girls", exact=True).count() == 1), "the cast leads the gallery: the guys, the girls")
-    ok(pg.get_by_role("button", name="Not on the list? Pick another drawing").count() == 1, "the old drawings wait behind Not on the list?")
+    ok(wait_for(lambda: pg.get_by_text("The guys", exact=True).count() == 1 and pg.get_by_text("The girls", exact=True).count() == 1), "the gallery: the guys, the girls")
+    ok(pg.get_by_role("button", name=re.compile("Not on the list")).count() == 0, "no other drawings (the generic characters are gone)")
     ok(pg.locator(".figure-grid button").count() == len(CAST), f"only the cast shows ({pg.locator('.figure-grid button').count()} faces)")
+    ok(pg.locator("#f-realName").count() == 0, "no name to type before you pick your face")
     shot(pg, "01-signup-cast.png")
-    pg.get_by_role("radio", name="Josh's drawing").click()
-    ok(pg.input_value("#f-realName") == "Josh", "tapping Josh fills in the name")
+    pg.get_by_role("radio", name="Josh", exact=True).click()
+    pg.get_by_role("button", name="Next: your character").click()
+    ok(wait_for(lambda: pg.get_by_text("Fill this in to continue.").count() == 1, 5), "the last name is required")
+    pg.fill("#f-lastName", "Lee")
+    pg.fill("#f-nickname", "Two-Tone")
+    ok(wait_for(lambda: pg.get_by_text("Josh “Two-Tone” Lee").count() >= 1, 5), "the name builds as you type: Josh “Two-Tone” Lee")
     shot(pg, "02-signup-josh.png")
     pg.get_by_role("button", name="Next: your character").click()
-    ok(wait_for(lambda: pg.get_by_role("heading", name=re.compile(r"^You're Josh")).count() == 1), "the character step says You're Josh, no name to type")
-    ok(pg.locator("#f-charName").count() == 0, "no character-name field for a cast member")
+    ok(wait_for(lambda: pg.get_by_role("heading", name="You're Josh “Two-Tone” Lee").count() == 1), "the character step says You're Josh “Two-Tone” Lee")
+    ok(pg.locator("#f-charName").count() == 0 and pg.locator("#f-rumor").count() == 0, "no character-name or word-on-the-street fields")
     pg.fill("#f-who", "Runs the numbers on the East Side."); pg.fill("#f-signature", "A grey fedora")
     shot(pg, "03-signup-character.png")
     pg.get_by_role("button", name="Next: motive and secret").click()
@@ -91,27 +96,13 @@ with sync_playwright() as p:
     pg.wait_for_url(re.compile(r"/p/[a-z0-9]+$"), timeout=15000)
     token = pg.url.rsplit("/", 1)[1]
     me = cx("registration:me", {"token": token})
-    ok(me["charName"].startswith("Josh") and me["figure"] == "josh", f"signed up as {me['charName']}")
-
-    # Someone off the list: the old drawings, and they type a name.
-    w = browser.new_context(**phone).new_page()
-    w.on("pageerror", lambda e: errors.append(str(e)))
-    w.goto(f"{BASE}/?game={SLUG}")
-    w.get_by_role("button", name="Step inside").click(timeout=20000)
-    w.get_by_role("button", name="Not on the list? Pick another drawing").click()
-    ok(wait_for(lambda: w.get_by_text("Women", exact=True).count() == 1), "Not on the list? opens the other drawings")
-    ok(w.get_by_role("radio", name="Josh's drawing, taken").count() == 1, "Josh's face is taken for everyone else")
-    w.fill("#f-realName", "Walt Inman")
-    w.get_by_role("radio", name="Drawing slick").click()
-    shot(w, "04-signup-off-list.png")
-    w.get_by_role("button", name="Next: your character").click()
-    ok(wait_for(lambda: w.locator("#f-charName").count() == 1), "off the list, they type a character name")
+    ok(me["charName"] == "Josh “Two-Tone” Lee" and me["realName"] == "Josh Lee" and me["figure"] == "josh", f"signed up as {me['charName']}")
 
     # Test guests are the cast; everyone in, the show starts.
     cx("game:seedFakeCast", {"slug": SLUG, "guests": 6, "markers": 8, "seed": 31, "checkIn": True})
     guests = cx("admin:testPlayers", {"slug": SLUG})
     names = [g["charName"] for g in guests]
-    ok(all(any(n.startswith(cx_name) for cx_name in ["Heston", "Emily", "Miranda", "Sam", "Reily", "Madison", "Josh", "Sophia", "Chrissie"]) for n in names), f"test guests are the cast: {names}")
+    ok(all(any(n.startswith(cx_name) for cx_name in NAMES) for n in names), f"test guests are the cast: {names}")
     host = browser.new_context(viewport={"width": 1600, "height": 900}).new_page()
     host.on("pageerror", lambda e: errors.append(str(e)))
     host.goto(f"{BASE}/host?game={SLUG}&key={KEY}")
@@ -132,7 +123,7 @@ with sync_playwright() as p:
     # How to play: the cards that used the old drawings show the cast.
     if host.locator(".tv-how").count() == 0:
         skip("Skip to How to play")
-    cast_re = re.compile(r"/art/(" + "|".join(CAST) + r")\.webp")
+    cast_re = re.compile(r"/art/(faces/)?(" + "|".join(CAST) + r")\.webp")
     def how_is_cast():
         srcs = [host.locator(".tv-how-art img").nth(i).get_attribute("src") or "" for i in range(host.locator(".tv-how-art img").count())]
         return any(cast_re.search(s) for s in srcs)

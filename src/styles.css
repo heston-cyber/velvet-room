@@ -188,8 +188,10 @@ img { max-width: 100%; }
 
 /* ---------- party night phone ---------- */
 .phone-app { min-height: 100dvh; display: grid; grid-template-rows: auto 1fr auto; max-width: 520px; margin-inline: auto; }
-.topline { position: sticky; top: 0; z-index: 5; display: flex; justify-content: space-between; align-items: center; gap: 10px;
-  padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px 10px; background: rgba(26, 6, 12, 0.88); backdrop-filter: blur(6px); border-bottom: 1px solid var(--rule); }
+.topline { position: sticky; top: 0; z-index: 5; display: grid; gap: 6px;
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px 9px; background: rgba(26, 6, 12, 0.92); backdrop-filter: blur(6px); border-bottom: 1px solid var(--rule); }
+.topline-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.topline .todo { margin: 0; font-size: 14px; line-height: 1.3; color: var(--paper); }
 .chip { font-family: var(--label); font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink); background: var(--brass); padding: 5px 9px 3px; }
 .timer { font-family: var(--label); font-size: 13px; font-weight: 700; letter-spacing: 0.06em; color: var(--paper); font-variant-numeric: tabular-nums; text-align: right; }
 .phone-body { padding-inline: 16px; padding-block: 12px 28px; display: grid; align-content: start; gap: 12px; min-width: 0; }

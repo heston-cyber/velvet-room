@@ -18,7 +18,7 @@ import { heckleWanted } from "./heckles";
 import { cueVariant, type CueKey } from "./narration";
 import { scheduleRecording } from "./voice";
 import { ensureRoomCode } from "./join";
-import { castMember, castName, fakeGuestPool, standIns, takenFigures } from "./figures";
+import { castMember, castName, fakeGuestPool, shortName, standIns, takenFigures } from "./figures";
 import { anyFreeWeapon, takenWeapons, weaponName } from "./weapons";
 import { clipMatches, levelsOf, narratorOf, startWanted, voiceOf, type Wanted } from "./voiceLines";
 
@@ -61,7 +61,8 @@ async function caseInput(ctx: QueryCtx, game: Doc<"games">): Promise<CaseInput> 
     .collect();
   const byId = new Map(players.map((p) => [p._id, p]));
   return {
-    suspects: players.map((p) => ({ id: p._id, name: p.charName, signature: p.signature, who: p.who, killerOk: p.killerOk })),
+    // The evidence names guests by first name (shortName): clues stay short enough to read on the TV.
+    suspects: players.map((p) => ({ id: p._id, name: shortName(p), signature: p.signature, who: p.who, killerOk: p.killerOk })),
     exhibits: weapons
       .filter((w) => {
         const p = byId.get(w.playerId);
@@ -264,9 +265,9 @@ async function tallyOf(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[])
   return columns
     .map((target) => ({
       targetId: target,
-      name: target ? p(target)?.charName ?? "" : "Nobody",
+      name: target ? (p(target) ? shortName(p(target)!) : "") : "Nobody",
       figure: target ? p(target)?.figure ?? null : null,
-      voters: ballots.filter((b) => b.targetId === target).map((b) => ({ id: b.voterId, name: p(b.voterId)?.charName ?? "", figure: p(b.voterId)?.figure ?? null })),
+      voters: ballots.filter((b) => b.targetId === target).map((b) => ({ id: b.voterId, name: p(b.voterId) ? shortName(p(b.voterId)!) : "", figure: p(b.voterId)?.figure ?? null })),
     }))
     .filter((c) => c.voters.length || c.targetId);
 }
@@ -286,7 +287,7 @@ async function publicVote(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">
     nextAt: vt.nextAt ?? null,
     outcome: vt.outcome ?? null,
     target: vt.targetId ? { id: vt.targetId, name: p(vt.targetId)?.charName ?? "", figure: p(vt.targetId)?.figure ?? null } : null,
-    candidates: vt.candidates.map((id) => ({ id, name: p(id)?.charName ?? "", figure: p(id)?.figure ?? null, jailed: !!p(id)?.jailed })),
+    candidates: vt.candidates.map((id) => ({ id, name: p(id) ? shortName(p(id)!) : "", full: p(id)?.charName ?? "", figure: p(id)?.figure ?? null, jailed: !!p(id)?.jailed })),
     voters: vt.voters.length,
     voted: ballots.length,
     tally: await tallyOf(ctx, game, all),
@@ -1284,6 +1285,7 @@ export const tv = query({
           .map(async (p) => ({
             id: p._id,
             charName: p.charName,
+            short: shortName(p),
             photoUrl: await photo(p),
             figure: p.figure ?? null,
             here: p.checkedIn,
@@ -1385,8 +1387,8 @@ export function fakeGuestsFor(takenFigs: Set<string>, takenNames: Set<string>, r
 
 /** Fills a TEST game with fake guests, checks them in, and logs markers. */
 export const seedFakeCast = internalMutation({
-  args: { slug: v.string(), guests: v.number(), markers: v.number(), seed: v.optional(v.number()), checkIn: v.optional(v.boolean()) },
-  handler: async (ctx, { slug, guests, markers, seed, checkIn }) => {
+  args: { slug: v.string(), guests: v.number(), markers: v.number(), seed: v.optional(v.number()), checkIn: v.optional(v.boolean()), longNames: v.optional(v.boolean()) },
+  handler: async (ctx, { slug, guests, markers, seed, checkIn, longNames }) => {
     const game = await ctx.db
       .query("games")
       .withIndex("by_slug", (q) => q.eq("slug", slug))
@@ -1397,14 +1399,19 @@ export const seedFakeCast = internalMutation({
     const now = Date.now();
     const taken = new Set((await playersOf(ctx, game._id)).map((p) => p.charKey));
     for (const g of fakeGuestsFor(await takenFigures(ctx, game._id), taken, rng).slice(0, guests)) {
+      // Screen checks: the longest nickname and last name sign-up allows, so nothing on the TV gets cut off.
+      const own = longNames ? { nickname: "The Butcher of Bleecker", lastName: "Montgomery-Hill" } : {};
+      const m = castMember(g.figure)!;
+      const name = longNames ? castName(m, own) : g.name;
       const playerId = await ctx.db.insert("players", {
         figure: g.figure,
         gameId: game._id,
         token: randomCode(10),
         // "Tommy (test guest)": roasts use the first word of the real name, so it reads "Tommy".
         realName: `${g.first} (test guest)`,
-        charName: g.name,
-        charKey: charKeyOf(g.name),
+        charName: name,
+        charKey: charKeyOf(name),
+        ...own,
         who: g.who,
         signature: g.signature,
         rumor: g.rumor,

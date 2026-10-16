@@ -120,8 +120,8 @@ export const CUES = {
   },
   howAccomplice: {
     when: "How to play v2, the accomplice (killer + accomplice games only)",
-    classic: "Tonight the killer has an accomplice. The accomplice didn't do it, but knows who did, and will lie to protect them. [short pause] When you lock in, you can guess the accomplice too. It won't change who wins, but it can win you Best Detective.",
-    adult: "Tonight the killer brought a friend. The accomplice didn't do it, but knows exactly who did, and will lie to your face about it. [short pause] When you lock in, take a guess at the accomplice too. It won't change who wins. It will make you look smart.",
+    classic: "Tonight the killer has an accomplice. They didn't do it, but they know who did, and they'll lie for them. [short pause] When you lock in, take a guess at the accomplice too.",
+    adult: "Tonight the killer brought a friend. The accomplice didn't do it, but they'll lie to your face for the one who did. [short pause] Guess them when you lock in.",
     wild: ["[conspiratorial whisper, way too close to the mic]", "[giggles]"],
   },
   howRoles: {
@@ -452,8 +452,8 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
     "[warm, conspiratorial] The rules are simple. One of you is a killer. Everyone else has to figure out who, while drinking. [short pause] Mostly while drinking.",
   ],
   howAccomplice: [
-    "Tonight the killer has an accomplice: someone who didn't do it, knows who did, and has decided that's fine. [short pause] When you lock in, guess the accomplice too. It won't change who wins, but it can win you Best Detective.",
-    "This is a two-person job. One killer, one accomplice. The accomplice didn't swing anything. They just lie for the person who did. Loyalty, in this economy. [short pause] When you lock in, take a guess at the accomplice too.",
+    "This is a two-person job: one killer, one accomplice. The accomplice just lies for the killer. Loyalty, in this economy. [short pause] Guess them when you lock in.",
+    "The killer has an accomplice: someone who didn't do it, knows who did, and has decided that's fine. [short pause] Take a guess at them when you lock in.",
   ],
   howRoles: [
     "After the roll call, your phone shows your secret role. Press and hold to read it. Keep it to yourself, the way you keep everything else to yourself. Poorly.",
@@ -704,7 +704,7 @@ export const NOISY: Record<Tone, Partial<Record<CueKey, string>>> = {
     awards: "And now, the awards. [clears throat]",
     paused: "Hold everything. [sneezes] Excuse me.",
     goodnight: "The Velvet Room is closed for the night. [hiccups] Settle your debts in chips.",
-    howAccomplice: "Tonight the killer has an accomplice. [hiccups] The accomplice didn't do it, but knows who did, and will lie to protect them. [short pause] When you lock in, you can guess the accomplice too. It won't change who wins, but it can win you Best Detective.",
+    howAccomplice: "Tonight the killer has an accomplice. [hiccups] They didn't do it, but they know who did, and they'll lie for them. [short pause] When you lock in, take a guess at the accomplice too.",
     revealAccomplice: "[short pause] And the a- a- accomplice who helped them is…",
   },
   adult: {
@@ -734,7 +734,7 @@ export const NOISY: Record<Tone, Partial<Record<CueKey, string>>> = {
     voteJail: "Time to vote. Somebody's going to jail, or nobody is. [burps] Pick on your phone.",
     voteTally: "The votes are in. [hiccups] Here's how you voted. No take-backs.",
     releaseNobody: "Not enough votes. [farts] [short pause] The jailbirds stay in their cage.",
-    howAccomplice: "Tonight the killer brought a friend. [hiccups] The accomplice didn't do it, but knows exactly who did, and will lie to your face about it. [short pause] When you lock in, take a guess at the accomplice too.",
+    howAccomplice: "Tonight the killer brought a friend. [hiccups] The accomplice didn't do it, but they'll lie to your face for the one who did. [short pause] Guess them when you lock in.",
     revealAccomplice: "And the accomplice, who lied to all of you with a straight face, is… [burps] is…",
   },
 };

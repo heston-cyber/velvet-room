@@ -4,7 +4,7 @@ import type { QueryCtx } from "./_generated/server";
 
 export const LIMITS = {
   realName: 60,
-  charName: 60,
+  charName: 80,
   who: 280,
   signature: 120,
   motive: 280,

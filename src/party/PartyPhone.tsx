@@ -209,10 +209,38 @@ function TopLine({ data }: { data: Phone }) {
   }
   return (
     <header className="topline">
-      <span className="chip">{chip}</span>
-      <span className="timer">{right}</span>
+      <div className="topline-row">
+        <span className="chip">{chip}</span>
+        <span className="timer">{right}</span>
+      </div>
+      <p className="todo">{todoOf(data, intro)}</p>
     </header>
   );
+}
+
+/** What this guest should be doing right now, in one line (Heston, Oct 16: "more clear on whats happening"). */
+function todoOf(data: Phone, intro: boolean): string {
+  const { game, me } = data;
+  const vt = data.vote && game.status === "playing" && data.vote.round === game.round ? data.vote : null;
+  if (game.paused) return "The host paused the game. Hang tight.";
+  if (game.status === "lobby") return "You're in. Wait for the host to start the show.";
+  if (intro) return "Watch the TV. Your role arrives here after the roll call.";
+  if (vt && !vt.closedAt) {
+    if (me.jailed) return "You're in jail, so you can't vote. Bribe someone who can.";
+    if (data.myBallot !== undefined) return "Your vote is in. You can change it until the vote closes.";
+    return vt.kind === "jail" ? "Vote below: who goes to jail? Or nobody." : "Vote below: does anyone get out of jail? Or nobody.";
+  }
+  if (vt) return "Watch the TV for the verdict.";
+  if (game.status === "playing" && game.round <= 3) {
+    if (me.jailed) return "You're in jail: no searching or voting. Talk your way out.";
+    return game.pacing.mode === "timer" ? "Search the house and scan every evidence card you find." : "Search the house and scan evidence cards. Tap Ready when you're done.";
+  }
+  if (game.status === "playing") {
+    if (me.jailed) return "Jailbirds sit out the lock-in. Watch the TV.";
+    return data.myAccusation ? "You're locked in. Watch the TV." : "Lock in who did it, with what, and where. It's final.";
+  }
+  if (game.status === "reveal") return "Watch the TV. Then vote Best Dressed and Best Liar here.";
+  return "Thanks for playing.";
 }
 
 /** Waiting at the door (v2): when the host presses Start, a signed-up guest with their page open is let in on their own. */

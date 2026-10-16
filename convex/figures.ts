@@ -43,6 +43,11 @@ export const castName = (m: CastMember, own: Own = {}) => {
 export const castRealName = (m: CastMember, own: Own = {}) => [m.name, tidy(own.lastName ?? m.last)].filter(Boolean).join(" ");
 export const castNickname = (m: CastMember, own: Own = {}) => tidy(own.nickname ?? m.nickname);
 
+/** The short name: a cast member's first name (unique in the cast), else the character name. For the evidence, the
+ *  votes and anywhere names stack up on screen; the full "Josh “Two-Tone” Lee" is for the roll call, the lobby and the
+ *  reveal. */
+export const shortName = (p: { figure?: string | null; charName: string }) => castMember(p.figure)?.name ?? p.charName;
+
 /** Every drawing a game can hand out (for preloading art). */
 export const ALL_FIGURE_KEYS = CAST_KEYS;
 

@@ -97,7 +97,7 @@ with sync_playwright() as p:
     # How to play: 11 cards, the second is the accomplice.
     if host.locator(".tv-how").count() == 0:
         skip("Skip to How to play")
-    ok(wait_for(lambda: "how to play · 1 of 11" in host.locator(".tv-how").inner_text().lower(), 10), "eleven How to play cards")
+    ok(wait_for(lambda: "how to play · 1 of 6" in host.locator(".tv-how").inner_text().lower(), 10), "six How to play cards (five + the accomplice)")
     ok(wait_for(lambda: host.locator(".tv-how-pair").count() == 1, 40), "the accomplice card: the killer with someone at their shoulder")
     ok("accomplice" in host.locator(".tv-how").inner_text().lower(), "it explains the accomplice")
     host.wait_for_timeout(1500)

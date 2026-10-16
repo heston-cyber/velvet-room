@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { HOSTS, captionText, cueFile, cueVariant, type CueKey } from "../../convex/narration";
@@ -448,10 +448,11 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
           node: (
             <div className="tv-scene top">
               <RoundBar d={d} now={now} label="Search the house" />
+              <Fit className="split" watch={`${d.weapons.length}`}>
               <div className="tv-split">
                 <div className="tv-left">
                   <h2 className="tv-h2" style={{ fontSize: "5cqw", marginTop: "1cqw" }}>Find the markers.</h2>
-                  <p className="tv-sub">Scan them with your phone. Question everyone. Lie only about your own secrets.</p>
+                  <p className="tv-sub">Scan them with your phone. Question everyone.</p>
                   <p className="tv-sub small">The body was found in {mid(g.bodyRoom)}.</p>
                   {d.weapons.length > 0 ? (
                     <>
@@ -464,6 +465,7 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
                 </div>
                 {houseMap}
               </div>
+              </Fit>
             </div>
           ),
         },
@@ -482,6 +484,7 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
           node: (
             <div className="tv-scene top">
               <RoundBar d={d} now={now} label={round === 2 ? "Fresh evidence" : "Last evidence"} />
+              <Fit className="split" watch={`${total}:${twistIn}`}>
               <div className="tv-split">
               <div className={`tv-cards ${size === "l" ? "l" : "s"}`}>
                 {plain.map((c, i) => (
@@ -501,6 +504,7 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
               </div>
               {houseMap}
               </div>
+              </Fit>
             </div>
           ),
         },
@@ -513,10 +517,12 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
         node: (
           <>
             <div className="tv-scene">
+              <Fit className="scene" watch={d.guests.length}>
               <span className="tv-kick">The lock-in</span>
               <h2 className="tv-h2" style={{ fontSize: "5.4cqw" }}>Who killed the Don?</h2>
               <p className="tv-sub">Lock in who, with which weapon, and where, on your phone. Jailbirds sit this one out.</p>
               <Guests guests={d.guests} mark="accused" />
+              </Fit>
             </div>
             <div className="tv-corner tr">
               <span>
@@ -544,12 +550,14 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
         <h2 className="tv-h2 fade" style={{ fontSize: "9cqw" }}>…</h2>
       </div>,
       <div className="tv-scene" key="v1">
+        <Fit className="scene" watch={r.killer}>
         <span className="tv-kick">The killer is</span>
         <span className="tv-av xl blood fade">{avatarSrc(r.killerPhoto, r.killerFigure) ? <img src={avatarSrc(r.killerPhoto, r.killerFigure)!} alt="" /> : initials(r.killer)}</span>
-        <span className="tv-reveal-name fade">{r.killer}</span>
+        <BigName name={r.killer} />
+        </Fit>
       </div>,
       <div className="tv-scene" key="v2">
-        <span className="tv-kick">{r.killer} did it</span>
+        <span className="tv-kick">{splitName(r.killer).main} did it</span>
         {r.exhibit && (
           <div className="tv-reveal-weapon fade">
             {r.exhibit.key && <WeaponCard weapon={{ key: r.exhibit.key, name: r.exhibit.name }} />}
@@ -563,11 +571,12 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
             <div className="tv-scene" key="vacc">
               <span className="tv-kick">The accomplice</span>
               <span className="tv-av xl fade">{avatarSrc(r.accomplice.photo, r.accomplice.figure) ? <img src={avatarSrc(r.accomplice.photo, r.accomplice.figure)!} alt="" /> : initials(r.accomplice.name)}</span>
-              <span className="tv-reveal-name tv-reveal-acc fade">{r.accomplice.name}</span>
+              <BigName name={r.accomplice.name} className="tv-reveal-acc" />
             </div>,
           ]
         : []),
       <div className="tv-scene" key="vverdict">
+        <Fit className="scene" watch={r.aces.length}>
         <span className="tv-kick">The verdict</span>
         <span className="tv-verdict fade">
           Of {r.accusers} locked in: {r.named} named the killer, {r.rightWeapon} the weapon, {r.rightRoom} the room.
@@ -581,8 +590,9 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
         )}
         {r.aces.length > 0 && <p className="tv-sub fade">Ace detectives: {r.aces.join(", ")}</p>}
         <p className="tv-sub fade" style={{ color: "var(--paper)" }}>
-          {r.accomplice ? `${r.killer} and ${r.accomplice.name}, stand up and confess.` : `${r.killer}, stand up and confess.`} Everyone else: vote Best Dressed and Best Liar on your phones.
+          {r.accomplice ? `${splitName(r.killer).main} and ${splitName(r.accomplice.name).main}, stand up and confess.` : `${splitName(r.killer).main}, stand up and confess.`} Everyone else: vote Best Dressed and Best Liar on your phones.
         </p>
+        </Fit>
       </div>,
     ];
     return { scene: { key: `reveal${step}`, node: frames[step] } };
@@ -754,17 +764,23 @@ function voteScene(d: Data, vt: Vote, now: number): Scene {
       node: (
         <>
           <div className="tv-scene">
+            <Fit className="scene" watch={vt.candidates.length}>
             <span className="tv-kick fade">{jail ? `The jail vote · Round ${vt.round}` : `The release vote · Round ${vt.round}`}</span>
             <h2 className="tv-h2 fade" style={{ fontSize: "5.4cqw" }}>{jail ? "Who goes to jail?" : "Does anyone get out?"}</h2>
-            <div className="tv-cands">
+            <div className={`tv-cands ${jail && vt.candidates.length > 6 ? "crowd" : ""}`}>
               {vt.candidates.map((c, i) => (
-                <div key={c.id} className="fade" style={{ animationDelay: `${0.2 + i * 0.08}s` }}>
-                  {c.figure ? jail ? <img src={figureUrl(c.figure)} alt="" /> : <Jailed figure={c.figure} /> : <span className="tv-av">{initials(c.name)}</span>}
+                <div key={c.id} className="fade" style={{ animationDelay: `${0.2 + i * 0.05}s` }}>
+                  {c.figure ? (
+                    !jail ? <Jailed figure={c.figure} /> : vt.candidates.length > 6 ? <span className="tv-av"><img src={faceUrl(c.figure)} alt="" /></span> : <img src={figureUrl(c.figure)} alt="" />
+                  ) : (
+                    <span className="tv-av">{initials(c.name)}</span>
+                  )}
                   <span>{c.name}</span>
                 </div>
               ))}
             </div>
-            <p className="tv-sub fade">Vote on your phone. You can pick nobody. More than half of you have to agree.</p>
+            <p className="tv-sub fade">Vote on your phone, or pick nobody. More than half of you have to agree.</p>
+            </Fit>
           </div>
           <div className="tv-corner tr">
             <span>
@@ -782,9 +798,10 @@ function voteScene(d: Data, vt: Vote, now: number): Scene {
       key: `vote-tally-${vt.at}`,
       node: (
         <div className="tv-scene">
+          <Fit className="scene" watch={(vt.tally ?? []).length}>
           <span className="tv-kick fade">The votes are in</span>
           <div className="tv-tally">
-            {(vt.tally ?? []).map((col, i) => (
+            {(vt.tally ?? []).filter((col) => col.voters.length).map((col, i) => (
               <div key={col.targetId ?? "nobody"} className="fade" style={{ animationDelay: `${0.3 + i * 0.25}s` }}>
                 <span className="who">{col.name}</span>
                 <span className="n">{col.voters.length}</span>
@@ -801,6 +818,7 @@ function voteScene(d: Data, vt: Vote, now: number): Scene {
           <p className="tv-sub fade" style={{ animationDelay: "1s" }}>
             {vt.voted} of {vt.voters} voted. More than half had to agree.
           </p>
+          </Fit>
         </div>
       ),
     };
@@ -979,6 +997,62 @@ function HowWin({ face, weapon, room }: { face: string; weapon: Weapon; room: st
   );
 }
 
+/** "Josh “Two-Tone” Lee" → "Josh Lee", a.k.a. "Two-Tone". */
+function splitName(name: string): { main: string; aka: string | null } {
+  const m = /^(.*?)\s*“([^”]+)”\s*(.*)$/.exec(name);
+  return m ? { main: [m[1], m[3]].filter(Boolean).join(" "), aka: m[2] } : { main: name, aka: null };
+}
+
+/** A big name at the reveal: their name, and their nickname under it. */
+function BigName({ name, className = "" }: { name: string; className?: string }) {
+  const n = splitName(name);
+  return (
+    <span className={`tv-reveal-name fade ${className}`}>
+      {n.main}
+      {n.aka && <small className="aka">a.k.a. “{n.aka}”</small>}
+    </span>
+  );
+}
+
+/**
+ * Fits a scene in the 16:9 frame (Heston, Oct 16: "some stuff was cut off out of frame"): if what's inside is taller or
+ * wider than the space it has, it's zoomed down until it fits (never below 45%), so a night with 15 guests, long names
+ * and a pile of evidence still shows everything.
+ */
+function Fit({ children, className = "", watch }: { children: ReactNode; className?: string; watch: unknown }) {
+  const box = useRef<HTMLDivElement>(null);
+  const inner = useRef<HTMLDivElement>(null);
+  const [zoom, setZoom] = useState(1);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const b = box.current;
+      const i = inner.current;
+      if (!b || !i) return;
+      const was = i.style.zoom;
+      i.style.zoom = "1";
+      const z = Math.max(0.45, Math.min(1, b.clientHeight / Math.max(1, i.scrollHeight), b.clientWidth / Math.max(1, i.scrollWidth)));
+      i.style.zoom = was;
+      setZoom((old) => (Math.abs(old - z) > 0.01 ? z : old));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (box.current) ro.observe(box.current);
+    void document.fonts?.ready.then(measure);
+    const t = window.setTimeout(measure, 500);
+    return () => {
+      ro.disconnect();
+      window.clearTimeout(t);
+    };
+  }, [watch]);
+  return (
+    <div ref={box} className={`tv-fit ${className}`}>
+      <div ref={inner} className="tv-fit-in" style={{ zoom }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 /** A drawing behind the jail bars, its face lined up with the gap in the middle. */
 function Jailed({ figure, className = "" }: { figure: string; className?: string }) {
   return (
@@ -996,7 +1070,7 @@ function Guests({ guests, mark }: { guests: Data["guests"]; mark: "here" | "accu
       {guests.map((x) => (
         <div key={x.id} className={mark === "here" && !x.here ? "away" : ""}>
           <span className={`tv-av ${mark === "accused" && x.accused ? "done" : ""} ${x.jailed ? "jailed" : ""}`}>{avatarSrc(x.photoUrl, x.figure) ? <img src={avatarSrc(x.photoUrl, x.figure)!} alt="" /> : initials(x.charName)}</span>
-          {x.charName}
+          {x.short ?? x.charName}
         </div>
       ))}
     </div>

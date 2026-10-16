@@ -108,12 +108,12 @@ with sync_playwright() as p:
     if host.locator(".tv-how").count() == 0:
         skip("Skip to How to play")
     ok(wait_for(lambda: host.locator(".tv-how").count() == 1, 10), "How to play is on")
-    ok(wait_for(lambda: "how to play · 1 of 10" in host.locator(".tv-how").inner_text().lower(), 10), "ten How to play cards")
+    ok(wait_for(lambda: "how to play · 1 of 5" in host.locator(".tv-how").inner_text().lower(), 10), "five How to play cards")
     host.wait_for_timeout(1200)
     shot(host, "03-how-1.png")
     # Step through: the weapons card and the jail card.
     seen = set()
-    end = time.time() + 120
+    end = time.time() + 90
     while time.time() < end and not {"weapons", "bars"} <= seen:
         if host.locator(".tv-wfan").count():
             if "weapons" not in seen:
@@ -137,19 +137,8 @@ with sync_playwright() as p:
     host.wait_for_timeout(9000)
     shot(host, "06-roll-guest.png")
     card = host.locator(".tv-roll.v2").inner_text().lower()
-    ok("weapon" in card and "motive" in card and "signature" in card, "the card has signature, weapon and motive")
-    ok(host.locator(".tv-roll-fig .tv-wcard.hip").count() == 1, "the weapon card sits with the drawing")
-    fig = host.locator(".tv-roll-fig > img").bounding_box()
-    wc = host.locator(".tv-wcard.hip").bounding_box()
-    if fig and wc:
-        ratio = wc["height"] / fig["height"]
-        mid = (wc["y"] + wc["height"] / 2 - fig["y"]) / fig["height"]
-        ok(0.2 <= ratio <= 0.32, f"the weapon card is about a quarter of the drawing's height ({ratio:.2f})")
-        ok(0.42 <= mid <= 0.66, f"at hip level ({mid:.2f} down the drawing)")
-    ok(host.locator(".tv-roast").count() == 1, "the roast is on the card")
-    ok(wait_for(lambda: host.locator(".tv-roast").evaluate("e => getComputedStyle(e).opacity") == "1", 30), "the roast comes in with the voice")
-    host.wait_for_timeout(500)
-    shot(host, "06b-roll-roast.png")
+    ok("weapon" not in card and "motive" not in card and "signature" not in card and "played by" not in card, "the card is just the guest's drawing and name (Oct 16)")
+    ok(host.locator(".tv-roast").count() == 0, "no roast on the roll call")
     ok(phone.get_by_text("Eyes on the TV").count() >= 1, "the phone still waits during the roll call")
     g = roster()["game"]
     ok(g["show"]["phonesAt"] is not None, "the roll call's turns are fixed once it begins")
