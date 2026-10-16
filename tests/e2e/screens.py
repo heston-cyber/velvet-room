@@ -140,9 +140,9 @@ with sync_playwright() as p:
             break
         audit(f"how-{i}", 1600)
     wait_for(lambda: host.locator(".tv-roll h2").count() == 1, 40)
-    audit("roll-call", 1200)
+    audit("roll-call", 2500)
     menu("Skip to the roles")
-    audit("phones", 4500)
+    audit("phones", 6500)  # the Check Your Phone card runs 4 s first (its video is blank in headless Chromium)
     cx("game:skipIntro", {"slug": SLUG, "hostKey": KEY})
     audit("round-1", 5500)
 
