@@ -449,7 +449,7 @@ function ShowWait({ data }: { data: Phone }) {
     <div className="screen center murder">
       <span className="eyebrow">Lights down</span>
       <h1 className="title-xl">The Don is dead.</h1>
-      {data.game.bodyRoom && <p className="lede">Don Carmine Velluto has been found in {mid(data.game.bodyRoom)}.</p>}
+      {data.game.bodyRoom && <p className="lede">Don Ray Sanders has been found in {mid(data.game.bodyRoom)}.</p>}
       <div className="sealed">
         <p>Eyes on the TV. Your secret role arrives here after the roll call.</p>
       </div>
@@ -465,7 +465,7 @@ function Murder({ data, onDone }: { data: Phone; onDone: () => void }) {
     <div className="screen center murder no-select">
       <span className="eyebrow">Check your phone</span>
       <h1 className="title-xl">The Don is dead.</h1>
-      <p className="lede">Don Carmine Velluto has been found in {mid(data.game.bodyRoom)}.</p>
+      <p className="lede">Don Ray Sanders has been found in {mid(data.game.bodyRoom)}.</p>
       <div {...props} aria-label="Press and hold to see your role" className={`hold-card${holding ? " showing" : ""}`}>
         {holding ? (
           role === "killer" ? (

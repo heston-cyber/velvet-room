@@ -247,7 +247,7 @@ export default function ProfileForm(props: {
           <Deco />
           <h1 className="title-xl">The Velvet Room</h1>
           <p className="lede">
-            Don Carmine Velluto requests your company for a private evening. Before you arrive, the house needs to
+            Don Ray Sanders requests your company for a private evening. Before you arrive, the house needs to
             know who you are.
           </p>
           <div className="actions wide">

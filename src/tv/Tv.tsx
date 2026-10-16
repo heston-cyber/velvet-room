@@ -540,7 +540,7 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
     const step = now < t + R.name ? 0 : now < t + R.how ? 1 : accAt !== null && now < accAt ? 2 : now < t + R.verdict ? (accAt !== null ? 3 : 2) : accAt !== null ? 4 : 3;
     const frames = [
       <div className="tv-scene" key="v0">
-        <span className="tv-kick fade">The killer of Don Carmine Velluto is</span>
+        <span className="tv-kick fade">The killer of Don Ray Sanders is</span>
         <h2 className="tv-h2 fade" style={{ fontSize: "9cqw" }}>…</h2>
       </div>,
       <div className="tv-scene" key="v1">
@@ -652,7 +652,7 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
       </div>,
       <div className="tv-scene dark" key="i1">
         <h2 className="tv-h2 fade blood">The Don is dead.</h2>
-        <p className="tv-sub fade">Don Carmine Velluto · found in {mid(g.bodyRoom)}</p>
+        <p className="tv-sub fade">Don Ray Sanders · found in {mid(g.bodyRoom)}</p>
       </div>,
       <div className="tv-scene dark" key="i2">
         <h2 className="tv-h2 fade">One of you did it.</h2>

@@ -87,7 +87,7 @@ export const ADULT: Script = {
     "Somebody paid you twenty bucks to keep an eye on someone here tonight. You already lost track of them.",
   ],
   killerLines: (f) => [
-    `You did it. You whacked Don Carmine Velluto with the ${f.weapon.toLowerCase()} in ${mid(f.room)}.`,
+    `You did it. You whacked Don Ray Sanders with the ${f.weapon.toLowerCase()} in ${mid(f.room)}.`,
     f.ownWeapon
       ? `The ${f.weapon.toLowerCase()} is the weapon you brought, genius. If anyone figures that out, start lying your ass off.`
       : `The ${f.weapon.toLowerCase()} isn't even your weapon. Lucky break, you sneaky bastard.`,

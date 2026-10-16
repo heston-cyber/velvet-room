@@ -3,7 +3,7 @@
 // guest taps their own face and goes by their own name and a 1920s nickname ("Josh “Two-Tone” Lee") on screen and
 // in the narration. Each drawing belongs to one guest per game; whoever picks a character plays. Test guests are the
 // cast too. The drawings live in public/art/<key>.webp (faces in public/art/faces). The Don and the masked killer are
-// the story's own and never handed out. (The old 16 drawings stay in public/art only so games from before still show.)
+// the story's own and never handed out (since Oct 16 the Don is Ray Sanders, drawn from his photo: "Don Ray Sanders"). (The old 16 drawings stay in public/art only so games from before still show.)
 //
 // Add someone: art in public/art(/faces) via scripts/process-art.py, a line here, and their face in FACE_X
 // (src/lib/figure.ts). `sayAs` only if the narrator gets the name wrong.
@@ -21,6 +21,11 @@ export const CAST: CastMember[] = [
   { key: "josh", name: "Josh", sex: "m" },
   { key: "sophia", name: "Sophia", sex: "f" },
   { key: "chrissie", name: "Chrissie", sex: "f" },
+  { key: "brayden", name: "Brayden", sex: "m" },
+  { key: "holden", name: "Holden", sex: "m" },
+  { key: "brian", name: "Brian", sex: "m" },
+  { key: "brianna", name: "Brianna", sex: "f" },
+  { key: "sienna", name: "Sienna", sex: "f" },
 ];
 export const CAST_KEYS = CAST.map((l) => l.key);
 export const castMember = (key: string | null | undefined) => (key ? CAST.find((l) => l.key === key) ?? null : null);

@@ -160,7 +160,7 @@ export const CLASSIC: Script = {
     "You took a payment to keep an eye on someone here tonight.",
   ],
   killerLines: (f) => [
-    `You did it. You killed Don Carmine Velluto with the ${f.weapon.toLowerCase()} in ${mid(f.room)}.`,
+    `You did it. You killed Don Ray Sanders with the ${f.weapon.toLowerCase()} in ${mid(f.room)}.`,
     f.ownWeapon
       ? `The ${f.weapon.toLowerCase()} is the weapon you brought. If anyone works that out, you'll need a good story.`
       : `The ${f.weapon.toLowerCase()} isn't the weapon you brought. That's lucky for you.`,

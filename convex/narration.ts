@@ -232,8 +232,8 @@ export const CUES = {
   },
   intro2: {
     when: "Start: the body",
-    classic: "Tonight, the Velvet Room lost its owner. Don Carmine Velluto has been found dead.",
-    adult: "Tonight the Velvet Room lost its owner. Don Carmine Velluto is dead as hell.",
+    classic: "Tonight, the Velvet Room lost its owner. Don Ray Sanders has been found dead.",
+    adult: "Tonight the Velvet Room lost its owner. Don Ray Sanders is dead as hell.",
     wild: ["[suddenly shouting]", "[sobbing dramatically]"],
   },
   intro3: {
@@ -308,8 +308,8 @@ export const CUES = {
   // ---- reveal ----
   reveal1: {
     when: "Reveal: the drumroll",
-    classic: "[long pause] The killer of Don Carmine Velluto is…",
-    adult: "[long pause] The son of a bitch who killed Don Carmine Velluto is…",
+    classic: "[long pause] The killer of Don Ray Sanders is…",
+    adult: "[long pause] The son of a bitch who killed Don Ray Sanders is…",
     wild: ["[trembling with excitement]", ""],
   },
   reveal2: {
@@ -513,8 +513,8 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
     "[low, gravelly voice] New York City. October, 1929. The stock market is nervous, the gin is illegal, and the Don is in a very good mood. [long pause] For now.",
   ],
   intro2: [
-    "Tonight the Velvet Room lost its owner. Don Carmine Velluto is dead. He leaves behind a nightclub, eleven unpaid cops and a very confused parrot.",
-    "Don Carmine Velluto, owner of the Velvet Room, beloved by nobody, is dead. The family asks that you don't touch anything. The family is also suspects.",
+    "Tonight the Velvet Room lost its owner. Don Ray Sanders is dead. He leaves behind a nightclub, eleven unpaid cops and a very confused parrot.",
+    "Don Ray Sanders, owner of the Velvet Room, beloved by nobody, is dead. The family asks that you don't touch anything. The family is also suspects.",
   ],
   intro3: [
     "[whispers] One of you did it. [short pause] And frankly, we're all a little impressed.",
@@ -562,8 +562,8 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
     "Thirty seconds left. If you haven't locked in, you're either thinking very hard or hiding something. Both look bad.",
   ],
   reveal1: [
-    "[long pause] The person who murdered Don Carmine Velluto, in his own club, in front of his own gin, is…",
-    "[long pause] The police have been called. They're on their way. They've been paid. [short pause] The killer of Don Carmine Velluto is…",
+    "[long pause] The person who murdered Don Ray Sanders, in his own club, in front of his own gin, is…",
+    "[long pause] The police have been called. They're on their way. They've been paid. [short pause] The killer of Don Ray Sanders is…",
   ],
   reveal2: [
     "…standing right here, in a very nice outfit.",
@@ -653,7 +653,7 @@ export const NOISY: Record<Tone, Partial<Record<CueKey, string>>> = {
     round2: "Fresh evidence has come in. [burps] Pardon me.",
     oneMinute: "One minute left in this round. [sneezes] Excuse me. One minute.",
     twist: "[building] And now, the t- t- twist.",
-    reveal1: "[long pause] The killer of Don Carmine Velluto is… [hiccups] is…",
+    reveal1: "[long pause] The killer of Don Ray Sanders is… [hiccups] is…",
     verdictDetectives: "The detectives got their killer. [short pause] C- c- confess, you rat.",
     votePrompt: "Now vote on your phones: Best Dressed and [hiccups] Best Liar.",
     voteJail: "Time to vote. [clears throat] Who goes to jail? Vote on your phone. You can pick nobody.",
@@ -681,7 +681,7 @@ export const NOISY: Record<Tone, Partial<Record<CueKey, string>>> = {
     oneMinute: "Sixty seconds. [sneezes] Hurry it up, you overdressed herd of snails.",
     twist: "[building] Hold on to something. [farts] [short pause] Not that.",
     accuseLastCall: "Thirty seconds left. Lock it in. [hiccups] Lock it in.",
-    reveal1: "[long pause] The person who murdered Don Carmine Velluto, in his own club, in front of his own gin, is… [hiccups] is…",
+    reveal1: "[long pause] The person who murdered Don Ray Sanders, in his own club, in front of his own gin, is… [hiccups] is…",
     verdictDetectives: "Justice, for once in New York. [short pause] The killer is c- c- caught, and is welcome to blame the gin.",
     votePrompt: "Now vote on your phones: Best Dressed and Best Liar. Vote for yourself if you must. [snorts] Everyone will know.",
     awards: "And now, the awards. [clears throat] [clears throat again] The trophies are real. The talent is debatable.",

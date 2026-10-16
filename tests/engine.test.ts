@@ -262,9 +262,9 @@ describe("the engine", () => {
     input.tone = "adult";
     const cf = buildCase(input, rng);
     const killer = cf.briefings.find((b) => b.role === "killer")!;
-    expect(killer.lines[0]).toMatch(/^You did it\. You whacked Don Carmine Velluto/);
+    expect(killer.lines[0]).toMatch(/^You did it\. You whacked Don Ray Sanders/);
     const classic = buildCase({ ...input, tone: "classic" }, seeded(21));
     expect(classic.bodyRoomKey).toBeTruthy();
-    expect(classic.briefings.find((b) => b.role === "killer")!.lines[0]).toMatch(/You killed Don Carmine Velluto/);
+    expect(classic.briefings.find((b) => b.role === "killer")!.lines[0]).toMatch(/You killed Don Ray Sanders/);
   });
 });
