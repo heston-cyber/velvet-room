@@ -6,7 +6,7 @@ import type { FunctionReturnType } from "convex/server";
 import type { api } from "../../convex/_generated/api";
 import { cueVariant, type CueKey } from "../../convex/narration";
 import { VOTE } from "../../convex/shared";
-import { howCues, howLayout, readSecs, rollLayout, SHOW, type HowArt, type ShowPart } from "../../convex/show";
+import { BODY_SECS_EST, howCues, howLayout, introLayout, readSecs, rollLayout, showPartAt, showParts, SHOW, type HowArt, type ShowPart } from "../../convex/show";
 import { CARD_MS, type CardKey, type LoopKey } from "./media";
 import { CAST_KEYS } from "../../convex/figures";
 import type { MusicKey, SfxKey } from "./sound";
@@ -42,6 +42,8 @@ export type Plan = {
   awardsAt: number[];
   /** The show's part right now (v2: between Start and Round 1), else null. */
   part: ShowPart | null;
+  /** The intro's three slides (the Don dies): when each starts, from its lines (convex/show.ts introLayout). */
+  intro?: { beats: [number, number, number] } | null;
   /** How to play: one illustrated card per line. */
   rules: { steps: { cue: CueKey; v: number; art: HowArt; at: number; voiceAt: number; until: number }[]; end: number } | null;
   /** The roll call: each guest's turn, then the closer, then "check your phones". */
@@ -454,41 +456,50 @@ type Tools = {
 /**
  * Between Start and Round 1. The server fixes when each part starts (convex/show.ts); inside a part the lines
  * are laid out the same way the server laid them out. A skipped part drops whatever it didn't get to.
+ * Since Oct 16: How to play → the intro (the Don dies) → the roll call → check your phones (older games: intro first).
  */
 /** secs here gives this game's version of each line (cs in plan). */
 function show(d: Data, now: number, secs: (cue: CueKey) => number, out: Plan, { vo, clip, fx, card, cameo, pick }: Tools): Plan {
   const g = d.game;
-  const t = g.startedAt!;
   const end = g.introEndsAt!;
-  const howAt = g.show?.howAt ?? end;
-  const rollAt = g.show?.rollAt ?? end;
+  const times = { howAt: g.show?.howAt ?? end, introAt: g.show?.introAt ?? null, rollAt: g.show?.rollAt ?? end, phonesAt: g.show?.phonesAt ?? null };
+  const parts = showParts(times, g.startedAt!);
+  /** When the part after this one starts (a part's moments stop there). */
+  const until = (part: "how" | "intro" | "roll") => {
+    const i = parts.findIndex((x) => x.part === part);
+    return parts[i + 1]?.at ?? Infinity;
+  };
+  const rollAt = times.rollAt;
   const rc = d.voice.rollCall;
   const lay = rc ? rollLayout(rollAt, rc.slots, secs) : null;
   const phonesAt = Math.min(end, g.show?.phonesAt ?? lay?.phonesAt ?? end);
-  const part: ShowPart = now < howAt ? "intro" : now < rollAt ? "how" : now < phonesAt ? "roll" : "phones";
+  const part: ShowPart = showPartAt(times, g.startedAt!, phonesAt, now);
   out.part = part;
 
-  // The intro: lights out, the Don falls, the body, "one of you did it".
-  const beat = SHOW.introBeatMs;
+  // How to play.
+  const howAt = times.howAt;
+  const how = howLayout(howAt, howCues(g), secs);
+  for (const st of how.steps) {
+    fx(`how:${howAt}:${st.cue}:flip`, st.art === "map" ? "cardFlip" : "whoosh", st.at);
+    vo(`how:${howAt}:${st.cue}`, st.cue, st.voiceAt, true);
+  }
+  out.rules = { steps: how.steps.filter((st) => st.at < until("how")).map((st) => ({ ...st, art: dress(d, st.art), v: pick(st.cue) })), end: Math.min(how.end, until("how")) };
+
+  // The intro: lights out, the Don falls, the body, "one of you did it". Its slides wait for its lines (introLayout).
+  const t = times.introAt ?? g.startedAt!;
+  const intro = introLayout(t, secs, d.voice.body?.seconds ?? BODY_SECS_EST);
+  out.intro = { beats: intro.beats };
   const lightsOff = card("lightsout", t);
   cameo({ id: `intro:${t}:don`, char: "don", anim: "fall", at: t, until: t + 2.8 * S, over: true });
   fx(`intro:${t}:scratch`, "needleScratch", t);
   fx(`intro:${t}:switch`, "lightsCut", t + 0.95 * S);
   fx(`intro:${t}:fall`, "bodyFall", t + 1.6 * S);
   fx(`intro:${t}:scream`, "scream", t + 2.3 * S);
-  vo(`intro:${t}:1`, "intro1", t + 3.4 * S);
-  fx(`intro:${t}:swell`, "swell", t + beat - 4.3 * S); // the riser peaks 4.25 s in, on "The Don is dead"
-  const e2 = vo(`intro:${t}:2`, "intro2", t + beat + 1.2 * S);
+  vo(`intro:${t}:1`, "intro1", intro.line1);
+  fx(`intro:${t}:swell`, "swell", intro.beats[1] - 4.3 * S); // the riser peaks 4.25 s in, on "The Don is dead"
+  const e2 = vo(`intro:${t}:2`, "intro2", intro.line2);
   clip(`intro:${t}:body`, d.voice.body ?? undefined, e2 + 0.3 * S);
-  vo(`intro:${t}:3`, "intro3", t + 2 * beat + 0.8 * S);
-
-  // How to play.
-  const how = howLayout(howAt, howCues(g), secs);
-  for (const st of how.steps) {
-    fx(`how:${howAt}:${st.cue}:flip`, st.art === "map" ? "cardFlip" : "whoosh", st.at);
-    vo(`how:${howAt}:${st.cue}`, st.cue, st.voiceAt, true);
-  }
-  out.rules = { steps: how.steps.filter((st) => st.at < rollAt).map((st) => ({ ...st, art: dress(d, st.art), v: pick(st.cue) })), end: Math.min(how.end, rollAt) };
+  vo(`intro:${t}:3`, "intro3", intro.line3);
 
   // The roll call: "the doors are locked", then each guest, then "remember these faces".
   let titleUntil = rollAt;
@@ -529,7 +540,7 @@ function show(d: Data, now: number, secs: (cue: CueKey) => number, out: Plan, { 
   }
   // Each part keeps only its own moments, so a skip never plays leftovers.
   out.events = out.events.filter((e) =>
-    e.id.startsWith("intro:") ? e.at < howAt : e.id.startsWith("how:") ? e.at < rollAt : e.id.startsWith("roll:") ? e.at < phonesAt : e.at < end,
+    e.id.startsWith("intro:") ? e.at < until("intro") : e.id.startsWith("how:") ? e.at < until("how") : e.id.startsWith("roll:") ? e.at < phonesAt : e.at < end,
   );
   return out;
 }

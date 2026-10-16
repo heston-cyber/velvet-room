@@ -1,4 +1,5 @@
 // The host's game steps and the phone rescue, used by the host screen (src/pages/Host.tsx).
+import { showParts } from "../../convex/show";
 import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -37,8 +38,10 @@ export function useNextStep(data: Roster, slug: string, hostKey: string, now: nu
   if (intro && g.show) {
     // The show (v2): skip one part at a time.
     const s = g.show;
-    const next = now < s.howAt ? "how" : now < s.rollAt ? "roll" : !s.phonesAt || now < s.phonesAt ? "phones" : "round";
-    const label = { how: "Skip to How to play", roll: "Skip to the roll call", phones: "Skip to the roles", round: "Begin Round 1" }[next];
+    // This game's order (Oct 16: How to play, the Don dies, the roll call).
+    const nextPart = showParts(s, g.startedAt ?? now).find((x) => x.at > now)?.part;
+    const next = nextPart ?? (!s.phonesAt || now < s.phonesAt ? "phones" : "round");
+    const label = { how: "Skip to How to play", intro: "Skip to the murder", roll: "Skip to the roll call", phones: "Skip to the roles", round: "Begin Round 1" }[next];
     return { label, help: "Or let the show run on its own. Round 1 starts after the roles.", run: () => skipShow(args) };
   }
   if (intro) return { label: "Begin Round 1", help: "Or let the intro finish on its own.", run: () => skipIntro(args) };

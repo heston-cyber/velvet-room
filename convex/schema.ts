@@ -55,6 +55,11 @@ export default defineSchema({
     tone: v.optional(v.union(v.literal("classic"), v.literal("adult"))),
     introEndsAt: v.optional(v.number()), // the TV intro plays until then; Round 1's timer starts after it
     revealAt: v.optional(v.number()), // when the reveal sequence started on the TV
+    // The reveal's steps (ms after revealAt), laid out from this game's recordings when it starts (Oct 16: slides wait
+    // for the narrator). Older games use the fixed timings in shared.ts.
+    revealPlan: v.optional(
+      v.object({ card: v.number(), line: v.number(), name: v.number(), how: v.number(), accomplice: v.union(v.number(), v.null()), verdict: v.number() }),
+    ),
     tvShowAll: v.optional(v.boolean()), // TV shows every piece of evidence released so far
     soundCheckAt: v.optional(v.number()), // bumps when the host presses Sound check
     endedAt: v.optional(v.number()), // the host closed the night
@@ -79,12 +84,13 @@ export default defineSchema({
     rulesAt: v.optional(v.number()),
     rollCallAt: v.optional(v.number()),
     rollCallOrder: v.optional(v.array(v.id("players"))),
-    // The show (v2): after Start, the intro, How to play, the roll call and "check your phones" (convex/show.ts).
-    // The intro starts at startedAt and the show ends at introEndsAt. The roll call's turns are fixed when it
-    // begins (once the voices are in); phonesAt comes with them.
+    // The show (v2): after Start, How to play, the intro (the Don dies), the roll call and "check your phones"
+    // (convex/show.ts; introAt from Oct 16 on; before then the intro came first, at startedAt). The show ends at
+    // introEndsAt. The roll call's turns are fixed when it begins (once the voices are in); phonesAt comes with them.
     show: v.optional(
       v.object({
         howAt: v.number(),
+        introAt: v.optional(v.number()),
         rollAt: v.number(),
         order: v.array(v.id("players")),
         roll: v.optional(v.array(v.number())),
@@ -93,7 +99,7 @@ export default defineSchema({
     ),
     // Phones show the roles from "check your phones" on (v2). Games without a show had them at Start.
     rolesOut: v.optional(v.boolean()),
-    // v2 votes: after every round, a jail vote (from Round 2, a release vote first if anyone is in jail).
+    // Votes (Oct 16): Round 2 ends in a jail vote; Round 3 in a release vote if anyone is in jail (shared.voteAfterRound).
     // voters: the free guests when it opened (the majority is more than half of them). candidates: who can be
     // picked. When it closes: the outcome, then the verdict shows until nextAt, and the night moves on.
     vote: v.optional(

@@ -2,7 +2,7 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
-import { SHOW, cueSecs, howCues, howLayout } from "../convex/show";
+import { SHOW, cueSecs, howCues, howLayout, introLayout } from "../convex/show";
 import { ROASTS, RUMOR_LEADS, WEAPON_ROASTS, roastIndex, roastFor, rumorLead } from "../convex/roasts";
 import { WEAPON_KEYS, weaponName } from "../convex/weapons";
 import { rollNarration } from "../convex/narration";
@@ -35,15 +35,18 @@ async function started(guests = 6) {
 const PHONES_MS = Math.max(SHOW.phonesHold, cueSecs("ivy", "classic", "ivy", "intro4") * 1000 + 8000);
 const game = (t: ReturnType<typeof convexTest>) => t.run(async (ctx) => (await ctx.db.query("games").first())!);
 
-describe("the show (v2): Start → intro → How to play → roll call → check your phones → Round 1", () => {
+describe("the show (Oct 16): Start → How to play → the Don dies → roll call → check your phones → Round 1", () => {
   test("Start fixes when each part begins; Round 1's clock starts after the show; the roles wait", async () => {
     vi.useFakeTimers();
     const { t, players, tvKey } = await started();
     const g = await game(t);
     const s = g.show!;
-    expect(s.howAt - g.startedAt!).toBe(SHOW.introMs);
+    // Heston, Oct 16: "1. rules 2. don dies 3. Roll call"
+    expect(s.howAt).toBe(g.startedAt!);
     const secs = (c: Parameters<typeof cueSecs>[3]) => cueSecs("ivy", "classic", "ivy", c);
-    expect(s.rollAt).toBe(howLayout(s.howAt, howCues({ search: "all", pacing: g.pacing }), secs).end);
+    expect(s.introAt).toBe(howLayout(s.howAt, howCues({ search: "all", pacing: g.pacing }), secs).end);
+    expect(s.rollAt).toBe(introLayout(s.introAt!, secs).end);
+    expect(s.rollAt - s.introAt!).toBeGreaterThanOrEqual(SHOW.introMs - 10_000);
     expect([...s.order].sort()).toEqual(players.map((p) => p._id).sort());
     expect(s.roll).toBeUndefined();
     expect(g.introEndsAt!).toBeGreaterThan(s.rollAt + players.length * SHOW.rollMin);
@@ -56,7 +59,7 @@ describe("the show (v2): Start → intro → How to play → roll call → check
     }
     // The TV has the roll call in show order: each guest's name and nickname, nothing else (Heston, Oct 16).
     const tv = await t.query(api.game.tv, { slug: SLUG, tvKey });
-    expect(tv.game.show).toMatchObject({ howAt: s.howAt, rollAt: s.rollAt, phonesAt: null });
+    expect(tv.game.show).toMatchObject({ howAt: s.howAt, introAt: s.introAt, rollAt: s.rollAt, phonesAt: null });
     const rc = tv.voice.rollCall!;
     expect(rc.items.map((i) => i.id)).toEqual(s.order);
     expect(rc.slots).toHaveLength(players.length);
@@ -93,13 +96,15 @@ describe("the show (v2): Start → intro → How to play → roll call → check
     vi.useFakeTimers();
     const { t, hostKey } = await started(4);
     const skip = () => t.mutation(api.game.skipShow, { slug: SLUG, hostKey });
+    const before = await game(t);
     vi.advanceTimersByTime(5_000);
-    await skip(); // intro → How to play
+    await skip(); // How to play → the Don dies
     let g = await game(t);
-    expect(g.show!.howAt).toBe(Date.now());
+    expect(g.show!.introAt).toBe(Date.now());
+    expect(g.show!.rollAt - g.show!.introAt!).toBe(before.show!.rollAt - before.show!.introAt!); // the intro keeps its length
     expect(g.roundEndsAt).toBe(g.introEndsAt! + 10 * 60_000);
     vi.advanceTimersByTime(3_000);
-    await skip(); // How to play → the roll call, its turns fixed now
+    await skip(); // the Don dies → the roll call, its turns fixed now
     g = await game(t);
     expect(g.show!.rollAt).toBe(Date.now());
     expect(g.show!.roll).toHaveLength(4);

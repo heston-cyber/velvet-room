@@ -94,8 +94,9 @@ export const roster = query({
         paused: !!game.paused,
         roundEndsAt: game.roundEndsAt ?? null,
         introEndsAt: game.introEndsAt ?? null,
+        startedAt: game.startedAt ?? null,
         // v2: the show's parts (convex/show.ts), so the host can skip to the next one.
-        show: game.show ? { howAt: game.show.howAt, rollAt: game.show.rollAt, phonesAt: game.show.phonesAt ?? null } : null,
+        show: game.show ? { howAt: game.show.howAt, introAt: game.show.introAt ?? null, rollAt: game.show.rollAt, phonesAt: game.show.phonesAt ?? null } : null,
         // v2: this round's vote, so the host can close it or skip its verdict.
         vote: game.vote && game.vote.round === game.round ? { kind: game.vote.kind, closedAt: game.vote.closedAt ?? null, nextAt: game.vote.nextAt ?? null } : null,
         tvShowAll: !!game.tvShowAll,

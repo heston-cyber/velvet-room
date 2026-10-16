@@ -651,11 +651,13 @@ function RoundBar({ d, now, label }: { d: Data; now: number; label: string }) {
   );
 }
 
-/** The show (v2): the intro, How to play, the roll call, "check your phones". */
+/** The show: How to play, the intro (the Don dies), the roll call, "check your phones" (that order since Oct 16). */
 function showScene(d: Data, p: Plan, now: number): Scene | null {
   const g = d.game;
   if (p.part === "intro") {
-    const beat = Math.min(2, Math.max(0, Math.floor((now - (g.startedAt ?? now)) / SHOW.introBeatMs)));
+    // The slides wait for the narrator's lines (introLayout, Oct 16).
+    const beats = p.intro?.beats ?? [g.startedAt ?? now, (g.startedAt ?? now) + SHOW.introBeatMs, (g.startedAt ?? now) + 2 * SHOW.introBeatMs];
+    const beat = now >= beats[2] ? 2 : now >= beats[1] ? 1 : 0;
     const frames = [
       <div className="tv-scene dark" key="i0">
         <span className="tv-kick fade">New York City · October, 1929</span>

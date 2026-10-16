@@ -16,6 +16,9 @@ export const REVEAL_ACC_ADULT: RevealTimes = { ...REVEAL_ADULT, accomplice: 25_5
 export const revealTimes = (accomplice: boolean, tone: "classic" | "adult" = "classic"): RevealTimes =>
   tone === "adult" ? (accomplice ? REVEAL_ACC_ADULT : REVEAL_ADULT) : accomplice ? REVEAL_ACC : REVEAL;
 
+/** The Locked Up! card after a jail verdict (src/tv/media.ts CARD_MS.lockedup). */
+export const LOCKED_UP_MS = 3_000;
+
 /** The TV title cards are 4 seconds (Lights Out is 3). Scenes fade in after them. */
 export const CARD_MS = 4_000;
 export const LIGHTS_OUT_MS = 3_000;

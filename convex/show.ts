@@ -1,5 +1,7 @@
 // The show (v2, Oct 15): what plays on the TV between "Everyone is in" and Round 1.
-//   the intro (lights out, the body, "one of you did it") → How to play → the roll call → "check your phones".
+//   Since Oct 16 (Heston: "Different order 1. rules 2. don dies 3. Roll call"): How to play → the intro (lights out,
+//   the Don dies, "one of you did it") → the roll call → "check your phones". Games started before then ran the
+//   intro first; showParts() reads either.
 // Pure layout, shared by the server (which fixes the times, so Round 1's clock and the phones agree)
 // and the TV (which lays out the lines inside each part the same way).
 import manifest from "../public/audio/narration/manifest.json";
@@ -95,6 +97,52 @@ export function rollLayout(at: number, slots: number[], secs: (c: CueKey) => num
   return { openAt, steps, closeAt, phonesAt, end };
 }
 
+/** Where the body was found: a per-game clip recorded at Start, so its length is estimated until it's in. */
+export const BODY_SECS_EST = 4;
+
+/**
+ * The intro (the Don dies), laid out from its lines so no slide changes while the narrator is still talking (Heston,
+ * Oct 16: "VO lines need to end before the next slides appear"). Three slides: "New York City · October, 1929" (lights
+ * out, the fall, the scream, then the first line), "The Don is dead" (the second line, then where the body was found)
+ * and "One of you did it" (the third line, over the weapons). Each slide lasts at least introBeatMs.
+ */
+export function introLayout(at: number, secs: (c: CueKey) => number, bodySecs: number = BODY_SECS_EST) {
+  const line1 = at + 3.4 * S;
+  const b1 = Math.max(at + SHOW.introBeatMs, line1 + secs("intro1") * S + 1.2 * S);
+  const line2 = b1 + 1.2 * S;
+  const bodyAt = line2 + secs("intro2") * S + 0.3 * S;
+  const b2 = Math.max(b1 + SHOW.introBeatMs, bodyAt + bodySecs * S + 1.2 * S);
+  const line3 = b2 + 0.8 * S;
+  const end = Math.max(b2 + 10 * S, line3 + secs("intro3") * S + 3 * S);
+  return { beats: [at, b1, b2] as [number, number, number], line1, line2, bodyAt, line3, end };
+}
+
+/** The show's start times, as the server keeps them (introAt from Oct 16 on). */
+export type ShowTimes = { howAt: number; rollAt: number; introAt?: number | null; phonesAt?: number | null };
+
+/** The parts before "check your phones", in the order this game plays them, each with its start. */
+export function showParts(s: ShowTimes, startedAt: number): { part: "how" | "intro" | "roll"; at: number }[] {
+  return s.introAt != null
+    ? [
+        { part: "how", at: s.howAt },
+        { part: "intro", at: s.introAt },
+        { part: "roll", at: s.rollAt },
+      ]
+    : [
+        { part: "intro", at: startedAt },
+        { part: "how", at: s.howAt },
+        { part: "roll", at: s.rollAt },
+      ];
+}
+
+/** Which part of the show is on at `now` (phonesAt: when "check your phones" starts). */
+export function showPartAt(s: ShowTimes, startedAt: number, phonesAt: number, now: number): ShowPart {
+  if (now >= phonesAt) return "phones";
+  let part: ShowPart = showParts(s, startedAt)[0].part;
+  for (const x of showParts(s, startedAt)) if (now >= x.at) part = x.part;
+  return part;
+}
+
 /** The parts of the show, by start time. A skip jumps to the next one. */
 export type ShowPart = "intro" | "how" | "roll" | "phones";
 export const PART_LABEL: Record<ShowPart | "round", string> = {
@@ -104,3 +152,25 @@ export const PART_LABEL: Record<ShowPart | "round", string> = {
   phones: "Check your phones",
   round: "Round 1",
 };
+
+/**
+ * The reveal, laid out from this game's recordings so each step waits for the line before it (Heston, Oct 16: "VO
+ * lines need to end before the next slides appear with reveals"): "The killer is…" (this game's version), the killer's
+ * name, the weapon and the room, (with an accomplice) "And the accomplice who helped them is…" and their name, then the
+ * verdict. Seconds of the per-game clips; a missing clip counts as a few seconds. Never quicker than the classic timings.
+ */
+export function revealLayout(
+  base: { card: number; line: number; name: number; how: number; accomplice: number | null; verdict: number },
+  secs: (c: CueKey) => number,
+  clips: { killer?: number | null; exhibit?: number | null; room?: number | null; accomplice?: number | null },
+) {
+  const gap = 0.8 * S;
+  const line = base.line;
+  const name = Math.max(base.name, line + secs("reveal1") * S + gap);
+  const how = Math.max(base.how, name + 0.3 * S + (clips.killer ?? 3.5) * S + gap);
+  const howEnd = how + 0.3 * S + ((clips.exhibit ?? 2.5) + 0.1 + (clips.room ?? 2.5)) * S;
+  if (base.accomplice === null) return { ...base, line, name, how, accomplice: null, verdict: Math.max(base.verdict, howEnd + gap) };
+  const accomplice = Math.max(base.accomplice, howEnd + gap);
+  const accEnd = accomplice + 0.4 * S + secs("revealAccomplice") * S + 0.2 * S + (clips.accomplice ?? 3.5) * S;
+  return { ...base, line, name, how, accomplice, verdict: Math.max(base.verdict, accEnd + gap) };
+}

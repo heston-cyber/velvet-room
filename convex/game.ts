@@ -11,8 +11,8 @@ import { charKeyOf, randomCode, registrationIsOpen, requireHost, requireTv } fro
 import { seal } from "./seal";
 import { caseFor } from "./caseFile";
 import { ensureAllCards, markerForCode } from "./cards";
-import { ACCUSE_MAX_MINUTES, MAX_CARDS, revealTimes, VOTE, voteAfterRound } from "./shared";
-import { SHOW, cueSecs, howCues, howLayout, rollLayout } from "./show";
+import { ACCUSE_MAX_MINUTES, LOCKED_UP_MS, MAX_CARDS, revealTimes, VOTE, voteAfterRound } from "./shared";
+import { SHOW, cueSecs, howCues, howLayout, introLayout, revealLayout, rollLayout, showParts } from "./show";
 import { inOrder, rollGuests, slotsFor } from "./rollCall";
 import { heckleWanted } from "./heckles";
 import { cueVariant, type CueKey } from "./narration";
@@ -133,12 +133,31 @@ async function advance(ctx: MutationCtx, game: Doc<"games">) {
   return afterVoteNow(ctx, game);
 }
 
+/** The reveal's steps for this game: each waits for the line before it, from this game's recordings (Oct 16). */
+async function revealPlanFor(ctx: QueryCtx, game: Doc<"games">) {
+  const cf = await caseFor(ctx, game);
+  const base = revealTimes(!!game.hasAccomplice, game.tone ?? "classic");
+  if (!cf) return base;
+  const rows = await ctx.db
+    .query("clips")
+    .withIndex("by_game", (q) => q.eq("gameId", game._id))
+    .collect();
+  const secsOf = (purpose: string) => rows.find((r) => r.purpose === purpose && r.seconds)?.seconds ?? null;
+  const sol = cf.solution;
+  return revealLayout(base, showSecs(game), {
+    killer: secsOf(`killer:${sol.killerId}`),
+    exhibit: secsOf(`exhibit:${sol.exhibitId}`),
+    room: secsOf(`room:${sol.roomKey}`),
+    accomplice: sol.accompliceId ? secsOf(`accomplice:${sol.accompliceId}`) : null,
+  });
+}
+
 /** Round 1 -> 2 -> 3 -> the lock-in -> the reveal. */
 async function nextRound(ctx: MutationCtx, game: Doc<"games">) {
   if (!isPlaying(game)) return;
   const round = game.round ?? 1;
   if (round >= 4) {
-    await ctx.db.patch(game._id, { status: "reveal", roundEndsAt: undefined, paused: false, tvShowAll: false, revealAt: Date.now() });
+    await ctx.db.patch(game._id, { status: "reveal", roundEndsAt: undefined, paused: false, tvShowAll: false, revealAt: Date.now(), revealPlan: await revealPlanFor(ctx, game) });
     return;
   }
   const next = round + 1;
@@ -190,7 +209,24 @@ async function closeVote(ctx: MutationCtx, game: Doc<"games">) {
   const now = Date.now();
   if (target) await ctx.db.patch(target, v.kind === "jail" ? { jailed: true, jailedAt: now, readyRound: 0 } : { jailed: false });
   const outcome = !target ? ("nobody" as const) : v.kind === "jail" ? ("jailed" as const) : ("released" as const);
-  const nextAt = now + VOTE.nextMs;
+  // The next round waits for the verdict's line to finish (Oct 16: slides wait for the narrator). The TV says it
+  // VOTE.verdictAtMs after the close: a name after the Locked Up! card, or "nobody" straight away.
+  let verdictSecs: number;
+  if (target) {
+    const row = await ctx.db
+      .query("clips")
+      .withIndex("by_game", (q) => q.eq("gameId", game._id))
+      .collect()
+      .then((rows) => rows.find((r) => r.purpose === `${outcome === "jailed" ? "jailed" : "released"}:${target}` && r.seconds));
+    verdictSecs = row?.seconds ?? 4;
+  } else {
+    const n = narratorOf(game);
+    const tone = game.tone ?? "classic";
+    const cue = v.kind === "jail" ? "jailNobody" : "releaseNobody";
+    verdictSecs = cueSecs(voiceOf(n), tone, n.host, cue, cueVariant(tone, cue, game.slug, `${v.round}`));
+  }
+  const saidAt = now + VOTE.verdictAtMs + (outcome === "jailed" ? LOCKED_UP_MS + 100 : 500);
+  const nextAt = Math.max(now + VOTE.nextMs, saidAt + verdictSecs * 1000 + 1500);
   await ctx.db.patch(game._id, { vote: { ...v, closedAt: now, outcome, targetId: target, nextAt } });
   await ctx.scheduler.runAt(nextAt, internal.game.afterVote, { gameId: game._id, at: v.at });
 }
@@ -544,7 +580,7 @@ export const phone = query({
         revealAt: game.revealAt ?? null,
         // v2: a killer + accomplice game (fixed at Start), and when the TV's reveal reaches the verdict.
         hasAccomplice: started && !!game.hasAccomplice,
-        verdictMs: revealTimes(started && !!game.hasAccomplice, game.tone ?? "classic").verdict,
+        verdictMs: (game.revealPlan ?? revealTimes(started && !!game.hasAccomplice, game.tone ?? "classic")).verdict,
         nextSlug: game.nextSlug ?? null, // the host started another game: sign up for it
       },
       me: {
@@ -774,8 +810,10 @@ export const startGame = mutation({
       secure(),
       (await playersOf(ctx, game._id)).filter((p) => p.inGame).map((p) => p._id),
     );
-    const howAt = now + SHOW.introMs;
-    const rollAt = howLayout(howAt, howCues({ search: game.search ?? "all", pacing: game.pacing, accomplice: !!input.accomplice }), showSecs(game)).end;
+    // Oct 16 (Heston): How to play first, then the Don dies, then the roll call.
+    const howAt = now;
+    const introAt = howLayout(howAt, howCues({ search: game.search ?? "all", pacing: game.pacing, accomplice: !!input.accomplice }), showSecs(game)).end;
+    const rollAt = introLayout(introAt, showSecs(game)).end;
     const est = await rollPlan(ctx, game, rollAt, order, file as CaseFile);
     const introEndsAt = est.end;
     const timed = game.pacing.mode === "timer";
@@ -793,7 +831,7 @@ export const startGame = mutation({
       roomOrder: file.roomOrder,
       rulesAt: undefined,
       rollCallAt: undefined,
-      show: { howAt, rollAt, order },
+      show: { howAt, introAt, rollAt, order },
       rolesOut: false,
       // v2: a killer and an accomplice only with 7+ players; otherwise one killer.
       hasAccomplice: !!input.accomplice,
@@ -826,7 +864,7 @@ export const advanceRound = mutation({
   },
 });
 
-// ---------- the show (v2): intro → How to play → roll call → check your phones ----------
+// ---------- the show: How to play → the Don dies → roll call → check your phones (Oct 16; before, the intro came first) ----------
 
 const showSecs = (game: Doc<"games">) => {
   const n = narratorOf(game);
@@ -894,7 +932,7 @@ export const releaseRoles = internalMutation({
   },
 });
 
-/** Host: skip to the next part of the show (How to play, the roll call, check your phones, Round 1). */
+/** Host: skip to the next part of the show (in this game's order), then check your phones, then Round 1. */
 export const skipShow = mutation({
   args: { slug: v.string(), hostKey: v.string() },
   handler: async (ctx, { slug, hostKey }) => {
@@ -902,12 +940,17 @@ export const skipShow = mutation({
     const now = Date.now();
     const s = game.show;
     if (!s || !inShow(game, now)) return { ok: true };
-    if (now < s.howAt) {
-      const d = s.howAt - now;
-      const show = { ...s, howAt: now, rollAt: s.rollAt - d };
+    const parts = showParts(s, game.startedAt ?? now);
+    const i = parts.reduce((k, x, j) => (now >= x.at ? j : k), 0);
+    const next = parts[i + 1];
+    if (next && next.part !== "roll") {
+      // Pull the next part (and everything after it) forward to now.
+      const d = next.at - now;
+      const field = next.part === "intro" ? "introAt" : "howAt";
+      const show = { ...s, [field]: now, rollAt: s.rollAt - d };
       await setShowEnd(ctx, game, game.introEndsAt! - d, { show });
       await ctx.scheduler.runAt(show.rollAt, internal.game.freezeShowRoll, { gameId: game._id });
-    } else if (now < s.rollAt) {
+    } else if (next) {
       await ctx.db.patch(game._id, { show: { ...s, rollAt: now } });
       await freezeRoll(ctx, (await ctx.db.get(game._id))!);
     } else if (!s.phonesAt || now < s.phonesAt) {
@@ -1263,7 +1306,7 @@ export const tv = query({
         doneAt: game.doneAt ?? null,
         rulesAt: started ? null : game.rulesAt ?? null,
         // v2: the show between Start and Round 1 (convex/show.ts). phonesAt is set once the roll call begins.
-        show: game.show ? { howAt: game.show.howAt, rollAt: game.show.rollAt, phonesAt: game.show.phonesAt ?? null } : null,
+        show: game.show ? { howAt: game.show.howAt, introAt: game.show.introAt ?? null, rollAt: game.show.rollAt, phonesAt: game.show.phonesAt ?? null } : null,
         tone: game.tone ?? "classic",
         narrator: narratorOf(game),
         levels: levelsOf(game),
@@ -1314,7 +1357,7 @@ export const tv = query({
             .map((c) => ({ round: c.round, text: c.text, twist: c.kind === "twist" }))
         : [],
       results,
-      reveal: revealTimes(started && !!game.hasAccomplice, game.tone ?? "classic"),
+      reveal: game.revealPlan ?? revealTimes(started && !!game.hasAccomplice, game.tone ?? "classic"),
       voice: await tvVoice(ctx, game, all, input, cf),
       map: await tvMap(ctx, game),
       // A cast game's TV dresses How to play, the accomplice card, the awards and empty line-ups in the cast's
@@ -1485,6 +1528,7 @@ export const resetTestGame = internalMutation({
       roomOrder: undefined,
       introEndsAt: undefined,
       revealAt: undefined,
+      revealPlan: undefined,
       tvShowAll: false,
       endedAt: undefined,
       doorsAt: status === "lobby" ? Date.now() : undefined,

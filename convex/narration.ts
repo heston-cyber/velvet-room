@@ -133,7 +133,7 @@ export const CUES = {
   howWeapons: {
     when: "How to play v2, card 3 (the weapons)",
     classic: "Every guest brought a weapon, and one of them is about to do the deed. [short pause] That doesn't mean its owner did.",
-    adult: "Everybody brought a weapon, and one of them is about to do the job. [short pause] Owning the murder weapon doesn't make you the murderer. It just makes you weird.",
+    adult: "Everybody brought a weapon, and one of them is about to do the job. [short pause] Owning the murder weapon doesn't make you the murderer. It just makes you a weird son of a bitch.",
     wild: ["[deadly serious]", "[giggles nervously]"],
   },
   howJail: {
@@ -172,7 +172,7 @@ export const CUES = {
   howCase: {
     when: "How to play v3, card 1 (one of you did it; your phone; lying)",
     classic: "[warm, conspiratorial] Here's how tonight works. Any minute now, Don Ray Sanders is going to die, and one of you will have done it. Your phone will tell you if it was you. [short pause] Only the guilty may lie about the murder.",
-    adult: "[warm, conspiratorial] Here's how this goes. Any minute now, Don Ray Sanders is going to drop dead, and one of you sick bastards will have done it. Your phone will tell you if it was you. [short pause] Only the guilty get to lie about the murder. Everyone else, lie about everything else.",
+    adult: "[warm, conspiratorial] Here's how this goes. Any minute now, Don Ray Sanders is going to drop dead, and one of you sick fucks will have done it. Your phone will tell you if it was you. [short pause] Only the guilty get to lie about the murder. Everyone else, lie about everything else.",
     wild: ["[clapping hands, way over the top]", "[cackles]"],
   },
   howSearch: {
@@ -184,7 +184,7 @@ export const CUES = {
   howJail2: {
     when: "How to play v3, the jail vote",
     classic: "After Round 2, you can vote one guest into jail. You don't have to: if you're not sure, vote nobody. It takes more than half of you. [short pause] Jailbirds can't search, vote or lock in. After Round 3, you can vote them back out.",
-    adult: "After Round 2, you can vote one person into jail. You don't have to. Nobody is always on the ballot. More than half of you have to agree. [short pause] Jailbirds can't search, vote or lock in. After Round 3, you can spring them. If you're feeling generous. Or bribed.",
+    adult: "After Round 2, you can vote one person into jail. You don't have to. Nobody is always on the ballot. More than half of you have to agree. [short pause] Jailbirds can't search, vote or lock in. After Round 3, you can spring their sorry ass. If you're feeling generous. Or bribed.",
     wild: ["[banging on the bars, shouting]", "[evil laugh]"],
   },
   howWin2: {
@@ -210,7 +210,7 @@ export const CUES = {
   voteRelease: {
     when: "The release vote opens (after Round 3, before the lock-in, if anyone is in jail)",
     classic: "Before the lock-in: does anyone get out of jail? Vote on your phone.",
-    adult: "Before the lock-in: does anybody get out of jail? Vote on your phone. Choose wisely. Or drunkenly. Same thing in here.",
+    adult: "Before the lock-in: does anybody get out of jail? Vote on your phone. Choose wisely. Or drunkenly. Same damn thing in here.",
     wild: ["[jingling keys, giggling]", ""],
   },
   voteLastCall: {
@@ -528,7 +528,7 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
     "More than half of you have to get the killer, more than half the weapon, and more than half the room. Miss one, and the killer walks out a free and very smug individual. [short pause] Then we vote for Best Dressed and Best Liar.",
   ],
   howCase: [
-    "[warm, conspiratorial] Quick rules, before the Don hits the floor. One of you is about to become a killer, and your phone knows which. Keep your screen to yourself. [short pause] Only the guilty may lie about the murder. The rest of you, try honesty. It's new.",
+    "[warm, conspiratorial] Quick rules, before the Don hits the floor. One of you is about to become a killer, and your phone knows which. Keep your damn screen to yourself. [short pause] Only the guilty may lie about the murder. The rest of you, try honesty. It's new.",
     "[warm, conspiratorial] Enjoy the Don while you can. He's got about a minute left, and one of you is the reason. Check your phone after the roll call. [short pause] Only the guilty may lie about the murder. Everybody else, keep your bullshit to the small stuff.",
   ],
   howSearch: [
@@ -536,8 +536,8 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
     "Three rounds. Hunt down the evidence cards and scan them. Drawers, closets, under the couch. [short pause] Whatever you find shows up here.",
   ],
   howJail2: [
-    "Round 2 ends with a jail vote. Lock somebody up, or don't. Nobody's making you. It takes more than half of you. [short pause] Jailbirds can't search, vote or lock in, but they can still talk, which is the real punishment for everyone else. After Round 3, you can let them out.",
-    "After Round 2, you may throw one of these degenerates in jail. May. Not must. Vote nobody if your gut says nobody. [short pause] Jailbirds sit out the searching, the voting and the lock-in. After Round 3, you can vote them back out. This is called the justice system.",
+    "Round 2 ends with a jail vote. Lock some poor bastard up, or don't. Nobody's making you. It takes more than half of you. [short pause] Jailbirds can't search, vote or lock in, but they can still talk, which is the real punishment for everyone else. After Round 3, you can let them out.",
+    "After Round 2, you may throw one of these degenerates in jail. May. Not must. Vote nobody if your gut says nobody. [short pause] Jailbirds sit out the searching, the voting and the lock-in. After Round 3, you can vote them back out. This is called the justice system. It's a bitch.",
   ],
   howWin2: [
     "After the last round, everybody who's free locks in who, with what, and where. No take-backs. [short pause] Most of you right on all three, you win. Otherwise, the killer goes home happy.",
