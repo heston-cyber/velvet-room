@@ -320,7 +320,8 @@ export function heckleLines(tone: Tone, seed: string, guests: HeckleGuest[], opt
   const left = { bit: deal("bit"), jab: deal("jab"), aside: deal("aside") };
   // New games (that chose at Start) get the longer gag-night order; older games keep theirs.
   const pattern = gagNight && opts.gag !== undefined ? GAG_PATTERN : PATTERN;
-  const arc = gagArc(pools.gag, pattern.filter((k) => k === "gag").length, seed);
+  // A gag night plays the arc from its first line to its last; older games play its first lines in order.
+  const arc = pattern === GAG_PATTERN ? gagArc(pools.gag, pattern.filter((k) => k === "gag").length, seed) : pools.gag.map((_, i) => i);
   let gags = 0;
   let swaps = 0;
   let next = 0;

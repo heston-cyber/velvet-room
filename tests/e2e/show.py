@@ -158,9 +158,12 @@ with sync_playwright() as p:
     ok(host.locator(".tv-split .tv-wcard").count() == 6, "Round 1 lists the weapons in play")
     shot(host, "09-round1.png")
     # A heckle in the lull, about a minute and a half in (convex/heckles.ts).
-    clips = cx("voice:clipsOf", {"slug": SLUG})
-    hk = [c for c in clips if c["purpose"].startswith("heckle:")]
-    ok(len(hk) >= 14 and all(c["status"] == "ready" for c in hk), f"the night's heckles are recorded ({len(hk)})")
+    # (Skipping through the show can reach Round 1 before the last heckles finish recording.)
+    hk = []
+    def heckles_ready():
+        hk[:] = [c for c in cx("voice:clipsOf", {"slug": SLUG}) if c["purpose"].startswith("heckle:")]
+        return len(hk) >= 14 and all(c["status"] == "ready" for c in hk)
+    ok(wait_for(heckles_ready, 90), f"the night's heckles are recorded ({len(hk)})")
     ok(wait_for(lambda: host.locator(".tv-caption").count() == 1 and "round one" not in host.locator(".tv-caption").inner_text().lower(), 110), "a heckle plays in the lull")
     host.wait_for_timeout(1500)
     shot(host, "10-heckle.png")
