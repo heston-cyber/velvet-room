@@ -40,7 +40,7 @@ describe("adult script: several versions of every line, picked per game", () => 
     const adult = cueFiles("adult");
     expect(adult.filter((f) => f.cue === "howJail").map((f) => f.file)).toEqual(["howJail", "howJail.1", "howJail.2", "howJail.3"]); // .3 is the noisy take
     expect(cueFiles("classic").length).toBe(Object.keys(CUES).length + Object.keys(NOISY.classic).length);
-    expect(captionText("intro3", "adult", "ivy", 2)).toBe("And one of you did it. Don't look so innocent. It doesn't suit you.");
+    expect(captionText("intro3", "adult", "ivy", 2)).toBe("One of you did it. My money's on whoever just looked at the door.");
     expect(recordingText("intro3", "adult", "ivy", false, 2)).toContain("[whispers]");
     expect(captionText("howLockIn", "adult", "ivy")).not.toMatch(/marri/i);
   });
@@ -61,7 +61,9 @@ describe("noises: an extra bank, played now and then", () => {
       for (const cue of Object.keys(CUES) as CueKey[]) for (const t of cleanVersions(cue, tone)) expect(NOISE.test(t), `${tone} ${cue}: ${t}`).toBe(false);
       for (const [cue, t] of Object.entries(NOISY[tone])) {
         expect(NOISE.test(t!), `${tone} ${cue}`).toBe(true);
-        expect(isNoisy(cue as CueKey, tone, cueVersions(cue as CueKey, tone).length - 1)).toBe(true);
+        // the noisy take comes right after the clean versions (Adult D, if any, after it)
+        expect(isNoisy(cue as CueKey, tone, cleanVersions(cue as CueKey, tone).length)).toBe(true);
+        expect(cueVersions(cue as CueKey, tone)[cleanVersions(cue as CueKey, tone).length]).toBe(t);
       }
     }
     expect(Object.values(NOISY.classic).some((t) => /farts/.test(t!))).toBe(false);
@@ -105,7 +107,8 @@ describe("heckles in the lulls", () => {
     expect(new Set(gag.map((l) => l.target)).size).toBe(1);
     const name = guests.find((g) => g.id === gag[0].target)!.real.split(" ")[0];
     expect(gag.every((l) => l.text.includes(name))).toBe(true);
-    expect(gag.map((l) => l.text)).toEqual(HECKLES.adult.gag.map((t) => t.replaceAll("{real}", name)));
+    // older games (no gag setting) play the arc's first lines in order
+    expect(gag.map((l) => l.text)).toEqual(HECKLES.adult.gag.slice(0, gag.length).map((t) => t.replaceAll("{real}", name)));
     // The rest roast everyone else around, by first name, and nothing repeats.
     const roasted = new Set(lines.filter((l) => !l.gag && l.target).map((l) => l.target));
     expect(roasted.size).toBe(guests.length - 1);

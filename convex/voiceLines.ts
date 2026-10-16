@@ -2,7 +2,7 @@
 // intro, the waves and the reveal. Pure functions, shared by the server (recording, the TV query)
 // and the host laptop. Nothing here is secret: every guest, exhibit and room gets a clip, so the
 // set of recordings never points at the answer.
-import { cueVariant, customRecordingText, customText, rollNarration, sprinkle, voiceKey, type CueKey, type GameTone, type HostKey, type Tone } from "./narration";
+import { cueVariant, customRecordingText, customText, plain, rollNarration, sprinkle, voiceKey, type CueKey, type GameTone, type HostKey, type Tone } from "./narration";
 import { openRoomsIn } from "./engine/build";
 
 export type Narrator = { host: HostKey; unstable: boolean; /** Sailor mode (Oct 16): Duke, furious, his own filthy script. */ sailor?: boolean };
@@ -44,7 +44,8 @@ export type Wanted = {
  */
 function make(purpose: string, caption: string, n: Narrator, spoken = caption, noise?: { tone: Tone; seed?: string }): Wanted {
   const said = noise ? sprinkle(spoken, noise.tone, `${noise.seed ?? ""}|${purpose}`) : spoken;
-  return { purpose, caption, text: customRecordingText(said, n.unstable), voice: voiceOf(n) };
+  // Captions never show delivery directions (Sailor's lines carry them: "[shouting] …").
+  return { purpose, caption: plain(caption), text: customRecordingText(said, n.unstable), voice: voiceOf(n) };
 }
 
 /** What the roll call says about one guest: their name (and, for the party cast, their nickname). */
