@@ -46,6 +46,8 @@ export default defineSchema({
       roundMinutes: v.number(),
     }),
     createdAt: v.number(),
+    // Started by a host on the site (Oct 16, anyone can host), not by Claude with a command.
+    selfServe: v.optional(v.boolean()),
     round: v.optional(v.number()), // 1-3 evidence rounds, 4 = accusations
     startedAt: v.optional(v.number()),
     roundEndsAt: v.optional(v.number()), // timer pacing only
@@ -117,7 +119,8 @@ export default defineSchema({
   })
     .index("by_slug", ["slug"])
     .index("by_active", ["isActive"])
-    .index("by_roomCode", ["roomCode"]),
+    .index("by_roomCode", ["roomCode"])
+    .index("by_created", ["createdAt"]),
 
   players: defineTable({
     gameId: v.id("games"),

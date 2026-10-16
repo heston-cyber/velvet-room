@@ -21,6 +21,7 @@ import type * as figures from "../figures.js";
 import type * as game from "../game.js";
 import type * as heckles from "../heckles.js";
 import type * as host from "../host.js";
+import type * as hosting from "../hosting.js";
 import type * as join from "../join.js";
 import type * as lib from "../lib.js";
 import type * as narration from "../narration.js";
@@ -56,6 +57,7 @@ declare const fullApi: ApiFromModules<{
   game: typeof game;
   heckles: typeof heckles;
   host: typeof host;
+  hosting: typeof hosting;
   join: typeof join;
   lib: typeof lib;
   narration: typeof narration;

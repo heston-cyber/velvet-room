@@ -4,6 +4,7 @@ import Guest from "./pages/Guest";
 import Host from "./pages/Host";
 import Marker from "./pages/Marker";
 import Join from "./pages/Join";
+import Landing from "./pages/Landing";
 import Shell from "./components/Shell";
 import { Deco } from "./components/MemberCard";
 
@@ -17,7 +18,10 @@ export default function App() {
   if (path.replace(/\/$/, "") === "/host") {
     return <Host slug={params.get("game") ?? ""} hostKey={params.get("key") ?? ""} />;
   }
-  return <Register slug={params.get("game") ?? undefined} walkIn={params.get("walkin") ?? undefined} />;
+  // The main page has no game of its own (Oct 16, anyone can host): sign-up links name their game.
+  const game = params.get("game");
+  if (!game) return <Landing />;
+  return <Register slug={game} walkIn={params.get("walkin") ?? undefined} />;
 }
 
 /** v2: the host screen is the TV. Old links to the separate TV window (/tv?game=…&key=…) land here. */

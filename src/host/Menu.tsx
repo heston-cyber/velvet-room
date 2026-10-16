@@ -520,7 +520,8 @@ function Guests({ data, slug, hostKey, locked, onError }: { data: Roster; slug: 
 
 function RegLink({ game }: { game: Roster["game"] }) {
   const [copied, setCopied] = useState(false);
-  const link = `${window.location.origin}/${game.isTest ? `?game=${encodeURIComponent(game.slug)}` : ""}`;
+  // Every game has its own sign-up link (Oct 16, anyone can host); the main page has no game of its own.
+  const link = `${window.location.origin}/?game=${encodeURIComponent(game.slug)}`;
   return (
     <div className="hx-link">
       <span className="lab">Sign-up link to text guests</span>
