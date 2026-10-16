@@ -4,7 +4,7 @@
 import type { Doc, Id } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
 import type { CaseFile } from "./engine/types";
-import { castMember, castRealName } from "./figures";
+import { castMember, castNickname, castRealName } from "./figures";
 import { narratorOf, rollWanted, type Wanted } from "./voiceLines";
 import { readSecs, rollSlotMs } from "./show";
 
@@ -33,13 +33,14 @@ export async function rollGuests(ctx: QueryCtx, game: Doc<"games">, _cf: CaseFil
     const w = weapons.find((x) => x.playerId === p._id);
     const weapon = w?.key ? { key: w.key, name: w.name } : null;
     const m = castMember(p.figure);
-    const cast = m ? { real: castRealName(m), nickname: m.nickname ?? null } : null;
+    const own = { nickname: p.nickname, lastName: p.lastName };
+    const cast = m ? { real: castRealName(m, own), nickname: castNickname(m, own) || null } : null;
     const wanted = rollWanted(tone, narratorOf(game), {
       id: p._id,
       charName: p.charName,
       sayAs: p.sayAs,
       realName: p.realName,
-      cast: m ? { real: castRealName(m), nickname: m.nickname, sayAs: m.sayAs } : null,
+      cast: m ? { real: castRealName(m, own), nickname: castNickname(m, own), sayAs: m.sayAs } : null,
       seed: game.slug,
     });
     return { player: p, weapon, cast, wanted };

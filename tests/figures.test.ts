@@ -84,6 +84,21 @@ describe("the party cast: the only characters (Heston, Oct 16: the generic ones 
     expect((await t.query(api.registration.me, { token }))!.charName).toBe(castName(CAST.find((l) => l.key === "sam")!));
   });
 
+  test("each guest types their own nickname and last name; the roll call uses them", async () => {
+    const { t, hostKey } = await setup();
+    const { token } = await t.mutation(api.registration.register, { ...guest(0, "josh"), nickname: " “Two-Tone” ", lastName: "Lee" });
+    let me = (await t.query(api.registration.me, { token }))!;
+    expect(me).toMatchObject({ charName: "Josh “Two-Tone” Lee", realName: "Josh Lee", nickname: "Two-Tone", lastName: "Lee" });
+    // an older page that doesn't send them keeps what's there
+    const { slug: _s, ...edit } = guest(0, "josh");
+    await t.mutation(api.registration.update, { ...edit, token, who: "Changed." });
+    me = (await t.query(api.registration.me, { token }))!;
+    expect(me.charName).toBe("Josh “Two-Tone” Lee");
+    await expect(t.mutation(api.registration.update, { ...edit, token, nickname: "x".repeat(25) })).rejects.toThrow(/24/);
+    const sheet = await t.query(api.voice.rollCallSheet, { slug: SLUG, hostKey });
+    expect(sheet.guests[0].line).toContain("Josh Lee, a.k.a. Two-Tone");
+  });
+
   test("the gallery greys out taken faces, but not your own when you edit; switching frees the old one", async () => {
     const { t } = await setup();
     const { token } = await t.mutation(api.registration.register, guest(0, "heston"));

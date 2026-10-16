@@ -31,6 +31,9 @@ export type ProfileValues = {
   sayAs: string;
   /** The drawing they picked as their avatar. */
   figure: string;
+  /** Party cast: their 1920s nickname and last name, typed here. */
+  nickname: string;
+  lastName: string;
 };
 
 export const EMPTY_PROFILE: ProfileValues = {
@@ -45,6 +48,8 @@ export const EMPTY_PROFILE: ProfileValues = {
   rumor: "",
   sayAs: "",
   figure: "",
+  nickname: "",
+  lastName: "",
 };
 
 const MAX: Record<keyof Omit<ProfileValues, "killerOk" | "figure" | "weapon">, number> = {
@@ -56,6 +61,8 @@ const MAX: Record<keyof Omit<ProfileValues, "killerOk" | "figure" | "weapon">, n
   secret: 280,
   rumor: 140,
   sayAs: 80,
+  nickname: 24,
+  lastName: 30,
 };
 
 type StepId = "door" | "you" | "character" | "motive" | "weapon" | "review";
@@ -96,9 +103,12 @@ export default function ProfileForm(props: {
   const allFigures = gallery?.flatMap((g) => g.figures) ?? [];
   const castPick = allFigures.find((f) => f.key === values.figure) ?? null;
   function pickFigure(f: { key: string; name: string; castName: string }) {
-    setValues((v) => ({ ...v, figure: f.key, charName: f.castName, realName: f.name, sayAs: "" }));
+    setValues((v) => ({ ...v, figure: f.key, realName: f.name, sayAs: "" }));
     setNeedFigure(false);
   }
+  // "Josh “Two-Tone” Lee": their first name from the cast, the rest as they type it (the server makes it final).
+  const tidy = (s: string) => s.replace(/[“”"]/g, "").replace(/\s+/g, " ").trim();
+  const fullName = castPick ? [castPick.name, tidy(values.nickname) ? `“${tidy(values.nickname)}”` : "", tidy(values.lastName)].filter(Boolean).join(" ") : "";
   const topRef = useRef<HTMLDivElement>(null);
 
   const generateUploadUrl = useMutation(api.registration.generateUploadUrl);
@@ -119,6 +129,8 @@ export default function ProfileForm(props: {
 
   const requiredFor = (s: StepId): TextKey[] => {
     switch (s) {
+      case "you":
+        return castPick ? ["lastName"] : [];
       case "character":
         return ["who", "signature"];
       case "motive":
@@ -305,13 +317,23 @@ export default function ProfileForm(props: {
               <div className="figure-chosen">
                 <img src={figureUrl(castPick.key)} alt="" />
                 <span className="help">
-                  <strong className="figure-chosen-name">{castPick.castName}</strong>
+                  <strong className="figure-chosen-name">{fullName}</strong>
                   That's you. Not you? Tap your own face.
                 </span>
               </div>
             )}
             {needFigure && <span className="err">Tap your face to continue.</span>}
           </div>
+          {castPick && (
+            <>
+              {field("lastName", "Your last name", { ph: "e.g. Hill" })}
+              {field("nickname", "Your 1920s nickname · optional", {
+                ph: "e.g. Two-Tone, The Knife, Lucky",
+                help: "The narrator calls you by it at the roll call: “Josh Lee, a.k.a. Two-Tone.”",
+                publicHelp: true,
+              })}
+            </>
+          )}
           {nav("Next: your character")}
         </>
       );
@@ -320,7 +342,7 @@ export default function ProfileForm(props: {
       body = (
         <>
           {progress}
-          <h2>{castPick ? `You're ${castPick.castName}` : "Who are you tonight?"}</h2>
+          <h2>{castPick ? `You're ${fullName}` : "Who are you tonight?"}</h2>
           <p className="lede">A little about your 1929 self. Random and funny is welcome.</p>
           {field("who", "Who you are tonight, in a line or two", {
             area: true,

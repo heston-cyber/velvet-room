@@ -26,13 +26,22 @@ export const CAST: CastMember[] = [
   { key: "brian", name: "Brian", sex: "m" },
   { key: "brianna", name: "Brianna", sex: "f" },
   { key: "sienna", name: "Sienna", sex: "f" },
+  { key: "daya", name: "Daya", sex: "f" },
 ];
 export const CAST_KEYS = CAST.map((l) => l.key);
 export const castMember = (key: string | null | undefined) => (key ? CAST.find((l) => l.key === key) ?? null : null);
-/** What a cast member goes by: first name, “nickname”, last name ("Josh “Two-Tone” Lee"), with whatever's in so far. */
-export const castName = (m: CastMember) => [m.name, m.nickname ? `“${m.nickname}”` : "", m.last ?? ""].filter(Boolean).join(" ");
+/** The nickname and last name each guest types at sign-up (Heston, Oct 16: "the players can fill that in when they
+ *  register"); the cast list itself leaves them empty. */
+export type Own = { nickname?: string | null; lastName?: string | null };
+const tidy = (s: string | null | undefined) => (s ?? "").replace(/[“”"]/g, "").replace(/\s+/g, " ").trim();
+/** What a cast member goes by: first name, “nickname”, last name ("Josh “Two-Tone” Lee"), with whatever's in. */
+export const castName = (m: CastMember, own: Own = {}) => {
+  const nick = tidy(own.nickname ?? m.nickname);
+  return [m.name, nick ? `“${nick}”` : "", tidy(own.lastName ?? m.last)].filter(Boolean).join(" ");
+};
 /** Their own name without the nickname ("Josh Lee"), for "a.k.a." lines. */
-export const castRealName = (m: CastMember) => [m.name, m.last ?? ""].filter(Boolean).join(" ");
+export const castRealName = (m: CastMember, own: Own = {}) => [m.name, tidy(own.lastName ?? m.last)].filter(Boolean).join(" ");
+export const castNickname = (m: CastMember, own: Own = {}) => tidy(own.nickname ?? m.nickname);
 
 /** Every drawing a game can hand out (for preloading art). */
 export const ALL_FIGURE_KEYS = CAST_KEYS;

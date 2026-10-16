@@ -35,6 +35,8 @@ const profileArgs = {
   rumor: v.optional(v.string()),
   sayAs: v.optional(v.string()),
   figure: v.optional(v.string()), // the drawing they picked as their avatar
+  nickname: v.optional(v.string()), // party cast: their 1920s nickname ("Two-Tone"), optional
+  lastName: v.optional(v.string()), // party cast: their last name, optional
 };
 
 type ProfileInput = {
@@ -49,12 +51,18 @@ type ProfileInput = {
   rumor?: string;
   sayAs?: string;
   figure?: string;
+  nickname?: string;
+  lastName?: string;
 };
 
-/** A cast member's drawing comes with their name (and how to say it), whatever the page sent. */
+/** A cast member's drawing comes with their first name (and how to say it), whatever the page sent; their
+ *  nickname and last name are their own (Heston, Oct 16). */
 function castProfile<T extends ProfileInput>(input: T, figure: string | undefined): T {
   const m = castMember(figure);
-  return m ? { ...input, charName: castName(m), realName: castRealName(m), sayAs: m.sayAs ?? "" } : input;
+  if (!m) return input;
+  const bare = (x: string) => x.replace(/[“”"]/g, "").trim();
+  const own = { nickname: bare(clean(input.nickname, LIMITS.nickname)), lastName: bare(clean(input.lastName, LIMITS.lastName)) };
+  return { ...input, ...own, charName: castName(m, own), realName: castRealName(m, own), sayAs: m.sayAs ?? "" };
 }
 
 function validateProfile(game: Doc<"games">, input: ProfileInput) {
@@ -67,6 +75,8 @@ function validateProfile(game: Doc<"games">, input: ProfileInput) {
     secret: clean(input.secret, LIMITS.secret),
     rumor: clean(input.rumor, LIMITS.rumor),
     sayAs: clean(input.sayAs, LIMITS.sayAs),
+    nickname: clean(input.nickname, LIMITS.nickname),
+    lastName: clean(input.lastName, LIMITS.lastName),
     // When the game menu turns the opt-in off, everyone is eligible.
     killerOk: game.killerOptIn ? input.killerOk : true,
   };
@@ -213,6 +223,8 @@ export const register = mutation({
       secret: p.secret || undefined,
       rumor: p.rumor || undefined,
       sayAs: p.sayAs || undefined,
+      nickname: p.nickname || undefined,
+      lastName: p.lastName || undefined,
       figure,
       killerOk: p.killerOk,
       checkedIn: false,
@@ -264,6 +276,8 @@ export const me = query({
       secret: player.secret ?? "",
       rumor: player.rumor ?? "",
       sayAs: player.sayAs ?? "",
+      nickname: player.nickname ?? "",
+      lastName: player.lastName ?? "",
       figure: player.figure ?? null,
       killerOk: player.killerOk,
       // The pool key ("" for a guest who typed their own weapon before the pool, so they pick again).
@@ -287,7 +301,11 @@ export const update = mutation({
       throw new ConvexError("Registration is closed, so changes are locked.");
     }
 
-    const p = validateProfile(game, castProfile(args, args.figure ?? player.figure));
+    // Older pages don't send the nickname or last name: keep what's there.
+    const p = validateProfile(
+      game,
+      castProfile({ ...args, nickname: args.nickname ?? player.nickname, lastName: args.lastName ?? player.lastName }, args.figure ?? player.figure),
+    );
     // A different drawing has to be free; the same one stays theirs. Checked before the name (see register).
     const figure = args.figure && args.figure !== player.figure ? await checkFigure(ctx, game, args.figure, player._id) : undefined;
     await assertNameFree(ctx, game._id, p.charName, player._id);
@@ -319,6 +337,8 @@ export const update = mutation({
       // Older pages don't send these: leave what's there.
       ...(args.rumor !== undefined ? { rumor: p.rumor || undefined } : {}),
       ...(args.sayAs !== undefined || !!castMember(args.figure ?? player.figure) ? { sayAs: p.sayAs || undefined } : {}),
+      nickname: p.nickname || undefined,
+      lastName: p.lastName || undefined,
       ...(figure ? { figure } : {}),
       killerOk: p.killerOk,
       updatedAt: Date.now(),

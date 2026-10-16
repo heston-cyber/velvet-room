@@ -142,6 +142,8 @@ export default defineSchema({
     figure: v.optional(v.string()), // the drawing they picked as their avatar (convex/figures.ts); one per guest per game
     rumor: v.optional(v.string()), // roll call: the word on the street about their character
     sayAs: v.optional(v.string()), // how the narrator should say the character's name
+    nickname: v.optional(v.string()), // party cast: their 1920s nickname, typed at sign-up ("Two-Tone")
+    lastName: v.optional(v.string()), // party cast: their last name, typed at sign-up
     rollLine: v.optional(v.string()), // the host's edit of the roll-call line
     // v2 jail: voted in after a round, voted out at a release vote. Jailed guests can talk and bribe, nothing else.
     jailed: v.optional(v.boolean()),

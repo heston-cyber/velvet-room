@@ -51,6 +51,8 @@ export default function Guest({ token }: { token: string }) {
             killerOk: me.killerOk,
             rumor: me.rumor,
             sayAs: me.sayAs,
+            nickname: me.nickname,
+            lastName: me.lastName,
             figure: me.figure ?? "",
           }}
           initialPhotoUrl={me.photoUrl}
