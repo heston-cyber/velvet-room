@@ -25,7 +25,15 @@ export type SfxKey =
   | "applause"
   | "whoosh"
   | "sneak"
-  | "creak";
+  | "creak"
+  // Oct 16 (Heston's play test: "theres no sound fx" on the jail vote, "no SFX on the reveal animation"): a hit as each
+  // of those title cards comes up. Until they're made, each plays its stand-in (FALLBACK).
+  | "gavel"
+  | "keys"
+  | "jailSlam"
+  | "revealHit";
+/** A sound that isn't on the site yet plays its stand-in. */
+export const FALLBACK: Partial<Record<SfxKey, SfxKey>> = { gavel: "stamp", keys: "creak", jailSlam: "thunder", revealHit: "thunder" };
 export type MusicKey = "lobby" | "intro" | "rounds" | "awards";
 export type Levels = { voice: number; music: number; sfx: number };
 
@@ -221,6 +229,7 @@ export class SoundEngine {
   /** A one-shot sound effect. Missing files play nothing (the chime has a built-in fallback). */
   async sfx(key: SfxKey, gain = 1) {
     if (!this.ctx) return;
+    if (!this.has("sfx", key) && FALLBACK[key] && this.has("sfx", FALLBACK[key]!)) key = FALLBACK[key]!;
     if (!this.has("sfx", key)) {
       if (key === "chime") this.synthChime();
       return;

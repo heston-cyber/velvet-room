@@ -270,8 +270,9 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
       const id = `vote:${t}`;
       out.loop = "vote";
       out.music = "rounds";
-      // The Jail Vote / The Release Vote title card, then the narrator.
+      // The Jail Vote / The Release Vote title card (a gavel, or the keys), then the narrator.
       out.holdUntil = card(vt.kind === "jail" ? "jailvote" : "release", t);
+      fx(`${id}:card`, vt.kind === "jail" ? "gavel" : "keys", t + 0.15 * S);
       vo(`${id}:open`, vt.kind === "jail" ? "voteJail" : "voteRelease", t + 4.3 * S, false, `${round}`);
       // Heckles while the votes come in, then the last call.
       heckle(`${id}:0`, 23 + round * 3 + (vt.kind === "jail" ? 0 : 2), t + HECKLE.voteOpenFirst, "vote");
@@ -286,11 +287,11 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
         if (vt.outcome === "nobody") vo(`${id}:verdict`, vt.kind === "jail" ? "jailNobody" : "releaseNobody", at + 0.3 * S, false, `${round}`);
         else if (vt.outcome === "jailed") {
           // Locked Up!: the bars slam down on the card, then the name over the drawing behind bars.
-          fx(`${id}:door`, "lightsCut", at);
+          fx(`${id}:door`, "jailSlam", at + 0.1 * S);
           const shown = card("lockedup", at);
           clip(`${id}:verdict`, d.voice.verdict ?? undefined, shown + 0.1 * S);
         } else {
-          fx(`${id}:door`, "chime", at);
+          fx(`${id}:door`, vt.outcome === "released" ? "keys" : "chime", at);
           clip(`${id}:verdict`, d.voice.verdict ?? undefined, at + 0.5 * S);
         }
         const openPart = (e: Ev) => e.id === `${id}:open` || e.id === `${id}:last` || e.id.startsWith(`heckle:${id}`);
@@ -380,6 +381,7 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
     out.loop = "spotlight";
     out.music = now < t + REVEAL.verdict ? null : "lobby";
     out.holdUntil = card("reveal", t);
+    fx(`rev:${t}:card`, "revealHit", t + 0.15 * S);
     vo(`rev:${t}:1`, "reveal1", t + REVEAL.line);
     cameo({ id: `rev:${t}:spot`, char: "killer", anim: "spot", at: t + REVEAL.line - 0.3 * S, until: t + REVEAL.name, on: "reveal0" });
     cameo({ id: `rev:${t}:unmask`, char: "killer", anim: "unmask", at: t + REVEAL.name, until: t + REVEAL.name + 1.6 * S, over: true });

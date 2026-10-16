@@ -25,6 +25,11 @@ SFX = {
     "whoosh": ("A quick soft whoosh, a coat swishing past the camera, clean, no music", 1.0, -18),
     "sneak": ("Cartoon sneaking: slow exaggerated tiptoe footsteps on a creaky old wooden floor, comedic, sparse, no music", 4.0, -20),
     "creak": ("An old wooden door slowly creaking open in a dark, quiet mansion, eerie, no music", 2.5, -19),
+    # Oct 16 (Heston's play test): a hit as the jail vote, release vote, Locked Up! and reveal cards come up.
+    "gavel": ("Three sharp, heavy wooden gavel bangs on a courtroom bench, close and punchy, no voices, no music", 2.0, -16),
+    "keys": ("A big ring of old iron jail keys jangling, then a heavy cell lock turning and clanking open, no voices, no music", 2.5, -18),
+    "jailSlam": ("A heavy iron jail cell door slamming shut with a loud metallic clang, rattling bars and an echo down a stone corridor, no music", 2.5, -15),
+    "revealHit": ("A dramatic orchestral horror stinger: a huge low boom with a sharp string screech, film trailer hit, short tail, no voices", 2.5, -16),
 }
 
 spec = importlib.util.spec_from_file_location("prep", os.path.join(ROOT, "scripts", "prepare-audio.py"))
