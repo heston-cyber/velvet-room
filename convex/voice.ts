@@ -135,6 +135,11 @@ async function tts(text: string, voice: string): Promise<ArrayBuffer> {
   return await res.arrayBuffer();
 }
 
+/** "Too many at once" and server hiccups from the voice service: worth trying again. */
+const BUSY = /said (429|500|502|503)/;
+const RETRY_PASSES = 6;
+const RETRY_MS = 20_000;
+
 /** The voice service turns requests away when too many arrive at once (two games starting together, say): wait and
  *  try again, up to three times. */
 async function ttsRetry(text: string, voice: string): Promise<ArrayBuffer> {
@@ -142,7 +147,7 @@ async function ttsRetry(text: string, voice: string): Promise<ArrayBuffer> {
     try {
       return await tts(text, voice);
     } catch (err) {
-      const busy = /said (429|500|502|503)/.test((err as Error).message);
+      const busy = BUSY.test((err as Error).message);
       if (!busy || attempt >= 3) throw err;
       await new Promise((r) => setTimeout(r, 2000 * attempt + Math.random() * 1000));
     }
@@ -156,10 +161,13 @@ export const record = internalAction({
     scope: v.union(v.literal("roll"), v.literal("start")),
     only: v.optional(v.array(v.string())),
     then: v.optional(v.union(v.literal("roll"), v.literal("start"))),
+    /** Which pass this is: lines the voice service turned away get another go a little later. */
+    pass: v.optional(v.number()),
   },
-  handler: async (ctx, { gameId, scope, only, then }): Promise<{ recorded: number }> => {
+  handler: async (ctx, { gameId, scope, only, then, pass }): Promise<{ recorded: number }> => {
     const todo: Wanted[] = await ctx.runMutation(internal.voice.claim, { gameId, scope, only });
     let i = 0;
+    let turnedAway = 0;
     const worker = async () => {
       while (i < todo.length) {
         const w = todo[i++];
@@ -168,6 +176,7 @@ export const record = internalAction({
           const storageId = await ctx.storage.store(new Blob([audio], { type: "audio/mpeg" }));
           await ctx.runMutation(internal.voice.saveClip, { gameId, purpose: w.purpose, text: w.text, voice: w.voice, storageId, seconds: secondsOfMp3(audio.byteLength) });
         } catch (err) {
+          if (BUSY.test((err as Error).message)) turnedAway++;
           await ctx.runMutation(internal.voice.saveClip, { gameId, purpose: w.purpose, text: w.text, voice: w.voice, error: (err as Error).message.slice(0, 160) });
         }
       }
@@ -175,8 +184,12 @@ export const record = internalAction({
     // Four at a time (VOICE_WORKERS=1 in tests: the test harness can't store files in parallel).
     const n = Math.max(1, Number(process.env.VOICE_WORKERS ?? 4));
     await Promise.all(Array.from({ length: n }, worker));
-    // One scope after another, so the voice service never gets more than four lines at once.
-    if (then) await ctx.scheduler.runAfter(0, internal.voice.record, { gameId, scope: then });
+    // Busy (several games starting at once, Oct 16): another pass over what's missing in a little while, up to
+    // RETRY_PASSES; the next scope waits for it. One scope after another, so the voice service never gets more than
+    // four lines at once from one game.
+    const p = pass ?? 1;
+    if (turnedAway && p < RETRY_PASSES) await ctx.scheduler.runAfter(RETRY_MS * p, internal.voice.record, { gameId, scope, only, then, pass: p + 1 });
+    else if (then) await ctx.scheduler.runAfter(0, internal.voice.record, { gameId, scope: then });
     return { recorded: todo.length };
   },
 });
