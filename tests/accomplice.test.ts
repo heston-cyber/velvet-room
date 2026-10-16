@@ -102,13 +102,13 @@ describe("the engine, with an accomplice", () => {
     const one = howCues(base).map(([c]) => c);
     const two = howCues({ ...base, accomplice: true }).map(([c]) => c);
     expect(one).not.toContain("howAccomplice");
-    expect(one).toContain("howTo7");
-    expect(two.slice(0, 2)).toEqual(["howKiller", "howAccomplice"]);
-    expect(two).toContain("howTo7Acc");
-    expect(two).not.toContain("howTo7");
+    expect(two.slice(0, 2)).toEqual(["howCase", "howAccomplice"]);
+    expect(two.length).toBe(one.length + 1);
+    // "only the guilty may lie about the murder" covers the accomplice too
+    expect(captionText("howCase", "classic", "ivy")).toMatch(/only the guilty/i);
     expect(howCues({ ...base, accomplice: true }).find(([c]) => c === "howAccomplice")![1]).toBe("pair");
     // every adult line has three clean versions, plus the noisy take
-    for (const cue of ["howAccomplice", "howTo7Acc", "revealAccomplice"] as const) {
+    for (const cue of ["howAccomplice", "revealAccomplice"] as const) {
       expect(cueVersions(cue, "adult").length).toBeGreaterThanOrEqual(3);
       expect(captionText(cue, "classic", "ivy")).toMatch(/accomplice/i);
     }

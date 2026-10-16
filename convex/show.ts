@@ -35,28 +35,35 @@ export function cueSecs(voice: string, tone: Tone, host: HostKey, cue: CueKey, v
   return rec[voice]?.[tone]?.[cueFile(cue, v)] ?? readSecs(captionText(cue, tone, host, v));
 }
 
-/** A drawing in /art, the house map, the jail bars, a fan of weapon cards, or "pair" (the killer and the accomplice). */
+/** What each How to play card shows: "suspects" (the guests' faces with the masked killer among them), "pair" (the
+ *  killer and the accomplice), "weapons" (a fan of the weapons in play), "search" (the map and a scan), "jail" (a guest
+ *  behind bars and the vote), "win" (who + with what + where). */
 export type HowArt = string;
 
 /**
- * How to play, v2: one illustrated card per line. A killer + accomplice game adds the accomplice card (the masked
- * killer with a second drawing at their shoulder) and says the accomplice may lie too.
+ * How to play, v3 (Oct 16, Heston: "Use visuals to help explain the rules, and condense the rules if possible"): five
+ * cards, each with a picture of the rule; a killer + accomplice game adds the accomplice card after the first.
  */
 export function howCues(g: { search: "all" | "waves"; pacing: { mode: "ready" | "timer" }; accomplice?: boolean }): [CueKey, HowArt][] {
   return [
-    ["howKiller", "killer"],
+    ["howCase", "suspects"],
     ...(g.accomplice ? [["howAccomplice", "pair"] as [CueKey, HowArt]] : []),
-    ["howRoles", "guest1"],
     ["howWeapons", "weapons"],
-    [g.search === "waves" ? "howTo4Waves" : "howTo4", "map"],
-    [g.pacing.mode === "timer" ? "howTo6Timer" : "howTo6", "guest2"],
-    ["howJail", "bars"],
-    ["howRelease", "guest3"],
-    [g.accomplice ? "howTo7Acc" : "howTo7", "guest4"],
-    ["howLockIn", "guest5"],
-    ["howWin", "don"],
+    ["howSearch", "search"],
+    ["howJail2", "jail"],
+    ["howWin2", "win"],
   ];
 }
+
+/** The headline on each How to play card. */
+export const HOW_TITLE: Partial<Record<CueKey, string>> = {
+  howCase: "One of you did it",
+  howAccomplice: "The accomplice",
+  howWeapons: "The weapons",
+  howSearch: "Search and scan",
+  howJail2: "The jail vote",
+  howWin2: "Lock it in",
+};
 
 export function howLayout(at: number, cues: [CueKey, HowArt][], secs: (c: CueKey) => number) {
   let t = at;

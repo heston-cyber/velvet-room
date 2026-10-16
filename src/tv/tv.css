@@ -335,3 +335,34 @@
 .tv-reveal-weapon { display: flex; align-items: center; gap: 2cqw; }
 .tv-reveal-weapon .tv-wcard { width: 10cqw; }
 @media (prefers-reduced-motion: reduce) { .tv-jailed.slam .bars, .tv-verdict-who img.freed { animation: none; } }
+
+/* How to play v3 (Oct 16): a title over each rule, and a picture that shows it */
+.tv-how-title { margin: 0; font-family: var(--display); font-size: 4.6cqw; line-height: 1; color: var(--paper); }
+.tv-how-text .tv-rule { font-size: 2.5cqw; }
+.tv-how-suspects { display: flex; align-items: center; justify-content: center; gap: 1cqw; height: 100%; }
+.tv-how-suspects .face { position: relative; width: 6.4cqw; aspect-ratio: 1; border-radius: 50%; overflow: hidden; border: .2cqw solid var(--brass); opacity: .75; animation: howin .7s cubic-bezier(.2, .8, .2, 1) both; }
+.tv-how-suspects .face img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tv-how-suspects .face.it { width: 10cqw; opacity: 1; border-color: #c0392b; box-shadow: 0 0 2.4cqw rgba(192, 57, 43, .6); }
+.tv-how-suspects .face.it b { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--display); font-size: 6cqw; color: rgba(255, 255, 255, .9); text-shadow: 0 .3cqw 1cqw rgba(0, 0, 0, .8); }
+.tv-how-search { position: relative; width: 100%; }
+.tv-scan { position: absolute; right: -2cqw; bottom: -2cqw; width: 9cqw; filter: drop-shadow(0 .8cqw 1.4cqw rgba(0, 0, 0, .6)); animation: howin .9s .5s cubic-bezier(.2, .8, .2, 1) both; }
+.tv-scan svg { display: block; width: 100%; }
+.tv-scan .body { fill: #1c1014; stroke: var(--brass); stroke-width: 1.4; }
+.tv-scan .screen { fill: #f4ead5; }
+.tv-scan .qr rect { fill: #1c1014; }
+.tv-scan .beam { fill: #c0392b; animation: scanbeam 1.6s ease-in-out infinite alternate; }
+@keyframes scanbeam { from { transform: translateY(-14px); } to { transform: translateY(16px); } }
+.tv-how-jail { position: relative; height: 100%; display: grid; place-items: end center; }
+.tv-vdots { position: absolute; left: 50%; bottom: -4.2cqw; translate: -50% 0; display: grid; justify-items: center; gap: .5cqw; }
+.tv-vdots .dots { display: flex; gap: .8cqw; }
+.tv-vdots i { width: 2cqw; height: 2cqw; border-radius: 50%; border: .2cqw solid var(--brass); animation: howin .5s both; }
+.tv-vdots i.on { background: var(--brass); }
+.tv-vdots .lab { font-family: var(--label); font-size: 1.2cqw; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--brass); }
+.tv-how-win { display: flex; align-items: center; justify-content: center; gap: 1.6cqw; width: 100%; }
+.tv-how-win .tile { display: grid; justify-items: center; gap: 1cqw; }
+.tv-how-win .q { font-family: var(--label); font-size: 1.3cqw; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--brass); }
+.tv-how-win .pic.face { width: 11cqw; aspect-ratio: 1; border-radius: 50%; overflow: hidden; border: .25cqw solid var(--brass); }
+.tv-how-win .pic.face img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tv-how-win .pic.room { display: grid; place-items: center; width: 13cqw; aspect-ratio: 1; padding: 1cqw; border: .25cqw solid var(--brass); font-family: var(--display); font-size: 2.2cqw; line-height: 1.05; text-align: center; color: var(--paper); background: rgba(0, 0, 0, .25); }
+.tv-how-win .tv-wcard { width: 11cqw; }
+.tv-how-win .plus { font-family: var(--display); font-size: 4cqw; color: var(--brass); }

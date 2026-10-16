@@ -50,7 +50,7 @@ describe("TV timeline", () => {
 
   // The show (v2): Start → intro → How to play → roll call → check your phones → Round 1.
   const HOW = T0 + 40_000;
-  const ROLL = HOW + 10 * (600 + 3000 + 1200); // ten How to play cards, 3 s lines
+  const ROLL = HOW + 5 * (600 + 3000 + 1200); // five How to play cards, 3 s lines
   const item = (id: string, clipSecs: number | null) => ({
     id, charName: id.toUpperCase(), realName: `Real ${id}`, photoUrl: null, figure: "emily", who: "Who.", signature: "A hat",
     weapon: { key: "rope", name: "Rope" }, motive: "He owed you money.", roast: "A roast.", line: `Introducing ${id}. Weapon: the rope.`,
@@ -84,13 +84,14 @@ describe("TV timeline", () => {
     expect(p.music).toBe("intro");
     expect(p.ambience).toEqual(["heartbeat"]);
 
-    // How to play: ten cards, the waves and timer versions, read quietly (the card shows the line).
+    // How to play: five cards, read quietly (the card shows the line).
     p = plan(data({ game: showGame(), voice: showVoice() }), HOW + 100, secs);
     expect(p.part).toBe("how");
     expect(p.loop).toBe("rollcall");
-    expect(p.rules!.steps.map((s) => s.cue)).toEqual(["howKiller", "howRoles", "howWeapons", "howTo4Waves", "howTo6Timer", "howJail", "howRelease", "howTo7", "howLockIn", "howWin"]);
-    expect(p.rules!.steps.map((s) => s.art)).toEqual(["killer", "heston", "weapons", "map", "emily", "bars", "sam", "miranda", "josh", "don"]);
-    for (let i = 1; i < 10; i++) expect(p.rules!.steps[i].at).toBe(p.rules!.steps[i - 1].until);
+    // v3 (Oct 16): five cards, each with a picture of the rule
+    expect(p.rules!.steps.map((s) => s.cue)).toEqual(["howCase", "howWeapons", "howSearch", "howJail2", "howWin2"]);
+    expect(p.rules!.steps.map((s) => s.art)).toEqual(["suspects", "weapons", "search", "jail", "win"]);
+    for (let i = 1; i < 5; i++) expect(p.rules!.steps[i].at).toBe(p.rules!.steps[i - 1].until);
     expect(p.rules!.end).toBe(ROLL);
     expect(p.events.filter((e) => e.id.startsWith("how:") && e.cue).every((e) => e.quiet)).toBe(true);
 

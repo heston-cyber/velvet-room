@@ -3,7 +3,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { HOSTS, captionText, cueFile, cueVariant, type CueKey } from "../../convex/narration";
 import { VOTE } from "../../convex/shared";
-import { SHOW } from "../../convex/show";
+import { HOW_TITLE, SHOW } from "../../convex/show";
 import { Qr, wifiQrText } from "../lib/qr";
 import HouseMap from "./HouseMap";
 import { avatarSrc, faceUrl, faceX, figureUrl } from "../lib/figure";
@@ -668,19 +668,30 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
     const n = p.rules.steps.length;
     const i = Math.max(0, p.rules.steps.findIndex((st) => now < st.until));
     const step = p.rules.steps[i];
-    const wide = step.art === "map";
+    const wide = step.art === "search" || step.art === "win";
+    const stand = d.standIns?.length ? d.standIns : ALL_FIGURE_KEYS;
     return {
       key: `how${i}`,
       node: (
         <div className="tv-scene how">
           <div className={`tv-how ${wide ? "wide" : ""}`}>
             <div className={`tv-how-art ${wide ? "map" : ""}`}>
-              {step.art === "map" ? (
-                <HouseMap map={demoMap(d.map, step.at)} round={1} now={now} />
+              {step.art === "suspects" ? (
+                <HowSuspects faces={stand.slice(0, 4)} />
+              ) : step.art === "search" ? (
+                <div className="tv-how-search">
+                  <HouseMap map={demoMap(d.map, step.at)} round={1} now={now} />
+                  <ScanPhone />
+                </div>
               ) : step.art === "weapons" ? (
                 <WeaponFan weapons={d.weapons} />
-              ) : step.art === "bars" ? (
-                <Jailed figure={dress(d, "guest3")} className="enter" />
+              ) : step.art === "jail" ? (
+                <div className="tv-how-jail">
+                  <Jailed figure={dress(d, "guest3")} className="enter" />
+                  <VoteDots />
+                </div>
+              ) : step.art === "win" ? (
+                <HowWin face={stand[0]} weapon={d.weapons[0] ?? { key: "candlestick", name: "Candlestick" }} room={d.map.rooms[0]?.label ?? "The Lounge"} />
               ) : step.art === "pair" ? (
                 // The accomplice: the masked killer, with someone at their shoulder.
                 <div className="tv-how-pair">
@@ -693,6 +704,7 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
             </div>
             <div className="tv-how-text">
               <span className="tv-kick fade">How to play · {i + 1} of {n}</span>
+              {HOW_TITLE[step.cue] && <h2 className="tv-how-title fade">{HOW_TITLE[step.cue]}</h2>}
               <div className="tv-rule fade">{captionText(step.cue, g.tone, g.narrator.host, step.v)}</div>
             </div>
           </div>
@@ -894,6 +906,75 @@ function WeaponFan({ weapons }: { weapons: Weapon[] }) {
       {three.map((w) => (
         <WeaponCard key={w.key} weapon={w} />
       ))}
+    </div>
+  );
+}
+
+/** How to play, card 1: this game's faces with the masked killer in the middle. One of them did it. */
+function HowSuspects({ faces }: { faces: string[] }) {
+  const row = [...faces.slice(0, 2), "killer", ...faces.slice(2, 4)];
+  return (
+    <div className="tv-how-suspects">
+      {row.map((f, i) => (
+        <span key={`${f}${i}`} className={`face ${f === "killer" ? "it" : ""}`} style={{ animationDelay: `${0.1 + i * 0.12}s` }}>
+          <img src={faceUrl(f)} alt="" />
+          {f === "killer" && <b>?</b>}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/** How to play, searching: a phone scanning an evidence card. */
+function ScanPhone() {
+  return (
+    <div className="tv-scan" aria-hidden="true">
+      <svg viewBox="0 0 60 100">
+        <rect x="2" y="2" width="56" height="96" rx="8" className="body" />
+        <rect x="8" y="12" width="44" height="70" rx="2" className="screen" />
+        <g className="qr">
+          {[0, 1, 2, 3, 4].flatMap((r) => [0, 1, 2, 3, 4].map((c) => ((r * 7 + c * 3) % 5 < 3 || (r % 4 === 0 && c % 4 === 0) ? <rect key={`${r}${c}`} x={14 + c * 6.4} y={28 + r * 6.4} width="5.4" height="5.4" /> : null)))}
+        </g>
+        <rect x="10" y="44" width="40" height="1.6" className="beam" />
+      </svg>
+    </div>
+  );
+}
+
+/** How to play, the jail vote: more than half of the votes. */
+function VoteDots() {
+  return (
+    <div className="tv-vdots">
+      <span className="dots">
+        {[1, 1, 1, 0, 0].map((on, i) => (
+          <i key={i} className={on ? "on" : ""} style={{ animationDelay: `${0.6 + i * 0.18}s` }} />
+        ))}
+      </span>
+      <span className="lab">More than half</span>
+    </div>
+  );
+}
+
+/** How to play, locking in: who + with what + where. */
+function HowWin({ face, weapon, room }: { face: string; weapon: Weapon; room: string }) {
+  return (
+    <div className="tv-how-win">
+      <div className="tile fade" style={{ animationDelay: ".15s" }}>
+        <span className="q">Who</span>
+        <span className="pic face">
+          <img src={faceUrl(face)} alt="" />
+        </span>
+      </div>
+      <span className="plus fade" style={{ animationDelay: ".35s" }}>+</span>
+      <div className="tile fade" style={{ animationDelay: ".5s" }}>
+        <span className="q">With what</span>
+        <WeaponCard weapon={weapon} />
+      </div>
+      <span className="plus fade" style={{ animationDelay: ".7s" }}>+</span>
+      <div className="tile fade" style={{ animationDelay: ".85s" }}>
+        <span className="q">Where</span>
+        <span className="pic room">{room}</span>
+      </div>
     </div>
   );
 }

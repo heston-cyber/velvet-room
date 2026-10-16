@@ -166,6 +166,33 @@ export const CUES = {
     adult: "More than half of you need the right killer, more than half the right weapon, and more than half the right room. Exactly half is a tie, and ties go to the killer. [short pause] Then we vote for Best Dressed and Best Liar.",
     wild: ["[maniacal laughter]", "[cackles]"],
   },
+  // ---- How to play, v3 (Oct 16, Heston: "the rules need to be simplified", "use visuals to help explain the rules,
+  // and condense the rules if possible"): five cards (six with an accomplice), each with a picture that shows the
+  // rule. Same rules as v2, fewer words. Drafts for Heston's review. ----
+  howCase: {
+    when: "How to play v3, card 1 (one of you did it; your phone; lying)",
+    classic: "[warm, conspiratorial] One of you killed Don Ray Sanders. Your phone will tell you if it was you. [short pause] Only the guilty may lie about the murder.",
+    adult: "[warm, conspiratorial] One of you killed Don Ray Sanders. Your phone will tell you if it was you. [short pause] Only the guilty get to lie about the murder. Everyone else, lie about everything else.",
+    wild: ["[clapping hands, way over the top]", "[cackles]"],
+  },
+  howSearch: {
+    when: "How to play v3, searching",
+    classic: "Three rounds. Each round, search the house for evidence cards and scan them with your phone. [short pause] The evidence shows up right here.",
+    adult: "Three rounds. Tear the house apart for evidence cards and scan them with your phone. [short pause] The dirt shows up right here.",
+    wild: ["[shouting like a carnival barker]", ""],
+  },
+  howJail2: {
+    when: "How to play v3, the jail vote",
+    classic: "After each round, vote someone into jail. It takes more than half of you. [short pause] Jailbirds can't search or vote, and next round you can vote them out.",
+    adult: "After each round, vote somebody into jail. More than half of you have to agree. [short pause] Jailbirds can't search or vote. They can bribe. Next round, you can spring them.",
+    wild: ["[banging on the bars, shouting]", "[evil laugh]"],
+  },
+  howWin2: {
+    when: "How to play v3, locking in and winning",
+    classic: "After round three, lock in who did it, with what, and where. [short pause] If most of you get the killer, the weapon and the room right, you win. If not, the killer walks.",
+    adult: "After round three, lock in: who, with what, and where. [short pause] If most of you get all three right, you win. Miss, and the killer walks out of here laughing.",
+    wild: ["[maniacal laughter]", "[cackles]"],
+  },
   // ---- roll call, v2: after How to play ----
   rollLocked: {
     when: "Roll call v2 begins",
@@ -499,6 +526,22 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
   howWin: [
     "To win, more than half of you need the right killer, more than half the right weapon, and more than half the right room. Half is not more than half. We checked with an accountant. [short pause] Then we vote for Best Dressed and Best Liar.",
     "More than half of you have to get the killer, more than half the weapon, and more than half the room. Miss one, and the killer walks out a free and very smug individual. [short pause] Then we vote for Best Dressed and Best Liar.",
+  ],
+  howCase: [
+    "[warm, conspiratorial] Somebody in this room killed the Don. Check your phone after the roll call to find out if it was you. [short pause] Only the guilty may lie about the murder.",
+    "[warm, conspiratorial] One of you is a killer, and your phone knows which. Keep your screen to yourself. [short pause] Only the guilty may lie about the murder. The rest of you, try honesty. It's new.",
+  ],
+  howSearch: [
+    "Three rounds of searching. Find the evidence cards, scan them with your phone, and put things back where you found them. [short pause] The evidence lands on this screen.",
+    "Three rounds. Hunt down the evidence cards and scan them. Drawers, closets, under the couch. [short pause] Whatever you find shows up here.",
+  ],
+  howJail2: [
+    "Every round ends with a jail vote. Majority rules. [short pause] Jailbirds can't search or vote, but they can still talk, which is the real punishment for everyone else.",
+    "After each round, you vote someone behind bars. More than half of you, or nobody goes. [short pause] Next round you can vote them back out. This is called the justice system.",
+  ],
+  howWin2: [
+    "After the last round, everybody who's free locks in who, with what, and where. No take-backs. [short pause] Most of you right on all three, you win. Otherwise, the killer goes home happy.",
+    "Round three ends, you lock in: the killer, the weapon, the room. [short pause] If most of you nail all three, justice. If not, the killer gets a very nice weekend.",
   ],
   rollLocked: [
     "[low, grave] The doors are locked until we figure out which one of you did it. [short pause] Bathroom breaks will be supervised. Let's meet the suspects.",
