@@ -5,9 +5,9 @@ import { internal } from "./_generated/api";
 import { internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { HOSTS, TTS_MODEL, VOICE_SETTINGS } from "./narration";
+import { HOSTS, TTS_MODEL, settingsFor } from "./narration";
 import { requireHost } from "./lib";
-import { clipMatches, narratorOf, secondsOfMp3, startWanted, voiceOf, type Wanted } from "./voiceLines";
+import { clipMatches, narratorOf, scriptOf, secondsOfMp3, startWanted, voiceOf, type Wanted } from "./voiceLines";
 import { caseFor } from "./caseFile";
 import { inOrder, rollGuests } from "./rollCall";
 import { heckleWanted } from "./heckles";
@@ -52,7 +52,7 @@ async function wantedFor(ctx: QueryCtx, game: Doc<"games">, scope: "roll" | "sta
       return p?.inGame && p.weaponIn && p.exhibitLetter;
     })
     .map((w) => ({ id: w._id as string, letter: byId.get(w.playerId)!.exhibitLetter!, name: w.name }));
-  const lines = startWanted(game.tone ?? "classic", narratorOf(game), {
+  const lines = startWanted(scriptOf(game), narratorOf(game), {
     players: inGame.map((p) => ({ id: p._id, charName: p.charName, sayAs: p.sayAs })),
     exhibits,
     rooms: game.rooms,
@@ -61,6 +61,7 @@ async function wantedFor(ctx: QueryCtx, game: Doc<"games">, scope: "roll" | "sta
     search: game.search ?? "all",
     seed: game.slug,
     accomplice: !!game.hasAccomplice,
+    picks: game.lines?.picks,
   });
   // The night's heckles (convex/heckles.ts) record with the names for the reveal.
   return [...lines, ...(await heckleWanted(ctx, game)).map(({ line: _l, ...w }) => w)];
@@ -125,11 +126,10 @@ async function tts(text: string, voice: string): Promise<ArrayBuffer> {
   const key = process.env.ELEVENLABS_API_KEY;
   if (!key) throw new Error("The server has no ElevenLabs key yet.");
   const host = voice.startsWith("duke") ? "duke" : "ivy";
-  const unstable = voice.endsWith("-unstable");
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${HOSTS[host].voiceId}?output_format=mp3_44100_128`, {
     method: "POST",
     headers: { "xi-api-key": key, "Content-Type": "application/json" },
-    body: JSON.stringify({ text, model_id: TTS_MODEL, voice_settings: unstable ? VOICE_SETTINGS.unstable : VOICE_SETTINGS.steady }),
+    body: JSON.stringify({ text, model_id: TTS_MODEL, voice_settings: settingsFor(voice) }),
   });
   if (!res.ok) throw new Error(`ElevenLabs said ${res.status}`);
   return await res.arrayBuffer();

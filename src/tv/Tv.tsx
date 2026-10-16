@@ -110,7 +110,9 @@ function TvInner({ slug, tvKey, onNext, overlay, bare }: { slug: string; tvKey: 
 
   const g = data?.game;
   const voice = data?.voice.voice ?? "ivy";
-  const tone = g?.tone ?? "classic";
+  // The script the narrator reads: Classic, Adult, or Sailor mode's own.
+  const tone = g?.script ?? g?.tone ?? "classic";
+  const linePicks = g?.lines ? { picks: g.lines.picks, d: true } : undefined;
   const host = g?.narrator.host ?? "ivy";
   const secs = useCallback(
     (cue: CueKey, v = 0) => engine.narrationSecs(voice, tone, cueFile(cue, v)) ?? captionText(cue, tone, host, v).length / 14 + 0.4,
@@ -165,7 +167,7 @@ function TvInner({ slug, tvKey, onNext, overlay, bare }: { slug: string; tvKey: 
       lastCheck.current = checkAt;
       setCheckUntil(Date.now() + 7000);
       void engine.sfx("chime");
-      window.setTimeout(() => void engine.voice(engine.narrationUrl(voice, tone, cueFile("soundCheck", cueVariant(tone, "soundCheck", data.game.slug, String(checkAt))))), 900);
+      window.setTimeout(() => void engine.voice(engine.narrationUrl(voice, tone, cueFile("soundCheck", cueVariant(tone, "soundCheck", data.game.slug, String(checkAt), linePicks)))), 900);
     }
   }, [checkAt, !!data]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -223,7 +225,7 @@ function TvInner({ slug, tvKey, onNext, overlay, bare }: { slug: string; tvKey: 
   const showCheck = now < checkUntil;
   const speaking = showCheck ? null : captionNow(p, now);
   const say = showCheck
-    ? captionText("soundCheck", tone, host, cueVariant(tone, "soundCheck", g.slug, String(checkAt)))
+    ? captionText("soundCheck", tone, host, cueVariant(tone, "soundCheck", g.slug, String(checkAt), linePicks))
     : speaking
       ? speaking.cue
         ? captionText(speaking.cue, tone, host, speaking.v)
@@ -717,7 +719,7 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
             <div className="tv-how-text">
               <span className="tv-kick fade">How to play · {i + 1} of {n}</span>
               {HOW_TITLE[step.cue] && <h2 className="tv-how-title fade">{HOW_TITLE[step.cue]}</h2>}
-              <div className="tv-rule fade">{captionText(step.cue, g.tone, g.narrator.host, step.v)}</div>
+              <div className="tv-rule fade">{captionText(step.cue, g.script ?? g.tone, g.narrator.host, step.v)}</div>
             </div>
           </div>
         </div>

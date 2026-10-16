@@ -1,5 +1,5 @@
 // Records the narrator's lines with ElevenLabs: every cue, for Ivy and Duke, steady and Unstable,
-// in Classic and Adult, and every version of each adult line (<cue>.mp3, <cue>.1.mp3, …).
+// in Classic and Adult (and Duke's Sailor mode script), and every version of each line (<cue>.mp3, <cue>.1.mp3, …).
 // Resumable: lines already recorded are skipped.
 //   npx tsx scripts/record-narration.ts [--only ivy,duke-unstable] [--cues doors,intro1] [--redo]
 // Needs ELEVENLABS_API_KEY (from .env.elevenlabs). Raw takes go to $RAW_DIR; the site gets
@@ -7,7 +7,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { HOSTS, TTS_MODEL, VOICE_SETTINGS, cueFiles, plain, recordingText, voiceKey, type CueKey, type HostKey, type Tone } from "../convex/narration";
+import { HOSTS, TTS_MODEL, cueFiles, plain, recordingText, settingsFor, voiceKey, type CueKey, type HostKey, type Tone } from "../convex/narration";
 
 const KEY = process.env.ELEVENLABS_API_KEY;
 if (!KEY) throw new Error("Set ELEVENLABS_API_KEY");
@@ -19,20 +19,24 @@ const cuesOnly = arg("--cues")?.split(",") as CueKey[] | undefined;
 const redo = process.argv.includes("--redo");
 
 type Job = { host: HostKey; unstable: boolean; tone: Tone; cue: CueKey; v: number; file: string };
+/** Every recorded set: Ivy and Duke, steady and Unstable, Classic and Adult; and Sailor mode (Duke, his own script). */
+const SETS: { host: HostKey; unstable: boolean; tone: Tone }[] = [
+  ...(["ivy", "duke"] as HostKey[]).flatMap((host) => [false, true].flatMap((unstable) => (["classic", "adult"] as Tone[]).map((tone) => ({ host, unstable, tone })))),
+  { host: "duke", unstable: false, tone: "sailor" },
+];
+const vkOf = (s: { host: HostKey; unstable: boolean; tone: Tone }) => voiceKey(s.host, s.unstable, s.tone === "sailor");
 const jobs: Job[] = [];
-for (const host of ["ivy", "duke"] as HostKey[])
-  for (const unstable of [false, true])
-    for (const tone of ["classic", "adult"] as Tone[])
-      for (const f of cueFiles(tone))
-        if ((!cuesOnly || cuesOnly.includes(f.cue)) && (!only || only.includes(voiceKey(host, unstable)))) jobs.push({ host, unstable, tone, ...f });
+for (const set of SETS)
+  for (const f of cueFiles(set.tone))
+    if ((!cuesOnly || cuesOnly.includes(f.cue)) && (!only || only.includes(vkOf(set)))) jobs.push({ ...set, ...f });
 
 const dur = (f: string) => Number(execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f]).toString().trim());
 
-async function tts(text: string, host: HostKey, unstable: boolean): Promise<Buffer> {
+async function tts(text: string, host: HostKey, vk: string): Promise<Buffer> {
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${HOSTS[host].voiceId}?output_format=mp3_44100_128`, {
     method: "POST",
     headers: { "xi-api-key": KEY!, "Content-Type": "application/json" },
-    body: JSON.stringify({ text, model_id: TTS_MODEL, voice_settings: unstable ? VOICE_SETTINGS.unstable : VOICE_SETTINGS.steady }),
+    body: JSON.stringify({ text, model_id: TTS_MODEL, voice_settings: settingsFor(vk) }),
   });
   if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 200)}`);
   return Buffer.from(await res.arrayBuffer());
@@ -41,7 +45,7 @@ async function tts(text: string, host: HostKey, unstable: boolean): Promise<Buff
 let chars = 0;
 const report: string[] = [];
 async function run(j: Job) {
-  const vk = voiceKey(j.host, j.unstable);
+  const vk = vkOf(j);
   const rel = `${vk}/${j.tone}/${j.file}.mp3`;
   const out = join(OUT, rel);
   if (existsSync(out) && !redo) return;
@@ -51,7 +55,7 @@ async function run(j: Job) {
   for (let attempt = 1; attempt <= 3; attempt++) {
     const raw = join(RAW, `${rel.replaceAll("/", "__")}.take${attempt}.mp3`);
     mkdirSync(dirname(raw), { recursive: true });
-    writeFileSync(raw, await tts(text, j.host, j.unstable));
+    writeFileSync(raw, await tts(text, j.host, vk));
     chars += text.length;
     const d = dur(raw);
     const ok = d > Math.max(0.6, expect * 0.35) && d < expect * (j.unstable ? 3.2 : 2.4) + 4;
@@ -71,7 +75,7 @@ async function pool(n: number) {
   const workers = Array.from({ length: n }, async () => {
     while (i < jobs.length) {
       const j = jobs[i++];
-      try { await run(j); } catch (e) { report.push(`FAILED ${voiceKey(j.host, j.unstable)}/${j.tone}/${j.file}: ${(e as Error).message}`); }
+      try { await run(j); } catch (e) { report.push(`FAILED ${vkOf(j)}/${j.tone}/${j.file}: ${(e as Error).message}`); }
     }
   });
   await Promise.all(workers);
@@ -80,10 +84,10 @@ async function pool(n: number) {
 await pool(4);
 // manifest: every recorded line and its length, so the TV knows what it has and how long each runs
 const manifest: Record<string, Record<string, Record<string, number>>> = {};
-for (const host of ["ivy", "duke"] as HostKey[]) for (const unstable of [false, true]) for (const tone of ["classic", "adult"] as Tone[]) for (const { file } of cueFiles(tone)) {
-  const f = join(OUT, voiceKey(host, unstable), tone, `${file}.mp3`);
+for (const set of SETS) for (const { file } of cueFiles(set.tone)) {
+  const f = join(OUT, vkOf(set), set.tone, `${file}.mp3`);
   if (!existsSync(f)) continue;
-  ((manifest[voiceKey(host, unstable)] ??= {})[tone] ??= {})[file] = Math.round(dur(f) * 100) / 100;
+  ((manifest[vkOf(set)] ??= {})[set.tone] ??= {})[file] = Math.round(dur(f) * 100) / 100;
 }
 writeFileSync(join(OUT, "manifest.json"), JSON.stringify(manifest, null, 1));
 const prev = existsSync("/tmp/vr-chars.txt") ? Number(readFileSync("/tmp/vr-chars.txt", "utf8")) : 0;

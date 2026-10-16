@@ -180,7 +180,7 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
   };
 
   // This game's version of each line; a line that repeats in one game passes which time it is.
-  const pick = (cue: CueKey, occurrence = "") => cueVariant(g.tone, cue, g.slug ?? "", occurrence);
+  const pick = (cue: CueKey, occurrence = "") => cueVariant(g.script ?? g.tone, cue, g.slug ?? "", occurrence, g.lines ? { picks: g.lines.picks, d: true } : undefined);
   const cs = (cue: CueKey) => secs(cue, pick(cue));
   const vo = (id: string, cue: CueKey, at: number, quiet = false, occurrence = "") => {
     const v = pick(cue, occurrence);

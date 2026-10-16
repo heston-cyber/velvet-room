@@ -6,7 +6,8 @@ import { MAX_ROOMS, MIN_ROOMS, openRoomsIn } from "./engine/build";
 import { randomCode, registrationIsOpen, requireHost } from "./lib";
 import { ensureAllCards } from "./cards";
 import { MAX_CARDS } from "./shared";
-import { levelsOf, narratorOf } from "./voiceLines";
+import { levelsOf, narratorOf, scriptOf } from "./voiceLines";
+import { heckleWanted } from "./heckles";
 
 const started = (g: Doc<"games">) => g.status !== "registration" && g.status !== "lobby";
 
@@ -86,6 +87,8 @@ export const roster = query({
         wifi: game.wifi ?? { name: "", password: "" },
         narrator: narratorOf(game),
         levels: levelsOf(game),
+        // What this game picked at Start, so the laptop can steer clear of it next game (Oct 16).
+        heard: game.lines ? { script: scriptOf(game), lines: game.lines.picks, heckles: (await heckleWanted(ctx, game)).map((h) => h.line.id) } : null,
         rulesAt: game.rulesAt ?? null,
         rollCallAt: game.rollCallAt ?? null,
         doorsAt: game.doorsAt ?? null,
@@ -146,7 +149,7 @@ export const updateSettings = mutation({
     tone: v.optional(v.union(v.literal("classic"), v.literal("adult"))),
     search: v.optional(v.union(v.literal("all"), v.literal("waves"))),
     wifi: v.optional(v.object({ name: v.string(), password: v.string() })),
-    narrator: v.optional(v.object({ host: v.union(v.literal("ivy"), v.literal("duke")), unstable: v.boolean() })),
+    narrator: v.optional(v.object({ host: v.union(v.literal("ivy"), v.literal("duke")), unstable: v.boolean(), sailor: v.optional(v.boolean()) })),
     levels: v.optional(v.object({ voice: v.number(), music: v.number(), sfx: v.number() })),
   },
   handler: async (ctx, { slug, hostKey, ...patch }) => {
@@ -189,7 +192,13 @@ export const updateSettings = mutation({
       const lv = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
       update.levels = { voice: lv(patch.levels.voice), music: lv(patch.levels.music), sfx: lv(patch.levels.sfx) };
     }
-    if (patch.narrator) update.narrator = { host: patch.narrator.host, unstable: patch.narrator.unstable };
+    if (patch.narrator) {
+      // Sailor mode is Duke, steady (the fury is in the script), over the Adult script.
+      update.narrator = patch.narrator.sailor ? { host: "duke", unstable: false, sailor: true } : { host: patch.narrator.host, unstable: patch.narrator.unstable };
+      if (patch.narrator.sailor) update.tone = "adult";
+    }
+    // Back to Classic turns Sailor mode off.
+    if (patch.tone === "classic" && !patch.narrator && game.narrator?.sailor) update.narrator = { ...game.narrator, sailor: false };
     for (const key of ["motiveMode", "killerOptIn", "accomplice", "lookalikes", "registrationOpen", "registrationClosesAt", "deadlineLabel", "tone", "search"] as const) {
       if (patch[key] !== undefined) (update as Record<string, unknown>)[key] = patch[key];
     }

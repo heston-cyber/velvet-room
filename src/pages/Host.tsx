@@ -3,6 +3,8 @@
 // (room code on screen) → Everyone is in → the game runs itself. A pause menu (corner button or Esc)
 // holds everything else. Nothing on it gives away the answer, so it's safe in front of the room.
 import { Component, useCallback, useEffect, useState, type ReactNode } from "react";
+import { heardForStart, rememberGame } from "../lib/heard";
+import { scriptOf } from "../../convex/voiceLines";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { friendlyError } from "../lib/errors";
@@ -239,6 +241,12 @@ function HostScreen({ slug, hostKey, onGame, onSwitch }: { slug: string; hostKey
     if (needsTvKey) void ensureTvKey({ slug, hostKey }).catch(() => undefined);
   }, [needsTvKey, ensureTvKey, slug, hostKey]);
 
+  // Once a game has started, this laptop remembers what it picked, so the next game steers clear (src/lib/heard.ts).
+  const picked = data?.game.heard ?? null;
+  useEffect(() => {
+    if (picked) rememberGame(slug, picked);
+  }, [slug, picked]);
+
   const [stage, setStage] = useState<Stage | null>(null);
   const [back, setBack] = useState<Stage>("title");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -396,7 +404,7 @@ function LobbyBar({ data, slug, hostKey, onError }: { data: Roster; slug: string
     onError(null);
     await run(async () => {
       try {
-        await startGame({ slug, hostKey });
+        await startGame({ slug, hostKey, ...heardForStart(scriptOf(data.game)) });
       } catch (err) {
         onError(friendlyError(err));
       }

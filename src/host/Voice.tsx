@@ -21,23 +21,35 @@ function hear(url: string) {
 
 export function NarratorSection({ game, locked, save }: { game: Game; locked: boolean; save: (p: SettingsPatch) => Promise<void> }) {
   const n = game.narrator;
-  const voice = voiceKey(n.host, n.unstable);
+  const sailor = !!n.sailor;
+  const voice = voiceKey(n.host, n.unstable, sailor);
   return (
     <Sec title="Narrator and sound">
       <span className="lab">Who runs the floor</span>
-      <Seg label="Narrator" value={n.host} options={[["ivy", "Ivy"], ["duke", "Duke"]]} disabled={locked} onPick={(host) => save({ narrator: { ...n, host } })} />
+      <Seg label="Narrator" value={n.host} options={[["ivy", "Ivy"], ["duke", "Duke"]]} disabled={locked || sailor} onPick={(host) => save({ narrator: { ...n, host } })} />
       <span className="help">{HOSTS[n.host].describe}</span>
+      {!sailor && (
+        <Toggle
+          id="set-unstable"
+          checked={n.unstable}
+          disabled={locked}
+          onChange={(unstable) => save({ narrator: { ...n, unstable } })}
+          label="Unstable"
+          help="The narrator comes unglued: shouting, sobbing, cackling. No two lines alike."
+        />
+      )}
+      {/* Oct 16, Heston: "a toggle in the voice setup area that is 'Sailor mode'". */}
       <Toggle
-        id="set-unstable"
-        checked={n.unstable}
+        id="set-sailor"
+        checked={sailor}
         disabled={locked}
-        onChange={(unstable) => save({ narrator: { ...n, unstable } })}
-        label="Unstable"
-        help="The narrator comes unglued: shouting, sobbing, cackling. No two lines alike."
+        onChange={(on) => save({ narrator: { host: on ? "duke" : n.host, unstable: false, sailor: on } })}
+        label="Sailor mode"
+        help="Duke, furious, swearing like his life depends on it, with his own script. Explicit: turns on the Adult script."
       />
       <div className="row">
-        <button type="button" className="btn" onClick={() => hear(`/audio/narration/${voice}/${game.tone}/doors.mp3`)}>
-          Hear {HOSTS[n.host].name} on this laptop
+        <button type="button" className="btn" onClick={() => hear(`/audio/narration/${voice}/${sailor ? "sailor" : game.tone}/doors.mp3`)}>
+          Hear {sailor ? "Sailor mode" : HOSTS[n.host].name} on this laptop
         </button>
       </div>
       <Levels game={game} save={save} />
