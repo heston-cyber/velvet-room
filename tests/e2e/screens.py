@@ -132,7 +132,9 @@ with sync_playwright() as p:
     wait_for(lambda: roster()["game"]["status"] == "playing", 20)
     # Oct 16: How to play, then the Don dies, then the roll call.
     kick = lambda: host.evaluate("() => document.querySelector('.tv-how .tv-kick')?.textContent || ''")
-    for i in range(1, 7):
+    wait_for(lambda: "· 1 of" in kick(), 30)
+    cards = int(kick().split(" of ")[-1].strip() or 5)
+    for i in range(1, cards + 1):
         if not wait_for(lambda: f"· {i} of" in kick(), 30):
             break
         audit(f"how-{i}", 1600)

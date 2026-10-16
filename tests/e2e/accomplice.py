@@ -89,9 +89,10 @@ with sync_playwright() as p:
     ok(wait_for(lambda: roster()["game"]["status"] == "playing", 20), "Everyone is in starts the show")
 
     def skip(label):
+        # The menu's label follows the clock, and this machine's clock can trail the server's by a second or two.
         host.locator(".hs-menu-btn").click()
         btn = host.get_by_role("button", name=label)
-        ok(btn.count() == 1, f"the host menu offers {label}")
+        ok(wait_for(lambda: btn.count() == 1, 8), f"the host menu offers {label}")
         btn.click()
 
     # How to play: 11 cards, the second is the accomplice.
@@ -103,7 +104,9 @@ with sync_playwright() as p:
     host.wait_for_timeout(1500)
     shot(host, "03-how-accomplice.png")
 
-    # Roles.
+    # Roles (Oct 16 order: How to play, the murder, the roll call, the roles).
+    skip("Skip to the murder")
+    host.wait_for_timeout(1500)
     skip("Skip to the roll call")
     host.wait_for_timeout(1500)
     skip("Skip to the roles")

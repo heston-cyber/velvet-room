@@ -115,9 +115,10 @@ with sync_playwright() as p:
     ok(wait_for(lambda: roster()["game"]["status"] == "playing", 20), "Everyone is in starts the show")
 
     def skip(label):
+        # The menu's label follows the clock, and this machine's clock can trail the server's by a second or two.
         host.locator(".hs-menu-btn").click()
         btn = host.get_by_role("button", name=label)
-        ok(btn.count() == 1, f"the host menu offers {label}")
+        ok(wait_for(lambda: btn.count() == 1, 8), f"the host menu offers {label}")
         btn.click()
 
     # How to play: the cards that used the old drawings show the cast.
@@ -141,7 +142,10 @@ with sync_playwright() as p:
         time.sleep(0.5)
     ok(not seen_old, f"no old drawings in How to play ({set(seen_old)})")
 
-    # The roll call: by name, no played by.
+    # The roll call: by name, no played by. (Oct 16 order: How to play, the murder, then the roll call.)
+    if host.locator(".tv-how").count():
+        skip("Skip to the murder")
+        host.wait_for_timeout(1500)
     skip("Skip to the roll call")
     ok(wait_for(lambda: host.locator(".tv-roll").count() == 1, 30), "the roll call starts")
     ok(wait_for(lambda: host.locator(".tv-roll h2").count() == 1, 15), "a guest's card")
