@@ -1,5 +1,5 @@
-"""The v2 votes end-to-end, against the dev backend: rounds end in the jail vote (from Round 2, a release vote first
-when someone's in jail), phones vote, the TV shows who voted for whom and the verdict, the jailed guest's phone is
+"""The votes end-to-end, against the dev backend (Oct 16 schedule: Round 1 no vote, Round 2 the jail vote, Round 3 the
+release vote when someone's in jail), phones vote, the TV shows who voted for whom and the verdict, the jailed guest's phone is
 locked down, then the final lock-in with weapon pictures and the reveal with the new win rule.
   BASE=http://localhost:4174 [TONE=adult] python3 tests/e2e/votes.py
 Screenshots go to $OUT (default ./e2e-out/votes).
@@ -96,9 +96,12 @@ with sync_playwright() as p:
         ok(btn.count() == 1, f"the host menu offers {label}")
         btn.click()
 
-    # Round 1 ends: the jail vote.
+    # Round 1 ends with no vote (Oct 16); Round 2 ends in the jail vote.
     host_step("End Round 1")
-    ok(wait_for(lambda: host.get_by_text("Who goes to jail?").count() == 1, 10), "the TV opens the jail vote")
+    ok(wait_for(lambda: roster()["game"]["round"] == 2, 15), "Round 1 ends straight into Round 2, no vote")
+    ok(roster()["game"].get("vote") is None, "no vote after Round 1")
+    host_step("End Round 2")
+    ok(wait_for(lambda: host.get_by_text("Who goes to jail?").count() == 1, 10), "Round 2 ends in the jail vote")
     ok(wait_for(lambda: a.get_by_role("radio", name="Nobody").count() == 1, 10), "the phone shows the vote")
     host.wait_for_timeout(1500)
     shot(host, "01-tv-jail-vote.png")
@@ -114,15 +117,15 @@ with sync_playwright() as p:
     ok(wait_for(lambda: host.locator(".tv-verdict-who .tv-jailed").count() == 1, 12), "the verdict: behind bars")
     host.wait_for_timeout(1500)
     shot(host, "04-tv-verdict.png")
-    ok(wait_for(lambda: roster()["game"]["round"] == 2, 20), "the night moves on to Round 2")
+    ok(wait_for(lambda: roster()["game"]["round"] == 3, 25), "the night moves on to Round 3")
     ok(wait_for(lambda: b.locator(".jail-banner").count() >= 1, 10), "the jailed guest's phone says they're in jail")
     shot(b, "05-phone-jailed.png")
     b.get_by_role("button", name="Scan").click()
     ok(b.get_by_text("No searching from a cell").count() == 1, "no scanning from jail")
 
-    # Round 2 ends: someone is in jail, so the release vote comes first.
-    host_step("End Round 2")
-    ok(wait_for(lambda: host.get_by_text("Does anyone get out?").count() == 1, 10), "the release vote comes first")
+    # Round 3 ends: someone is in jail, so the release vote, and no jail vote after it.
+    host_step("End Round 3")
+    ok(wait_for(lambda: host.get_by_text("Does anyone get out?").count() == 1, 10), "Round 3 ends in the release vote")
     ok(host.locator(".tv-cands .tv-jailed").count() == 1, "the jailed guest is shown behind bars")
     host.wait_for_timeout(1200)
     shot(host, "06-tv-release.png")
@@ -130,24 +133,8 @@ with sync_playwright() as p:
     for i in (0, 1, 2, 3):
         vote(i, None)
     ok(wait_for(lambda: host.get_by_text("Nobody gets out.").count() == 1, 15), "nobody gets out")
-    host_step("On to the jail vote")
-    ok(wait_for(lambda: host.get_by_text("Who goes to jail?").count() == 1, 10), "then the jail vote")
-    host_step("Close the vote")
-    ok(wait_for(lambda: host.get_by_text("The votes are in").count() == 1, 10), "the host closes it")
-    host_step("On to Round 3")
-    ok(wait_for(lambda: roster()["game"]["round"] == 3, 15), "Round 3")
-    host_step("End Round 3")
-    for _ in range(4):
-        r = roster()["game"]
-        if r["round"] == 4:
-            break
-        v = r.get("vote")
-        if v and not v["closedAt"]:
-            host_step("Close the vote")
-        elif v:
-            host_step("On to the jail vote" if v["kind"] == "release" else "On to the lock-in")
-        time.sleep(1.5)
-    ok(wait_for(lambda: roster()["game"]["round"] == 4, 20), "the lock-in opens after Round 3's votes")
+    host_step("On to the lock-in")
+    ok(wait_for(lambda: roster()["game"]["round"] == 4, 20), "then straight to the lock-in, no jail vote")
 
     # The lock-in: final, with weapon pictures. The jailed guest sits it out.
     if a.get_by_role("button", name="Lock in").count():

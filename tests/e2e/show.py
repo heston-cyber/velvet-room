@@ -83,19 +83,17 @@ with sync_playwright() as p:
     host.locator(".hs-lobby button").click()
     ok(wait_for(lambda: roster()["game"]["status"] == "playing", 20), "Everyone is in starts the show")
 
-    # The intro.
-    ok(wait_for(lambda: host.get_by_text("New York City · October, 1929").count() == 1, 10), "the intro opens on New York City, 1929")
+    # Oct 16 (Heston): How to play first, then the Don dies, then the roll call.
+    ok(wait_for(lambda: host.locator(".tv-how").count() == 1, 15), "the show opens on How to play")
     ok(wait_for(lambda: phone.get_by_text("Eyes on the TV").count() >= 1, 15), "the phone says eyes on the TV, no role yet")
     ok(phone.get_by_text("Press and hold").count() == 0, "no role card on the phone during the show")
     shot(phone, "01-phone-wait.png")
     g = roster()["game"]
     show = g["show"]
-    ok(show and show["howAt"] - g["introEndsAt"] < 0, f"the show has its parts ({show})")
-    # Wait into the third beat to see the weapons in play.
-    time.sleep(max(0, (show["howAt"] - 9_000) / 1000 - time.time()))
-    ok(wait_for(lambda: host.locator(".tv-wrow .tv-wcard").count() == 6, 15), "the intro shows the 6 weapons in play")
-    host.wait_for_timeout(2500)
-    shot(host, "02-intro-weapons.png")
+    ok(show and show["howAt"] <= show["introAt"] < show["rollAt"], f"How to play, then the intro, then the roll call ({show})")
+    ok(wait_for(lambda: "how to play · 1 of 5" in host.locator(".tv-how").inner_text().lower(), 10), "five How to play cards")
+    host.wait_for_timeout(1200)
+    shot(host, "03-how-1.png")
 
     def skip(label):
         host.locator(".hs-menu-btn").click()
@@ -104,16 +102,9 @@ with sync_playwright() as p:
         ok(host.get_by_role("button", name="Pause the game").count() == 0, "no pause button during the show")
         btn.click()
 
-    # How to play (it may already be on).
-    if host.locator(".tv-how").count() == 0:
-        skip("Skip to How to play")
-    ok(wait_for(lambda: host.locator(".tv-how").count() == 1, 10), "How to play is on")
-    ok(wait_for(lambda: "how to play · 1 of 5" in host.locator(".tv-how").inner_text().lower(), 10), "five How to play cards")
-    host.wait_for_timeout(1200)
-    shot(host, "03-how-1.png")
     # Step through: the weapons card and the jail card.
     seen = set()
-    end = time.time() + 90
+    end = time.time() + 120
     while time.time() < end and not {"weapons", "bars"} <= seen:
         if host.locator(".tv-wfan").count():
             if "weapons" not in seen:
@@ -124,11 +115,21 @@ with sync_playwright() as p:
             if "bars" not in seen:
                 host.wait_for_timeout(1000)
                 shot(host, "05-how-jail.png")
+                ok("don't have to" in host.locator(".tv-how").inner_text().lower() or "nobody" in host.locator(".tv-how").inner_text().lower(), "the jail card says you don't have to jail anyone")
             seen.add("bars")
         time.sleep(0.4)
     ok("weapons" in seen, "the weapons card shows a fan of weapons")
     ok("bars" in seen, "the jail card shows a guest behind bars")
     ok(host.locator(".tv-jailed img.bars").count() == 1, "the bars sit over the drawing")
+
+    # The Don dies.
+    if host.get_by_text("New York City · October, 1929").count() == 0:
+        skip("Skip to the murder")
+    ok(wait_for(lambda: host.get_by_text("New York City · October, 1929").count() == 1, 15), "then the Don dies: New York City, 1929")
+    ok(wait_for(lambda: host.get_by_text("The Don is dead.").count() == 1, 40), "the second slide: the Don is dead")
+    ok(wait_for(lambda: host.locator(".tv-wrow .tv-wcard").count() == 6, 40), "the third slide shows the 6 weapons in play")
+    host.wait_for_timeout(2500)
+    shot(host, "02-intro-weapons.png")
 
     # The roll call.
     skip("Skip to the roll call")

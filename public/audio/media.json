@@ -22,7 +22,11 @@
   "applause",
   "whoosh",
   "sneak",
-  "creak"
+  "creak",
+  "gavel",
+  "keys",
+  "jailSlam",
+  "revealHit"
  ],
  "music": [
   "lobby",

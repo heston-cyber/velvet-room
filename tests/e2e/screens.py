@@ -130,43 +130,43 @@ with sync_playwright() as p:
     host.locator(".hs-lobby button").click()
     host.locator(".hs-lobby button").click()
     wait_for(lambda: roster()["game"]["status"] == "playing", 20)
-    t0 = time.time()
-    for at, label in ((5, "intro-1"), (20, "intro-2"), (35, "intro-3")):
-        host.wait_for_timeout(max(0, int((t0 + at - time.time()) * 1000)))
-        audit(label, 0)
+    # Oct 16: How to play, then the Don dies, then the roll call.
     kick = lambda: host.evaluate("() => document.querySelector('.tv-how .tv-kick')?.textContent || ''")
     for i in range(1, 7):
         if not wait_for(lambda: f"· {i} of" in kick(), 30):
             break
         audit(f"how-{i}", 1600)
-    wait_for(lambda: host.locator(".tv-roll h2").count() == 1, 40)
+    text = lambda: host.evaluate("() => document.body.textContent")
+    for label, words in (("intro-1", "New York City · October, 1929"), ("intro-2", "The Don is dead."), ("intro-3", "One of you did it.")):
+        wait_for(lambda: words in text(), 45)
+        audit(label, 1500)
+    wait_for(lambda: host.locator(".tv-roll h2").count() == 1, 60)
     audit("roll-call", 2500)
     menu("Skip to the roles")
     audit("phones", 6500)  # the Check Your Phone card runs 4 s first (its video is blank in headless Chromium)
     cx("game:skipIntro", {"slug": SLUG, "hostKey": KEY})
     audit("round-1", 5500)
 
-    for rnd in (1, 2, 3):
-        mut("game:advanceRound", {"slug": SLUG, "hostKey": KEY})
-        # a release vote first (from Round 2, if anyone's in jail), then the jail vote
-        for _ in range(2):
-            if not wait_for(lambda: host.get_by_text("Who goes to jail?").count() or host.get_by_text("Does anyone get out?").count(), 12):
-                break
-            kind = "release" if host.get_by_text("Does anyone get out?").count() else "jail"
-            audit(f"r{rnd}-{kind}-vote", 5000)
-            vote_all(None if kind == "release" else guests[3 + rnd]["id"])
-            wait_for(lambda: host.get_by_text("The votes are in").count() == 1, 15)
-            audit(f"r{rnd}-{kind}-tally", 1500)
-            host.wait_for_timeout(9000)
-            audit(f"r{rnd}-{kind}-verdict", 0)
-            if kind == "jail":
-                break
-            host.wait_for_timeout(8000)
-        if rnd < 3:
-            wait_for(lambda: roster()["game"]["round"] == rnd + 1, 25)
-            audit(f"round-{rnd + 1}", 6000)
-            if rnd + 1 == 3:
-                audit("round-3-twist", 9000)
+    def vote_round(rnd, kind, target):
+        wait_for(lambda: host.get_by_text("Who goes to jail?" if kind == "jail" else "Does anyone get out?").count(), 15)
+        audit(f"r{rnd}-{kind}-vote", 5000)
+        vote_all(target)
+        wait_for(lambda: host.get_by_text("The votes are in").count() == 1, 15)
+        audit(f"r{rnd}-{kind}-tally", 1500)
+        host.wait_for_timeout(9000)
+        audit(f"r{rnd}-{kind}-verdict", 0)
+
+    # Round 1 ends with no vote; Round 2 in the jail vote; Round 3 in the release vote (Oct 16).
+    mut("game:advanceRound", {"slug": SLUG, "hostKey": KEY})
+    wait_for(lambda: roster()["game"]["round"] == 2, 25)
+    audit("round-2", 6000)
+    mut("game:advanceRound", {"slug": SLUG, "hostKey": KEY})
+    vote_round(2, "jail", guests[5]["id"])
+    wait_for(lambda: roster()["game"]["round"] == 3, 30)
+    audit("round-3", 6000)
+    audit("round-3-twist", 9000)
+    mut("game:advanceRound", {"slug": SLUG, "hostKey": KEY})
+    vote_round(3, "release", None)
 
     wait_for(lambda: roster()["game"]["round"] == 4, 30)
     audit("lock-in", 6000)
