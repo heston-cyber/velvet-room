@@ -26,7 +26,8 @@ export const CAST: CastMember[] = [
   { key: "brian", name: "Brian", sex: "m" },
   { key: "brianna", name: "Brianna", sex: "f" },
   { key: "sienna", name: "Sienna", sex: "f" },
-  { key: "daya", name: "Daya", sex: "f" },
+  { key: "cameron", name: "Cameron", sex: "f" },
+  { key: "brendan", name: "Brendan", sex: "m" },
 ];
 export const CAST_KEYS = CAST.map((l) => l.key);
 export const castMember = (key: string | null | undefined) => (key ? CAST.find((l) => l.key === key) ?? null : null);

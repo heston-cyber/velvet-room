@@ -77,7 +77,7 @@ with sync_playwright() as p:
     host.get_by_role("button", name="Play").click(timeout=20000)
     ok(wait_for(lambda: host.locator(".hs-lobby").count() == 1), "Play opens the doors")
     cx("game:seedFakeCast", {"slug": SLUG, "guests": 0, "markers": 0, "checkIn": True})
-    ok(wait_for(lambda: phone.get_by_text("You're in").count() == 1, 20), "the guest's phone is let in")
+    ok(wait_for(lambda: phone.get_by_text("You're in", exact=True).count() == 1, 20), "the guest's phone is let in")
     ok(wait_for(lambda: "6" in host.locator(".hs-count").inner_text()), "6 guests are in")
     host.locator(".hs-lobby button").click()
     host.locator(".hs-lobby button").click()

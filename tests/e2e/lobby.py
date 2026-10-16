@@ -87,7 +87,7 @@ with sync_playwright() as p:
     code = cx("host:roster", {"slug": SLUG, "hostKey": KEY})["game"]["roomCode"]
     ok(bool(code), f"the room code is out ({code})")
 
-    ok(wait_for(lambda: a.get_by_text("You're in").count() == 1, 20), "Ana's open page lets her in on its own")
+    ok(wait_for(lambda: a.get_by_text("You're in", exact=True).count() == 1, 20), "Ana's open page lets her in on its own")
     ok(a.get_by_text("Write").count() == 0 and a.get_by_text("bag").count() == 0, "no evidence bag or letter on the phone")
     shot(a, "01-ana-in.png")
 
@@ -110,7 +110,7 @@ with sync_playwright() as p:
     w.get_by_role("button", name="Next: review").click()
     w.get_by_role("button", name="Put me on the list").click()
     w.wait_for_url(re.compile(r"/p/[a-z0-9]+$"), timeout=15000)
-    ok(wait_for(lambda: w.get_by_text("You're in").count() == 1, 20), "the walk-in lands in the lobby, already in")
+    ok(wait_for(lambda: w.get_by_text("You're in", exact=True).count() == 1, 20), "the walk-in lands in the lobby, already in")
     shot(w, "02-walkin-in.png")
 
     ok(wait_for(lambda: "2" in host.locator(".hs-count").inner_text()), f"the host screen counts 2 guests in ({host.locator('.hs-count').inner_text()})")
