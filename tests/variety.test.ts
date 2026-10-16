@@ -110,7 +110,7 @@ describe("heckles in the lulls", () => {
     const roasted = new Set(lines.filter((l) => !l.gag && l.target).map((l) => l.target));
     expect(roasted.size).toBe(guests.length - 1);
     expect(new Set(lines.map((l) => l.text)).size).toBe(lines.length);
-    expect(lines.every((l) => !/[{}]/.test(l.text) && !/Ruiz|Cho|Park/.test(l.text))).toBe(true);
+    expect(lines.every((l) => !/[{}]/.test(l.text) && !/\b(Ruiz|Cho)\b|Cy Park/.test(l.text))).toBe(true);
     expect(lines.filter((l) => !l.target).length).toBeGreaterThanOrEqual(3); // asides about the night
     expect(lines.some((l) => l.text.split(" ").length <= 6)).toBe(true); // short, punchy ones
   });

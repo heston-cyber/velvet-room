@@ -2,7 +2,12 @@
 // asides about the night. Heston: "Add in random roasts of a player or jokes during voting and other lull moments",
 // "Sometimes it could be funny if its the same player who keeps getting roasted", and "Short punchy insults are
 // great too." Each game picks one guest as its running gag, who keeps coming back, a little worse each time.
-// Recorded at Start with the guests' real first names (custom lines, like the roll call). Drafts for Heston's review.
+// Recorded at Start with the guests' real first names (custom lines, like the roll call).
+// Oct 16, Heston: "Dont be specific with the jokes, be generic. Follow the funny guidlines i gave you." So every line
+// works for any guest (first name and weapon only, no facts about anyone), written to his comedy notes (the v2 rulebook):
+// deadpan formats played straight, 1929 New York specifics, no puns, swearing rationed, innuendo only about nobody in
+// particular, no marriage jokes. The cast includes family, so nothing suggestive is aimed at a named guest. Weapons
+// can be plural ("the gloves"), so no line puts a verb or "it" right after {weapon}.
 import type { Doc } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
 import { customRecordingText, plain, sprinkle, type Tone } from "./narration";
@@ -23,7 +28,7 @@ type Pools = {
 export const HECKLES: Record<Tone, Pools> = {
   classic: {
     bit: [
-      "A message from management: {real}, the {weapon} is not a party favor. Please stop offering it to people.",
+      "A message from management: {real}, please stop offering the {weapon} to people as a party favor.",
       "Update from the coat check: {real}'s coat is fine. {real}'s alibi is not.",
       "Bulletin: {real} has been very quiet for the last few minutes. Make of that what you will.",
       "{real}, the bartender has asked me to ask you to please stop interrogating the ice.",
@@ -31,8 +36,17 @@ export const HECKLES: Record<Tone, Pools> = {
       "The band has dedicated a song to {real}. It's called Are You Sure About That.",
       "Lost and found: one alibi, belonging to {real}. It has holes in it.",
       "A reminder that {real} is still in the building, and still holding the {weapon}. That's all.",
-      "{real} has asked me to say they're not the killer. [short pause] Noted. Suspiciously noted.",
+      "{real} has asked me to make it clear that {real} is not the killer. [short pause] Noted. Suspiciously noted.",
       "Telegram for {real}. It says, stop. That's the whole telegram.",
+      "Stock report: shares in {real} opened strong and have been falling all evening. Analysts blame the {weapon}.",
+      "From the racing desk at Belmont Park: the odds on {real} being the killer just went from fifty to one, to five to one. Somebody knows something.",
+      "Help wanted: one honest person to vouch for {real}. Good pay. Short hours. Nobody has applied.",
+      "Police file on {real}. Height: average. Build: average. Alibi: well below average.",
+      "Insurance notice: the {weapon}, covered for fire, flood and theft. Not covered: {real}.",
+      "Radio bulletin: Babe Ruth hit sixty home runs this year. {real} has found zero clues. Both are records.",
+      "Classified ad: for sale, the {weapon}, barely used, no questions asked. Contact {real}. Or, actually, the police.",
+      "The detective's notebook, entry nine: {real} smiled at me just now. I did not care for it.",
+      "Society pages: {real} wore a lovely outfit tonight, and the face of someone who has never even seen the {weapon}. Very convincing.",
     ],
     jab: [
       "{real}. Bless your heart.",
@@ -43,13 +57,17 @@ export const HECKLES: Record<Tone, Pools> = {
       "{real}, the Don liked you. He liked his parrot too.",
       "{real} has the face of a suspect and the brain of a witness.",
       "Somebody give {real} a hint.",
+      "{real}, that's not a clue. That's a napkin.",
+      "{real}: confident, wrong, and still talking.",
+      "{real} has checked under the same rug three times. The rug is innocent.",
+      "{real}, the killer thanks you for your help.",
     ],
     gag: [
       "Quick note about {real}: we're watching you.",
       "Back to {real}. Still watching.",
       "{real} again. We can't help it, and neither can {real}.",
       "We promised we'd stop mentioning {real}. That was a lie. Lies happen here.",
-      "This one's for {real}. They know why.",
+      "This one's for {real}. {real} knows why.",
       "And one more for {real}, because it's tradition now.",
     ],
     aside: [
@@ -60,26 +78,37 @@ export const HECKLES: Record<Tone, Pools> = {
       "The band would like to remind everyone that they are being paid in gin.",
       "The fire marshal called. He'd like to know how many people are in here. We told him one fewer than before.",
       "Reminder: the Don's will leaves everything to whoever finds his reading glasses. Nobody is looking for his reading glasses.",
+      "Market report: it's October 1929, and everyone is feeling very confident about the stock market. That's all. Just making a note.",
+      "Police note: the killer is somewhere in this room. So is the snack table. Only one of them is being thoroughly searched.",
+      "A reminder from management: the Don's chair is still reserved. The Don will not be needing it.",
     ],
   },
   adult: {
     bit: [
-      "A message from management: {real}, please stop telling people the {weapon} is for decoration.",
+      "A message from management: {real}, please stop describing the {weapon} as decorative.",
       "Update from the coat check: {real}'s coat has asked to go home with someone else.",
-      "Police bulletin: be on the lookout for {real}. Last seen near the snacks. Armed with a {weapon}, and hungry.",
+      "Police bulletin: be on the lookout for {real}. Last seen near the snacks. Armed with the {weapon}, and hungry.",
       "This just in: {real} has been searching the same drawer for six minutes. The drawer would like some privacy.",
       "The bartender reports that {real} has been investigating the gin. Thoroughly. Repeatedly.",
-      "A reminder that {real} is still in the building. That's all. Just a reminder.",
       "The Don's lawyer has asked me to read a statement: {real} is not in the will. {real} was never going to be in the will.",
       "Medical update: {real} is fine. {real}'s judgment remains in critical condition.",
       "Weather report for the corner where {real} is standing: overcast, with a strong chance of lying.",
       "Lost and found: one sense of shame, belonging to {real}. It's been in the box since 1925.",
-      "{real} has asked me to tell everyone they're not the killer. [short pause] That's exactly what the killer would ask me to say.",
-      "Correction from the roll call: {real} is not as charming as we said. We were being polite.",
+      "{real} has asked me to tell everyone that {real} is not the killer. [short pause] That's exactly what the killer would ask me to say.",
       "Notice to all guests: {real} keeps patting the {weapon} and smiling. Nobody stand behind {real}.",
       "The band has a request for {real}. It's called Please Sit Down.",
       "Breaking news: {real} has found a clue. [short pause] Correction: {real} has found a coaster.",
       "Telegram for {real}. It says, stop. That's the whole telegram.",
+      "Stock report: shares in {real} have lost ninety percent of their value since the doors opened. Wall Street calls it a correction. Everyone who's met {real} calls it overdue.",
+      "From the racing desk at Belmont Park: {real} is now the favorite to be the killer, mostly because {real} has the look of a horse that's done something.",
+      "Insurance finding on the {weapon}: total loss. No damage was reported until {real} got involved.",
+      "Help wanted: one alibi for {real}. Must be discreet, free tonight, and comfortable lying to police. Tammany Hall need not apply. They're already on the payroll.",
+      "Police file on {real}, known associates: the {weapon}, one bartender, and nobody else. Nobody else would sign.",
+      "Dispatch from Hell's Kitchen: the toughest men in New York have heard about {real}. They're not scared. They're confused.",
+      "Verdict from the mock trial in the kitchen: {real} is guilty of something. The jury is still working out what, but they're very sure.",
+      "Babe Ruth hit sixty home runs this year. {real} found one clue and has told everybody about it sixty times.",
+      "{real} has been interrogating the cheese plate like it owes {real} money. It's brie, {real}. It doesn't know a goddamn thing.",
+      "The Prohibition agent outside would like a word with {real}. Not about the murder. About the smell.",
     ],
     jab: [
       "{real}. Bless your heart.",
@@ -94,12 +123,16 @@ export const HECKLES: Record<Tone, Pools> = {
       "{real}, nobody's buying it.",
       "Somebody give {real} a hint. Not a clue. A hint about life.",
       "{real}, the Don liked you. That's not a compliment. He liked his parrot too.",
+      "{real}: dressed like a millionaire, investigating like a lamp.",
+      "{real} is the reason the doors are locked.",
+      "{real}: technically present.",
+      "{real}, the killer would like to thank you for your contributions.",
     ],
     gag: [
       "Quick note about {real}: no. [short pause] That's the note.",
       "Back to {real} for a moment. Still no.",
       "We promised we'd stop talking about {real}. We lied. This is a murder party.",
-      "{real}. Again. At this point it's personal, and {real} knows what they did.",
+      "{real}. Again. At this point it's personal, and {real} knows why.",
       "The management would like to apologize to {real}. [short pause] The management has been advised not to.",
       "And one more for {real}, because it's tradition now, and you can't fight tradition. Sit down, {real}.",
     ],
@@ -112,6 +145,10 @@ export const HECKLES: Record<Tone, Pools> = {
       "Reminder: the Don's will leaves everything to whoever finds his reading glasses. Nobody is looking for his reading glasses.",
       "Somebody in this room just lied. [short pause] Sorry. Somebody in this room just lied again.",
       "The fire marshal called. He'd like to know how many people are in here. We told him one fewer than before.",
+      "Market report: it's October 1929, the stock market is about to fall off a cliff, and somebody in here is still drinking the expensive gin. Bold.",
+      "A message from the Prohibition office: there is no alcohol at this party. Please keep pretending.",
+      "Housekeeping reminds guests that the guest room is a crime scene tonight. Please keep it that way. Only that way.",
+      "A note for the killer: you're doing great. Don't let it go to your head. We'll catch you, but mostly by accident.",
     ],
   },
 };
