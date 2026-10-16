@@ -16,53 +16,108 @@ import "../host/screen.css";
 import { MIN_ACCOMPLICE } from "../../convex/engine/build";
 
 // ---------- the host link: remembered on this laptop ----------
+//
+// Heston, Oct 16: "this velvetroom.wranglerportal.com/host link is suppoked to be the host back end everytime for
+// the game". So /host always opens the live game (the one guests sign up for; after a replay, its Game 2), never
+// just the last game this laptop opened. The laptop remembers each game's key once its full link has been opened
+// (a Game 2 shares its game's key). A full link to some other game (a test game) opens that game for this visit only.
 
-const HOST_LINK = "velvet-room:host-link";
+const HOST_KEYS = "velvet-room:host-keys";
+const OLD_LINK = "velvet-room:host-link";
 type Link = { slug: string; hostKey: string };
 
-function loadLink(): Link | null {
+/** A game and its Game 2, Game 3 share a host key, so keys are kept by the first game's slug. */
+const baseSlug = (slug: string) => slug.replace(/-g\d+$/, "");
+
+function loadKeys(): Record<string, string> {
   try {
-    const v = JSON.parse(localStorage.getItem(HOST_LINK) || "null");
-    return v && typeof v.slug === "string" && typeof v.hostKey === "string" && v.slug && v.hostKey ? v : null;
+    const keys = JSON.parse(localStorage.getItem(HOST_KEYS) || "{}") as Record<string, string>;
+    // The single link this laptop kept before Oct 16 joins the list.
+    const old = JSON.parse(localStorage.getItem(OLD_LINK) || "null") as Link | null;
+    if (old && typeof old.slug === "string" && typeof old.hostKey === "string" && !keys[baseSlug(old.slug)]) keys[baseSlug(old.slug)] = old.hostKey;
+    return keys && typeof keys === "object" ? keys : {};
   } catch {
-    return null;
+    return {};
   }
 }
-function storeLink(link: Link | null) {
+function saveKeys(keys: Record<string, string>) {
   try {
-    if (link) localStorage.setItem(HOST_LINK, JSON.stringify(link));
-    else localStorage.removeItem(HOST_LINK);
+    localStorage.setItem(HOST_KEYS, JSON.stringify(keys));
+    localStorage.removeItem(OLD_LINK);
   } catch {
     /* blocked storage: the full link still works for this visit */
   }
 }
-
-/** The full host link (?game=…&key=…) is opened once; after that /host on this laptop is enough. */
-function useHostLink(slug: string, hostKey: string) {
-  const [link, setLink] = useState<Link | null>(() => (slug && hostKey ? { slug, hostKey } : loadLink()));
-  useEffect(() => {
-    if (slug && hostKey) setLink({ slug, hostKey });
-  }, [slug, hostKey]);
-  useEffect(() => {
-    if (!link) return;
-    storeLink(link);
-    // Keep the key out of the address bar (the TV is in front of everyone).
-    if (window.location.search) window.history.replaceState(null, "", "/host");
-  }, [link]);
-  const forget = useCallback(() => {
-    storeLink(null);
-    setLink(null);
-  }, []);
-  return { link, setLink, forget };
-}
+const keyFor = (keys: Record<string, string>, slug: string) => keys[baseSlug(slug)] ?? null;
 
 export default function Host(props: { slug: string; hostKey: string }) {
-  const { link, setLink, forget } = useHostLink(props.slug, props.hostKey);
-  if (!link) return <HostSetup onLink={setLink} />;
+  const live = useQuery(api.registration.publicGame, {});
+  const [keys, setKeys] = useState<Record<string, string>>(loadKeys);
+  // A full link opened right now (or pasted, or the next game after a replay): this visit's game.
+  const [visit, setVisit] = useState<Link | null>(() => (props.slug && props.hostKey ? { slug: props.slug, hostKey: props.hostKey } : null));
+  const remember = useCallback((l: Link) => {
+    setKeys((k) => {
+      const next = { ...k, [baseSlug(l.slug)]: l.hostKey };
+      saveKeys(next);
+      return next;
+    });
+  }, []);
+  useEffect(() => {
+    if (props.slug && props.hostKey) {
+      remember({ slug: props.slug, hostKey: props.hostKey });
+      setVisit({ slug: props.slug, hostKey: props.hostKey });
+    }
+  }, [props.slug, props.hostKey, remember]);
+  useEffect(() => {
+    // Keep the key out of the address bar (the TV is in front of everyone).
+    if (window.location.search) window.history.replaceState(null, "", "/host");
+  }, [visit]);
+  const forget = useCallback((slug: string) => {
+    setVisit(null);
+    setKeys((k) => {
+      const next = { ...k };
+      delete next[baseSlug(slug)];
+      saveKeys(next);
+      return next;
+    });
+  }, []);
+
+  if (live === undefined && !visit) return <Opening />;
+  const liveKey = live ? keyFor(keys, live.slug) : null;
+  const link: Link | null = visit ?? (live && liveKey ? { slug: live.slug, hostKey: liveKey } : null);
+  if (!link) {
+    return (
+      <HostSetup
+        game={live ? { slug: live.slug, title: live.title } : null}
+        onLink={(l) => {
+          remember(l);
+          setVisit(l);
+        }}
+      />
+    );
+  }
   return (
-    <Boundary onForget={forget} key={`${link.slug}:${link.hostKey}`}>
-      <HostScreen slug={link.slug} hostKey={link.hostKey} onGame={(slug) => setLink({ slug, hostKey: link.hostKey })} />
+    <Boundary onForget={() => forget(link.slug)} key={`${link.slug}:${link.hostKey}`}>
+      <HostScreen
+        slug={link.slug}
+        hostKey={link.hostKey}
+        onGame={(slug) => {
+          remember({ slug, hostKey: link.hostKey });
+          setVisit({ slug, hostKey: link.hostKey });
+        }}
+      />
     </Boundary>
+  );
+}
+
+function Opening() {
+  return (
+    <div className="hs-page">
+      <div className="hs-setup">
+        <span className="hs-kick">The Velvet Room</span>
+        <p className="hs-sub">Opening the books…</p>
+      </div>
+    </div>
   );
 }
 
@@ -90,14 +145,13 @@ class Boundary extends Component<{ children: ReactNode; onForget: () => void }, 
   }
 }
 
-/** /host on a laptop that hasn't opened the full link yet. */
-function HostSetup({ onLink }: { onLink: (l: Link) => void }) {
-  const pub = useQuery(api.registration.publicGame, {});
+/** /host on a laptop that hasn't opened the live game's full host link yet. */
+function HostSetup({ game, onLink }: { game: { slug: string; title: string } | null; onLink: (l: Link) => void }) {
   const [text, setText] = useState("");
   const [err, setErr] = useState<string | null>(null);
   function go() {
     const t = text.trim();
-    let slug = pub?.slug ?? "";
+    let slug = game?.slug ?? "";
     let key = t;
     try {
       const u = new URL(t, window.location.origin);
@@ -114,9 +168,9 @@ function HostSetup({ onLink }: { onLink: (l: Link) => void }) {
   return (
     <div className="hs-page">
       <div className="hs-setup">
-        <span className="hs-kick">The Velvet Room · Host</span>
+        <span className="hs-kick">{game ? `${game.title} · Host` : "The Velvet Room · Host"}</span>
         <h1 className="hs-h1">This laptop isn't the host yet</h1>
-        <p className="hs-sub">Open your full host link once on this laptop, or paste it here. After that, {window.location.host}/host is all you need.</p>
+        <p className="hs-sub">Open your full host link for the game once on this laptop, or paste it here. After that, {window.location.host}/host is all you need.</p>
         <input className="hs-input" value={text} onChange={(e) => setText(e.target.value)} placeholder="Host link or key" aria-label="Host link or key" />
         {err && <p className="hs-err">{err}</p>}
         <button type="button" className="hs-btn" onClick={go} disabled={!text.trim()}>
@@ -236,7 +290,7 @@ function TitleScreen({ title, isTest, onPlay, onOptions }: { title: string; isTe
     <div className="hs-cover hs-title">
       <span className="hs-kick">New York City · October 31, 1929</span>
       <div className="hs-deco" aria-hidden="true" />
-      <h1 className="hs-logo">{title.replace(/\s*\(.*\)$/, "")}</h1>
+      <h1 className="hs-logo">{title.replace(/\s*\([^)]*\)/g, "")}</h1>
       {isTest && <span className="hs-test">Test game</span>}
       <nav className="hs-buttons">
         <button type="button" className="hs-btn big" disabled={busy} onClick={() => run(onPlay)} autoFocus>
