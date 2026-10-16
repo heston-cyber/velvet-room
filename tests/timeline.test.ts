@@ -7,6 +7,8 @@ import { cueFile } from "../convex/narration";
 import { cameosNow, cardNow, due, plan, sequence, VOICE_GAP_MS, type Data, type Secs } from "../src/tv/timeline";
 
 const T0 = 1_800_000_000_000;
+/** This game's stand-in drawings (convex/figures.ts standIns): its guests first, then the rest of the cast. */
+const STAND = ["heston", "emily", "sam", "miranda", "josh", "sophia", "reily", "madison", "chrissie"];
 const secs = () => 3; // every narrator line runs 3 s
 
 function data(over: { game?: Record<string, unknown>; counts?: Record<string, number>; voice?: Record<string, unknown>; evidence?: unknown[]; results?: unknown } = {}): Data {
@@ -25,6 +27,7 @@ function data(over: { game?: Record<string, unknown>; counts?: Record<string, nu
     evidence: over.evidence ?? [],
     results: over.results ?? null,
     reveal: REVEAL,
+    standIns: STAND,
     voice: { voice: "ivy", rollCall: null, body: null, rooms: {}, reveal: null, winners: null, ...over.voice },
   };
   return d as unknown as Data;
@@ -49,7 +52,7 @@ describe("TV timeline", () => {
   const HOW = T0 + 40_000;
   const ROLL = HOW + 10 * (600 + 3000 + 1200); // ten How to play cards, 3 s lines
   const item = (id: string, clipSecs: number | null) => ({
-    id, charName: id.toUpperCase(), realName: `Real ${id}`, photoUrl: null, figure: "flapper", who: "Who.", signature: "A hat",
+    id, charName: id.toUpperCase(), realName: `Real ${id}`, photoUrl: null, figure: "emily", who: "Who.", signature: "A hat",
     weapon: { key: "rope", name: "Rope" }, motive: "He owed you money.", roast: "A roast.", line: `Introducing ${id}. Weapon: the rope.`,
     marks: { signature: 0.3, weapon: 0.5, motive: 0.7, roast: 0.9 },
     clip: clipSecs === null ? null : { url: `u-${id}`, caption: `c-${id}`, seconds: clipSecs },
@@ -86,7 +89,7 @@ describe("TV timeline", () => {
     expect(p.part).toBe("how");
     expect(p.loop).toBe("rollcall");
     expect(p.rules!.steps.map((s) => s.cue)).toEqual(["howKiller", "howRoles", "howWeapons", "howTo4Waves", "howTo6Timer", "howJail", "howRelease", "howTo7", "howLockIn", "howWin"]);
-    expect(p.rules!.steps.map((s) => s.art)).toEqual(["killer", "flapper", "weapons", "map", "dapper", "bars", "bodyguard", "lady", "detective", "don"]);
+    expect(p.rules!.steps.map((s) => s.art)).toEqual(["killer", "heston", "weapons", "map", "emily", "bars", "sam", "miranda", "josh", "don"]);
     for (let i = 1; i < 10; i++) expect(p.rules!.steps[i].at).toBe(p.rules!.steps[i - 1].until);
     expect(p.rules!.end).toBe(ROLL);
     expect(p.events.filter((e) => e.id.startsWith("how:") && e.cue).every((e) => e.quiet)).toBe(true);
@@ -100,7 +103,7 @@ describe("TV timeline", () => {
     expect(steps.map((s) => s.item.id)).toEqual(["a", "b", "c"]);
     expect(steps[0].at).toBe(FIRST);
     expect(steps.map((s) => s.until - s.at)).toEqual(slots);
-    expect(steps.map((s) => s.voiceAt - s.at)).toEqual([900, 900, 900]);
+    expect(steps.map((s) => s.voiceAt - s.at)).toEqual([500, 500, 500]);
     expect(p.events.filter((e) => e.clip && e.id.startsWith("roll:"))).toHaveLength(2);
     expect(p.events.filter((e) => e.clip && e.id.startsWith("roll:")).every((e) => e.quiet)).toBe(true);
     expect(p.events.find((e) => e.cue === "rollCallClose")?.at).toBe(CLOSE);
@@ -159,7 +162,7 @@ describe("TV timeline", () => {
     expect(p.events.filter((e) => e.id.startsWith("heckle:vote")).length).toBe(2);
     expect(p.events.find((e) => e.cue === "voteLastCall")?.at).toBe(V + 75_000);
     // closed early (everyone voted) with a verdict: the open vote's leftovers drop, the tally and the verdict play
-    const closed = { ...vote, closedAt: V + 20_000, nextAt: V + 34_000, outcome: "jailed", target: { id: "p1", name: "Velma", figure: "lady" } };
+    const closed = { ...vote, closedAt: V + 20_000, nextAt: V + 34_000, outcome: "jailed", target: { id: "p1", name: "Emily", figure: "emily" } };
     const verdict = { url: "v", caption: "Velma is going to jail.", seconds: 2 };
     p = plan({ ...data({ game: g, voice: { heckles: hk, verdict } }), vote: closed } as unknown as Data, V + 21_000, secs);
     expect(p.events.some((e) => e.cue === "voteLastCall")).toBe(false);
@@ -235,7 +238,7 @@ describe("TV timeline", () => {
     const t = T0 + 1_200_000;
     let p = plan(data({ game: { status: "playing", round: 4, startedAt: T0, introEndsAt: T0 + INTRO_MS, roundStartedAt: t } }), t + 6000, secs);
     const line = cameosNow(p, t + 6000, "accuse", false);
-    expect(line.map((c) => c.char)).toEqual(["flapper", "dapper", "lady", "killer", "bodyguard", "sleuth", "detective"]);
+    expect(line.map((c) => c.char)).toEqual(["heston", "emily", "sam", "killer", "miranda", "josh", "sophia"]);
     expect(line.map((c) => c.slot)).toEqual([0, 1, 2, 3, 4, 5, 6]);
     p = plan(data({ game: { status: "reveal", round: 4, revealAt: t } }), t + REVEAL.line + 100, secs);
     expect(cameosNow(p, t + REVEAL.line + 100, "reveal0", false).map((c) => c.anim)).toEqual(["spot"]);
@@ -254,7 +257,7 @@ describe("TV timeline", () => {
           expect(talk[i].at, `${tone}: ${talk[i].id} starts while ${prev.id} is still talking`).toBeGreaterThanOrEqual(prev.at + prev.secs * 1000);
         }
       };
-      const hk = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => ({ id: `heckle:${i}`, figure: "lady", gag: false, clip: { url: `h${i}`, caption: `H${i}`, seconds: 9 } }));
+      const hk = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => ({ id: `heckle:${i}`, figure: "emily", gag: false, clip: { url: `h${i}`, caption: `H${i}`, seconds: 9 } }));
       const c = (s: string, n = 4) => ({ url: s, caption: s, seconds: n });
       // the intro, with a long body line
       clean(plan(data({ game: tg(showGame()), voice: { ...showVoice(), body: c("body", 5) } }), T0 + 500, longest));

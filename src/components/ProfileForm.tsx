@@ -5,7 +5,6 @@ import type { Id } from "../../convex/_generated/dataModel";
 import MemberCard, { Deco } from "./MemberCard";
 import { shrinkPhoto, uploadPhoto } from "../lib/photo";
 import { friendlyError } from "../lib/errors";
-import { ROLL_PROMPT } from "../../convex/narration";
 import { avatarSrc, faceUrl, figureUrl } from "../lib/figure";
 import { weaponUrl } from "../lib/weapon";
 
@@ -93,24 +92,11 @@ export default function ProfileForm(props: {
   const gallery = useQuery(api.registration.figures, mode === "new" ? { slug: game.slug } : { token: props.token });
   const rack = useQuery(api.registration.weapons, mode === "new" ? { slug: game.slug } : { token: props.token });
   const weaponName = rack?.find((w) => w.key === values.weapon)?.name ?? "";
-  // A cast game (the party's real guests): tapping your own face fills in your name.
+  // The party cast: tap your own face and that's who you are (the server fills in the name).
   const allFigures = gallery?.flatMap((g) => g.figures) ?? [];
-  const castNames = new Set(allFigures.map((f) => f.castName).filter(Boolean));
-  const castPick = allFigures.find((f) => f.key === values.figure && f.castName) ?? null;
-  const hasExtra = !!gallery?.some((g) => g.extra);
-  const [showExtra, setShowExtra] = useState(false);
-  const extraOpen = showExtra || (!!values.figure && !!gallery?.some((g) => g.extra && g.figures.some((f) => f.key === values.figure)));
-  function pickFigure(f: { key: string; name: string | null; castName: string | null }) {
-    setValues((v) => {
-      if (f.castName) return { ...v, figure: f.key, charName: f.castName, sayAs: "", realName: v.realName.trim() ? v.realName : f.name ?? "" };
-      // Off the cast list: a name left over from a cast face goes, so they type their own.
-      return { ...v, figure: f.key, charName: castNames.has(v.charName) ? "" : v.charName };
-    });
-    setBad((b) => {
-      const n = new Set(b);
-      n.delete("realName");
-      return n;
-    });
+  const castPick = allFigures.find((f) => f.key === values.figure) ?? null;
+  function pickFigure(f: { key: string; name: string; castName: string }) {
+    setValues((v) => ({ ...v, figure: f.key, charName: f.castName, realName: f.name, sayAs: "" }));
     setNeedFigure(false);
   }
   const topRef = useRef<HTMLDivElement>(null);
@@ -133,10 +119,8 @@ export default function ProfileForm(props: {
 
   const requiredFor = (s: StepId): TextKey[] => {
     switch (s) {
-      case "you":
-        return ["realName"];
       case "character":
-        return ["charName", "who", "signature"];
+        return ["who", "signature"];
       case "motive":
         return game.motiveMode === "players" ? ["motive", "secret"] : [];
       default:
@@ -282,69 +266,51 @@ export default function ProfileForm(props: {
         <>
           {progress}
           <h2>{mode === "new" ? "Who's at the door?" : "Edit your entry"}</h2>
-          <p className="lede">Your real name, so the host knows you RSVP'd.</p>
-          {field("realName", "Your name", {
-            ph: "e.g. Jordan Reyes",
-            help: "Only the host sees this, next to your character's name.",
-          })}
+          <p className="lede">Find your face and tap it. That's you on the TV tonight, by name.</p>
           <div className={`field${needFigure ? " bad" : ""}`}>
             <span className="lab" id="l-figure">
-              Pick your character drawing
-            </span>
-            <span className="help">
-              {hasExtra
-                ? "Find your face and tap it: that's you on the TV tonight, and your name fills in."
-                : "It's you on the TV tonight. Each drawing goes to one guest, so grab yours."}
+              Tonight's cast
             </span>
             <div className="figure-pick" role="radiogroup" aria-labelledby="l-figure" id="f-figure" tabIndex={-1}>
-              {gallery === undefined && <span className="help">Loading the drawings…</span>}
-              {gallery?.filter((group) => !group.extra || extraOpen).map((group) => (
+              {gallery === undefined && <span className="help">Loading the cast…</span>}
+              {gallery?.map((group) => (
                 <div className="figure-set" key={group.label}>
                   <span className="small">{group.label}</span>
-                  <div className={`figure-grid${group.figures.some((f) => f.name) ? " named" : ""}`}>
+                  <div className="figure-grid named">
                     {group.figures.map((f) => {
                       const takenByOther = f.taken && values.figure !== f.key;
-                      const button = (
-                        <button
-                          type="button"
-                          key={f.key}
-                          role="radio"
-                          aria-checked={values.figure === f.key}
-                          aria-label={takenByOther ? `${f.name ? `${f.name}'s drawing, ` : ""}taken` : f.name ? `${f.name}'s drawing` : `Drawing ${f.key}`}
-                          disabled={takenByOther}
-                          className={`${values.figure === f.key ? "on" : ""} ${takenByOther ? "taken" : ""}`}
-                          onClick={() => pickFigure(f)}
-                        >
-                          <img src={faceUrl(f.key)} alt="" />
-                          {takenByOther && <span>Taken</span>}
-                        </button>
-                      );
-                      // A guest's look-alike carries their name underneath.
-                      return f.name ? (
+                      return (
                         <div className="figure-cell" key={f.key}>
-                          {button}
+                          <button
+                            type="button"
+                            role="radio"
+                            aria-checked={values.figure === f.key}
+                            aria-label={takenByOther ? `${f.name}, taken` : f.name}
+                            disabled={takenByOther}
+                            className={`${values.figure === f.key ? "on" : ""} ${takenByOther ? "taken" : ""}`}
+                            onClick={() => pickFigure(f)}
+                          >
+                            <img src={faceUrl(f.key)} alt="" />
+                            {takenByOther && <span>Taken</span>}
+                          </button>
                           <span className="figure-name">{f.name}</span>
                         </div>
-                      ) : (
-                        button
                       );
                     })}
                   </div>
                 </div>
               ))}
-              {hasExtra && !extraOpen && (
-                <button type="button" className="figure-more" onClick={() => setShowExtra(true)}>
-                  Not on the list? Pick another drawing
-                </button>
-              )}
             </div>
-            {values.figure && (
+            {castPick && (
               <div className="figure-chosen">
-                <img src={figureUrl(values.figure)} alt="Your drawing" />
-                <span className="help">That's you. Change it any time before sign-ups close.</span>
+                <img src={figureUrl(castPick.key)} alt="" />
+                <span className="help">
+                  <strong className="figure-chosen-name">{castPick.castName}</strong>
+                  That's you. Not you? Tap your own face.
+                </span>
               </div>
             )}
-            {needFigure && <span className="err">Pick a drawing to continue.</span>}
+            {needFigure && <span className="err">Tap your face to continue.</span>}
           </div>
           {nav("Next: your character")}
         </>
@@ -354,31 +320,11 @@ export default function ProfileForm(props: {
       body = (
         <>
           {progress}
-          {castPick ? (
-            <>
-              <h2>You're {castPick.castName}</h2>
-              <p className="lede">That's what the narrator calls you tonight. The rest is up to you: random and funny is welcome.</p>
-            </>
-          ) : (
-            <>
-              <h2>Who are you tonight?</h2>
-              <p className="lede">Anyone at all. Random and funny is welcome.</p>
-              {field("charName", "Character name", { ph: "e.g. Velma “Two-Bits” Kowalski" })}
-              {field("sayAs", "Say it like · optional", {
-                ph: "e.g. VEL-muh too-BITS koh-WAL-skee",
-                help: "Only if the name is tricky. It's how the narrator will pronounce it.",
-              })}
-            </>
-          )}
-          {field("who", "Who they are, in a line or two", {
+          <h2>{castPick ? `You're ${castPick.castName}` : "Who are you tonight?"}</h2>
+          <p className="lede">A little about your 1929 self. Random and funny is welcome.</p>
+          {field("who", "Who you are tonight, in a line or two", {
             area: true,
-            ph: "e.g. Cigarette girl who knows every secret in the joint and sells them by the pack.",
-          })}
-          {field("rumor", ROLL_PROMPT.label, {
-            area: true,
-            ph: ROLL_PROMPT.placeholder,
-            help: ROLL_PROMPT.help,
-            publicHelp: true,
+            ph: "e.g. Runs numbers for the Bowery boys and knows every secret in the joint.",
           })}
           {field("signature", "Signature item or habit", {
             ph: "e.g. A silver cigarette case she never opens",
@@ -434,8 +380,8 @@ export default function ProfileForm(props: {
                 V
               </div>
               <p>
-                The house will write your motive and your secret from your character. They arrive on your phone
-                when the game begins. The narrator reads your motive out at the roll call; your secret stays yours.
+                The house writes your motive and your secret. They arrive on your phone when the game begins, and
+                they're yours alone.
               </p>
             </div>
             <p className="help">You may lie about your secret. Only the killer may lie about the murder.</p>
@@ -446,8 +392,8 @@ export default function ProfileForm(props: {
             {progress}
             <h2>Everyone here has a reason</h2>
             <p className="lede">
-              The narrator reads your motive out at the roll call. Only you see your secret, and you may lie about it. Only the
-              killer may lie about the murder.
+              Only you see these, on your phone. You may lie about your secret. Only the killer may lie about the
+              murder.
             </p>
             {field("motive", "Why might you have wanted the Don dead?", {
               area: true,

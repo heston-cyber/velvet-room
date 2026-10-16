@@ -104,7 +104,7 @@ describe("play again: New game", () => {
     await finishNight(t, game._id);
     const { slug } = await t.mutation(api.replay.newGame, { slug: SLUG, hostKey });
     const { token } = await t.mutation(api.registration.register, {
-      slug, realName: "Ana Ruiz", charName: "Velma Kowalski", who: "Cigarette girl.", signature: "Silver case", weapon: "candlestick", killerOk: true, figure: "owner",
+      slug, realName: "Ana Ruiz", charName: "Velma Kowalski", who: "Cigarette girl.", signature: "Silver case", weapon: "candlestick", killerOk: true, figure: "madison",
     });
     const me = await t.query(api.registration.me, { token });
     expect(me!.game.slug).toBe(slug);

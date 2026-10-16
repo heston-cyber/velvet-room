@@ -680,11 +680,11 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
               ) : step.art === "weapons" ? (
                 <WeaponFan weapons={d.weapons} />
               ) : step.art === "bars" ? (
-                <Jailed figure={d.standIns ? dress(d, "bodyguard") : d.guests.find((x) => x.figure)?.figure ?? "bodyguard"} className="enter" />
+                <Jailed figure={dress(d, "guest3")} className="enter" />
               ) : step.art === "pair" ? (
                 // The accomplice: the masked killer, with someone at their shoulder.
                 <div className="tv-how-pair">
-                  <img className="enter behind" src={artUrl(dress(d, "slick"))} alt="" />
+                  <img className="enter behind" src={artUrl(dress(d, "guest6"))} alt="" />
                   <img className="enter" src={artUrl("killer")} alt="" />
                 </div>
               ) : (
@@ -823,12 +823,10 @@ function voteScene(d: Data, vt: Vote, now: number): Scene {
 
 type RollStep = NonNullable<Plan["roll"]>["steps"][number];
 
-/** One guest's turn: their drawing with their weapon at hip level, and what the narrator says, row by row as it's said. */
+/** One guest's turn (Heston, Oct 16): their drawing, their name, and "a.k.a." their nickname. Nothing else. */
 function RollCard({ step, index, count }: { step: RollStep; index: number; count: number }) {
   const it = step.item;
-  // Each row arrives when the narrator gets to it (a share of the line, from where the voice starts).
-  const lead = step.voiceAt - step.at;
-  const at = (share: number) => `${((lead + share * step.talk * 1000) / 1000).toFixed(2)}s`;
+  const name = it.cast ? it.cast.real : it.charName;
   return (
     <div className="tv-scene roll">
       <div className="tv-roll v2">
@@ -836,7 +834,6 @@ function RollCard({ step, index, count }: { step: RollStep; index: number; count
           {it.figure ? (
             <div className="tv-roll-fig enter">
               <img src={figureUrl(it.figure)} alt="" />
-              {it.weapon && <WeaponCard weapon={it.weapon} className="hip" style={{ animationDelay: at(it.marks.weapon) }} />}
             </div>
           ) : (
             <div className="tv-frame fade">{it.photoUrl ? <img src={it.photoUrl} alt="" /> : <span>{initials(it.charName)}</span>}</div>
@@ -846,38 +843,13 @@ function RollCard({ step, index, count }: { step: RollStep; index: number; count
           <span className="tv-kick fade">
             Roll call · {index + 1} of {count}
           </span>
-          <h2 className="tv-h2 fade" style={{ animationDelay: ".25s" }}>{it.charName}</h2>
-          {!it.cast && <span className="tv-played fade" style={{ animationDelay: ".45s" }}>Played by {it.realName}</span>}
-          <dl className="tv-facts">
-            {it.signature && (
-              <div className="fade" style={{ animationDelay: at(it.marks.signature) }}>
-                <dt>Signature</dt>
-                <dd>{it.signature}</dd>
-              </div>
-            )}
-            {it.weapon && (
-              <div className="fade" style={{ animationDelay: at(it.marks.weapon) }}>
-                <dt>Weapon</dt>
-                <dd>{it.weapon.name}</dd>
-              </div>
-            )}
-            {it.motive && (
-              <div className="fade" style={{ animationDelay: at(it.marks.motive) }}>
-                <dt>Motive</dt>
-                <dd>{it.motive}</dd>
-              </div>
-            )}
-          </dl>
-          {(it.rumor || it.roast) && (
-            <p className="tv-roast fade" style={{ animationDelay: at(it.marks.roast) }}>
-              {it.rumor && (
-                <span className="word">
-                  {it.rumorLead} {it.rumor}
-                </span>
-              )}
-              {it.roast}
-            </p>
+          <h2 className="tv-h2 fade" style={{ animationDelay: ".25s" }}>{name}</h2>
+          {it.cast?.nickname && (
+            <span className="tv-aka fade" style={{ animationDelay: ".6s" }}>
+              a.k.a. “{it.cast.nickname}”
+            </span>
           )}
+          {!it.cast && <span className="tv-played fade" style={{ animationDelay: ".45s" }}>Played by {it.realName}</span>}
         </div>
       </div>
     </div>

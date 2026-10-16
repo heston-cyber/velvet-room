@@ -2,14 +2,17 @@ import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
+import { CAST, castName } from "../convex/figures";
 
 const modules = import.meta.glob("../convex/**/*.ts");
 const FUTURE = Date.now() + 7 * 864e5;
 
+// Every guest is one of the party cast: their face brings their name.
+const nameOf = (key: string) => castName(CAST.find((c) => c.key === key)!);
 const guests = [
-  { realName: "Ana Ruiz", charName: "Velma “Two-Bits” Kowalski", who: "Cigarette girl who sells secrets.", signature: "Silver cigarette case", weapon: "candlestick", killerOk: true, figure: "flapper" },
-  { realName: "Ben Cho", charName: "Father Malone", who: "A priest who drinks too much.", signature: "Rosary he twirls", weapon: "gnome", killerOk: false, figure: "dapper" },
-  { realName: "Cal Ortiz", charName: "Lucky Lou", who: "Bookie with bad luck.", signature: "Lucky green dice", weapon: "rope", killerOk: true, figure: "gambler" },
+  { realName: "Emily", charName: nameOf("emily"), who: "Cigarette girl who sells secrets.", signature: "Silver cigarette case", weapon: "candlestick", killerOk: true, figure: "emily" },
+  { realName: "Josh", charName: nameOf("josh"), who: "A priest who drinks too much.", signature: "Rosary he twirls", weapon: "gnome", killerOk: false, figure: "josh" },
+  { realName: "Sam", charName: nameOf("sam"), who: "Bookie with bad luck.", signature: "Lucky green dice", weapon: "rope", killerOk: true, figure: "sam" },
 ];
 
 async function setup(motiveMode: "game" | "players" = "game", closesAt = FUTURE) {
@@ -65,12 +68,10 @@ describe("registration", () => {
     await expect(t.query(api.host.roster, { slug: "test-unit", hostKey: "guess" })).rejects.toThrow();
   });
 
-  test("character names must be unique, ignoring case and punctuation", async () => {
+  test("each cast member signs up once", async () => {
     const { t } = await setup();
     await t.mutation(api.registration.register, guests[2]);
-    await expect(
-      t.mutation(api.registration.register, { ...guests[0], charName: "lucky lou!" }),
-    ).rejects.toThrow(/already took/);
+    await expect(t.mutation(api.registration.register, { ...guests[0], figure: "sam" })).rejects.toThrow(/Someone just took that drawing/);
   });
 
   test("players-write mode requires a motive and a secret", async () => {

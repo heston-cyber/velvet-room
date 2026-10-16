@@ -36,31 +36,28 @@ function make(purpose: string, caption: string, n: Narrator, spoken = caption, n
   return { purpose, caption, text: customRecordingText(said, n.unstable), voice: voiceOf(n) };
 }
 
-/** What the roll call says about one guest (v2): the caption as written, the recording the guest's way. */
+/** What the roll call says about one guest: their name (and, for the party cast, their nickname). */
 export type RollLine = {
   id: string;
   charName: string;
   sayAs?: string;
   realName: string;
-  signature: string;
-  weapon: string;
-  motive: string;
-  motiveOwn: boolean;
-  rumor: string;
-  rumorLead: string;
-  roast: string;
+  /** The party cast: introduced by their own name and nickname, no "played by". */
+  cast?: { real: string; nickname?: string; sayAs?: string } | null;
   /** The game's seed (its slug): picks this game's versions of the wording. */
   seed?: string;
-  /** A party cast member: introduced by their own name, no "played by". */
-  cast?: boolean;
 };
 
-/** One guest's roll-call intro: name, played by, signature, weapon, motive, word on the street, roast. */
-export function rollWanted(tone: Tone, n: Narrator, p: RollLine): Wanted & { marks: ReturnType<typeof rollNarration>["marks"] } {
-  const base = { real: p.realName, signature: p.signature, weapon: p.weapon, motive: p.motive, motiveOwn: p.motiveOwn, rumor: p.rumor, rumorLead: p.rumorLead, roast: p.roast, seed: p.seed, cast: p.cast };
-  const shown = rollNarration(tone, { ...base, name: p.charName });
-  const said = rollNarration(tone, { ...base, name: spokenName(p) });
-  return { ...make(`roll:${p.id}`, shown.text, n, said.text, { tone, seed: p.seed }), marks: shown.marks };
+/** One guest's roll-call line (Heston, Oct 16: name, a.k.a. nickname, nothing else). */
+export function rollWanted(tone: Tone, n: Narrator, p: RollLine): Wanted {
+  if (p.cast) {
+    const shown = rollNarration(tone, { name: p.charName, real: p.cast.real, nickname: p.cast.nickname, seed: p.seed, cast: true });
+    const said = rollNarration(tone, { name: p.charName, real: p.cast.sayAs?.trim() || p.cast.real, nickname: p.cast.nickname, seed: p.seed, cast: true });
+    return make(`roll:${p.id}`, shown.text, n, said.text, { tone, seed: p.seed });
+  }
+  const shown = rollNarration(tone, { name: p.charName, real: p.realName, seed: p.seed });
+  const said = rollNarration(tone, { name: spokenName(p), real: p.realName, seed: p.seed });
+  return make(`roll:${p.id}`, shown.text, n, said.text, { tone, seed: p.seed });
 }
 
 type StartInfo = {

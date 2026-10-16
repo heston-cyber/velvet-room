@@ -77,7 +77,7 @@ function Levels({ game, save }: { game: Game; save: (p: SettingsPatch) => Promis
 
 const STATUS: Record<string, string> = { ready: "Voice ready", pending: "Recording…", failed: "Couldn't record", none: "Not recorded", later: "Records at Start" };
 
-/** The roll call (v2): after How to play, the narrator introduces every guest and ends with a roast. Edit any roast here. */
+/** The roll call: after How to play, the narrator introduces every guest by name and nickname. */
 export function RollCallSection({ slug, hostKey, locked, onError }: { slug: string; hostKey: string; locked: boolean; onError: (m: string | null) => void }) {
   const sheet = useQuery(api.voice.rollCallSheet, { slug, hostKey });
   if (!sheet) return <Sec title="Roll call">{<span className="help">Loading…</span>}</Sec>;
@@ -85,8 +85,8 @@ export function RollCallSection({ slug, hostKey, locked, onError }: { slug: stri
   return (
     <Sec title={<>Roll call · {c.total} guests</>}>
       <span className="help">
-        After How to play, the narrator introduces every guest on the TV: their drawing, name, signature item, weapon and motive, then their word on the street
-        and a roast (by their real name). Each guest gets a different roast. Rewrite any of them here before the game starts; the voices record when it starts.
+        After How to play, the narrator introduces every guest on the TV: their drawing, their name and their nickname, a few seconds each. The voices
+        record when the game starts.
       </span>
       {sheet.started && (
         <span className={`hx-status ${c.failed ? "warn" : ""}`}>
@@ -109,47 +109,15 @@ export function RollCallSection({ slug, hostKey, locked, onError }: { slug: stri
 
 type Row = FunctionReturnType<typeof api.voice.rollCallSheet>["guests"][number];
 
-function RollRow({ g, slug, hostKey, locked, onError }: { g: Row; slug: string; hostKey: string; locked: boolean; onError: (m: string | null) => void }) {
-  const setLine = useMutation(api.voice.setRollLine);
-  const [text, setText] = useState(g.roast);
-  const [focused, setFocused] = useState(false);
-  useEffect(() => {
-    if (!focused) setText(g.roast);
-  }, [g.roast, focused]);
-  async function commit() {
-    setFocused(false);
-    if (text.trim() === g.roast) return;
-    onError(null);
-    try {
-      await setLine({ slug, hostKey, playerId: g.id as Id<"players">, line: text });
-    } catch (e) {
-      onError(friendlyError(e));
-      setText(g.roast);
-    }
-  }
+function RollRow({ g }: { g: Row; slug: string; hostKey: string; locked: boolean; onError: (m: string | null) => void }) {
   return (
     <li>
       <div className="card-ph sm">{g.photoUrl ? <img src={g.photoUrl} alt="" /> : initials(g.charName)}</div>
       <div className="main">
         <div className="nm">
-          {g.charName} <span className="sub">· {g.realName}{g.weapon ? ` · ${g.weapon}` : ""}</span>
+          {g.charName} <span className="sub">{g.weapon ? `· ${g.weapon}` : ""}</span>
         </div>
-        {g.rumor && (
-          <span className="help">
-            {g.rumorLead} {g.rumor}
-          </span>
-        )}
-        <textarea
-          className="inp area"
-          rows={2}
-          maxLength={200}
-          value={text}
-          disabled={locked}
-          aria-label={`Roast for ${g.charName}`}
-          onFocus={() => setFocused(true)}
-          onChange={(e) => setText(e.target.value)}
-          onBlur={commit}
-        />
+        <span className="help">“{g.line}”</span>
         <div className="meta">
           <span className={`st ${g.voice}`} title={g.error || undefined}>
             {STATUS[g.voice] ?? g.voice}
@@ -157,11 +125,6 @@ function RollRow({ g, slug, hostKey, locked, onError }: { g: Row; slug: string; 
           {g.clipUrl && (
             <button type="button" className="linkish" onClick={() => hear(g.clipUrl!)}>
               Play
-            </button>
-          )}
-          {g.edited && !locked && (
-            <button type="button" className="linkish" onClick={() => setLine({ slug, hostKey, playerId: g.id as Id<"players">, line: "" }).catch((e) => onError(friendlyError(e)))}>
-              Back to the drawn roast
             </button>
           )}
         </div>

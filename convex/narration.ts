@@ -809,13 +809,7 @@ export function customText(
 
 // ---------- roll call ----------
 
-/** The question guests answer at sign-up. The narrator reads the answer at the roll call. */
-export const ROLL_PROMPT = {
-  label: "Roll call: what's the word on the street about you?",
-  placeholder: "e.g. Once cheated a priest at cards, and won.",
-  help: "At the roll call, the narrator reads this out right before your roast. Keep it short and funny. Everyone will hear it.",
-};
-
+/** Older games: a made-up character, played by a guest. */
 const ROLL_INTROS: Record<Tone, string[]> = {
   classic: ["Introducing {char}, played by {real}.", "Next, {char}. Better known as {real}.", "Say hello to {char}, played by {real}."],
   adult: [
@@ -828,56 +822,43 @@ const ROLL_INTROS: Record<Tone, string[]> = {
   ],
 };
 
-/** A cast member is who they are (Heston, Oct 15: the party cast goes by their own names), so no "played by". */
+/**
+ * The party cast (Heston, Oct 16: "the roll call is way to long. We should simplify to only the characters name, their
+ * nickname 'aka' and the real life name of the person playing that character"): each guest is introduced by their own
+ * name and their nickname, nothing else. {real} is "Josh Lee", {aka} is ", a.k.a. Two-Tone" (empty until the
+ * nickname is in).
+ */
 const CAST_INTROS: Record<Tone, string[]> = {
-  classic: ["Introducing {char}.", "Next, {char}.", "Say hello to {char}."],
+  classic: ["Introducing {real}{aka}.", "Next, {real}{aka}.", "Say hello to {real}{aka}."],
   adult: [
-    "Introducing {char}, God help us.",
-    "Next up, {char}.",
-    "Look who crawled in: {char}.",
-    "Exhibit A: {char}.",
-    "From the files of the New York Police Department: {char}.",
-    "Please welcome {char}, who was not technically invited.",
+    "{real}{aka}. God help us.",
+    "Next up: {real}{aka}.",
+    "Look who crawled in: {real}{aka}.",
+    "Exhibit A: {real}{aka}.",
+    "From the files of the New York Police Department: {real}{aka}.",
+    "Please welcome {real}{aka}, who was not technically invited.",
   ],
 };
 
-/** "Introducing Velma, played by Jordan." Varied per guest (and, given a game's seed, per game) so it doesn't drone. */
-export function rollIntro(tone: Tone, char: string, real: string, seed = "", cast = false): string {
-  const list = (cast ? CAST_INTROS : ROLL_INTROS)[tone];
+/** "Introducing Josh Lee, a.k.a. Two-Tone." Varied per guest (and, given a game's seed, per game) so it doesn't drone. */
+export function rollIntro(tone: Tone, char: string, real: string, seed = "", cast = false, nickname = ""): string {
   const real1 = real.trim() || "a mystery guest";
   // Picked by the real name, so the caption and the recording (which may spell the name the guest's way) match.
-  return list[hashOf(`${seed}${real1}`) % list.length].replace("{char}", char).replace("{real}", real1);
+  const h = hashOf(`${seed}${real1}`);
+  if (cast) {
+    const list = CAST_INTROS[tone];
+    return list[h % list.length].replace("{real}", real1).replace("{aka}", nickname.trim() ? `, a.k.a. ${nickname.trim()}` : "");
+  }
+  const list = ROLL_INTROS[tone];
+  return list[h % list.length].replace("{char}", char).replace("{real}", real1);
 }
 
-const endStop = (s: string) => (/[.!?…"'”]$/.test(s) ? s : `${s}.`);
+/** What the roll call says about one guest: who they are, and (cast) their nickname. */
+export type RollParts = { name: string; real: string; nickname?: string; seed?: string; cast?: boolean };
 
-/** What the roll call (v2) says about one guest. The motive is theirs (first person) or the house's (second person). */
-export type RollParts = { name: string; real: string; signature: string; weapon: string; motive: string; motiveOwn: boolean; rumor: string; rumorLead?: string; roast: string; seed?: string; cast?: boolean };
-
-/**
- * The v2 roll-call line: "Introducing Velma, played by Ana. Signature: … Weapon: the candlestick. Velma, your motive: …
- * Overheard at the bar: … [roast]". The motive goes with the character's name (Heston, Oct 15), and the guest's
- * "word on the street" leads into the roast, each guest with a different lead-in (convex/roasts.ts). Also where each part starts, as a share of the line, so the TV card
- * can bring its rows in with the voice.
- */
+/** One guest's roll-call line: just the introduction (about 3 to 4 seconds). */
 export function rollNarration(tone: Tone, p: RollParts) {
-  let text = rollIntro(tone, p.name, p.real, p.seed, p.cast);
-  const add = (part: string) => {
-    if (!part) return text.length;
-    const at = text.length + 1;
-    text += ` ${part}`;
-    return at;
-  };
-  const sig = add(p.signature.trim() ? `Signature: ${endStop(p.signature.trim())}` : "");
-  const weapon = add(p.weapon ? `Weapon: the ${p.weapon.toLowerCase()}.` : "");
-  const m = p.motive.trim();
-  const motive = add(m ? (p.motiveOwn ? `${p.name}'s motive, in their own words: “${endStop(m)}”` : `${p.name}, your motive: ${endStop(m)}`) : "");
-  // No lead at all is allowed: the guest's line lands flat, as fact.
-  const lead = p.rumorLead === undefined ? "Word on the street:" : p.rumorLead.trim();
-  const word = p.rumor.trim() ? [lead, endStop(p.rumor.trim())].filter(Boolean).join(" ") : "";
-  const roast = add([word, p.roast.trim() ? endStop(p.roast.trim()) : ""].filter(Boolean).join(" "));
-  const share = (n: number) => Math.round((n / Math.max(1, text.length)) * 1000) / 1000;
-  return { text, marks: { signature: share(sig), weapon: share(weapon), motive: share(motive), roast: share(roast) } };
+  return { text: rollIntro(tone, p.name, p.real, p.seed, p.cast, p.nickname) };
 }
 
 const NOISES: Record<Tone, string[]> = {

@@ -54,7 +54,7 @@ describe("the show (v2): Start → intro → How to play → roll call → check
       expect(phone.briefing).toBeNull();
       expect(phone.game.rolesOut).toBe(false);
     }
-    // The TV has the roll call in show order: weapon, motive and roast for each guest.
+    // The TV has the roll call in show order: each guest's name and nickname, nothing else (Heston, Oct 16).
     const tv = await t.query(api.game.tv, { slug: SLUG, tvKey });
     expect(tv.game.show).toMatchObject({ howAt: s.howAt, rollAt: s.rollAt, phonesAt: null });
     const rc = tv.voice.rollCall!;
@@ -63,15 +63,10 @@ describe("the show (v2): Start → intro → How to play → roll call → check
     expect(rc.frozen).toBe(false);
     for (const it of rc.items) {
       expect(it.weapon?.key).toBeTruthy();
-      expect(it.motive.length).toBeGreaterThan(10);
-      expect(it.line).toContain(`Weapon: the ${it.weapon!.name.toLowerCase()}.`);
-      expect(it.line).toContain(it.roast);
-      expect(it.line).toContain(`${it.charName}, your motive: `);
-      expect(it.roast).toContain(it.realName.split(" ")[0]);
-      expect(it.marks.weapon).toBeGreaterThan(it.marks.signature);
-      expect(it.marks.roast).toBeGreaterThan(it.marks.motive);
+      expect(it.cast).toBeTruthy();
+      expect(it.line).toContain(it.cast!.real);
+      expect(it.line).not.toMatch(/Weapon|motive|Signature|played by/i);
     }
-    expect(new Set(rc.items.map((i) => i.roast)).size).toBe(players.length);
     expect(tv.weapons.length).toBe(players.length);
   });
 
@@ -189,23 +184,13 @@ describe("roasts and the roll-call line", () => {
       }
       expect(said.filter((l) => /rumou?r|word on|overheard|little bird|loose lips|dirt on/i.test(l)).length).toBeLessThan(said.length / 2);
     }
-    const said = rollNarration("classic", { name: "Velma", real: "Ana", signature: "", weapon: "Rope", motive: "", motiveOwn: false, rumor: "Owes every bookie in Cicero", rumorLead: "The dirt on Ana:", roast: "Ana keeps a little black book. It's mostly IOUs." });
-    expect(said.text.endsWith("The dirt on Ana: Owes every bookie in Cicero. Ana keeps a little black book. It's mostly IOUs.")).toBe(true);
-    const flat = rollNarration("classic", { name: "Velma", real: "Ana", signature: "", weapon: "Rope", motive: "", motiveOwn: false, rumor: "Owes every bookie in Cicero", rumorLead: "", roast: "Ana keeps a little black book." });
-    expect(flat.text.endsWith("Weapon: the rope. Owes every bookie in Cicero. Ana keeps a little black book.")).toBe(true);
   });
 
-  test("the line: the motive with the character's name, then the word on the street leading into the roast", () => {
-    const base = { name: "Velma", real: "Ana Ruiz", signature: "A silver case", weapon: "Lawn Gnome", rumor: "Once cheated a priest at cards, and won", roast: "Ana has a heart of gold. Stolen, but gold." };
-    const own = rollNarration("classic", { ...base, motive: "He owes me three months of tips", motiveOwn: true });
-    expect(own.text).toContain("Signature: A silver case.");
-    expect(own.text).toContain("Weapon: the lawn gnome.");
-    expect(own.text).toContain("Velma's motive, in their own words: “He owes me three months of tips.”");
-    expect(own.text.endsWith("Word on the street: Once cheated a priest at cards, and won. Ana has a heart of gold. Stolen, but gold.")).toBe(true);
-    const house = rollNarration("adult", { ...base, rumor: "", motive: "The Don owed you a small fortune.", motiveOwn: false });
-    expect(house.text).toContain("Velma, your motive: The Don owed you a small fortune.");
-    expect(house.text).not.toContain("Word on the street");
-    expect(house.marks.signature).toBeLessThan(house.marks.weapon);
-    expect(house.marks.motive).toBeLessThan(house.marks.roast);
+  test("the roll-call line: name and nickname (Heston, Oct 16), a few words", () => {
+    for (const tone of ["classic", "adult"] as const) {
+      const line = rollNarration(tone, { name: "Josh “Two-Tone” Lee", real: "Josh Lee", nickname: "Two-Tone", cast: true, seed: "x" }).text;
+      expect(line).toContain("Josh Lee, a.k.a. Two-Tone");
+      expect(line.split(" ").length).toBeLessThan(14);
+    }
   });
 });

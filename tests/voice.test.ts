@@ -53,67 +53,55 @@ async function setup(o: { guests?: number; start?: boolean; search?: "all" | "wa
   return { t, hostKey, players, tvKey };
 }
 
-describe("sign-up: roll-call question and Say it like", () => {
-  test("stored with the guest, and kept when an older page edits without them", async () => {
+describe("sign-up: older pages", () => {
+  test("a rumor or a Say it like from an older page is still stored; a cast face sets its own pronunciation", async () => {
     const t = convexTest(schema, modules);
     await t.mutation(internal.admin.createGame, { slug: SLUG, title: "T", isTest: true, makeActive: true, registrationClosesAt: FUTURE, deadlineLabel: "Sat" });
-    const base = { realName: "Ana Ruiz", charName: "Velma Kowalski", who: "Cigarette girl.", signature: "Silver case", weapon: "candlestick", killerOk: true, figure: "lady" };
+    const base = { realName: "Emily", charName: "Emily", who: "Cigarette girl.", signature: "Silver case", weapon: "candlestick", killerOk: true, figure: "emily" };
     const { token } = await t.mutation(api.registration.register, { ...base, rumor: "  Once cheated a priest at cards, and won. ", sayAs: "VEL-muh" });
     let me = await t.query(api.registration.me, { token });
-    expect(me).toMatchObject({ rumor: "Once cheated a priest at cards, and won.", sayAs: "VEL-muh" });
+    expect(me).toMatchObject({ rumor: "Once cheated a priest at cards, and won.", sayAs: "" });
     await t.mutation(api.registration.update, { token, ...base, who: "Cigarette girl, retired." });
     me = await t.query(api.registration.me, { token });
-    expect(me).toMatchObject({ rumor: "Once cheated a priest at cards, and won.", sayAs: "VEL-muh", who: "Cigarette girl, retired." });
+    expect(me).toMatchObject({ rumor: "Once cheated a priest at cards, and won.", who: "Cigarette girl, retired." });
     await expect(t.mutation(api.registration.update, { token, ...base, rumor: "x".repeat(141) })).rejects.toThrow(/140/);
   });
 });
 
 describe("roll call (v2)", () => {
-  test("every guest gets a different roast with their names and weapon; the host can rewrite and reset it before Start", async () => {
-    const { t, hostKey, players } = await setup({ guests: 6 });
-    let sheet = await t.query(api.voice.rollCallSheet, { slug: SLUG, hostKey });
+  test("before Start the host sees each guest's line: their name, and nothing else", async () => {
+    const { t, hostKey } = await setup({ guests: 6 });
+    const sheet = await t.query(api.voice.rollCallSheet, { slug: SLUG, hostKey });
     expect(sheet.started).toBe(false);
     expect(sheet.guests).toHaveLength(6);
-    expect(new Set(sheet.guests.map((g) => g.roast)).size).toBe(6);
     for (const g of sheet.guests) {
-      expect(g.roast).toContain(g.realName.split(" ")[0]); // roasts use the real name
-      expect(g.roast).not.toContain(g.charName);
-      expect(g.roast).not.toMatch(/[{}]/);
+      expect(g.line).toContain(g.realName.split(" ")[0]);
+      expect(g.line).not.toMatch(/Signature|Weapon|motive|[{}]/);
       expect(g.voice).toBe("later");
       expect(g.weapon).toBeTruthy();
     }
-    await t.mutation(api.voice.setRollLine, { slug: SLUG, hostKey, playerId: players[1]._id, line: "The only man in Chicago afraid of pigeons" });
-    sheet = await t.query(api.voice.rollCallSheet, { slug: SLUG, hostKey });
-    expect(sheet.guests.find((g) => g.id === players[1]._id)).toMatchObject({ roast: "The only man in Chicago afraid of pigeons", edited: true });
-    await t.mutation(api.voice.setRollLine, { slug: SLUG, hostKey, playerId: players[1]._id, line: "  " });
-    sheet = await t.query(api.voice.rollCallSheet, { slug: SLUG, hostKey });
-    expect(sheet.guests.find((g) => g.id === players[1]._id)!.edited).toBe(false);
-    await expect(t.mutation(api.voice.setRollLine, { slug: SLUG, hostKey: "wrong", playerId: players[1]._id, line: "x" })).rejects.toThrow();
   });
 
-  test("recorded at Start in the chosen voice: name, signature, weapon, motive and roast, the name said their way", async () => {
+  test("recorded at Start in the chosen voice: one short line per guest", async () => {
     const said = fakeElevenLabs();
     process.env.ELEVENLABS_API_KEY = "test-key";
     vi.useFakeTimers();
-    const { t, hostKey, players } = await setup({ guests: 4 });
+    const { t, hostKey } = await setup({ guests: 4 });
     await t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, narrator: { host: "duke", unstable: false } });
-    await t.run((ctx) => ctx.db.patch(players[0]._id, { sayAs: "DOH-lor-ez" }));
     await t.mutation(api.game.openDoors, { slug: SLUG, hostKey });
     await t.mutation(api.game.startGame, { slug: SLUG, hostKey });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
-    const roll = said.filter((s) => s.text.includes("Weapon: the"));
-    expect(roll).toHaveLength(4);
-    expect(roll.every((s) => /your motive: /.test(s.text) && /Signature: /.test(s.text))).toBe(true);
-    expect(roll.some((s) => s.text.includes("DOH-lor-ez") && !s.text.includes(players[0].charName))).toBe(true);
-    expect(new Set(said.map((s) => s.voice))).toEqual(new Set(["QzTKubutNn9TjrB7Xb2Q"])); // Duke
     const sheet = await t.query(api.voice.rollCallSheet, { slug: SLUG, hostKey });
     expect(sheet.started).toBe(true);
     expect(sheet.counts).toMatchObject({ total: 4, ready: 4, failed: 0 });
+    const roll = said.filter((s) => sheet.guests.some((g) => s.text.includes(g.line)));
+    expect(roll).toHaveLength(4);
+    expect(roll.every((s) => s.text.length < 120)).toBe(true);
+    expect(new Set(said.map((s) => s.voice))).toEqual(new Set(["QzTKubutNn9TjrB7Xb2Q"])); // Duke
     const gameId = (await t.run(async (ctx) => (await ctx.db.query("games").first())!._id)) as Id<"games">;
     const before = said.length;
     await t.action(internal.voice.record, { gameId, scope: "roll" });
     expect(said.length).toBe(before); // nothing paid for twice
-    await expect(t.mutation(api.voice.setRollLine, { slug: SLUG, hostKey, playerId: players[1]._id, line: "x" })).rejects.toThrow(/locked/);
   });
 
   test("no key on the server: the roll call's voices are marked failed, the game carries on", async () => {

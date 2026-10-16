@@ -11,7 +11,7 @@ import {
   registrationIsOpen,
   required,
 } from "./lib";
-import { castMember, castName, figureSets, isCastFigure, isFigure, takenFigures } from "./figures";
+import { castMember, castName, castRealName, figureSets, isFigure, takenFigures } from "./figures";
 import { WEAPONS, isWeapon, takenWeapons, weaponName } from "./weapons";
 import { normalizeCode } from "./join";
 import { dealLetter } from "./game";
@@ -51,10 +51,10 @@ type ProfileInput = {
   figure?: string;
 };
 
-/** In a cast game, a cast member's drawing comes with their name (and how to say it): whatever the page sent. */
-function castProfile<T extends ProfileInput>(game: Doc<"games">, input: T, figure: string | undefined): T {
-  const m = isCastFigure(figure, !!game.lookalikes) ? castMember(figure) : null;
-  return m ? { ...input, charName: castName(m), sayAs: m.sayAs ?? "" } : input;
+/** A cast member's drawing comes with their name (and how to say it), whatever the page sent. */
+function castProfile<T extends ProfileInput>(input: T, figure: string | undefined): T {
+  const m = castMember(figure);
+  return m ? { ...input, charName: castName(m), realName: castRealName(m), sayAs: m.sayAs ?? "" } : input;
 }
 
 function validateProfile(game: Doc<"games">, input: ProfileInput) {
@@ -96,7 +96,7 @@ async function assertNameFree(
 /** The drawing a guest picked: one of the cast, and nobody else's in this game. */
 async function checkFigure(ctx: MutationCtx, game: Doc<"games">, figure: string | undefined, self?: Id<"players">) {
   if (!figure) throw new ConvexError("Pick your character drawing.");
-  if (!isFigure(figure, !!game.lookalikes)) throw new ConvexError("That drawing isn't one of tonight's characters. Pick another.");
+  if (!isFigure(figure)) throw new ConvexError("That drawing isn't one of tonight's characters. Pick another.");
   if ((await takenFigures(ctx, game._id, self)).has(figure)) throw new ConvexError("Someone just took that drawing. Pick another.");
   return figure;
 }
@@ -139,12 +139,11 @@ export const figures = query({
     const game = me ? await ctx.db.get(me.gameId) : await gameBySlugOrActive(ctx, slug);
     if (!game) return null;
     const taken = await takenFigures(ctx, game._id, me?._id);
-    return figureSets(!!game.lookalikes).map((set) => ({
+    return figureSets().map((set) => ({
       label: set.label,
-      extra: set.extra,
       figures: set.keys.map((key) => {
-        const m = set.guests ? castMember(key) : null;
-        return { key, taken: taken.has(key), name: m?.name ?? null, castName: m ? castName(m) : null };
+        const m = castMember(key)!;
+        return { key, taken: taken.has(key), name: m.name, castName: castName(m) };
       }),
     }));
   },
@@ -190,7 +189,7 @@ export const register = mutation({
     const walkIn = walkInOk(game, args.roomCode);
     if (!walkIn && !registrationIsOpen(game, now)) throw new ConvexError("Registration is closed.");
 
-    const p = validateProfile(game, castProfile(game, args, args.figure));
+    const p = validateProfile(game, castProfile(args, args.figure));
     // The drawing first: in a cast game a taken face is also a taken name, and the drawing is what they tapped.
     const figure = await checkFigure(ctx, game, args.figure);
     await assertNameFree(ctx, game._id, p.charName);
@@ -288,7 +287,7 @@ export const update = mutation({
       throw new ConvexError("Registration is closed, so changes are locked.");
     }
 
-    const p = validateProfile(game, castProfile(game, args, args.figure ?? player.figure));
+    const p = validateProfile(game, castProfile(args, args.figure ?? player.figure));
     // A different drawing has to be free; the same one stays theirs. Checked before the name (see register).
     const figure = args.figure && args.figure !== player.figure ? await checkFigure(ctx, game, args.figure, player._id) : undefined;
     await assertNameFree(ctx, game._id, p.charName, player._id);
@@ -319,7 +318,7 @@ export const update = mutation({
       secret: p.secret || undefined,
       // Older pages don't send these: leave what's there.
       ...(args.rumor !== undefined ? { rumor: p.rumor || undefined } : {}),
-      ...(args.sayAs !== undefined || isCastFigure(args.figure ?? player.figure, !!game.lookalikes) ? { sayAs: p.sayAs || undefined } : {}),
+      ...(args.sayAs !== undefined || !!castMember(args.figure ?? player.figure) ? { sayAs: p.sayAs || undefined } : {}),
       ...(figure ? { figure } : {}),
       killerOk: p.killerOk,
       updatedAt: Date.now(),

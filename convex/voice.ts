@@ -12,7 +12,6 @@ import { caseFor } from "./caseFile";
 import { inOrder, rollGuests } from "./rollCall";
 import { heckleWanted } from "./heckles";
 
-const ROLL_LINE_MAX = 200;
 const CLAIM_MS = 90_000; // a pending recording older than this is treated as stuck
 
 const before = (g: Doc<"games">) => g.status === "registration" || g.status === "lobby";
@@ -198,10 +197,7 @@ export const rollCallSheet = query({
           figure: p.figure ?? null,
           checkedIn: p.checkedIn,
           weapon: g.weapon?.name ?? "",
-          rumor: g.rumor,
-          rumorLead: g.rumorLead,
-          roast: g.roast,
-          edited: g.roastEdited,
+          line: g.wanted.caption,
           voice: !started ? "later" : ok ? "ready" : row && row.text === w.text && row.voice === w.voice ? row.status : "none",
           error: row && !ok && row.status === "failed" ? row.error ?? "" : "",
           seconds: ok ? row!.seconds ?? 0 : 0,
@@ -215,21 +211,6 @@ export const rollCallSheet = query({
       guests: list,
       counts: { total: list.length, ready: list.filter((g) => g.voice === "ready").length, pending: list.filter((g) => g.voice === "pending").length, failed: list.filter((g) => g.voice === "failed").length },
     };
-  },
-});
-
-/** The host rewrites a guest's roast (empty goes back to the drawn one). */
-export const setRollLine = mutation({
-  args: { slug: v.string(), hostKey: v.string(), playerId: v.id("players"), line: v.string() },
-  handler: async (ctx, { slug, hostKey, playerId, line }) => {
-    const game = await requireHost(ctx, slug, hostKey);
-    if (!before(game)) throw new ConvexError("Roasts are locked once the game starts.");
-    const p = await ctx.db.get(playerId);
-    if (!p || p.gameId !== game._id) throw new ConvexError("Guest not found.");
-    const clean = line.replace(/\s+/g, " ").trim();
-    if (clean.length > ROLL_LINE_MAX) throw new ConvexError(`Keep it under ${ROLL_LINE_MAX} characters.`);
-    await ctx.db.patch(playerId, { rollLine: clean || undefined });
-    return { ok: true };
   },
 });
 

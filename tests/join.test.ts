@@ -159,21 +159,21 @@ describe("walk-ins (v2): new guests sign up at the door with the room code", () 
     slug: SLUG, roomCode: code, realName: "Walk In", charName: "Late Larry", who: "Showed up uninvited.", signature: "Wet umbrella", weapon, killerOk: true, figure,
   });
   async function freePicks(t: Awaited<ReturnType<typeof setup>>["t"]) {
-    const figs = (await t.query(api.registration.figures, { slug: SLUG }))!.flatMap((s) => s.figures).find((f) => !f.taken)!.key;
+    const face = (await t.query(api.registration.figures, { slug: SLUG }))!.flatMap((s) => s.figures).find((f) => !f.taken)!;
     const weapon = (await t.query(api.registration.weapons, { slug: SLUG }))!.find((w) => !w.taken)!.key;
-    return { figs, weapon };
+    return { figs: face.key, name: face.castName, weapon };
   }
 
   test("with tonight's code a walk-in signs up after the deadline, is checked in, and the TV announces them", async () => {
     const { t, code, tvKey } = await setup();
     // Sign-ups closed weeks ago; the room code still lets someone at the door in.
     await t.run(async (ctx) => ctx.db.patch((await ctx.db.query("games").first())!._id, { registrationClosesAt: Date.now() - 1000, registrationOpen: false }));
-    const { figs, weapon } = await freePicks(t);
+    const { figs, name, weapon } = await freePicks(t);
     const { token } = await t.mutation(api.registration.register, walkIn(code.toLowerCase(), figs, weapon));
     const me = await t.run(async (ctx) => (await ctx.db.query("players").withIndex("by_token", (q) => q.eq("token", token)).unique())!);
     expect(me).toMatchObject({ checkedIn: true, weaponIn: true });
     expect(me.claimedAt).toBeGreaterThan(0);
-    expect((await t.query(api.game.tv, { slug: SLUG, tvKey }))!.game.lastJoin?.name).toBe("Late Larry");
+    expect((await t.query(api.game.tv, { slug: SLUG, tvKey }))!.game.lastJoin?.name).toBe(name);
   });
 
   test("without the right code, or before the doors open, sign-ups stay closed", async () => {

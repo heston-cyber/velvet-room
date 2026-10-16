@@ -17,9 +17,9 @@ export const SHOW = {
   /** The Roll Call title card, then the narrator's opener. */
   rollCardMs: 4 * S,
   /** Each guest: the card flips, the narrator starts, a pause after. Never shorter than rollMin. */
-  rollLead: 0.9 * S,
-  rollTail: 1.6 * S,
-  rollMin: 8 * S,
+  rollLead: 0.5 * S,
+  rollTail: 0.7 * S,
+  rollMin: 3.5 * S,
   /** "Check your phone", then time to read the role before Round 1. */
   phonesHold: 12 * S,
 } as const;
@@ -46,14 +46,14 @@ export function howCues(g: { search: "all" | "waves"; pacing: { mode: "ready" | 
   return [
     ["howKiller", "killer"],
     ...(g.accomplice ? [["howAccomplice", "pair"] as [CueKey, HowArt]] : []),
-    ["howRoles", "flapper"],
+    ["howRoles", "guest1"],
     ["howWeapons", "weapons"],
     [g.search === "waves" ? "howTo4Waves" : "howTo4", "map"],
-    [g.pacing.mode === "timer" ? "howTo6Timer" : "howTo6", "dapper"],
+    [g.pacing.mode === "timer" ? "howTo6Timer" : "howTo6", "guest2"],
     ["howJail", "bars"],
-    ["howRelease", "bodyguard"],
-    [g.accomplice ? "howTo7Acc" : "howTo7", "lady"],
-    ["howLockIn", "detective"],
+    ["howRelease", "guest3"],
+    [g.accomplice ? "howTo7Acc" : "howTo7", "guest4"],
+    ["howLockIn", "guest5"],
     ["howWin", "don"],
   ];
 }
