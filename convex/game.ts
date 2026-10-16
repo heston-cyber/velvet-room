@@ -19,7 +19,7 @@ import { cueVariant, type CueKey } from "./narration";
 import { scheduleRecording } from "./voice";
 import { ensureRoomCode } from "./join";
 import { castMember, castName, fakeGuestPool, shortName, standIns, takenFigures } from "./figures";
-import { anyFreeWeapon, takenWeapons, weaponName } from "./weapons";
+import { anyFreeWeapon, takenWeapons, weaponKind, weaponName } from "./weapons";
 import { clipMatches, levelsOf, narratorOf, startWanted, voiceOf, type Wanted } from "./voiceLines";
 
 // ---------- shared helpers ----------
@@ -62,7 +62,7 @@ async function caseInput(ctx: QueryCtx, game: Doc<"games">): Promise<CaseInput> 
   const byId = new Map(players.map((p) => [p._id, p]));
   return {
     // The evidence names guests by first name (shortName): clues stay short enough to read on the TV.
-    suspects: players.map((p) => ({ id: p._id, name: shortName(p), signature: p.signature, who: p.who, killerOk: p.killerOk })),
+    suspects: players.map((p) => ({ id: p._id, name: shortName(p), signature: p.signature, who: p.who, killerOk: p.killerOk, sex: castMember(p.figure)?.sex })),
     exhibits: weapons
       .filter((w) => {
         const p = byId.get(w.playerId);
@@ -74,6 +74,7 @@ async function caseInput(ctx: QueryCtx, game: Doc<"games">): Promise<CaseInput> 
         name: w.name,
         description: w.description,
         ownerId: w.playerId,
+        kind: weaponKind(w.key),
       }))
       .sort((a, b) => a.letter.localeCompare(b.letter)),
     rooms: game.rooms.map((r) => ({ key: r.key, label: r.label })),

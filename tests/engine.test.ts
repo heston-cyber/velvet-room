@@ -267,4 +267,72 @@ describe("the engine", () => {
     expect(classic.bodyRoomKey).toBeTruthy();
     expect(classic.briefings.find((b) => b.role === "killer")!.lines[0]).toMatch(/You killed Don Ray Sanders/);
   });
+
+  // v3 evidence (Heston, Oct 16: "Too easy, to many markers all but eliminate all other candidates"; he chose "Fully
+  // solvable, fewer clues"). Measured as a table that finds every marker and shares every tip from the start.
+  test("v3: harder, with fewer and bigger clues: still open after Round 1, narrowed after Round 2, solved only in Round 3", () => {
+    const open = (input: CaseInput, cf: CaseFile, round: number) => {
+      const s = new Set(input.suspects.map((x) => x.id));
+      const e = new Set(input.exhibits.map((x) => x.id));
+      for (const el of [...cf.clues.filter((c) => c.round <= round).map((c) => c.elim), ...cf.tips.map((t) => t.elim)]) {
+        el.suspects.forEach((id) => s.delete(id));
+        el.exhibits.forEach((id) => e.delete(id));
+      }
+      return { s: s.size, e: e.size };
+    };
+    let games = 0, witness = 0, coroner = 0, clues = 0, wrong = 0, r1s = 0, r2s = 0;
+    for (const guests of [8, 10, 12]) {
+      for (let seed = 1; seed <= 100; seed++) {
+        const rng = seeded(seed * 131 + guests);
+        const input = { ...fakeCast({ rng, guests, rooms: ROOMS_6, markers: 15 }), search: "waves" as const };
+        const cf = buildCase(input, rng);
+        games++;
+        if (cf.clues.some((c) => c.kind === "witness")) witness++;
+        if (cf.clues.some((c) => c.kind === "coroner")) coroner++;
+        clues += cf.clues.filter((c) => !["flavor", "herring"].includes(c.kind)).length;
+        wrong += input.suspects.length - 1 + input.exhibits.length - 1 + input.rooms.length - 1;
+        const a = open(input, cf, 1);
+        const b = open(input, cf, 2);
+        r1s += a.s / guests;
+        r2s += b.s / guests;
+        expect(a.s).toBeGreaterThanOrEqual(Math.ceil(guests * 0.55));
+        expect(a.e).toBeGreaterThanOrEqual(Math.ceil(input.exhibits.length * 0.55));
+        expect(b.s).toBeGreaterThanOrEqual(3);
+        // only two or three different tips, each shared by several guests
+        const tips = new Set(cf.tips.map((t) => t.clueId));
+        expect(tips.size).toBeLessThanOrEqual(guests <= 8 ? 2 : 3);
+        // the big clues are on the TV in Rounds 2 and 3, never on a marker
+        for (const c of cf.clues.filter((c) => c.kind === "witness" || c.kind === "coroner")) {
+          expect(c.channel).toBe("tv");
+          expect(c.round).toBeGreaterThanOrEqual(2);
+        }
+      }
+    }
+    expect(witness / games).toBeGreaterThan(0.6); // whenever both sexes are in it
+    expect(coroner / games).toBeGreaterThan(0.6);
+    expect(clues / wrong).toBeLessThan(0.75); // the old evidence had about one clue per wrong answer
+    expect(r1s / games).toBeGreaterThan(0.65); // about three quarters of the suspects still open after Round 1
+    expect(r2s / games).toBeLessThan(0.5); // under half after Round 2
+  });
+
+  test("v3: the witness and the coroner name everything they clear, and never the answer", () => {
+    for (let seed = 1; seed <= 200; seed++) {
+      const rng = seeded(seed);
+      const input = fakeCast({ rng, guests: 10, rooms: ROOMS_5, markers: 12 });
+      input.tone = seed % 2 ? "adult" : "classic";
+      const cf = buildCase(input, rng);
+      const killer = input.suspects.find((s) => s.id === cf.solution.killerId)!;
+      const weapon = input.exhibits.find((e) => e.id === cf.solution.exhibitId)!;
+      for (const c of cf.clues.filter((c) => c.kind === "witness")) {
+        expect(c.elim.suspects.length).toBeGreaterThanOrEqual(2);
+        for (const id of c.elim.suspects) expect(input.suspects.find((s) => s.id === id)!.sex).not.toBe(killer.sex);
+        expect(c.text).toMatch(killer.sex === "m" ? /\bman\b/ : /\bwoman\b/);
+      }
+      for (const c of cf.clues.filter((c) => c.kind === "coroner")) {
+        expect(c.elim.exhibits).not.toContain(weapon.id);
+        expect(c.text).toMatch(/^The coroner's report/);
+      }
+    }
+  });
 });
+

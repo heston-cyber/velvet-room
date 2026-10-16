@@ -158,12 +158,20 @@ export function validateCase(input: CaseInput, cf: CaseFile): Validation {
   if (!(fin.exhibits.size === 1 && fin.exhibits.has(sol.exhibitId))) problems.push("Exhibits don't narrow to the weapon.");
   if (!(fin.rooms.size === 1 && fin.rooms.has(sol.roomKey))) problems.push("Rooms don't narrow to the murder room.");
 
-  // Not too easy: after Round 1 several answers are still open in every category.
-  const s1 = stages[0];
-  if (s1.suspects < Math.min(3, input.suspects.length)) problems.push("Too few suspects left after Round 1.");
-  if (s1.exhibits < Math.min(2, input.exhibits.length)) problems.push("Too few exhibits left after Round 1.");
-  if (s1.rooms < Math.min(2, input.rooms.length)) problems.push("Too few rooms left after Round 1.");
-  // Still unsolved going into Round 3.
+  // Not too easy (v3), even for a table that finds every marker and shares every tip from the start:
+  const tipped: PlacedClue[] = [...cf.clues, ...cf.tips.map((t, i): PlacedClue => ({ id: `tip${i}`, kind: "suspect", text: t.text, elim: t.elim, round: 1, channel: "tv" }))];
+  const p1 = remainingAfter(input, tipped, 1);
+  const p2 = remainingAfter(input, tipped, 2);
+  const N = input.suspects.length;
+  const W = input.exhibits.length;
+  // after Round 1, more than half of every list is still open (half, in games under 6);
+  if (p1.suspects.size < (N < 6 ? Math.max(2, Math.ceil(N / 2)) : Math.max(3, Math.ceil(N * 0.55)))) problems.push("Too few suspects left after Round 1.");
+  if (p1.exhibits.size < (W < 6 ? Math.max(Math.min(2, W), Math.ceil(W / 2)) : Math.max(2, Math.ceil(W * 0.55)))) problems.push("Too few exhibits left after Round 1.");
+  if (stages[0].suspects < Math.min(3, N)) problems.push("Too few suspects left after Round 1.");
+  if (p1.rooms.size < Math.min(2, input.rooms.length)) problems.push("Too few rooms left after Round 1.");
+  // after Round 2, it's narrowed but not solved: a few suspects, and more than one weapon or room.
+  if ((N >= 6 ? p2.suspects.size : stages[1].suspects) < (N >= 8 ? 3 : 2)) problems.push("Too few suspects left after Round 2.");
+  if (p2.exhibits.size * p2.rooms.size < 2) problems.push("Weapon and room settled before Round 3.");
   if (stages[1].combos < 2) problems.push("Solved before Round 3.");
 
   // Every marker carries exactly one clue, and only real markers are used.
@@ -182,19 +190,20 @@ export function validateCase(input: CaseInput, cf: CaseFile): Validation {
 
   // Tips: one for every guest, the killer too, so having a tip gives nobody away.
   // Every tip is a true clue the public evidence will prove later, so the killer's is harmless.
-  const tipped = new Set(cf.tips.map((t) => t.playerId));
-  const hasTipPool = cf.clues.some((c) => c.round > 1 && c.kind !== "twist" && c.kind !== "herring" && c.kind !== "flavor");
+  const tippedIds = new Set(cf.tips.map((t) => t.playerId));
+  const hasTipPool = cf.clues.some((c) => c.round > 1 && isSmall(c.kind));
   if (hasTipPool) {
-    for (const s of input.suspects) if (!tipped.has(s.id)) problems.push(`${s.name} has no tip.`);
+    for (const s of input.suspects) if (!tippedIds.has(s.id)) problems.push(`${s.name} has no tip.`);
   }
-  if (cf.tips.length !== tipped.size) problems.push("Someone got two tips.");
+  if (cf.tips.length !== tippedIds.size) problems.push("Someone got two tips.");
+  if (new Set(cf.tips.map((t) => t.clueId)).size > tipCount(N)) problems.push("Too many different tips.");
 
   // A herring must be cleared publicly no earlier than it appears.
   for (const c of cf.clues) {
     if (c.kind !== "herring" || !c.pointsAt) continue;
-    const clear = cf.clues.find((x) => x.elim.suspects.includes(c.pointsAt!));
-    if (!clear) problems.push("A herring points at someone who is never cleared.");
-    else if (clear.round < c.round) problems.push("A herring appears after its target was already cleared.");
+    const clears = cf.clues.filter((x) => x.elim.suspects.includes(c.pointsAt!));
+    if (!clears.length) problems.push("A herring points at someone who is never cleared.");
+    else if (Math.min(...clears.map((x) => x.round)) < c.round) problems.push("A herring appears after its target was already cleared.");
   }
 
   // Every guest has a briefing, and exactly one of them is the killer (and, with an accomplice, one the accomplice).
@@ -230,6 +239,25 @@ function writeMotives(input: CaseInput, rng: Rng, S: Script): Map<string, { moti
   return out;
 }
 
+/** The clue kinds a private tip can come from: the small ones (never the witness, the coroner or the twist). */
+const SMALL: ClueKind[] = ["suspect", "suspectPair", "suspectTrio", "exhibit", "exhibitPair", "room"];
+const isSmall = (k: ClueKind) => SMALL.includes(k);
+
+/** How many different tips a game deals: few, so pooling every tip doesn't solve it, and shared, so a liar can be caught. */
+export const tipCount = (guests: number) => (guests <= 8 ? 2 : 3);
+
+/**
+ * v3 evidence (Heston, Oct 16: "Too easy … we need to solve the game for not too hard to play, not too easy"; he chose
+ * "Fully solvable, fewer clues"). The public evidence still proves exactly one answer by the end of Round 3, but with
+ * fewer, bigger clues and more of them late:
+ * - a witness says whether the killer is a man or a woman (clears everyone of the other sex at once);
+ * - the coroner's report rules out a whole kind of weapon (heavy, sharp, a gun, a cord, no wound at all);
+ * - alibis clear the rest one, two or three at a time, including some the witness or coroner also clears, so the
+ *   alibis alone don't give the killer's sex or the weapon's kind away;
+ * - the twist still settles the room in Round 3.
+ * One big clue lands in Round 2, the other in Round 3. Markers carry a few alibis; the rest are dead ends and a red
+ * herring. Tips: only two or three different ones, each given to several guests.
+ */
 function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
   const S = scriptFor(input);
   const say = deckPicker(rng);
@@ -239,14 +267,54 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
   const otherRooms = input.rooms.filter((r) => r.key !== sol.roomKey);
   const body = input.rooms.find((r) => r.key === input.bodyRoomKey)!;
   const order = input.roomOrder ?? input.rooms.map((r) => r.key);
+  const killer = input.suspects.find((s) => s.id === sol.killerId)!;
+  const weapon = input.exhibits.find((e) => e.id === sol.exhibitId)!;
   // A clue on a marker can only be read once that marker's room is open.
   const roundOf = (m: { roomKey: string }) => openRound(m.roomKey, order, input.search);
 
-  // 1. Turn every wrong answer into clues, sometimes two to a clue.
+  // 1. The big clues.
+  const bigs: Draft[] = [];
+  // The witness: the killer is a man, or a woman. Needs every guest's drawing, and at least two innocents of each sex.
+  let needAlibi = innocents;
+  if (killer.sex && input.suspects.every((s) => s.sex)) {
+    const other = innocents.filter((s) => s.sex !== killer.sex);
+    // Not when it would leave the killer almost alone in their sex: that's the whole case in one clue.
+    if (other.length >= 2 && innocents.length - other.length >= 2) {
+      bigs.push({ kind: "witness", text: S.witness(say, killer.sex, other.map((s) => s.name)), elim: { ...NONE, suspects: other.map((s) => s.id) } });
+      // Some of the other sex get alibis too.
+      const camo = shuffle(rng, other).slice(0, Math.round(other.length * (0.3 + rng() * 0.2)));
+      needAlibi = innocents.filter((s) => s.sex === killer.sex || camo.includes(s));
+    }
+  }
+  // The coroner: picks the report that rules out closest to half the wrong weapons (at least two).
+  let needClear = wrongExhibits;
+  if (weapon.kind && input.exhibits.every((e) => e.kind)) {
+    const kinds = [...new Set(wrongExhibits.map((e) => e.kind!))];
+    const options = [
+      { kind: weapon.kind, positive: true, out: wrongExhibits.filter((e) => e.kind !== weapon.kind) },
+      ...kinds.filter((k) => k !== weapon.kind).map((k) => ({ kind: k, positive: false, out: wrongExhibits.filter((e) => e.kind === k) })),
+    ].filter((o) => o.out.length >= 2);
+    if (options.length) {
+      const half = wrongExhibits.length / 2;
+      const best = Math.min(...options.map((o) => Math.abs(o.out.length - half)));
+      const o = pick(rng, options.filter((x) => Math.abs(x.out.length - half) === best));
+      bigs.push({ kind: "coroner", text: S.coroner(say, o.kind, o.positive, o.out.map((e) => e.name.toLowerCase())), elim: { ...NONE, exhibits: o.out.map((e) => e.id) } });
+      const camo = shuffle(rng, o.out).slice(0, Math.round(o.out.length * (0.3 + rng() * 0.2)));
+      needClear = wrongExhibits.filter((e) => !o.out.includes(e) || camo.includes(e));
+    }
+  }
+
+  // 2. Alibis and lab results for the rest, one, two or (in bigger games) three to a clue.
   const suspectDrafts: Draft[] = [];
-  const sus = shuffle(rng, innocents);
+  const sus = shuffle(rng, needAlibi);
+  const trios = input.suspects.length >= 9;
   for (let i = 0; i < sus.length; ) {
-    if (i + 1 < sus.length && rng() < 0.35) {
+    const r = rng();
+    if (trios && i + 2 < sus.length && r < 0.3) {
+      const [a, b, c] = [sus[i], sus[i + 1], sus[i + 2]];
+      suspectDrafts.push({ kind: "suspectTrio", text: S.suspectTrioClear(say, a.name, b.name, c.name), elim: { ...NONE, suspects: [a.id, b.id, c.id] } });
+      i += 3;
+    } else if (i + 1 < sus.length && r < 0.7) {
       const [a, b] = [sus[i], sus[i + 1]];
       suspectDrafts.push({ kind: "suspectPair", text: S.suspectPairClear(say, a.name, b.name), elim: { ...NONE, suspects: [a.id, b.id] } });
       i += 2;
@@ -256,9 +324,9 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
     }
   }
   const exhibitDrafts: Draft[] = [];
-  const exs = shuffle(rng, wrongExhibits);
+  const exs = shuffle(rng, needClear);
   for (let i = 0; i < exs.length; ) {
-    if (i + 1 < exs.length && rng() < 0.35) {
+    if (i + 1 < exs.length && rng() < 0.55) {
       const [a, b] = [exs[i], exs[i + 1]];
       exhibitDrafts.push({ kind: "exhibitPair", text: S.exhibitPairClear(say, a.name.toLowerCase(), b.name.toLowerCase()), elim: { ...NONE, exhibits: [a.id, b.id] } });
       i += 2;
@@ -286,42 +354,56 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
     roomKey: r.key,
   }));
 
-  // 3. Spread across rounds: Round 3 holds the twist plus a suspect, Round 2 about a third.
-  const sQ = shuffle(rng, suspectDrafts);
-  const eQ = shuffle(rng, exhibitDrafts);
-  const rQ = shuffle(rng, roomDrafts);
-  const r3: Draft[] = [];
-  if (sQ.length) r3.push(sQ.pop()!);
-  if (eQ.length && rng() < 0.7) r3.push(eQ.pop()!);
-  const take = (arr: Draft[], frac: number, min: number) =>
-    arr.splice(0, Math.min(arr.length, Math.max(min, Math.round(arr.length * frac))));
-  const r2: Draft[] = [...take(sQ, 0.35, 1), ...take(eQ, 0.35, 1), ...take(rQ, 0.3, 0)];
-  let r1: Draft[] = shuffle(rng, [...sQ, ...eQ, ...rQ]);
+  // 3. Spread across rounds. The big clues: one in Round 2, the other in Round 3 (a lone one goes to either).
+  // The small ones: about a third in Round 1; of the rest, Round 2 takes few where that list's big clue is already in
+  // Round 2 and most where it isn't, so each list is narrowed but still open going into Round 3.
+  const byRound: Record<Round, Draft[]> = { 1: [], 2: [], 3: [] };
+  const bigOrder = shuffle(rng, bigs);
+  if (bigOrder.length === 2) {
+    byRound[2].push(bigOrder[0]);
+    byRound[3].push(bigOrder[1]);
+  } else if (bigOrder.length === 1) byRound[rng() < 0.5 ? 2 : 3].push(bigOrder[0]);
+  const bigIn2 = (k: ClueKind) => byRound[2].some((d) => d.kind === k);
+  for (const [drafts, big] of [
+    [suspectDrafts, bigIn2("witness")],
+    [exhibitDrafts, bigIn2("coroner")],
+    [roomDrafts, false],
+  ] as const) {
+    const q = shuffle(rng, drafts);
+    const n1 = Math.floor(q.length * (0.25 + rng() * 0.15));
+    const n2 = Math.round((q.length - n1) * (big ? 0.15 + rng() * 0.15 : 0.5 + rng() * 0.15));
+    byRound[1].push(...q.splice(0, n1));
+    byRound[2].push(...q.splice(0, n2));
+    byRound[3].push(...q);
+  }
 
-  // 4. Markers carry Round 1, on random markers. Room clears never sit in their own room: if they
-  // did, a fully searched room with no "clean" card would hint it's the murder room.
+  // 4. Small clues go on markers in rooms that open that round (Round 1's that find no marker wait for the first TV
+  // drop); big ones always go on the TV. Room clears never sit in their own room: a fully searched room with no
+  // "clean" card would hint it's the murder room.
   const placed: PlacedClue[] = [];
   let n = 0;
   const id = () => `c${++n}`;
   const freeMarkers = shuffle(rng, input.markers);
-  const takeMarker = () => freeMarkers.shift();
-  for (const d of r1) {
-    const m = takeMarker();
-    if (m) placed.push({ id: id(), kind: d.kind, text: d.text, elim: d.elim, round: roundOf(m), channel: "marker", markerNumber: m.number });
-    else r2.push(d); // more Round 1 clues than markers: they move to the first TV drop
+  const markerFor = (round: Round, d: Draft) => {
+    const i = freeMarkers.findIndex((m) => roundOf(m) === round && m.roomKey !== d.roomKey);
+    return i < 0 ? undefined : freeMarkers.splice(i, 1)[0];
+  };
+  for (const round of [1, 2, 3] as Round[]) {
+    for (const d of byRound[round]) {
+      const m = isSmall(d.kind) ? markerFor(round, d) : undefined;
+      if (m) placed.push({ id: id(), kind: d.kind, text: d.text, elim: d.elim, round, channel: "marker", markerNumber: m.number });
+      else placed.push({ id: id(), kind: d.kind, text: d.text, elim: d.elim, round: round === 1 ? 2 : round, channel: "tv" });
+    }
   }
-  r1 = [];
 
-  for (const d of shuffle(rng, r2)) placed.push({ id: id(), kind: d.kind, text: d.text, elim: d.elim, round: 2, channel: "tv" });
-  for (const d of r3) placed.push({ id: id(), kind: d.kind, text: d.text, elim: d.elim, round: 3, channel: "tv" });
-
-  // 5. A red herring at an innocent who gets cleared later, then flavor on any spare markers.
-  const laterCleared = innocents.filter((s) => placed.some((c) => c.round > 1 && c.elim.suspects.includes(s.id)));
-  if (laterCleared.length) {
-    const h = pick(rng, laterCleared);
-    const clearRound = placed.find((c) => c.elim.suspects.includes(h.id))!.round;
-    const m = takeMarker();
-    if (m) {
+  // 5. Red herrings at innocents who get cleared later (two in bigger games), then dead ends on the spare markers.
+  const clearedIn = (sid: string) => Math.min(...placed.filter((c) => c.elim.suspects.includes(sid)).map((c) => c.round));
+  const herrings = shuffle(rng, innocents.filter((s) => clearedIn(s.id) > 1)).slice(0, input.suspects.length >= 10 ? 2 : 1);
+  for (const h of herrings) {
+    const clearRound = clearedIn(h.id);
+    const i = freeMarkers.findIndex((m) => roundOf(m) < clearRound);
+    if (i >= 0) {
+      const m = freeMarkers.splice(i, 1)[0];
       placed.push({ id: id(), kind: "herring", text: S.herring(say, h.signature), elim: NONE, round: roundOf(m), channel: "marker", markerNumber: m.number, pointsAt: h.id });
     } else if (clearRound === 3) {
       placed.push({ id: id(), kind: "herring", text: S.herring(say, h.signature), elim: NONE, round: 2, channel: "tv", pointsAt: h.id });
@@ -336,18 +418,28 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
   // The twist reads last on the final drop.
   placed.push({ id: id(), kind: "twist", text: twist.text, elim: twist.elim, round: 3, channel: "tv" });
 
-  // 6. Private tips: early access to something the TV will confirm later.
-  const pool = placed.filter((c) => c.round > 1 && (c.kind === "suspect" || c.kind === "suspectPair" || c.kind === "exhibit" || c.kind === "exhibitPair" || c.kind === "room"));
+  // 6. Private tips: early word of a small Round 3 clue (Round 2 if Round 3 has none). Only two or three different
+  // tips, shared out so several guests hold each one: the killer gets one too (having a tip gives nobody away), may
+  // lie about it, and whoever holds the same tip can catch them. Nobody gets a tip that clears themselves.
   const tips: Tip[] = [];
+  const late = placed.filter((c) => c.round === 3 && isSmall(c.kind));
+  const pool = late.length ? late : placed.filter((c) => c.round === 2 && isSmall(c.kind));
   if (pool.length) {
-    const order = shuffle(rng, pool);
+    // Each list keeps at least one Round 3 clue nobody hears about early, so pooled tips can't finish a list.
+    const listOf = (c: PlacedClue) => (c.elim.suspects.length ? "s" : c.elim.exhibits.length ? "e" : "r");
+    const kept = new Set(["s", "e", "r"].map((l) => shuffle(rng, late.filter((c) => listOf(c) === l))[0]).filter(Boolean));
+    let candidates = shuffle(rng, pool.filter((c) => !kept.has(c)));
+    if (candidates.length < tipCount(input.suspects.length)) candidates.push(...shuffle(rng, placed.filter((c) => c.round === 2 && isSmall(c.kind))));
+    if (!candidates.length) candidates = shuffle(rng, pool);
+    // Prefer a mix: not all about suspects.
+    const notSuspect = candidates.filter((c) => !c.elim.suspects.length);
+    const chosen = [...notSuspect.slice(0, 1), ...candidates.filter((c) => c !== notSuspect[0])].slice(0, tipCount(input.suspects.length));
     let k = 0;
     for (const s of shuffle(rng, input.suspects)) {
-      let choice = order[k % order.length];
-      for (let tries = 0; tries < order.length && choice.elim.suspects.includes(s.id); tries++) {
-        k++;
-        choice = order[k % order.length];
-      }
+      const fits = (c: PlacedClue) => !c.elim.suspects.includes(s.id);
+      let choice = chosen[k % chosen.length];
+      for (let tries = 0; tries < chosen.length && !fits(choice); tries++) choice = chosen[++k % chosen.length];
+      if (!fits(choice)) choice = pool.find(fits) ?? choice;
       k++;
       tips.push({ playerId: s.id, clueId: choice.id, text: choice.text, elim: choice.elim });
     }

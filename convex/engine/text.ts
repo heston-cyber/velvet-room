@@ -1,7 +1,7 @@
 // Clue wording. Every template only states what its clue proves, so the logic in
 // build.ts stays the single source of truth. A game picks one Script: Classic or Adult.
 import { shuffle } from "./rng";
-import type { Rng } from "./types";
+import type { Rng, WeaponKind } from "./types";
 
 export const q = (s: string) => `“${s}”`;
 
@@ -26,6 +26,14 @@ export function deckPicker(rng: Rng) {
   };
 }
 export type Say = ReturnType<typeof deckPicker>;
+
+/** "Sam", "Sam and Josh", "Sam, Josh and Reily". */
+export function list(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? "";
+  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+}
+/** Weapons by name in a list: "the knife, the rope and the revolver". */
+export const theList = (names: string[]) => list(names.map((n) => `the ${n}`));
 
 export function fill(template: string, signature: string): string {
   return template.replace("{s}", q(signature));
@@ -56,6 +64,15 @@ export type AccompliceFacts = {
 export type Script = {
   suspectClear: (say: Say, n: string) => string;
   suspectPairClear: (say: Say, a: string, b: string) => string;
+  /** v3: three alibis in one clue. */
+  suspectTrioClear: (say: Say, a: string, b: string, c: string) => string;
+  /** v3: the killer is a man ("m") or a woman ("f"); names everyone of the other sex it clears. */
+  witness: (say: Say, killerSex: "m" | "f", cleared: string[]) => string;
+  /**
+   * v3: the coroner's report. positive: the weapon was of this kind (rules out every other kind); otherwise it was
+   * not of this kind. weapons: the ones it rules out, by name, lower case.
+   */
+  coroner: (say: Say, kind: WeaponKind, positive: boolean, weapons: string[]) => string;
   /** v2: weapons go by name (lower case: "the lawn gnome"); exhibit letters are gone. */
   exhibitClear: (say: Say, name: string) => string;
   exhibitPairClear: (say: Say, a: string, b: string) => string;
@@ -91,6 +108,44 @@ export const CLASSIC: Script = {
       `The bartender kept ${a} and ${b} in his sights all night. Neither one left the bar. Both cleared.`,
       `${a} and ${b} were caught sneaking a smoke out back together when it happened. Both cleared.`,
     ]),
+  suspectTrioClear: (say, a, b, c) =>
+    say("s3", [
+      `${a}, ${b} and ${c} were all in the club photographer's group shot, taken the very minute the Don died. All three cleared.`,
+      `${a}, ${b} and ${c} were at the craps table the whole time, and the dealer will swear to it. All three cleared.`,
+      `The band saw ${a}, ${b} and ${c} dancing the Charleston, badly, right through it. All three cleared.`,
+    ]),
+  witness: (say, sex, cleared) =>
+    say("w", [
+      sex === "m"
+        ? `The hat-check girl saw the killer slip out the side door: a man, with his hat pulled low. That clears ${list(cleared)}.`
+        : `The hat-check girl saw the killer slip out the side door: a woman, in a long dark coat. That clears ${list(cleared)}.`,
+      sex === "m"
+        ? `A cabbie parked outside heard a man shouting at the Don, then a thud. The killer is a man, so ${list(cleared)} are in the clear.`
+        : `A cabbie parked outside heard a woman shouting at the Don, then a thud. The killer is a woman, so ${list(cleared)} are in the clear.`,
+      sex === "m"
+        ? `Footprints in spilled gin lead away from the body: a man's wingtips. That clears ${list(cleared)}.`
+        : `Footprints in spilled gin lead away from the body: a woman's heels. That clears ${list(cleared)}.`,
+    ]),
+  coroner: (say, kind, positive, weapons) => {
+    const out = `That rules out ${theList(weapons)}.`;
+    if (positive)
+      return {
+        blunt: `The coroner's report: the Don was struck with something heavy. ${out}`,
+        blade: `The coroner's report: one deep, clean cut. Something sharp did this. ${out}`,
+        gun: `The coroner's report: he dug a bullet out of the Don. ${out}`,
+        cord: `The coroner's report: marks around the Don's neck. He was strangled. ${out}`,
+        other: `The coroner's report: not a cut, not a bruise, not a bullet hole on him. ${out}`,
+      }[kind];
+    return say(`c-${kind}`, [
+      {
+        blunt: `The coroner's report: not a bruise on the Don. Nothing heavy was used. ${out}`,
+        blade: `The coroner's report: not a single cut on the Don. ${out}`,
+        gun: `The coroner's report: no bullet, and nobody heard a shot all night. ${out}`,
+        cord: `The coroner's report: the Don's neck is clean. No marks at all. ${out}`,
+        other: `The coroner's report: no poison in his blood, no water in his lungs. ${out}`,
+      }[kind],
+    ]);
+  },
   exhibitClear: (say, name) =>
     say("e1", [
       `The coroner rules out the ${name}. The wounds don't match. Not the weapon.`,
@@ -165,7 +220,7 @@ export const CLASSIC: Script = {
       ? `The ${f.weapon.toLowerCase()} is the weapon you brought. If anyone works that out, you'll need a good story.`
       : `The ${f.weapon.toLowerCase()} isn't the weapon you brought. That's lucky for you.`,
     ...(f.accompliceName ? [`Your accomplice is ${f.accompliceName}. They know what you did, and they'll lie to protect you.`] : []),
-    "Over three rounds, the clues will clear the other guests one by one. Your job is to keep them guessing.",
+    "Over three rounds, the evidence will close in on you. Your job is to keep them guessing.",
     ...(f.herringName ? [`One clue points at ${f.herringName}. Lean on it.`] : []),
     f.accompliceName
       ? `You may lie about anything tonight, and so may ${f.accompliceName}. Everyone else may only lie about their own secrets.`

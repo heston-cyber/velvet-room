@@ -1,20 +1,20 @@
 // Fake casts for test mode and the simulation tests. Clearly invented people and props.
 import { shuffle } from "./rng";
-import type { CaseInput, Exhibit, Marker, Rng, Room, Suspect } from "./types";
+import type { CaseInput, Exhibit, Marker, Rng, Room, Suspect, WeaponKind } from "./types";
 
-export const FAKE_GUESTS: { name: string; sex: "m" | "f"; who: string; signature: string; weapon: string; weaponDesc: string; rumor?: string }[] = [
-  { name: "Velma “Two-Bits” Kowalski", sex: "f", who: "Cigarette girl who sells secrets by the pack.", signature: "Silver cigarette case", weapon: "Brass candlestick", weaponDesc: "Heavy, a foot tall, dented base.", rumor: "Sold the same secret to three different men in one night." },
-  { name: "Father Malone", sex: "m", who: "A priest who drinks more than he prays.", signature: "Rosary he twirls", weapon: "Rubber chicken", weaponDesc: "Yellow and squeaky.", rumor: "Hears confessions, then bets on them." },
-  { name: "Lucky Lou", sex: "m", who: "Bookie with famously bad luck.", signature: "Green dice", weapon: "Snapped pool cue", weaponDesc: "Chalky tip, splintered end.", rumor: "Once lost a bet on whether he'd lose a bet." },
-  { name: "Dolores Vane", sex: "f", who: "Lounge singer with a grudge and a great voice.", signature: "Red feather boa", weapon: "Silk stocking", weaponDesc: "Sheer, black seam.", rumor: "Her ex-husbands all moved to different states." },
-  { name: "Big Sal Moretti", sex: "m", who: "The Don's driver. Sees everything, says nothing.", signature: "Driving gloves", weapon: "Tire iron", weaponDesc: "Rusty, two feet long.", rumor: "Has never once used a turn signal." },
-  { name: "Professor Pip", sex: "m", who: "Claims to be a magician. Mostly does card tricks.", signature: "Deck of cards", weapon: "Magic wand", weaponDesc: "Black with white tips.", rumor: "Made a man's wallet disappear. It's still missing." },
-  { name: "Mabel Finch", sex: "f", who: "Society columnist hunting for a scoop.", signature: "Notebook and pencil", weapon: "Fountain pen", weaponDesc: "Gold nib, leaks ink.", rumor: "Keeps a file on everyone in this room." },
-  { name: "Tommy Two-Tone", sex: "m", who: "Trumpet player who owes everybody.", signature: "Two-tone shoes", weapon: "Trumpet mute", weaponDesc: "Dented copper cone.", rumor: "Owes the band four months of pay and a trumpet." },
-  { name: "Countess Olga", sex: "f", who: "Nobody knows which country she's a countess of.", signature: "Opera glasses", weapon: "Hat pin", weaponDesc: "Six inches, pearl head.", rumor: "Her accent changes depending on who's buying." },
-  { name: "Officer Doyle", sex: "m", who: "Beat cop on the take.", signature: "Tin badge", weapon: "Nightstick", weaponDesc: "Black wood, leather strap.", rumor: "Arrests people, then sells them their own alibi." },
-  { name: "Bunny LaRue", sex: "f", who: "Chorus girl who wants out of Hell's Kitchen.", signature: "Rabbit-fur stole", weapon: "Champagne bottle", weaponDesc: "Empty, green glass.", rumor: "Can cry on cue, and does it at every card table." },
-  { name: "Doc Halloran", sex: "m", who: "A doctor who lost his license and found a bar.", signature: "Black medical bag", weapon: "Stethoscope", weaponDesc: "Rubber tubing, steel bell.", rumor: "Still writes prescriptions. For gin." },
+export const FAKE_GUESTS: { name: string; sex: "m" | "f"; who: string; signature: string; weapon: string; weaponDesc: string; kind: WeaponKind; rumor?: string }[] = [
+  { name: "Velma “Two-Bits” Kowalski", sex: "f", who: "Cigarette girl who sells secrets by the pack.", signature: "Silver cigarette case", weapon: "Brass candlestick", weaponDesc: "Heavy, a foot tall, dented base.", kind: "blunt", rumor: "Sold the same secret to three different men in one night." },
+  { name: "Father Malone", sex: "m", who: "A priest who drinks more than he prays.", signature: "Rosary he twirls", weapon: "Rubber chicken", weaponDesc: "Yellow and squeaky.", kind: "blunt", rumor: "Hears confessions, then bets on them." },
+  { name: "Lucky Lou", sex: "m", who: "Bookie with famously bad luck.", signature: "Green dice", weapon: "Snapped pool cue", weaponDesc: "Chalky tip, splintered end.", kind: "blunt", rumor: "Once lost a bet on whether he'd lose a bet." },
+  { name: "Dolores Vane", sex: "f", who: "Lounge singer with a grudge and a great voice.", signature: "Red feather boa", weapon: "Silk stocking", weaponDesc: "Sheer, black seam.", kind: "cord", rumor: "Her ex-husbands all moved to different states." },
+  { name: "Big Sal Moretti", sex: "m", who: "The Don's driver. Sees everything, says nothing.", signature: "Driving gloves", weapon: "Tire iron", weaponDesc: "Rusty, two feet long.", kind: "blunt", rumor: "Has never once used a turn signal." },
+  { name: "Professor Pip", sex: "m", who: "Claims to be a magician. Mostly does card tricks.", signature: "Deck of cards", weapon: "Magic wand", weaponDesc: "Black with white tips.", kind: "blunt", rumor: "Made a man's wallet disappear. It's still missing." },
+  { name: "Mabel Finch", sex: "f", who: "Society columnist hunting for a scoop.", signature: "Notebook and pencil", weapon: "Fountain pen", weaponDesc: "Gold nib, leaks ink.", kind: "blade", rumor: "Keeps a file on everyone in this room." },
+  { name: "Tommy Two-Tone", sex: "m", who: "Trumpet player who owes everybody.", signature: "Two-tone shoes", weapon: "Trumpet mute", weaponDesc: "Dented copper cone.", kind: "blunt", rumor: "Owes the band four months of pay and a trumpet." },
+  { name: "Countess Olga", sex: "f", who: "Nobody knows which country she's a countess of.", signature: "Opera glasses", weapon: "Hat pin", weaponDesc: "Six inches, pearl head.", kind: "blade", rumor: "Her accent changes depending on who's buying." },
+  { name: "Officer Doyle", sex: "m", who: "Beat cop on the take.", signature: "Tin badge", weapon: "Nightstick", weaponDesc: "Black wood, leather strap.", kind: "blunt", rumor: "Arrests people, then sells them their own alibi." },
+  { name: "Bunny LaRue", sex: "f", who: "Chorus girl who wants out of Hell's Kitchen.", signature: "Rabbit-fur stole", weapon: "Champagne bottle", weaponDesc: "Empty, green glass.", kind: "blunt", rumor: "Can cry on cue, and does it at every card table." },
+  { name: "Doc Halloran", sex: "m", who: "A doctor who lost his license and found a bar.", signature: "Black medical bag", weapon: "Stethoscope", weaponDesc: "Rubber tubing, steel bell.", kind: "cord", rumor: "Still writes prescriptions. For gin." },
 ];
 
 export const ROOMS_5: Room[] = [
@@ -47,11 +47,12 @@ export function fakeCast(opts: {
     signature: g.signature,
     who: g.who,
     killerOk: opts.rng() < (opts.optInRate ?? 0.8),
+    sex: g.sex,
   }));
   const letters = shuffle(opts.rng, LETTERS.slice(0, opts.guests));
   const exhibits: Exhibit[] = people
     .slice(0, opts.weaponsHandedIn ?? opts.guests)
-    .map((g, i) => ({ id: `w${i + 1}`, letter: letters[i], name: g.weapon, description: g.weaponDesc, ownerId: `p${i + 1}` }));
+    .map((g, i) => ({ id: `w${i + 1}`, letter: letters[i], name: g.weapon, description: g.weaponDesc, ownerId: `p${i + 1}`, kind: g.kind }));
   const markers: Marker[] = Array.from({ length: opts.markers ?? 15 }, (_, i) => ({
     number: i + 1,
     roomKey: rooms[i % rooms.length].key,

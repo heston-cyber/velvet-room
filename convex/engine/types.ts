@@ -9,7 +9,12 @@ export type Suspect = {
   signature: string;
   who: string;
   killerOk: boolean;
+  /** From the guest's drawing (v3 evidence: a witness can say whether the killer is a man or a woman). */
+  sex?: "m" | "f";
 };
+
+/** What a weapon does to a body (v3 evidence: the coroner's report rules out whole kinds of weapon). */
+export type WeaponKind = "blunt" | "blade" | "gun" | "cord" | "other";
 
 export type Exhibit = {
   id: string;
@@ -17,6 +22,7 @@ export type Exhibit = {
   name: string;
   description: string;
   ownerId: string;
+  kind?: WeaponKind;
 };
 
 export type Room = { key: string; label: string };
@@ -53,6 +59,11 @@ export type Elim = { suspects: string[]; exhibits: string[]; rooms: string[] };
 export type ClueKind =
   | "suspect"
   | "suspectPair"
+  | "suspectTrio"
+  /** v3: a witness saw whether the killer is a man or a woman; clears everyone of the other sex. */
+  | "witness"
+  /** v3: the coroner's report rules out a whole kind of weapon (or everything but one kind). */
+  | "coroner"
   | "exhibit"
   | "exhibitPair"
   | "room"

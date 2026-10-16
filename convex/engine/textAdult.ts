@@ -1,6 +1,6 @@
 // The Adult script: same logic, same facts in every clue, filthier mouth.
 // Chosen per game in the game menu. Crude and profane, never hateful.
-import { mid, q, type Script } from "./text";
+import { list, mid, q, theList, type Script } from "./text";
 
 export const ADULT: Script = {
   suspectClear: (say, n) =>
@@ -17,6 +17,44 @@ export const ADULT: Script = {
       `${a} and ${b} were out back sharing a cigar and talking shit about the Don's toupee when it happened. Both cleared.`,
       `The bartender swears ${a} and ${b} never left the bar. He'd know, because neither cheap bastard tipped. Both cleared.`,
     ]),
+  suspectTrioClear: (say, a, b, c) =>
+    say("s3", [
+      `${a}, ${b} and ${c} were at the craps table losing their asses the whole damn time. The dealer's sick of all three of them. All cleared.`,
+      `${a}, ${b} and ${c} are in the photographer's group shot from the exact minute the Don died, all three blinking like idiots. All cleared.`,
+      `The band watched ${a}, ${b} and ${c} butcher the Charleston right through it. Nobody who dances that badly has time to kill. All three cleared.`,
+    ]),
+  witness: (say, sex, cleared) =>
+    say("w", [
+      sex === "m"
+        ? `The coat-check girl saw the killer sneak out the side door: a man, hat pulled down like a goddamn cartoon villain. That clears ${list(cleared)}.`
+        : `The coat-check girl saw the killer sneak out the side door: a woman in a long coat, cool as hell. That clears ${list(cleared)}.`,
+      sex === "m"
+        ? `A drunk in the alley heard a man chewing the Don out, then a thud, then nothing. The killer's a man, so ${list(cleared)} are off the hook.`
+        : `A drunk in the alley heard a woman chewing the Don out, then a thud, then nothing. The killer's a woman, so ${list(cleared)} are off the hook.`,
+      sex === "m"
+        ? `Footprints in the spilled gin lead away from the body: a man's size twelves. That clears ${list(cleared)}, and somebody owes the club a mop.`
+        : `Footprints in the spilled gin lead away from the body: a woman's heels. That clears ${list(cleared)}, and somebody owes the club a mop.`,
+    ]),
+  coroner: (say, kind, positive, weapons) => {
+    const out = `That rules out ${theList(weapons)}.`;
+    if (positive)
+      return {
+        blunt: `The coroner's report: somebody caved the Don's head in with something heavy. ${out}`,
+        blade: `The coroner's report: one deep, clean cut. Something sharp as hell did this. ${out}`,
+        gun: `The coroner's report: he dug a bullet out of the Don's fat ass. Somebody shot him. ${out}`,
+        cord: `The coroner's report: marks around the Don's neck. Some bastard strangled him. ${out}`,
+        other: `The coroner's report: not a cut, not a bruise, not a damn bullet hole on him. ${out}`,
+      }[kind];
+    return say(`c-${kind}`, [
+      {
+        blunt: `The coroner's report: not one bruise on the Don, which for him is a personal record. Nothing heavy was used. ${out}`,
+        blade: `The coroner's report: not a single cut on the Don. Not even a shaving nick. ${out}`,
+        gun: `The coroner's report: no bullet, and nobody heard a shot all damn night. ${out}`,
+        cord: `The coroner's report: the Don's neck is clean. First time for everything. ${out}`,
+        other: `The coroner's report: no poison in his blood, no water in his lungs. Just gin. So much gin. ${out}`,
+      }[kind],
+    ]);
+  },
   exhibitClear: (say, name) =>
     say("e1", [
       `The coroner took one look at the ${name} and laughed his ass off. You couldn't kill a fly with that. Not the weapon.`,
@@ -92,7 +130,7 @@ export const ADULT: Script = {
       ? `The ${f.weapon.toLowerCase()} is the weapon you brought, genius. If anyone figures that out, start lying your ass off.`
       : `The ${f.weapon.toLowerCase()} isn't even your weapon. Lucky break, you sneaky bastard.`,
     ...(f.accompliceName ? [`Your accomplice is ${f.accompliceName}. They know what you did and they'll lie for you, which is more than your own family would do.`] : []),
-    "Over three rounds the clues will clear everyone else one by one. Your job: keep these idiots guessing.",
+    "Over three rounds the evidence will close in on you. Your job: keep these idiots guessing.",
     ...(f.herringName ? [`One clue points at ${f.herringName}. Throw them under the bus.`] : []),
     f.accompliceName
       ? `You can lie about anything tonight, and so can ${f.accompliceName}. Everyone else can only lie about their own dirty secrets.`
