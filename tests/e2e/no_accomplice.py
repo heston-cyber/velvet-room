@@ -1,15 +1,16 @@
-"""Killer + accomplice (v2 step 5) end-to-end, against the dev backend: the Killers setting in Options, the lobby
-note, How to play with the accomplice card, the accomplice's role card, the lock-in with the optional accomplice
-guess, and the reveal naming the accomplice before the verdict.
-  BASE=http://localhost:4174 [TONE=adult] python3 tests/e2e/accomplice.py
-Screenshots go to $OUT (default ./e2e-out/accomplice).
+"""The accomplice is gone (Oct 16, Heston: "lets toggle off the accomplice for now, strike that role from everything.
+that role is gone"), end-to-end against the dev backend with 8 guests: Options has no Killers setting, the lobby has
+no accomplice note, How to play has five cards and no accomplice card, the phones get one killer and seven innocents,
+the lock-in has no accomplice guess, and the reveal goes straight from the room to the verdict.
+  BASE=http://localhost:4174 [TONE=adult] python3 tests/e2e/no_accomplice.py
+Screenshots go to $OUT (default ./e2e-out/no-accomplice).
 """
 import json, os, subprocess, time
 from playwright.sync_api import sync_playwright
 
 BASE = os.environ.get("BASE", "http://localhost:4173")
-SLUG = os.environ.get("SLUG", "accomplice-e2e")
-OUT = os.environ.get("OUT", "e2e-out/accomplice")
+SLUG = os.environ.get("SLUG", "no-accomplice-e2e")
+OUT = os.environ.get("OUT", "e2e-out/no-accomplice")
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.makedirs(OUT, exist_ok=True)
 
@@ -59,9 +60,12 @@ created = cx("admin:createGame", {"slug": SLUG, "title": "The Velvet Room", "isT
 KEY = created["hostKey"]
 TONE = os.environ.get("TONE", "classic")
 cx("host:updateSettings", {"slug": SLUG, "hostKey": KEY, "tone": TONE})
+# An old client asking for the accomplice is ignored.
+cx("host:updateSettings", {"slug": SLUG, "hostKey": KEY, "accomplice": True})
 cx("game:seedFakeCast", {"slug": SLUG, "guests": 8, "markers": 8, "seed": 57, "checkIn": True})
 guests = cx("admin:testPlayers", {"slug": SLUG})
 roster = lambda: cx("host:roster", {"slug": SLUG, "hostKey": KEY})
+ok(roster()["game"]["accomplice"] is False, "the host can't turn the accomplice on")
 
 with sync_playwright() as p:
     browser = p.chromium.launch()
@@ -70,23 +74,24 @@ with sync_playwright() as p:
     host.on("pageerror", lambda e: errors.append(str(e)))
     host.goto(f"{BASE}/host?game={SLUG}&key={KEY}")
 
-    # Options: the Killers setting.
+    # Options: no Killers setting.
     host.get_by_role("button", name="Options").click(timeout=20000)
-    ok(wait_for(lambda: host.get_by_role("button", name="Killer + accomplice (7+)").count() == 1, 10), "Options has the Killers setting")
-    host.get_by_role("button", name="Killer + accomplice (7+)").click()
-    ok(wait_for(lambda: roster()["game"]["accomplice"] is True, 10), "picking it saves the setting")
-    ok(host.get_by_text("both drawn at random from everyone").count() == 1, "it explains the mode")
+    ok(wait_for(lambda: host.get_by_text("Ask guests if they're up for being the killer").count() == 1, 10), "Options is open")
+    ok(host.get_by_role("button", name="Killer + accomplice (7+)").count() == 0, "no Killer + accomplice option")
+    ok("accomplice" not in host.inner_text("body").lower(), "Options never mentions an accomplice")
     host.wait_for_timeout(600)
-    shot(host, "01-options-killers.png")
+    shot(host, "01-options.png")
     host.get_by_role("button", name="Back").first.click()
 
     host.get_by_role("button", name="Play").click(timeout=20000)
     ok(wait_for(lambda: host.locator(".hs-lobby").count() == 1), "Play opens the doors")
-    ok(wait_for(lambda: host.get_by_text("A killer and an accomplice tonight.").count() == 1, 15), "the lobby says it's a killer + accomplice night")
+    host.wait_for_timeout(1500)
+    ok("accomplice" not in host.inner_text("body").lower(), "the lobby never mentions an accomplice")
     shot(host, "02-lobby.png")
     host.locator(".hs-lobby button").click()
     host.locator(".hs-lobby button").click()
     ok(wait_for(lambda: roster()["game"]["status"] == "playing", 20), "Everyone is in starts the show")
+    ok(roster()["game"]["hasAccomplice"] is False, "the game has no accomplice")
 
     def skip(label):
         # The menu's label follows the clock, and this machine's clock can trail the server's by a second or two.
@@ -95,16 +100,23 @@ with sync_playwright() as p:
         ok(wait_for(lambda: btn.count() == 1, 8), f"the host menu offers {label}")
         btn.click()
 
-    # How to play: 11 cards, the second is the accomplice.
+    # How to play: five cards, none of them the accomplice.
     if host.locator(".tv-how").count() == 0:
         skip("Skip to How to play")
-    ok(wait_for(lambda: "how to play · 1 of 6" in host.locator(".tv-how").inner_text().lower(), 10), "six How to play cards (five + the accomplice)")
-    ok(wait_for(lambda: host.locator(".tv-how-pair").count() == 1, 40), "the accomplice card: the killer with someone at their shoulder")
-    ok("accomplice" in host.locator(".tv-how").inner_text().lower(), "it explains the accomplice")
-    host.wait_for_timeout(1500)
-    shot(host, "03-how-accomplice.png")
+    ok(wait_for(lambda: "how to play · 1 of 5" in host.locator(".tv-how").inner_text().lower(), 10), "five How to play cards")
+    seen, pair = [], False
+    end = time.time() + 90
+    while time.time() < end and host.locator(".tv-how").count():
+        t = host.locator(".tv-how").inner_text().lower()
+        seen.append(t)
+        pair = pair or host.locator(".tv-how-pair").count() > 0
+        if "5 of 5" in t:
+            break
+        host.wait_for_timeout(1000)
+    ok(any("5 of 5" in t for t in seen), "How to play reached its last card")
+    ok(not pair and not any("accomplice" in t for t in seen), "How to play never shows or mentions an accomplice")
+    shot(host, "03-how.png")
 
-    # Roles (Oct 16 order: How to play, the murder, the roll call, the roles).
     skip("Skip to the murder")
     host.wait_for_timeout(1500)
     skip("Skip to the roll call")
@@ -115,37 +127,32 @@ with sync_playwright() as p:
     for g in guests:
         ph = cx("game:phone", {"token": g["token"]})
         roles[g["token"]] = (ph.get("briefing") or {}).get("role")
-    acc = next(t for t, r in roles.items() if r == "accomplice")
+    ok(sorted(roles.values()) == ["innocent"] * 7 + ["killer"], f"one killer, seven innocents ({sorted(roles.values())})")
     killer = next(t for t, r in roles.items() if r == "killer")
     innocent = next(t for t, r in roles.items() if r == "innocent")
-    ok(sorted(roles.values()).count("innocent") == 6, f"one killer, one accomplice, six innocents ({sorted(roles.values())})")
-    ph = browser.new_context(viewport={"width": 390, "height": 844}, device_scale_factor=2, is_mobile=True, has_touch=True).new_page()
-    ph.on("pageerror", lambda e: errors.append(str(e)))
-    ph.goto(f"{BASE}/p/{acc}")
-    ph.wait_for_selector("text=Press and hold", timeout=20000)
-    card = ph.get_by_label("Press and hold to see your role")
-    card.dispatch_event("pointerdown")
-    ok(wait_for(lambda: ph.get_by_text("Accomplice.").count() == 1, 5), "the accomplice's role card says Accomplice")
-    killer_name = next(g["charName"] for g in guests if g["token"] == killer)
-    ok(killer_name in ph.locator(".hold-card").inner_text(), "and names the killer")
-    shot(ph, "04-phone-accomplice-card.png")
-    card.dispatch_event("pointerup")
-    ph.get_by_role("button", name="Open my case file").click(timeout=10000)
-    lines = ph.get_by_label("Press and hold to read your role")
+    kp = browser.new_context(viewport={"width": 390, "height": 844}, device_scale_factor=2, is_mobile=True, has_touch=True).new_page()
+    kp.on("pageerror", lambda e: errors.append(str(e)))
+    kp.goto(f"{BASE}/p/{killer}")
+    kp.wait_for_selector("text=Press and hold", timeout=20000)
+    kp.get_by_label("Press and hold to see your role").dispatch_event("pointerdown")
+    kp.wait_for_timeout(400)
+    kp.get_by_label("Press and hold to see your role").dispatch_event("pointerup")
+    kp.get_by_role("button", name="Open my case file").click(timeout=10000)
+    lines = kp.get_by_label("Press and hold to read your role")
     lines.dispatch_event("pointerdown")
-    ph.wait_for_timeout(500)
-    shot(ph, "05-phone-accomplice-file.png")
+    kp.wait_for_timeout(500)
+    ok("accomplice" not in kp.inner_text("body").lower(), "the killer's case file never mentions an accomplice")
+    shot(kp, "04-phone-killer-file.png")
     lines.dispatch_event("pointerup")
 
     # Through the rounds and their votes to the lock-in.
-    cx("game:skipIntro", {"slug": SLUG, "hostKey": KEY})  # the show may already have moved on to Round 1
+    cx("game:skipIntro", {"slug": SLUG, "hostKey": KEY})
     for _ in range(14):
         if roster()["game"]["round"] == 4:
             break
         cx("game:advanceRound", {"slug": SLUG, "hostKey": KEY})
     ok(wait_for(lambda: roster()["game"]["round"] == 4, 20), "the lock-in opens")
 
-    # An innocent locks in on the phone, with an accomplice guess.
     ip = browser.new_context(viewport={"width": 390, "height": 844}, device_scale_factor=2, is_mobile=True, has_touch=True).new_page()
     ip.on("pageerror", lambda e: errors.append(str(e)))
     ip.goto(f"{BASE}/p/{innocent}")
@@ -156,46 +163,24 @@ with sync_playwright() as p:
     ip.get_by_role("button", name="Open my case file").click(timeout=10000)
     if ip.get_by_role("button", name="Lock in").count():
         ip.get_by_role("button", name="Lock in").click()
-    ok(wait_for(lambda: ip.get_by_text("The accomplice (optional)").count() == 1, 10), "the lock-in has the optional accomplice guess")
+    ok(wait_for(lambda: ip.locator(".pick").count() >= 3, 10), "the lock-in is open")
+    ok(ip.locator(".pick").count() == 3 and ip.get_by_text("The accomplice (optional)").count() == 0, "who, what and where: no accomplice guess")
+    shot(ip, "05-phone-lockin.png")
     board = cx("game:phone", {"token": innocent})["board"]
-    acc_name = next(g["charName"] for g in guests if g["token"] == acc)
-    ip.locator(".pick").nth(0).get_by_role("button", name=killer_name, exact=True).click()
-    ip.locator(".opts.weapons button").first.click()
-    ip.locator(".pick").nth(2).locator("button").first.click()
-    ip.locator(".pick").nth(3).get_by_role("button", name=acc_name, exact=True).click()
-    ip.wait_for_timeout(400)
-    shot(ip, "06-phone-lockin-accomplice.png")
-    ip.get_by_role("button", name="Lock it in").last.click()
-    ip.locator("button.primary").click()
-    ok(wait_for(lambda: ip.get_by_text(f"Accomplice: {acc_name}.").count() == 1, 10), "locked in, with the accomplice guess")
-
-    # Everyone else locks in (the server checks); two more guess the accomplice, one of them right.
-    others = [g for g in guests if g["token"] != innocent]
-    for i, g in enumerate(others):
+    for g in guests:
         me = next(x["id"] for x in board["suspects"] if x["name"] == g["charName"])
         target = next(x["id"] for x in board["suspects"] if x["id"] != me)
-        args = {"token": g["token"], "suspectId": target, "exhibitId": board["exhibits"][0]["id"], "roomKey": board["rooms"][0]["key"]}
-        if i < 2:
-            guess = next(x["id"] for x in board["suspects"] if x["id"] not in (me, target))
-            args["accompliceId"] = guess
         try:
-            cx("game:accuse", args)
+            cx("game:accuse", {"token": g["token"], "suspectId": target, "exhibitId": board["exhibits"][0]["id"], "roomKey": board["rooms"][0]["key"]})
         except RuntimeError as e:
             print("skip", g["charName"], str(e)[-90:])
     ok(wait_for(lambda: roster()["game"]["status"] == "reveal", 25), "everyone locked in: the reveal")
-    ok(wait_for(lambda: host.locator(".tv-reveal-acc").count() == 1, 40), "the reveal names the accomplice")
-    ok(acc_name in host.locator(".tv-reveal-acc").inner_text(), "by name")
-    host.wait_for_timeout(1500)
-    shot(host, "07-tv-reveal-accomplice.png")
-    ok(wait_for(lambda: host.get_by_text("named the killer").count() == 1, 15), "then the verdict")
-    ok(host.get_by_text("guessed").count() >= 1 or host.get_by_text("Nobody guessed the accomplice.").count() == 1, "the verdict counts the accomplice guesses")
+    ok(wait_for(lambda: host.get_by_text("named the killer").count() == 1, 60), "the verdict")
+    ok(host.locator(".tv-reveal-acc").count() == 0 and "accomplice" not in host.inner_text("body").lower(), "the reveal never names an accomplice")
     host.wait_for_timeout(800)
-    shot(host, "08-tv-verdict.png")
-    ok(wait_for(lambda: f"{acc_name} was the accomplice." in ph.inner_text("body"), 15), "the accomplice's phone shows the result")
-    shot(ph, "09-phone-accomplice-result.png")
+    shot(host, "06-tv-verdict.png")
     ok(not errors, f"no page errors {errors[:2]}")
     browser.close()
 
 cx("admin:deleteTestGame", {"slug": SLUG})
 print("\n" + ("all passed" if not fails else f"{len(fails)} failed: " + "; ".join(fails)))
-raise SystemExit(1 if fails else 0)

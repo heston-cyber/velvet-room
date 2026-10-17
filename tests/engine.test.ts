@@ -334,5 +334,62 @@ describe("the engine", () => {
       }
     }
   });
-});
 
+  // Oct 16, from Heston's test game: the coroner ruled out every heavy weapon in Round 2, then Round 3 "found" the
+  // hammer was never touched. "need to make sure that the "new evidence" is actually new".
+  test("new evidence is new: no alibi or weapon clear repeats what an earlier clue (or one the same round) already cleared", () => {
+    const keys = (c: PlacedClue) => [...c.elim.suspects, ...c.elim.exhibits, ...c.elim.rooms];
+    const small = new Set(["suspect", "suspectPair", "suspectTrio", "exhibit", "exhibitPair", "room"]);
+    let covers = 0;
+    for (const search of ["all", "waves"] as const)
+      for (const guests of [4, 6, 8, 10, 12, 15])
+        for (let seed = 1; seed <= 60; seed++) {
+          const rng = seeded(seed * 7919 + guests);
+          const input: CaseInput = { ...fakeCast({ rng, guests, rooms: roomsN(guests <= 6 ? 4 : guests <= 12 ? 5 : 6), markers: guests + 2 }), search, tone: seed % 2 ? "adult" : "classic" };
+          const cf = buildCase(input, rng);
+          for (const c of cf.clues) {
+            const mine = keys(c);
+            if (!mine.length) continue;
+            const before = cf.clues.filter((x) => x !== c && x.round <= c.round);
+            if (small.has(c.kind)) {
+              for (const x of before) expect(keys(x).filter((k) => mine.includes(k)), `${c.text} / ${x.text}`).toEqual([]);
+            } else {
+              const known = new Set(before.filter((x) => x.round < c.round || small.has(x.kind)).flatMap(keys));
+              expect(mine.some((k) => !known.has(k)), c.text).toBe(true);
+            }
+          }
+          // The witness and the coroner may repeat a few cleared before them (cover, so the early alibis don't give
+          // the killer's sex or the weapon's kind away); those come out in an earlier round, never after.
+          for (const big of cf.clues.filter((c) => c.kind === "witness" || c.kind === "coroner")) {
+            const early = cf.clues.filter((x) => x !== big && keys(x).some((k) => keys(big).includes(k)));
+            covers += early.length;
+            for (const x of early) expect(x.round).toBeLessThan(big.round);
+          }
+          // When the twist says he died where he was found, it settles every room: no room clear comes out with it.
+          const twist = cf.clues.find((c) => c.kind === "twist")!;
+          if (twist.elim.rooms.length > 1) expect(cf.clues.filter((c) => c.kind === "room" && c.round === 3)).toEqual([]);
+        }
+    expect(covers).toBeGreaterThan(100); // the cover alibis and clears still happen
+  });
+
+  // Oct 16, Heston: "we need to make sure all the evidence makes sense, lines up and doesn't clear things that are not
+  // supposed to be cleared ... evidence that say there was no blood at the site of the death (indicating poison, but he
+  // was killed with a flare gun". Clues never reason from blood, wounds, a lab or a struggle (that hints at, or
+  // contradicts, how he died); a gun is "shot", not "a bullet" (a flare gun has none); only guns are cleared as "not fired".
+  test("the wording never contradicts the real murder", () => {
+    const BANNED = /\b(blood|bleed\w*|bruises?|bullet|lab|spotless|struggle|thud)\b|wounds? don't match|is clean|came back .*clean/i;
+    const kinds = { "Flare Gun": "gun", Poison: "other", Rope: "cord", Hammer: "blunt", Knife: "blade", "Water Bucket": "other", Revolver: "gun", Gloves: "cord" } as const;
+    for (const [weapon, kind] of Object.entries(kinds))
+      for (let seed = 1; seed <= 40; seed++) {
+        const rng = seeded(seed * 31 + weapon.length);
+        const input: CaseInput = { ...fakeCast({ rng, guests: 10, rooms: ROOMS_5, markers: 12 }), tone: seed % 2 ? "adult" : "classic" };
+        input.exhibits[0] = { ...input.exhibits[0], name: weapon, kind };
+        const cf = buildCase(input, rng, { killerId: input.suspects[1].id, exhibitId: input.exhibits[0].id, roomKey: ROOMS_5[seed % 5].key });
+        for (const c of cf.clues) {
+          expect(c.text).not.toMatch(BANNED);
+          if (c.kind === "exhibit" && /fired|loaded|powder/.test(c.text)) expect(input.exhibits.find((e) => e.id === c.elim.exhibits[0])!.kind, c.text).toBe("gun");
+          if (c.kind === "coroner" && kind === "gun" && c.elim.exhibits.length === input.exhibits.filter((e) => e.kind !== "gun").length) expect(c.text).toMatch(/\bshot\b/);
+        }
+      }
+  });
+});

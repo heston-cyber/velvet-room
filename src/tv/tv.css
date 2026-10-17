@@ -382,3 +382,16 @@
 .tv-tally > div { min-width: 8cqw; }
 .tv-reveal-name .aka { display: block; margin-top: 1cqw; font-family: var(--body); font-style: italic; font-size: 3.2cqw; line-height: 1.1; color: var(--brass); }
 .tv-stage[data-scene="reveal0"] .tv-fit.scene, .tv-stage[data-scene="reveal1"] .tv-fit.scene, .tv-stage[data-scene="reveal2"] .tv-fit.scene { left: 6cqw; right: 26cqw; }
+
+/* ---- Oct 16: the guests stay along the bottom while the house is searched (Rounds 1 to 3) ---- */
+.tv-strip { position: absolute; left: 0; right: 0; bottom: 3.2cqw; margin-inline: auto; width: max-content; max-width: 94cqw; display: flex; justify-content: center; align-items: flex-start;
+  gap: .4cqw; padding: .5cqw .8cqw .4cqw; background: rgba(10, 3, 6, .6); border: 1px solid var(--rule); z-index: 3; animation: fadein .6s ease both; }
+.tv-strip > div { width: var(--slot); display: grid; justify-items: center; gap: .25cqw; min-width: 0; }
+.tv-strip .tv-av { width: min(3.6cqw, calc(var(--slot) * .66)); height: min(3.6cqw, calc(var(--slot) * .66)); font-size: min(1.3cqw, calc(var(--slot) * .24)); }
+.tv-strip .nm { max-width: 100%; font-family: var(--label); font-size: min(1cqw, calc(var(--slot) * .19)); letter-spacing: .04em; color: var(--paper); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tv-strip > div.jailed .nm { color: var(--muted); }
+/* The narrator's caption sits just above the strip, and the round's cards and map shrink to clear both. */
+.tv-stage.with-strip .tv-caption { bottom: 9.8cqw; padding: .6cqw 1.4cqw; gap: .2cqw; }
+.tv-stage.with-strip .tv-caption .line { font-size: 1.7cqw; }
+.tv-stage.with-strip .tv-fit.split { height: 29.5cqw; }
+@media (prefers-reduced-motion: reduce) { .tv-strip { animation: none; } }

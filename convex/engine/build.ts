@@ -23,6 +23,8 @@ type Draft = {
   elim: Elim;
   roomKey?: string; // room clears: lets a marker in that room carry it
   pointsAt?: string;
+  /** The last round this clue may come out in (a cover clear, before the big clue that would make it old news). */
+  by?: Round;
 };
 
 /** Fewer opt-ins than this and the draw uses everyone who checked in (Heston's rule). */
@@ -30,6 +32,13 @@ export const MIN_OPT_INS = 3;
 
 /** A killer and an accomplice need at least this many guests (Heston's rule, v2). */
 export const MIN_ACCOMPLICE = 7;
+
+/**
+ * Off (Heston, Oct 16: "lets toggle off the accomplice for now, strike that role from everything. that role is gone").
+ * No new game draws an accomplice, whatever its saved setting, and the host menu no longer offers one. The engine code
+ * stays, so the role can come back by turning this on.
+ */
+export const ACCOMPLICE_ON = false;
 
 /**
  * Guests the draw may pick: those who opted in, or everyone if fewer than 3 did. With an accomplice, everyone
@@ -206,6 +215,22 @@ export function validateCase(input: CaseInput, cf: CaseFile): Validation {
     else if (Math.min(...clears.map((x) => x.round)) < c.round) problems.push("A herring appears after its target was already cleared.");
   }
 
+  // New evidence is new (Heston, Oct 16). A small clue clears nothing that any other clue cleared in an earlier round
+  // or clears the same round. The witness, the coroner and the twist name a whole group (all the women, every heavy
+  // weapon, every other room), so they may repeat a few cleared earlier, but each also clears something nothing else does.
+  const keys = (e: Elim) => [...e.suspects.map((x) => `s:${x}`), ...e.exhibits.map((x) => `e:${x}`), ...e.rooms.map((x) => `r:${x}`)];
+  for (const c of cf.clues) {
+    const mine = keys(c.elim);
+    if (!mine.length) continue;
+    const others = cf.clues.filter((x) => x !== c && x.round <= c.round);
+    if (isSmall(c.kind)) {
+      for (const x of others) if (keys(x.elim).some((k) => mine.includes(k))) problems.push(`Clue ${c.id} repeats evidence from clue ${x.id}.`);
+    } else {
+      const known = new Set(others.filter((x) => x.round < c.round || isSmall(x.kind)).flatMap((x) => keys(x.elim)));
+      if (mine.every((k) => known.has(k))) problems.push(`Clue ${c.id} tells nobody anything new.`);
+    }
+  }
+
   // Every guest has a briefing, and exactly one of them is the killer (and, with an accomplice, one the accomplice).
   if (cf.briefings.length !== input.suspects.length) problems.push("Not every guest has a briefing.");
   if (cf.briefings.filter((b) => b.role === "killer").length !== 1) problems.push("There isn't exactly one killer.");
@@ -272,22 +297,24 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
   // A clue on a marker can only be read once that marker's room is open.
   const roundOf = (m: { roomKey: string }) => openRound(m.roomKey, order, input.search);
 
-  // 1. The big clues.
+  // 1. The big clues, and when they land: one in Round 2, the other in Round 3 (a lone one in either).
   const bigs: Draft[] = [];
   // The witness: the killer is a man, or a woman. Needs every guest's drawing, and at least two innocents of each sex.
   let needAlibi = innocents;
+  let camoSus: Suspect[] = [];
   if (killer.sex && input.suspects.every((s) => s.sex)) {
     const other = innocents.filter((s) => s.sex !== killer.sex);
     // Not when it would leave the killer almost alone in their sex: that's the whole case in one clue.
     if (other.length >= 2 && innocents.length - other.length >= 2) {
       bigs.push({ kind: "witness", text: S.witness(say, killer.sex, other.map((s) => s.name)), elim: { ...NONE, suspects: other.map((s) => s.id) } });
-      // Some of the other sex get alibis too.
-      const camo = shuffle(rng, other).slice(0, Math.round(other.length * (0.3 + rng() * 0.2)));
-      needAlibi = innocents.filter((s) => s.sex === killer.sex || camo.includes(s));
+      // Some of the other sex get alibis too, before the witness talks, so the early alibis don't give the sex away.
+      camoSus = shuffle(rng, other).slice(0, Math.round(other.length * (0.3 + rng() * 0.2)));
+      needAlibi = innocents.filter((s) => s.sex === killer.sex);
     }
   }
   // The coroner: picks the report that rules out closest to half the wrong weapons (at least two).
   let needClear = wrongExhibits;
+  let camoEx: typeof wrongExhibits = [];
   if (weapon.kind && input.exhibits.every((e) => e.kind)) {
     const kinds = [...new Set(wrongExhibits.map((e) => e.kind!))];
     const options = [
@@ -299,46 +326,65 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
       const best = Math.min(...options.map((o) => Math.abs(o.out.length - half)));
       const o = pick(rng, options.filter((x) => Math.abs(x.out.length - half) === best));
       bigs.push({ kind: "coroner", text: S.coroner(say, o.kind, o.positive, o.out.map((e) => e.name.toLowerCase())), elim: { ...NONE, exhibits: o.out.map((e) => e.id) } });
-      const camo = shuffle(rng, o.out).slice(0, Math.round(o.out.length * (0.3 + rng() * 0.2)));
-      needClear = wrongExhibits.filter((e) => !o.out.includes(e) || camo.includes(e));
+      camoEx = shuffle(rng, o.out).slice(0, Math.round(o.out.length * (0.3 + rng() * 0.2)));
+      needClear = wrongExhibits.filter((e) => !o.out.includes(e));
     }
   }
+  const bigRound = new Map<ClueKind, Round>();
+  const bigOrder = shuffle(rng, bigs);
+  if (bigOrder.length === 2) {
+    bigRound.set(bigOrder[0].kind, 2);
+    bigRound.set(bigOrder[1].kind, 3);
+  } else if (bigOrder.length === 1) bigRound.set(bigOrder[0].kind, rng() < 0.5 ? 2 : 3);
+  // A cover clear has to come out before its big clue: once the witness or the coroner has spoken, it's old news.
+  const before = (k: ClueKind) => ((bigRound.get(k) ?? 4) - 1) as Round;
 
-  // 2. Alibis and lab results for the rest, one, two or (in bigger games) three to a clue.
-  const suspectDrafts: Draft[] = [];
-  const sus = shuffle(rng, needAlibi);
+  // 2. Alibis and weapon clears for the rest, one, two or (in bigger games) three to a clue.
   const trios = input.suspects.length >= 9;
-  for (let i = 0; i < sus.length; ) {
-    const r = rng();
-    if (trios && i + 2 < sus.length && r < 0.3) {
-      const [a, b, c] = [sus[i], sus[i + 1], sus[i + 2]];
-      suspectDrafts.push({ kind: "suspectTrio", text: S.suspectTrioClear(say, a.name, b.name, c.name), elim: { ...NONE, suspects: [a.id, b.id, c.id] } });
-      i += 3;
-    } else if (i + 1 < sus.length && r < 0.7) {
-      const [a, b] = [sus[i], sus[i + 1]];
-      suspectDrafts.push({ kind: "suspectPair", text: S.suspectPairClear(say, a.name, b.name), elim: { ...NONE, suspects: [a.id, b.id] } });
-      i += 2;
-    } else {
-      suspectDrafts.push({ kind: "suspect", text: S.suspectClear(say, sus[i].name), elim: { ...NONE, suspects: [sus[i].id] } });
-      i += 1;
+  const alibis = (who: Suspect[], by?: Round): Draft[] => {
+    const out: Draft[] = [];
+    const sus = shuffle(rng, who);
+    for (let i = 0; i < sus.length; ) {
+      const r = rng();
+      if (trios && i + 2 < sus.length && r < 0.3) {
+        const [a, b, c] = [sus[i], sus[i + 1], sus[i + 2]];
+        out.push({ kind: "suspectTrio", text: S.suspectTrioClear(say, a.name, b.name, c.name), elim: { ...NONE, suspects: [a.id, b.id, c.id] }, by });
+        i += 3;
+      } else if (i + 1 < sus.length && r < 0.7) {
+        const [a, b] = [sus[i], sus[i + 1]];
+        out.push({ kind: "suspectPair", text: S.suspectPairClear(say, a.name, b.name), elim: { ...NONE, suspects: [a.id, b.id] }, by });
+        i += 2;
+      } else {
+        out.push({ kind: "suspect", text: S.suspectClear(say, sus[i].name), elim: { ...NONE, suspects: [sus[i].id] }, by });
+        i += 1;
+      }
     }
-  }
-  const exhibitDrafts: Draft[] = [];
-  const exs = shuffle(rng, needClear);
-  for (let i = 0; i < exs.length; ) {
-    if (i + 1 < exs.length && rng() < 0.55) {
-      const [a, b] = [exs[i], exs[i + 1]];
-      exhibitDrafts.push({ kind: "exhibitPair", text: S.exhibitPairClear(say, a.name.toLowerCase(), b.name.toLowerCase()), elim: { ...NONE, exhibits: [a.id, b.id] } });
-      i += 2;
-    } else {
-      exhibitDrafts.push({ kind: "exhibit", text: S.exhibitClear(say, exs[i].name.toLowerCase()), elim: { ...NONE, exhibits: [exs[i].id] } });
-      i += 1;
+    return out;
+  };
+  const clears = (which: typeof wrongExhibits, by?: Round): Draft[] => {
+    const out: Draft[] = [];
+    const exs = shuffle(rng, which);
+    for (let i = 0; i < exs.length; ) {
+      if (i + 1 < exs.length && rng() < 0.55) {
+        const [a, b] = [exs[i], exs[i + 1]];
+        out.push({ kind: "exhibitPair", text: S.exhibitPairClear(say, a.name.toLowerCase(), b.name.toLowerCase()), elim: { ...NONE, exhibits: [a.id, b.id] }, by });
+        i += 2;
+      } else {
+        out.push({ kind: "exhibit", text: S.exhibitClear(say, exs[i].name.toLowerCase(), exs[i].kind), elim: { ...NONE, exhibits: [exs[i].id] }, by });
+        i += 1;
+      }
     }
-  }
+    return out;
+  };
+  const suspectDrafts = alibis(needAlibi);
+  const exhibitDrafts = clears(needClear);
+  const cover = [...alibis(camoSus, before("witness")), ...clears(camoEx, before("coroner"))];
 
-  // 2. Rooms. The twist always carries the last word on the room.
+  // 3. Rooms. The twist always carries the last word on the room.
   let twist: Draft;
   let roomTargets = otherRooms;
+  // When the twist says he died where he was found, it settles every room at once, so the room clears come out first.
+  let roomsBy: Round | undefined;
   if (sol.roomKey !== body.key) {
     twist = { kind: "twist", text: S.twistMoved(body.label), elim: { ...NONE, rooms: [body.key] } };
     roomTargets = otherRooms.filter((r) => r.key !== body.key);
@@ -346,27 +392,25 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
     const held = pick(rng, otherRooms);
     twist = { kind: "twist", text: S.twistStayed(body.label), elim: { ...NONE, rooms: otherRooms.map((r) => r.key) } };
     roomTargets = otherRooms.filter((r) => r.key !== held.key);
+    roomsBy = 2;
   }
   const roomDrafts: Draft[] = shuffle(rng, roomTargets).map((r) => ({
     kind: "room",
     text: S.roomClear(say, r.label),
     elim: { ...NONE, rooms: [r.key] },
     roomKey: r.key,
+    by: roomsBy,
   }));
 
-  // 3. Spread across rounds. The big clues: one in Round 2, the other in Round 3 (a lone one goes to either).
-  // The small ones: about a third in Round 1; of the rest, Round 2 takes few where that list's big clue is already in
-  // Round 2 and most where it isn't, so each list is narrowed but still open going into Round 3.
+  // 4. Spread across rounds. The small ones: about a third in Round 1; of the rest, Round 2 takes few where that list's
+  // big clue is already in Round 2 and most where it isn't, so each list is narrowed but still open going into Round 3.
+  // Cover clears land in a round before their big clue.
   const byRound: Record<Round, Draft[]> = { 1: [], 2: [], 3: [] };
-  const bigOrder = shuffle(rng, bigs);
-  if (bigOrder.length === 2) {
-    byRound[2].push(bigOrder[0]);
-    byRound[3].push(bigOrder[1]);
-  } else if (bigOrder.length === 1) byRound[rng() < 0.5 ? 2 : 3].push(bigOrder[0]);
-  const bigIn2 = (k: ClueKind) => byRound[2].some((d) => d.kind === k);
+  for (const b of bigOrder) byRound[bigRound.get(b.kind)!].push(b);
+  for (const d of shuffle(rng, cover)) byRound[d.by === 1 ? 1 : rng() < 0.5 ? 1 : 2].unshift(d);
   for (const [drafts, big] of [
-    [suspectDrafts, bigIn2("witness")],
-    [exhibitDrafts, bigIn2("coroner")],
+    [suspectDrafts, bigRound.get("witness") === 2],
+    [exhibitDrafts, bigRound.get("coroner") === 2],
     [roomDrafts, false],
   ] as const) {
     const q = shuffle(rng, drafts);
@@ -374,12 +418,14 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
     const n2 = Math.round((q.length - n1) * (big ? 0.15 + rng() * 0.15 : 0.5 + rng() * 0.15));
     byRound[1].push(...q.splice(0, n1));
     byRound[2].push(...q.splice(0, n2));
-    byRound[3].push(...q);
+    // Room clears the twist would settle anyway go in Round 2 instead.
+    byRound[roomsBy && drafts === roomDrafts ? 2 : 3].push(...q);
   }
 
-  // 4. Small clues go on markers in rooms that open that round (Round 1's that find no marker wait for the first TV
+  // 5. Small clues go on markers in rooms that open that round (Round 1's that find no marker wait for the first TV
   // drop); big ones always go on the TV. Room clears never sit in their own room: a fully searched room with no
-  // "clean" card would hint it's the murder room.
+  // "clean" card would hint it's the murder room. A Round 1 cover clear with no marker left is dropped: on the TV in
+  // Round 2 it would arrive with the big clue it was covering for.
   const placed: PlacedClue[] = [];
   let n = 0;
   const id = () => `c${++n}`;
@@ -392,11 +438,12 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
     for (const d of byRound[round]) {
       const m = isSmall(d.kind) ? markerFor(round, d) : undefined;
       if (m) placed.push({ id: id(), kind: d.kind, text: d.text, elim: d.elim, round, channel: "marker", markerNumber: m.number });
+      else if (round === 1 && d.by === 1) continue;
       else placed.push({ id: id(), kind: d.kind, text: d.text, elim: d.elim, round: round === 1 ? 2 : round, channel: "tv" });
     }
   }
 
-  // 5. Red herrings at innocents who get cleared later (two in bigger games), then dead ends on the spare markers.
+  // 6. Red herrings at innocents who get cleared later (two in bigger games), then dead ends on the spare markers.
   const clearedIn = (sid: string) => Math.min(...placed.filter((c) => c.elim.suspects.includes(sid)).map((c) => c.round));
   const herrings = shuffle(rng, innocents.filter((s) => clearedIn(s.id) > 1)).slice(0, input.suspects.length >= 10 ? 2 : 1);
   for (const h of herrings) {
@@ -418,7 +465,7 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
   // The twist reads last on the final drop.
   placed.push({ id: id(), kind: "twist", text: twist.text, elim: twist.elim, round: 3, channel: "tv" });
 
-  // 6. Private tips: early word of a small Round 3 clue (Round 2 if Round 3 has none). Only two or three different
+  // 7. Private tips: early word of a small Round 3 clue (Round 2 if Round 3 has none). Only two or three different
   // tips, shared out so several guests hold each one: the killer gets one too (having a tip gives nobody away), may
   // lie about it, and whoever holds the same tip can catch them. Nobody gets a tip that clears themselves.
   const tips: Tip[] = [];
@@ -445,7 +492,7 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
     }
   }
 
-  // 7. Briefings for every phone.
+  // 8. Briefings for every phone.
   const motives = writeMotives(input, rng, S);
   const ex = input.exhibits.find((e) => e.id === sol.exhibitId)!;
   const room = input.rooms.find((r) => r.key === sol.roomKey)!;

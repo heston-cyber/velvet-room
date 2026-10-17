@@ -29,8 +29,8 @@ export const ADULT: Script = {
         ? `The coat-check girl saw the killer sneak out the side door: a man, hat pulled down like a goddamn cartoon villain. That clears ${list(cleared)}.`
         : `The coat-check girl saw the killer sneak out the side door: a woman in a long coat, cool as hell. That clears ${list(cleared)}.`,
       sex === "m"
-        ? `A drunk in the alley heard a man chewing the Don out, then a thud, then nothing. The killer's a man, so ${list(cleared)} are off the hook.`
-        : `A drunk in the alley heard a woman chewing the Don out, then a thud, then nothing. The killer's a woman, so ${list(cleared)} are off the hook.`,
+        ? `A drunk in the alley heard a man chewing the Don out right before he died. The killer's a man, so ${list(cleared)} are off the hook.`
+        : `A drunk in the alley heard a woman chewing the Don out right before he died. The killer's a woman, so ${list(cleared)} are off the hook.`,
       sex === "m"
         ? `Footprints in the spilled gin lead away from the body: a man's size twelves. That clears ${list(cleared)}, and somebody owes the club a mop.`
         : `Footprints in the spilled gin lead away from the body: a woman's heels. That clears ${list(cleared)}, and somebody owes the club a mop.`,
@@ -41,39 +41,44 @@ export const ADULT: Script = {
       return {
         blunt: `The coroner's report: somebody caved the Don's head in with something heavy. ${out}`,
         blade: `The coroner's report: one deep, clean cut. Something sharp as hell did this. ${out}`,
-        gun: `The coroner's report: he dug a bullet out of the Don's fat ass. Somebody shot him. ${out}`,
+        gun: `The coroner's report: somebody shot the Don. Point-blank, the cold bastard. ${out}`,
         cord: `The coroner's report: marks around the Don's neck. Some bastard strangled him. ${out}`,
-        other: `The coroner's report: not a cut, not a bruise, not a damn bullet hole on him. ${out}`,
+        other: `The coroner's report: not a damn mark on him. No wound anywhere. ${out}`,
       }[kind];
     return say(`c-${kind}`, [
       {
-        blunt: `The coroner's report: not one bruise on the Don, which for him is a personal record. Nothing heavy was used. ${out}`,
-        blade: `The coroner's report: not a single cut on the Don. Not even a shaving nick. ${out}`,
-        gun: `The coroner's report: no bullet, and nobody heard a shot all damn night. ${out}`,
-        cord: `The coroner's report: the Don's neck is clean. First time for everything. ${out}`,
+        blunt: `The coroner's report: no fractures, no crushing injuries. Nobody clobbered the old bastard. Nothing heavy was used. ${out}`,
+        blade: `The coroner's report: no stab wounds, no slashes. Nothing sharp touched the son of a bitch. ${out}`,
+        gun: `The coroner's report: no gunshot wound, and nobody heard a shot all damn night. ${out}`,
+        cord: `The coroner's report: no marks around the Don's neck. Nobody strangled him, though God knows people wanted to. ${out}`,
         other: `The coroner's report: no poison in his blood, no water in his lungs. Just gin. So much gin. ${out}`,
       }[kind],
     ]);
   },
-  exhibitClear: (say, name) =>
-    say("e1", [
-      `The coroner took one look at the ${name} and laughed his ass off. You couldn't kill a fly with that. Not the weapon.`,
-      `The ${name} came back from the lab clean. Cleaner than anyone in this damn room. Not the weapon.`,
-      `The ${name} sat in the coat check all night under a pile of mink. Nobody touched the damn thing. Not the weapon.`,
-    ]),
+  exhibitClear: (say, name, kind) =>
+    kind === "gun"
+      ? say("e1g", [
+          `The ${name} is still fully loaded and hasn't been fired all damn night. Not the weapon.`,
+          `Not a whiff of powder on the ${name}. Nobody fired the son of a bitch tonight. Not the weapon.`,
+        ])
+      : say("e1", [
+          `The ${name} sat in the coat check all night under a pile of mink. Nobody touched the damn thing. Not the weapon.`,
+          `The ${name} was locked in the Don's office safe all night. Only the Don knew the combination, and he's not talking. Not the weapon.`,
+          `A three-hundred-pound bouncer sat on the crate with the ${name} in it all damn night. Nobody got near it. Not the weapon.`,
+        ]),
   exhibitPairClear: (say, a, b) =>
     say("e2", [
       `The ${a} and the ${b} sat behind the bar all night, right under the bartender's big nose. Neither one did shit. Not the weapon.`,
-      `The lab cleared the ${a} and the ${b}. Spotless and boring as hell. Neither is the weapon.`,
+      `The ${a} and the ${b} were locked in the Don's office safe all night. Only the Don knew the combination, and he's in no shape to share it. Neither is the weapon.`,
     ]),
   roomClear: (say, label) =>
     say("r1", [
-      `Not a drop of blood in ${mid(label)}. Some other fluids, maybe. Don't ask. The Don wasn't killed there.`,
+      `${label} was locked tight all night, and the manager kept the only damn key on a chain around his neck. The Don wasn't killed there.`,
       `The dust in ${mid(label)} hasn't been touched all night, which says a hell of a lot about the cleaning staff. Nobody died in there.`,
       `${label} was packed with drunk witnesses all night. Nobody could've whacked the Don in there without someone seeing. Not there.`,
     ]),
   roomClearHere: (label) =>
-    `This room is clean. Well, not clean-clean, but no blood. The Don wasn't killed in ${mid(label)}.`,
+    `The dust in here hasn't been touched all night, which says a hell of a lot about the cleaning staff. The Don wasn't killed in ${mid(label)}.`,
   twistMoved: (body) =>
     `The twist: the Don wasn't even killed in ${mid(body)}. Some son of a bitch dragged his fat ass there afterward. Look at the carpet.`,
   twistStayed: (body) =>

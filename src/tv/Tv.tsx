@@ -232,10 +232,13 @@ function TvInner({ slug, tvKey, onNext, overlay, bare }: { slug: string; tvKey: 
         : speaking.clip?.caption ?? ""
       : null;
   const who = HOSTS[host].name;
+  // Oct 16 (Heston: "keep the players on screen at the bottom"): the guests stay in a strip along the bottom while
+  // the house is searched, Rounds 1 to 3.
+  const strip = !bare && !held && !card && !g.paused && !g.tvShowAll && /^r[123]$/.test(scene.key);
 
   return (
     <div className={`tv-page ${chrome ? "" : "hide-cursor"}`}>
-      <div className="tv-stage" data-scene={scene.key}>
+      <div className={`tv-stage ${strip ? "with-strip" : ""}`} data-scene={scene.key}>
         <Backdrop loop={p.loop} src={bank.src} />
         {/* The host's title screen and main menu show only the backdrop. */}
         {!bare && (
@@ -255,6 +258,7 @@ function TvInner({ slug, tvKey, onNext, overlay, bare }: { slug: string; tvKey: 
               </div>
             )}
             {g.tvShowAll && g.status === "playing" && <AllEvidence data={data} />}
+            {strip && <GuestStrip guests={data.guests} ready={g.pacing.mode === "ready"} />}
             {say && (
               <div className="tv-caption" key={say}>
                 <span className="who">{who}</span>
@@ -1075,6 +1079,26 @@ function Guests({ guests, mark }: { guests: Data["guests"]; mark: "here" | "accu
         <div key={x.id} className={mark === "here" && !x.here ? "away" : ""}>
           <span className={`tv-av ${mark === "accused" && x.accused ? "done" : ""} ${x.jailed ? "jailed" : ""}`}>{avatarSrc(x.photoUrl, x.figure) ? <img src={avatarSrc(x.photoUrl, x.figure)!} alt="" /> : initials(x.charName)}</span>
           {x.short ?? x.charName}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Every guest along the bottom of the TV during the rounds: drawing, first name, a ring once ready, bars if jailed. */
+function GuestStrip({ guests, ready }: { guests: Data["guests"]; ready: boolean }) {
+  const shown = guests.filter((x) => x.here);
+  if (!shown.length) return null;
+  // One row, as wide as the screen allows: 6.2cqw a guest, less past about 14.
+  const slot = Math.min(6.2, (90 - 0.4 * (shown.length - 1)) / shown.length);
+  return (
+    <div className="tv-strip" style={{ "--slot": `${slot}cqw` } as CSSProperties}>
+      {shown.map((x) => (
+        <div key={x.id} className={x.jailed ? "jailed" : ""}>
+          <span className={`tv-av ${ready && x.ready && !x.jailed ? "done" : ""} ${x.jailed ? "jailed" : ""}`}>
+            {avatarSrc(x.photoUrl, x.figure) ? <img src={avatarSrc(x.photoUrl, x.figure)!} alt="" /> : initials(x.charName)}
+          </span>
+          <span className="nm">{splitName(x.short ?? x.charName).main}</span>
         </div>
       ))}
     </div>

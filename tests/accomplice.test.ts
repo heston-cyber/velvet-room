@@ -4,7 +4,7 @@ import { convexTest } from "convex-test";
 import { beforeAll, describe, expect, test } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
-import { buildCase, checkInput, MIN_ACCOMPLICE } from "../convex/engine/build";
+import { ACCOMPLICE_ON, buildCase, checkInput, MIN_ACCOMPLICE } from "../convex/engine/build";
 import { fakeCast, roomsN } from "../convex/engine/fake";
 import { seeded } from "../convex/engine/rng";
 import { CLASSIC, mid } from "../convex/engine/text";
@@ -131,7 +131,9 @@ async function setup(guests: number, accomplice = true) {
   const { hostKey } = await t.mutation(internal.admin.createGame, {
     slug: SLUG, title: "Accomplice test", isTest: true, makeActive: false, registrationClosesAt: FUTURE, deadlineLabel: "Sat, Oct 31",
   });
-  await t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, accomplice, pacing: { mode: "ready", roundMinutes: 10 } });
+  await t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, pacing: { mode: "ready", roundMinutes: 10 } });
+  // A game saved with the accomplice on before Oct 16.
+  if (accomplice) await t.run(async (ctx) => ctx.db.patch((await ctx.db.query("games").first())!._id, { accomplice: true }));
   await t.mutation(internal.game.seedFakeCast, { slug: SLUG, guests, markers: 8, seed: 17 });
   await t.mutation(api.game.openDoors, { slug: SLUG, hostKey });
   const started = await t.mutation(api.game.startGame, { slug: SLUG, hostKey });
@@ -144,65 +146,38 @@ async function setup(guests: number, accomplice = true) {
   return { t, hostKey, tvKey, started, players, roles, who };
 }
 
-describe("a killer + accomplice game", () => {
-  test("8 guests: the phones get one killer, one accomplice and innocents; the TV and phones know it's an accomplice game", async () => {
-    const { t, tvKey, started, players, roles, who } = await setup(8);
-    expect(started).toMatchObject({ suspects: 8, accomplice: true, accompliceDropped: false });
-    const counts = [...roles.values()].reduce<Record<string, number>>((m, r) => ({ ...m, [r]: (m[r] ?? 0) + 1 }), {});
-    expect(counts).toEqual({ killer: 1, accomplice: 1, innocent: 6 });
-    const acc = (await t.query(api.game.phone, { token: who("accomplice").token }))!;
-    expect(acc.briefing!.lines.join(" ")).toContain(who("killer").charName);
-    expect(acc.game).toMatchObject({ hasAccomplice: true, verdictMs: revealTimes(true).verdict });
-    const tv = await t.query(api.game.tv, { slug: SLUG, tvKey });
-    expect(tv.game.accomplice).toBe(true);
-    expect(tv.reveal).toEqual(revealTimes(true));
-    expect(players.length).toBe(8);
+// Oct 16 (Heston): "lets toggle off the accomplice for now, strike that role from everything. that role is gone."
+// The engine code above stays (ACCOMPLICE_ON brings it back); no game can turn it on.
+describe("the accomplice is off", () => {
+  test("ACCOMPLICE_ON is off", () => {
+    expect(ACCOMPLICE_ON).toBe(false);
   });
 
-  test("6 guests: it drops to one killer and says so", async () => {
-    const { t, tvKey, started, roles } = await setup(6);
-    expect(started).toMatchObject({ suspects: 6, accomplice: false, accompliceDropped: true });
-    expect([...roles.values()].filter((r) => r === "accomplice")).toEqual([]);
+  test("8 guests with the old setting on: one killer, no accomplice anywhere (phones, TV, How to play, the reveal, the host)", async () => {
+    const { t, hostKey, tvKey, started, roles } = await setup(8);
+    expect(started).toEqual({ suspects: 8, exhibits: 8, markers: 8 });
+    const counts = [...roles.values()].reduce<Record<string, number>>((m, r) => ({ ...m, [r]: (m[r] ?? 0) + 1 }), {});
+    expect(counts).toEqual({ killer: 1, innocent: 7 });
+    const g = await t.run(async (ctx) => (await ctx.db.query("games").first())!);
+    expect(g.hasAccomplice).toBe(false);
     const tv = await t.query(api.game.tv, { slug: SLUG, tvKey });
     expect(tv.game.accomplice).toBe(false);
     expect(tv.reveal).toEqual(REVEAL);
+    expect(howCues({ search: "all", pacing: { mode: "ready" }, accomplice: tv.game.accomplice }).map(([c]) => c)).not.toContain("howAccomplice");
+    for (const [, role] of roles) expect(role).not.toBe("accomplice");
+    const roster = await t.query(api.host.roster, { slug: SLUG, hostKey });
+    expect(roster!.game.accomplice).toBe(false);
+    expect(roster!.game.hasAccomplice).toBe(false);
   });
 
-  test("the lock-in takes an optional accomplice guess; the reveal names the accomplice; Best Detective skips them, and a right guess breaks a tie", async () => {
-    const { t, hostKey, tvKey, players, who } = await setup(8);
-    const killer = who("killer");
-    const accomplice = who("accomplice");
-    const innocents = players.filter((p) => p._id !== killer._id && p._id !== accomplice._id);
-    for (let r = 0; r < 3; r++) await nextRound(t, SLUG, hostKey);
-    expect((await t.run(async (ctx) => (await ctx.db.query("games").first())!)).round).toBe(4);
-    const cf = await t.run(async (ctx) => {
-      const { caseFor } = await import("../convex/caseFile");
-      return (await caseFor(ctx, (await ctx.db.query("games").first())!))!;
+  test("the host can't turn it back on", async () => {
+    const t = convexTest(schema, modules);
+    const { hostKey } = await t.mutation(internal.admin.createGame, {
+      slug: SLUG, title: "Accomplice test", isTest: true, makeActive: false, registrationClosesAt: FUTURE, deadlineLabel: "Sat, Oct 31",
     });
-    const right = { suspectId: killer._id as string, exhibitId: cf.solution.exhibitId, roomKey: cf.solution.roomKey };
-    const lock = (p: (typeof players)[number], extra: Partial<typeof right> & { accompliceId?: string } = {}) => t.mutation(api.game.accuse, { token: p.token, ...right, ...extra });
-    // guards
-    await expect(lock(innocents[0], { accompliceId: innocents[0]._id })).rejects.toThrow(/yourself/);
-    await expect(lock(innocents[0], { accompliceId: killer._id })).rejects.toThrow(/own accomplice/);
-    // innocents 0 and 1 get all three right; only 1 also spots the accomplice, so 1 is Best Detective even though 0 locked in first
-    await lock(innocents[0], { accompliceId: innocents[2]._id });
-    await lock(innocents[1], { accompliceId: accomplice._id });
-    // the accomplice gets everything right too (their picks count), but they're never Best Detective
-    await lock(accomplice, { suspectId: innocents[3]._id });
-    // the rest name the wrong guest (weapon and room right), and so does the killer
-    for (const p of innocents.slice(2)) await lock(p, { suspectId: innocents[0]._id });
-    await lock(killer, { suspectId: innocents[0]._id });
+    await t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, accomplice: true });
     const g = await t.run(async (ctx) => (await ctx.db.query("games").first())!);
-    expect(g.status).toBe("reveal");
-    const tv = await t.query(api.game.tv, { slug: SLUG, tvKey });
-    expect(tv.results!.accomplice!.name).toBe(accomplice.charName);
-    expect(tv.results).toMatchObject({ namedAccomplice: 1, guessers: 2 });
-    const phone = (await t.query(api.game.phone, { token: accomplice.token }))!;
-    expect(phone.results).toMatchObject({ accomplice: accomplice.charName, iWasAccomplice: true, iWasKiller: false });
-    await t.mutation(api.game.finish, { slug: SLUG, hostKey });
-    const res = (await t.query(api.game.results, { slug: SLUG }))!;
-    expect(res.accomplice).toBe(accomplice.charName);
-    expect(res.awards!.bestDetective!.name).toBe(innocents[1].charName);
+    expect(g.accomplice).toBeFalsy();
   });
 
   test("one-killer games refuse an accomplice guess", async () => {

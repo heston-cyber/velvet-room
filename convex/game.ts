@@ -3,7 +3,7 @@ import { internal } from "./_generated/api";
 import { internalMutation, mutation, query } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { buildCase, checkInput, MIN_ACCOMPLICE, openRound, openRoomsIn, scriptFor } from "./engine/build";
+import { ACCOMPLICE_ON, buildCase, checkInput, MIN_ACCOMPLICE, openRound, openRoomsIn, scriptFor } from "./engine/build";
 import { secure, seeded, shuffle } from "./engine/rng";
 import { cardPlan } from "./engine/setup";
 import { FAKE_GUESTS, LETTERS } from "./engine/fake";
@@ -87,7 +87,8 @@ async function caseInput(ctx: QueryCtx, game: Doc<"games">): Promise<CaseInput> 
     tone: game.tone ?? "classic",
     playerMotives: Object.fromEntries(players.map((p) => [p._id, { motive: p.motive, secret: p.secret }])),
     // v2: before the draw, the host's setting (if there are enough players); after it, what Start decided.
-    accomplice: before ? !!game.accomplice && players.length >= MIN_ACCOMPLICE : !!game.hasAccomplice,
+    // Oct 16: the role is off (ACCOMPLICE_ON), so a new game never has one.
+    accomplice: before ? ACCOMPLICE_ON && !!game.accomplice && players.length >= MIN_ACCOMPLICE : !!game.hasAccomplice,
   };
 }
 
@@ -862,7 +863,7 @@ export const startGame = mutation({
       show: { howAt, introAt, rollAt, order },
       lines,
       rolesOut: false,
-      // v2: a killer and an accomplice only with 7+ players; otherwise one killer.
+      // v2: a killer and an accomplice only with 7+ players; otherwise one killer. (Off since Oct 16: always one.)
       hasAccomplice: !!input.accomplice,
     });
     await ctx.scheduler.runAt(rollAt, internal.game.freezeShowRoll, { gameId: game._id });
@@ -875,9 +876,6 @@ export const startGame = mutation({
       suspects: input.suspects.length,
       exhibits: input.exhibits.length,
       markers: input.markers.length,
-      accomplice: !!input.accomplice,
-      // The host wanted an accomplice, but there weren't enough players: one killer tonight.
-      accompliceDropped: !!game.accomplice && !input.accomplice,
     };
   },
 });

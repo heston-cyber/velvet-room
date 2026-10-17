@@ -1103,7 +1103,7 @@ export const ADULT_CUSTOM: Partial<Record<CustomKind, string[]>> = {
     "They found him in {room}. Eyes open, wallet gone. One of those is murder. The other one's just New York.",
     "They found him in {room}, face down, shoes off. Nobody knows why the shoes were off, and nobody's asking.",
     "They found him in {room}. The doctor says he died instantly. The doctor also says he's technically a dentist.",
-    "They found him in {room}, dead as a doornail and bleeding all over the good fucking rug.",
+    "They found him in {room}, dead as a doornail and ruining the good fucking rug.",
   ],
   rooms: [
     "Now open: {rooms}. Search like your ass depends on it. One of your asses does.",

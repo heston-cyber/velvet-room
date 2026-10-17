@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
-import { MAX_ROOMS, MIN_ROOMS, openRoomsIn } from "./engine/build";
+import { ACCOMPLICE_ON, MAX_ROOMS, MIN_ROOMS, openRoomsIn } from "./engine/build";
 import { randomCode, registrationIsOpen, requireHost } from "./lib";
 import { ensureAllCards } from "./cards";
 import { MAX_CARDS } from "./shared";
@@ -77,7 +77,8 @@ export const roster = query({
         motiveMode: game.motiveMode,
         killerOptIn: game.killerOptIn,
         // v2: a killer and an accomplice (7+ players). hasAccomplice: what Start decided (null before Start).
-        accomplice: !!game.accomplice,
+        // Oct 16: the role is off (ACCOMPLICE_ON), so this reads false whatever was saved.
+        accomplice: ACCOMPLICE_ON && !!game.accomplice,
         hasAccomplice: started(game) ? !!game.hasAccomplice : null,
         lookalikes: !!game.lookalikes,
         rooms: game.rooms,
@@ -199,7 +200,9 @@ export const updateSettings = mutation({
     }
     // Back to Classic turns Sailor mode off.
     if (patch.tone === "classic" && !patch.narrator && game.narrator?.sailor) update.narrator = { ...game.narrator, sailor: false };
-    for (const key of ["motiveMode", "killerOptIn", "accomplice", "lookalikes", "registrationOpen", "registrationClosesAt", "deadlineLabel", "tone", "search"] as const) {
+    // The accomplice setting is ignored while the role is off (ACCOMPLICE_ON).
+    if (ACCOMPLICE_ON && patch.accomplice !== undefined) update.accomplice = patch.accomplice;
+    for (const key of ["motiveMode", "killerOptIn", "lookalikes", "registrationOpen", "registrationClosesAt", "deadlineLabel", "tone", "search"] as const) {
       if (patch[key] !== undefined) (update as Record<string, unknown>)[key] = patch[key];
     }
     await ctx.db.patch(game._id, update);

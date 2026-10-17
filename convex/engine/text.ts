@@ -73,8 +73,12 @@ export type Script = {
    * not of this kind. weapons: the ones it rules out, by name, lower case.
    */
   coroner: (say: Say, kind: WeaponKind, positive: boolean, weapons: string[]) => string;
-  /** v2: weapons go by name (lower case: "the lawn gnome"); exhibit letters are gone. */
-  exhibitClear: (say: Say, name: string) => string;
+  /**
+   * v2: weapons go by name (lower case: "the lawn gnome"); exhibit letters are gone. Oct 16: weapon and room clears
+   * never reason from blood, wounds or a struggle, which would hint at how the Don died (and can contradict it). They
+   * say where the thing was all night, or, for a gun, that it was never fired.
+   */
+  exhibitClear: (say: Say, name: string, kind?: WeaponKind) => string;
   exhibitPairClear: (say: Say, a: string, b: string) => string;
   roomClear: (say: Say, label: string) => string;
   roomClearHere: (label: string) => string;
@@ -120,8 +124,8 @@ export const CLASSIC: Script = {
         ? `The hat-check girl saw the killer slip out the side door: a man, with his hat pulled low. That clears ${list(cleared)}.`
         : `The hat-check girl saw the killer slip out the side door: a woman, in a long dark coat. That clears ${list(cleared)}.`,
       sex === "m"
-        ? `A cabbie parked outside heard a man shouting at the Don, then a thud. The killer is a man, so ${list(cleared)} are in the clear.`
-        : `A cabbie parked outside heard a woman shouting at the Don, then a thud. The killer is a woman, so ${list(cleared)} are in the clear.`,
+        ? `A cabbie parked outside heard a man shouting at the Don just before he died. The killer is a man, so ${list(cleared)} are in the clear.`
+        : `A cabbie parked outside heard a woman shouting at the Don just before he died. The killer is a woman, so ${list(cleared)} are in the clear.`,
       sex === "m"
         ? `Footprints in spilled gin lead away from the body: a man's wingtips. That clears ${list(cleared)}.`
         : `Footprints in spilled gin lead away from the body: a woman's heels. That clears ${list(cleared)}.`,
@@ -132,38 +136,43 @@ export const CLASSIC: Script = {
       return {
         blunt: `The coroner's report: the Don was struck with something heavy. ${out}`,
         blade: `The coroner's report: one deep, clean cut. Something sharp did this. ${out}`,
-        gun: `The coroner's report: he dug a bullet out of the Don. ${out}`,
+        gun: `The coroner's report: the Don was shot. ${out}`,
         cord: `The coroner's report: marks around the Don's neck. He was strangled. ${out}`,
-        other: `The coroner's report: not a cut, not a bruise, not a bullet hole on him. ${out}`,
+        other: `The coroner's report: not a mark on him. No wound of any kind. ${out}`,
       }[kind];
     return say(`c-${kind}`, [
       {
-        blunt: `The coroner's report: not a bruise on the Don. Nothing heavy was used. ${out}`,
-        blade: `The coroner's report: not a single cut on the Don. ${out}`,
-        gun: `The coroner's report: no bullet, and nobody heard a shot all night. ${out}`,
-        cord: `The coroner's report: the Don's neck is clean. No marks at all. ${out}`,
+        blunt: `The coroner's report: no fractures, no crushing injuries. Nothing heavy was used. ${out}`,
+        blade: `The coroner's report: no stab wounds, no slashes. Nothing sharp was used. ${out}`,
+        gun: `The coroner's report: no gunshot wound, and nobody heard a shot all night. ${out}`,
+        cord: `The coroner's report: no marks around the Don's neck. He wasn't strangled. ${out}`,
         other: `The coroner's report: no poison in his blood, no water in his lungs. ${out}`,
       }[kind],
     ]);
   },
-  exhibitClear: (say, name) =>
-    say("e1", [
-      `The coroner rules out the ${name}. The wounds don't match. Not the weapon.`,
-      `The ${name} came back from the lab clean: no blood, no prints. Not the weapon.`,
-      `The ${name} sat in the coat check all night and nobody touched it. Not the weapon.`,
-    ]),
+  exhibitClear: (say, name, kind) =>
+    kind === "gun"
+      ? say("e1g", [
+          `The ${name} is still fully loaded, and it hasn't been fired tonight. Not the weapon.`,
+          `Not a whiff of powder on the ${name}. Nobody fired it tonight. Not the weapon.`,
+        ])
+      : say("e1", [
+          `The ${name} sat in the coat check all night and nobody touched it. Not the weapon.`,
+          `The ${name} was locked in the Don's office safe all night, and only the Don knew the combination. Not the weapon.`,
+          `There's a perfect ring of dust around the ${name}. It hasn't moved all night. Not the weapon.`,
+        ]),
   exhibitPairClear: (say, a, b) =>
     say("e2", [
       `The ${a} and the ${b} were behind the bar under the bartender's nose all evening. Neither one was used.`,
-      `The lab cleared the ${a} and the ${b}. Spotless, both of them. Neither is the weapon.`,
+      `The ${a} and the ${b} were locked in the Don's office safe all night, and only the Don knew the combination. Neither is the weapon.`,
     ]),
   roomClear: (say, label) =>
     say("r1", [
-      `Not a speck of blood in ${mid(label)}, and nothing is out of place. The Don wasn't killed there.`,
+      `${label} was locked all evening, and the manager never let go of the key. The Don wasn't killed there.`,
       `The dust on the floor of ${mid(label)} hasn't been disturbed all night. Nobody died in there.`,
       `${label} was full of witnesses all evening. Nobody could have killed the Don there unseen.`,
     ]),
-  roomClearHere: (label) => `This room is clean. No blood, no struggle. The Don wasn't killed in ${mid(label)}.`,
+  roomClearHere: (label) => `The dust on the floor in here hasn't been disturbed all night. The Don wasn't killed in ${mid(label)}.`,
   twistMoved: (body) =>
     `The twist: the Don wasn't killed in ${mid(body)} at all. Drag marks say someone moved him there after he was dead.`,
   twistStayed: (body) =>

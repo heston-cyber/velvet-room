@@ -77,6 +77,14 @@ AUDIT = """() => {
       out.push(`clipped ${name(el)} (${el.scrollWidth}x${el.scrollHeight} in ${el.clientWidth}x${el.clientHeight}) "${(el.innerText || '').slice(0, 40).replace(/\\n/g, ' ')}"`);
     }
   }
+  // Oct 16: the guest strip, the narrator's caption and the round's cards and map never cover each other.
+  const box = (s) => { const el = st.querySelector(s); if (!el) return null; const r = el.getBoundingClientRect(); return r.width > 2 ? r : null; };
+  const hit = (a, b) => a && b && a.left < b.right - 2 && b.left < a.right - 2 && a.top < b.bottom - 2 && b.top < a.bottom - 2;
+  const strip = box('.tv-strip'), cap = box('.tv-caption'), split = box('.tv-fit.split'), foot = box('.tv-foot');
+  if (hit(strip, cap)) out.push('overlap: strip and caption');
+  if (hit(strip, split)) out.push('overlap: strip and the round');
+  if (strip && hit(cap, split)) out.push('overlap: caption and the round');
+  if (hit(strip, foot)) out.push('overlap: strip and the room code');
   return [...new Set(out)].slice(0, 15);
 }"""
 
