@@ -155,7 +155,9 @@ with sync_playwright() as p:
     skip("Begin Round 1")
     ok(wait_for(lambda: host.get_by_text("Find the markers.").count() == 1, 15), "Round 1 begins")
     host.wait_for_timeout(5000)
-    ok(host.locator(".tv-split .tv-wcard").count() == 6, "Round 1 lists the weapons in play")
+    # Oct 16: the weapons in play sit along the top of the screen in every round, the guests along the bottom.
+    ok(host.locator(".tv-topweapons > div").count() == 6, "Round 1 shows the weapons in play along the top")
+    ok(host.locator(".tv-strip > div").count() >= 3, "and the guests along the bottom")
     shot(host, "09-round1.png")
     # A heckle in the lull, about a minute and a half in (convex/heckles.ts).
     # (Skipping through the show can reach Round 1 before the last heckles finish recording.)
