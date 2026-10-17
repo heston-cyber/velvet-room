@@ -98,6 +98,9 @@ created = cx("admin:createGame", {"slug": SLUG, "title": "The Velvet Room", "isT
 KEY = created["hostKey"]
 cx("host:updateSettings", {"slug": SLUG, "hostKey": KEY, "tone": TONE, "search": "waves", "pacing": {"mode": "ready", "roundMinutes": 10}})
 cx("game:seedFakeCast", {"slug": SLUG, "guests": GUESTS, "markers": 24, "seed": 77, "checkIn": True, "longNames": True})
+# Oct 16: the game draws the weapons; WEAPONS=10 checks the biggest set (17+ guests) with the longest names.
+if os.environ.get("WEAPONS"):
+    cx("host:updateSettings", {"slug": SLUG, "hostKey": KEY, "weapons": ["candlestick", "racquet", "shears", "fishingline", "blunderbuss", "bat", "gnome", "bucket", "leadpipe", "flaregun"][: int(os.environ["WEAPONS"])]})
 guests = cx("admin:testPlayers", {"slug": SLUG})
 roster = lambda: qry("host:roster", {"slug": SLUG, "hostKey": KEY})
 

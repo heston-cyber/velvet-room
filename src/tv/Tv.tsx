@@ -919,7 +919,7 @@ function WeaponRow({ weapons }: { weapons: Weapon[] }) {
  * that particular game at the top of the screen as well"), like the guests along the bottom. Never by owner.
  */
 function TopWeapons({ weapons }: { weapons: Weapon[] }) {
-  const slot = Math.min(6, 40 / weapons.length);
+  const slot = Math.min(6, 46 / weapons.length);
   return (
     <div className="tv-topweapons" style={{ "--slot": `${slot}cqw` } as CSSProperties} aria-label="The weapons in play">
       {weapons.map((w) => (
