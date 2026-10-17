@@ -86,7 +86,7 @@ export default function HouseMap({ map, round, bodyRoomKey, now, compact }: { ma
         </g>
       </svg>
       <figcaption>
-        <b>{found}</b> of {map.markers.length} markers found
+        <b>{found}</b> of {map.markers.length} cards found
       </figcaption>
     </figure>
   );

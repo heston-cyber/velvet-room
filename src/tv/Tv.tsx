@@ -254,7 +254,7 @@ function TvInner({ slug, tvKey, onNext, overlay, bare }: { slug: string; tvKey: 
               <div className="tv-overlay">
                 <span className="tv-kick">Paused</span>
                 <h2 className="tv-h2">Hold everything.</h2>
-                <p className="tv-sub">The host paused the game. The clock is stopped.</p>
+                <p className="tv-sub">{g.pacing.mode === "timer" || g.round >= 4 || !!data.vote ? "The host paused the game. The clock is stopped." : "The host paused the game."}</p>
               </div>
             )}
             {g.tvShowAll && g.status === "playing" && <AllEvidence data={data} />}
@@ -421,7 +421,7 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
               <span className="tv-kick">The doors are open</span>
               <h2 className="tv-h2" style={{ fontSize: "5.4cqw" }}>The Velvet Room</h2>
               <p className="tv-sub">
-                {g.roomCode ? "Signed up? Open your link and you're in. New here? Scan the code to join." : "Open your personal link and you're in."} Mingle in character.
+                {g.roomCode ? "Signed up? Open your link and you're in. New here? Scan the code to join." : "Open your personal link and you're in."} Mingle. Stay in costume.
               </p>
               <Guests guests={d.guests} mark="here" />
             </div>
@@ -457,7 +457,7 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
               <Fit className="split" watch={`${d.weapons.length}`}>
               <div className="tv-split">
                 <div className="tv-left">
-                  <h2 className="tv-h2" style={{ fontSize: "5cqw", marginTop: "1cqw" }}>Find the markers.</h2>
+                  <h2 className="tv-h2" style={{ fontSize: "5cqw", marginTop: "1cqw" }}>Find the evidence cards.</h2>
                   <p className="tv-sub">Scan them with your phone. Question everyone.</p>
                   <p className="tv-sub small">The body was found in {mid(g.bodyRoom)}.</p>
                   {/* Oct 16: the weapons in play sit along the top of the screen through every round. */}
@@ -589,7 +589,7 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
         )}
         {r.aces.length > 0 && <p className="tv-sub fade">Ace detectives: {r.aces.join(", ")}</p>}
         <p className="tv-sub fade" style={{ color: "var(--paper)" }}>
-          {r.accomplice ? `${splitName(r.killer).main} and ${splitName(r.accomplice.name).main}, stand up and confess.` : `${splitName(r.killer).main}, stand up and confess.`} Everyone else: vote Best Dressed and Best Liar on your phones.
+          {r.accomplice ? `${splitName(r.killer).main} and ${splitName(r.accomplice.name).main}, stand up and confess.` : `${splitName(r.killer).main}, stand up and confess.`} Everybody: vote Best Dressed and Best Liar on your phones.
         </p>
         </Fit>
       </div>,
@@ -662,7 +662,7 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
     const beat = now >= beats[2] ? 2 : now >= beats[1] ? 1 : 0;
     const frames = [
       <div className="tv-scene dark" key="i0">
-        <span className="tv-kick fade">New York City · October, 1929</span>
+        <span className="tv-kick fade">New York City · October 31, 1929</span>
       </div>,
       <div className="tv-scene dark" key="i1">
         <h2 className="tv-h2 fade blood">The Don is dead.</h2>
@@ -864,7 +864,7 @@ function voteScene(d: Data, vt: Vote, now: number): Scene {
               <span className="tv-kick fade">{vt.outcome === "jailed" ? "Locked up" : "Released"}</span>
               <h2 className="tv-h2 fade" style={{ fontSize: "5cqw" }}>{vt.outcome === "jailed" ? `${who.name} is going to jail.` : `${who.name} is free.`}</h2>
               <p className="tv-sub fade" style={{ animationDelay: ".6s" }}>
-                {vt.outcome === "jailed" ? "They can talk and bribe. No searching, no voting, no lock-in." : "Back in the game: they can lock in."}
+                {vt.outcome === "jailed" ? "They can talk, and bribe with chips. No searching, no voting, no lock-in." : "Back in the game: they can lock in."}
               </p>
             </div>
           </div>
@@ -1254,7 +1254,7 @@ function AllEvidence({ data }: { data: Data }) {
             {c.text}
           </div>
         ))}
-        {!ev.length && <p className="tv-sub">Nothing on the TV yet. Round 1 evidence is on the markers.</p>}
+        {!ev.length && <p className="tv-sub">Nothing on the TV yet. Round 1 evidence is on the cards.</p>}
       </div>
     </div>
   );

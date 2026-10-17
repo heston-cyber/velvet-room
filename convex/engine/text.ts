@@ -244,7 +244,7 @@ export const CLASSIC: Script = {
   innocentLines: [
     "You're innocent. You didn't kill the Don.",
     "You may lie about your secret, but not about the murder. Only the killer may lie about that.",
-    "Find the markers, compare notes, and work out who did it, with which weapon, and where.",
+    "Find the evidence cards, compare notes, and work out who did it, with which weapon, and where.",
     "After Round 2 you can vote someone into jail, if most of you agree; after Round 3, a vote to let them out. Jailbirds can't search, vote or lock in.",
   ],
   accompliceLines: (f) => [
@@ -265,7 +265,7 @@ export const CLASSIC: Script = {
     "You're innocent. You didn't kill the Don.",
     "Tonight the killer has an accomplice: someone who didn't do it, knows who did, and will lie to protect them.",
     "You may lie about your secret, but not about the murder. Only the killer and the accomplice may lie about that.",
-    "Find the markers, compare notes, and work out who did it, with which weapon, and where. When you lock in, you can guess the accomplice too.",
+    "Find the evidence cards, compare notes, and work out who did it, with which weapon, and where. When you lock in, you can guess the accomplice too.",
     "After every round, vote someone into jail if most of you agree. Jailbirds can't search, vote or lock in.",
   ],
 };

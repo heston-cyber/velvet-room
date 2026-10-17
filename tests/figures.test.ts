@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, test } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
 import { WEAPON_KEYS } from "../convex/weapons";
-import { ALL_FIGURE_KEYS, CAST, CAST_KEYS, anyFreeFigure, castName, castRealName, fakeGuestPool, standIns } from "../convex/figures";
+import { ALL_FIGURE_KEYS, CAST, CAST_KEYS, MYSTERY_KEYS, anyFreeFigure, castName, castRealName, fakeGuestPool, standIns } from "../convex/figures";
 import { rollNarration } from "../convex/narration";
 import { existsSync } from "node:fs";
 
@@ -41,7 +41,8 @@ describe("the party cast: the only characters (Heston, Oct 16: the generic ones 
       expect(["m", "f"]).toContain(sex);
     }
     for (const f of ["don", "killer"]) expect(existsSync(`public/art/${f}.webp`), f).toBe(true);
-    expect(ALL_FIGURE_KEYS).toEqual(CAST_KEYS);
+    // F6 (Oct 17): plus the two mystery-guest silhouettes.
+    expect(ALL_FIGURE_KEYS).toEqual([...CAST_KEYS, ...MYSTERY_KEYS]);
   });
 
   test("a cast member goes by their own name and nickname", () => {
@@ -53,8 +54,8 @@ describe("the party cast: the only characters (Heston, Oct 16: the generic ones 
   test("the sign-up gallery: the guys, then the girls, each with a name; no other drawings", async () => {
     const { t } = await setup();
     const g = (await t.query(api.registration.figures, { slug: SLUG }))!;
-    expect(g.map((s) => s.label)).toEqual(["The guys", "The girls"]);
-    expect(g.flatMap((s) => s.figures.map((f) => f.key)).sort()).toEqual([...CAST_KEYS].sort());
+    expect(g.map((s) => s.label)).toEqual(["The guys", "The girls", "Not in the cast? A plus-one?"]);
+    expect(g.flatMap((s) => s.figures.map((f) => f.key)).sort()).toEqual([...CAST_KEYS, ...MYSTERY_KEYS].sort());
     expect(g[0].figures.every((f) => CAST.find((l) => l.key === f.key)!.sex === "m")).toBe(true);
     expect(g.flatMap((s) => s.figures).every((f) => f.name && f.castName)).toBe(true);
   });

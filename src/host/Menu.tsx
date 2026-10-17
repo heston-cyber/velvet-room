@@ -85,7 +85,7 @@ export default function Menu(props: { data: Roster; slug: string; hostKey: strin
         <Sec title="Searching">
           <Seg label="Searching" value={game.search} options={[["all", "All rooms open"], ["waves", "Rooms open in waves"]]} disabled={locked} onPick={(search) => save({ search })} />
           <Swap show={game.search === "all" ? 0 : 1}>
-            <span className="help">Every marker can be found from Round 1.</span>
+            <span className="help">Every card can be found from Round 1.</span>
             <span className="help">The game opens a few rooms each round, starting with where the body is found. Opened rooms stay open. Good for big groups, so nobody finds everything in Round 1.</span>
           </Swap>
         </Sec>
@@ -291,7 +291,7 @@ function Rooms({ game, markers, locked, save }: { game: Roster["game"]; markers:
               className="hx-x"
               disabled={locked || rows.length <= MIN_ROOMS}
               aria-label={`Remove room ${i + 1}`}
-              title={inRoom(r.key) ? `${inRoom(r.key)} marker(s) here will need a new room` : "Remove this room"}
+              title={inRoom(r.key) ? `${inRoom(r.key)} card(s) here will need a new room` : "Remove this room"}
               onClick={() => change(rows.filter((_, j) => j !== i), true)}
             >
               ×
@@ -343,17 +343,17 @@ function Markers({ data, slug, hostKey, locked, onError }: { data: Roster; slug:
   const recPlan = dealCards(rec.markers, rooms);
   const isRec = JSON.stringify(list.map((m) => [m.number, m.roomKey])) === JSON.stringify(recPlan.map((m) => [m.number, m.roomKey]));
   return (
-    <Sec title={<>Evidence markers · {list.length}</>}>
+    <Sec title={<>Evidence cards · {list.length}</>}>
       <div className="hx-kv">
         <span className="lab">How many</span>
         <span className="hx-stepper hx-ctl">
-          <button type="button" aria-label="One fewer marker" disabled={locked || !list.length} onClick={() => commit(list.slice(0, -1))}>
+          <button type="button" aria-label="One fewer card" disabled={locked || !list.length} onClick={() => commit(list.slice(0, -1))}>
             −
           </button>
           <b>{list.length}</b>
           <button
             type="button"
-            aria-label="One more marker"
+            aria-label="One more card"
             disabled={locked || list.length >= MAX_MARKERS}
             onClick={() => commit([...list, { number: (list[list.length - 1]?.number ?? 0) + 1, roomKey: "" }])}
           >
@@ -371,7 +371,7 @@ function Markers({ data, slug, hostKey, locked, onError }: { data: Roster; slug:
                 <select
                   value={ok ? m.roomKey : ""}
                   disabled={locked}
-                  aria-label={`Marker ${m.number} room`}
+                  aria-label={`Card ${m.number} room`}
                   onChange={(e) => commit(list.map((x) => (x.number === m.number ? { ...x, roomKey: e.target.value } : x)))}
                 >
                   <option value="">No room</option>
@@ -395,9 +395,9 @@ function Markers({ data, slug, hostKey, locked, onError }: { data: Roster; slug:
       <Ledger guests={guests} rooms={rooms.length} cards={list.length} />
       <span className="help">
         The PDF has all {MAX_CARDS} cards, the same every game. This game uses cards 1 to {list.length || "N"}; the rest stay in the box and get no clue.
-        Place them, then pick each marker's room here. Clues are written at the draw. No markers set when you press Play: the game deals the recommended ones.
+        Print them, hide them, then pick each card's room here. Clues are written at Play. No cards set: the game deals the recommended ones when the doors open, and Play asks if they're hidden.
       </span>
-      <span className={`hx-status ${placed < list.length ? "warn" : ""}`}>{list.length ? `${placed} of ${list.length} markers have a room` : "No markers: Round 1 evidence goes on the TV instead."}</span>
+      <span className={`hx-status ${placed < list.length ? "warn" : ""}`}>{list.length ? `${placed} of ${list.length} cards have a room${placed < list.length ? " (the rest are dealt at Play)" : ""}` : "No cards: their clues come out on the TV in Rounds 2 and 3."}</span>
     </Sec>
   );
 }

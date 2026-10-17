@@ -124,7 +124,7 @@ describe("party night", () => {
     expect(mine!.scans).toHaveLength(1);
     expect(mine!.scans[0].text).toBe(clue.text);
     expect(theirs!.scans).toHaveLength(0);
-    await expect(t.mutation(api.game.scanMarker, { token: tokens[0], code: "zzzzzz" })).rejects.toThrow(/isn't one of tonight's markers/);
+    await expect(t.mutation(api.game.scanMarker, { token: tokens[0], code: "zzzzzz" })).rejects.toThrow(/isn't one of tonight's evidence cards/);
   });
 
   test("a guest who arrives after the draw can't play", async () => {
@@ -146,7 +146,7 @@ describe("party night", () => {
     expect((await game(t)).round).toBe(4);
     await expect(
       t.mutation(api.game.accuse, { token: tokens[0], suspectId: players[0]._id, exhibitId: board.exhibits[0].id, roomKey: board.rooms[0].key }),
-    ).rejects.toThrow(/can't accuse yourself/);
+    ).rejects.toThrow(/can't name yourself/);
     for (const [i, token] of tokens.entries()) {
       const other = board.suspects.find((s) => s.id !== players[i]._id)!;
       await t.mutation(api.game.accuse, { token, suspectId: other.id, exhibitId: board.exhibits[0].id, roomKey: board.rooms[0].key });

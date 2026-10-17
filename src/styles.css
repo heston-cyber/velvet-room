@@ -372,3 +372,19 @@ img { max-width: 100%; }
 /* Oct 17: a big "I'm here" at the door (F4), and the host link as a small one on phones (I10). */
 .primary.big-tap { min-height: 64px; font-size: 22px; }
 .back.small-link { font-size: 14px; opacity: .75; margin-top: 8px; }
+/* F11 (Oct 17): the code on an evidence card, to type into Scan. */
+.card-code { font-family: var(--label); font-size: 30px; letter-spacing: .2em; color: var(--brass); padding: 10px 18px; border: 1px solid var(--brass); }
+
+/* I2 (Oct 17): bigger tap targets and labels on phones. Back, Cancel and the tabs were 10-13px. */
+.back { font-size: 15px; padding: 10px 0; min-height: 44px; }
+.back.small-link { font-size: 14px; }
+.tabbar button { font-size: 12px; padding: 12px 4px 10px; min-height: 56px; }
+.tabbar svg { width: 24px; height: 24px; }
+.copy { font-size: 13px; padding: 10px 14px 8px; min-height: 40px; }
+.ghost-btn { font-size: 14px; min-height: 46px; }
+.seg button { font-size: 14px; min-height: 42px; }
+.pick .opts button { min-height: 44px; font-size: 16px; }
+.pick .opts.weapons button { font-size: 14px; }
+.figure-name { font-size: 12px; }
+.ev li small, .card-head, .stats span { font-size: 11px; }
+.tabbar { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 1fr; }

@@ -117,6 +117,29 @@ export default function Join({ initialCode }: { initialCode: string }) {
     );
   }
 
+  // S9 (Oct 17): a brand-new game with nobody signed up yet leads with making a character.
+  if (!room.guests.length && !room.started) {
+    return (
+      <Shell>
+        <div className="screen center join">
+          {room.isTest && <div className="testflag">Test game · not the real party</div>}
+          <span className="eyebrow">Room {code}</span>
+          <Deco />
+          <h1 className="title-lg">Make your character</h1>
+          <p className="lede">Nobody's signed up yet. Pick your face, add your name, and you're in.</p>
+          <div className="actions wide">
+            <button type="button" className="primary" onClick={() => navigate(`/?game=${encodeURIComponent(room.slug)}&walkin=${code}`)}>
+              Make my character
+            </button>
+          </div>
+          <button type="button" className="back" onClick={() => setCode("")}>
+            Wrong room? Change the code
+          </button>
+        </div>
+      </Shell>
+    );
+  }
+
   // 2. Pick your name.
   return (
     <Shell>

@@ -110,6 +110,11 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
   const now = useNow(game.status === "playing");
   const vt = data.vote;
   const voting = game.status === "playing" && !!vt && vt.round === game.round && (!vt.closedAt || now < (vt.nextAt ?? 0));
+  // A vote opening brings the phone to the vote, once; the guest can still flip to Evidence or Notebook (I3).
+  const voteAt = voting ? vt!.at : null;
+  useEffect(() => {
+    if (voteAt) setTab("case");
+  }, [voteAt]);
 
   let body: JSX.Element;
   let showNav = false;
@@ -117,7 +122,18 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
   else if (game.status === "lobby") body = <Lobby data={data} />;
   else if (game.status === "playing" && !me.inGame) body = <Late data={data} />;
   else if (game.status === "playing" && !game.rolesOut) body = <ShowWait data={data} />;
-  else if (voting) body = <VoteScreen token={token} data={data} now={now} />;
+  else if (voting) {
+    // I3 (Oct 17): the Evidence and Notebook tabs stay reachable during a vote; the first tab is the vote.
+    showNav = seen;
+    body =
+      seen && tab === "evidence" ? (
+        <Evidence token={token} data={data} />
+      ) : seen && tab === "notebook" ? (
+        <Notebook token={token} data={data} />
+      ) : (
+        <VoteScreen token={token} data={data} now={now} />
+      );
+  }
   else if (game.status === "playing" && !seen) {
     body = (
       <Murder
@@ -154,17 +170,20 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
         <nav className="tabbar" aria-label="Game">
           {(
             [
-              ["case", game.round >= 4 ? "Lock in" : "Case"],
-              ["scan", "Scan"],
+              ["case", voting ? "Vote" : game.round >= 4 ? "Lock in" : "Case"],
+              ...(voting ? [] : [["scan", "Scan"]]),
               ["evidence", "Evidence"],
               ["notebook", "Notebook"],
             ] as [Tab, string][]
-          ).map(([k, label]) => (
-            <button key={k} type="button" aria-current={tab === k ? "page" : undefined} onClick={() => setTab(k)}>
-              {k === "case" && game.round >= 4 ? ICON.accuse : ICON[k]}
-              {label}
-            </button>
-          ))}
+          ).map(([k, label]) => {
+            const on = voting ? (k === "case" ? tab !== "evidence" && tab !== "notebook" : tab === k) : tab === k;
+            return (
+              <button key={k} type="button" aria-current={on ? "page" : undefined} onClick={() => setTab(k)}>
+                {k === "case" && (game.round >= 4 || voting) ? ICON.accuse : ICON[k]}
+                {label}
+              </button>
+            );
+          })}
         </nav>
       )}
     </div>
@@ -227,13 +246,13 @@ function todoOf(data: Phone, intro: boolean): string {
   if (game.status === "lobby") return "You're in. Wait for the host to start the show.";
   if (intro) return "Watch the TV. Your role arrives here after the roll call.";
   if (vt && !vt.closedAt) {
-    if (me.jailed) return "You're in jail, so you can't vote. Bribe someone who can.";
+    if (me.jailed) return "You're in jail, so you can't vote. Bribe someone who can: chips for their vote.";
     if (data.myBallot !== undefined) return "Your vote is in. You can change it until the vote closes.";
     return vt.kind === "jail" ? "Vote below: who goes to jail? Or nobody." : "Vote below: does anyone get out of jail? Or nobody.";
   }
   if (vt) return "Watch the TV for the verdict.";
   if (game.status === "playing" && game.round <= 3) {
-    if (me.jailed) return "You're in jail: no searching or voting. Talk your way out.";
+    if (me.jailed) return game.round === 3 ? "You're in jail. The release vote at the end of this round can let you out, or the evidence can." : "You're in jail: no searching or voting. Keep talking.";
     return game.pacing.mode === "timer" ? "Search the house and scan every evidence card you find." : "Search the house and scan evidence cards. Tap Ready when you're done.";
   }
   if (game.status === "playing") {
@@ -305,7 +324,7 @@ function Lobby({ data }: { data: Phone }) {
   return (
     <div className="screen">
       <span className="eyebrow">You're in</span>
-      <h1 className="title-lg">Mingle in character.</h1>
+      <h1 className="title-lg">Mingle. Stay in costume.</h1>
       <p className="lede">When everyone's here, the lights drop and the show begins. Your role arrives on this phone after the roll call.</p>
       <ul className="guests">
         {lobby.map((p) => (
@@ -378,7 +397,7 @@ function useHold() {
 function JailBanner() {
   return (
     <div className="jail-banner" role="status">
-      <b>You're in jail.</b> You can talk and bribe with chips, but you can't search, vote or lock in.
+      <b>You're in jail.</b> You can talk, and bribe: offer chips to whoever votes you out. You can't search, vote or lock in.
     </div>
   );
 }
@@ -450,7 +469,7 @@ function VoteScreen({ token, data, now }: { token: string; data: Phone; now: num
         <span className="eyebrow">{jail ? "The jail vote" : "The release vote"}</span>
         {data.me.jailed && <JailBanner />}
         <h1 className="title-lg">{onBallot ? "Your fate is on the ballot." : "Sit tight."}</h1>
-        <p className="lede">{data.me.jailed ? "You can't vote from a cell. Talk fast. Bribes are welcome." : "This vote is for the others."}</p>
+        <p className="lede">{data.me.jailed ? "You can't vote from a cell. Talk fast. Bribes (chips for votes) are welcome." : "This vote is for the others."}</p>
         <p className="help">
           {vt.voted} of {vt.voters} voted · {clockOf(vt.left ?? vt.endsAt - now)} left
         </p>
@@ -485,13 +504,17 @@ function VoteScreen({ token, data, now }: { token: string; data: Phone; now: num
 
 /** The show (v2): the intro, How to play and the roll call play on the TV. The role arrives after the roll call. */
 function ShowWait({ data }: { data: Phone }) {
+  // W4 (Oct 17): How to play and the murder play on the TV first; the phone only says he's dead once the TV has.
+  const rollAt = data.game.rollAt;
+  const now = useNow(!!rollAt && Date.now() < rollAt);
+  const dead = !rollAt || now >= rollAt;
   return (
     <div className="screen center murder">
       <span className="eyebrow">Lights down</span>
-      <h1 className="title-xl">The Don is dead.</h1>
-      {data.game.bodyRoom && <p className="lede">Don Ray Sanders has been found in {mid(data.game.bodyRoom)}.</p>}
+      <h1 className="title-xl">{dead ? "The Don is dead." : "Eyes on the TV."}</h1>
+      {dead && data.game.bodyRoom && <p className="lede">Don Ray Sanders has been found in {mid(data.game.bodyRoom)}.</p>}
       <div className="sealed">
-        <p>Eyes on the TV. Your secret role arrives here after the roll call.</p>
+        <p>{dead ? "Your secret role arrives here after the roll call." : "The show is starting. Your secret role arrives here after the roll call."}</p>
       </div>
     </div>
   );
@@ -825,13 +848,13 @@ function Scanner({ token, data, onNotebook }: { token: string; data: Phone; onNo
     return (
       <div className="screen">
         <span className="eyebrow">
-          Marker {clue.number} · {clue.room}
+          Card {clue.number} · {clue.room}
         </span>
         <div className="clue">
-          <span className="no">Evidence marker no. {clue.number}</span>
+          <span className="no">Evidence card no. {clue.number}</span>
           <p>{clue.text}</p>
         </div>
-        <p className="help">Saved to your evidence. Anyone who finds this marker reads the same thing.</p>
+        <p className="help">Saved to your evidence. Anyone who finds this card reads the same thing.</p>
         <button
           type="button"
           className="primary"
@@ -850,14 +873,14 @@ function Scanner({ token, data, onNotebook }: { token: string; data: Phone; onNo
   }
   return (
     <div className="screen">
-      <h1 className="title-lg">Find a marker</h1>
+      <h1 className="title-lg">Find an evidence card</h1>
       {camera ? (
         <CameraScanner onCode={read} onClose={() => setCamera(false)} />
       ) : (
         <>
-          <p className="lede">Markers are hidden around the house. When you find one, scan its QR card.</p>
+          <p className="lede">Evidence cards are hidden around the house. When you find one, scan its QR code.</p>
           <button type="button" className="primary" onClick={() => setCamera(true)}>
-            Scan a marker
+            Scan a card
           </button>
         </>
       )}
@@ -876,7 +899,7 @@ function Scanner({ token, data, onNotebook }: { token: string; data: Phone; onNo
           value={code}
           onChange={(e) => setCode(e.target.value)}
           placeholder="e.g. k7qx2m"
-          aria-label="Marker code"
+          aria-label="Card code"
           autoComplete="off"
           autoCapitalize="none"
           spellCheck={false}
@@ -887,7 +910,7 @@ function Scanner({ token, data, onNotebook }: { token: string; data: Phone; onNo
       </form>
       {error && <div className="errbox">{error}</div>}
       <p className="help">
-        Markers you've found: {data.scans.length} of {data.game.markerCount}
+        Cards you've found: {data.scans.length} of {data.game.markerCount}
       </p>
       {data.game.search === "waves" && data.board && data.game.round <= 3 && (
         <div className="file">
@@ -925,13 +948,13 @@ function Evidence({ token, data }: { token: string; data: Phone }) {
         ) : null,
       )}
       <section className="ev-sec">
-        <span className="ev-h">Markers you found</span>
+        <span className="ev-h">Cards you found</span>
         {data.scans.length ? (
           <ul className="ev">
             {data.scans.map((s) => (
               <li key={s.number}>
                 <small>
-                  Marker {s.number} · {s.room}
+                  Card {s.number} · {s.room}
                 </small>
                 {s.text}
               </li>
@@ -1042,9 +1065,10 @@ function Accuse({ token, data }: { token: string; data: Phone }) {
     setPick((p) => ({ ...p, [k]: val, ...(k === "s" && p.a === val ? { a: "" } : {}) }));
     setArmed(false);
   };
-  const opt = (k: "s" | "r" | "a", val: string, label: string) => (
-    <button key={val} type="button" aria-pressed={pick[k] === val} onClick={() => set(k, pick[k] === val && k === "a" ? "" : val)}>
-      {label}
+  const opt = (k: "s" | "r" | "a", val: string, label: string, figure?: string | null) => (
+    <button key={val} type="button" className={figure ? "who-opt" : undefined} aria-pressed={pick[k] === val} onClick={() => set(k, pick[k] === val && k === "a" ? "" : val)}>
+      {figure && <img src={faceUrl(figure)} alt="" />}
+      <span>{label}</span>
     </button>
   );
   const ready = !!(pick.s && pick.e && pick.r);
@@ -1054,7 +1078,8 @@ function Accuse({ token, data }: { token: string; data: Phone }) {
       <p className="lede">Who killed the Don, with which weapon, and where? Once you lock in, that's final.</p>
       <div className="pick">
         <span className="eyebrow">Who</span>
-        <div className="opts">{board.suspects.filter((s) => s.id !== data.me.id).map((s) => opt("s", s.id, s.name))}</div>
+        {/* I1 (Oct 17): faces, not just names. */}
+        <div className="opts">{board.suspects.filter((s) => s.id !== data.me.id).map((s) => opt("s", s.id, s.name, s.figure))}</div>
       </div>
       <div className="pick">
         <span className="eyebrow">Which weapon</span>

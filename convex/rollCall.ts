@@ -26,7 +26,7 @@ export async function rollGuests(ctx: QueryCtx, game: Doc<"games">, _cf: CaseFil
   ).sort((a, b) => a.createdAt - b.createdAt);
   return players.map((p) => {
     const m = castMember(p.figure);
-    const own = { nickname: p.nickname, lastName: p.lastName };
+    const own = { nickname: p.nickname, lastName: p.lastName, firstName: p.firstName };
     const cast = m ? { real: castRealName(m, own), nickname: castNickname(m, own) || null } : null;
     const wanted = rollWanted(tone, narratorOf(game), {
       id: p._id,

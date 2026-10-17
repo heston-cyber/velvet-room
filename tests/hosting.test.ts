@@ -5,7 +5,7 @@ import { beforeAll, describe, expect, test } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
 import { HOURLY_GAME_CAP } from "../convex/hosting";
-import { CAST_KEYS } from "../convex/figures";
+import { CAST_KEYS, MYSTERY_KEYS } from "../convex/figures";
 
 const modules = import.meta.glob("../convex/**/*.ts");
 
@@ -33,7 +33,7 @@ describe("anyone can host", () => {
     const pub = await t.query(api.registration.publicGame, { slug: a.slug });
     expect(pub!.open).toBe(true);
     const figs = await t.query(api.registration.figures, { slug: a.slug });
-    expect(figs.flatMap((s) => s.figures.map((f) => f.key)).sort()).toEqual([...CAST_KEYS].sort());
+    expect(figs.flatMap((s) => s.figures.map((f) => f.key)).sort()).toEqual([...CAST_KEYS, ...MYSTERY_KEYS].sort());
     // it never becomes the main page's game
     const g = await t.run(async (ctx) => (await ctx.db.query("games").collect()).find((x) => x.slug === a.slug)!);
     expect(g.isActive).toBe(false);

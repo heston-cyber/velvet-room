@@ -119,6 +119,17 @@ describe("registration", () => {
     expect((await t.query(api.registration.publicGame, {}))?.open).toBe(false);
   });
 
+  test("F6 (Oct 17): a plus-one signs up as a mystery guest with their own first name; two can share the silhouette", async () => {
+    const { t } = await setup();
+    await expect(t.mutation(api.registration.register, { realName: "x", charName: "x", killerOk: true, figure: "mystery-f", lastName: "Fox" })).rejects.toThrow(/first name/);
+    const { token } = await t.mutation(api.registration.register, { realName: "x", charName: "x", killerOk: true, figure: "mystery-f", firstName: "ruth anne", lastName: "Fox", nickname: "Lucky" });
+    await t.mutation(api.registration.register, { realName: "x", charName: "x", killerOk: true, figure: "mystery-f", firstName: "Dot", lastName: "Hale" });
+    const me = (await t.query(api.registration.me, { token }))!;
+    expect(me).toMatchObject({ firstName: "Ruth", charName: "Ruth “Lucky” Fox", realName: "Ruth Fox", figure: "mystery-f" });
+    const gallery = (await t.query(api.registration.figures, { slug: "test-unit" }))!;
+    expect(gallery.flatMap((g) => g.figures).find((f) => f.key === "mystery-f")).toMatchObject({ taken: false, mystery: true });
+  });
+
   test("a guest can edit their entry", async () => {
     const { t } = await setup();
     const { token } = await t.mutation(api.registration.register, guests[0]);

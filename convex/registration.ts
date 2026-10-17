@@ -38,6 +38,7 @@ const profileArgs = {
   figure: v.optional(v.string()), // the drawing they picked as their avatar
   nickname: v.optional(v.string()), // party cast: their 1920s nickname ("Two-Tone"), optional
   lastName: v.optional(v.string()), // party cast: their last name, optional
+  firstName: v.optional(v.string()), // F6: a mystery guest's own first name
 };
 
 type ProfileInput = {
@@ -51,6 +52,7 @@ type ProfileInput = {
   figure?: string;
   nickname?: string;
   lastName?: string;
+  firstName?: string;
 };
 
 /** A cast member's drawing comes with their first name (and how to say it), whatever the page sent; their
@@ -61,9 +63,14 @@ function castProfile<T extends ProfileInput>(input: T, figure: string | undefine
   const bare = (x: string) => x.replace(/[“”"]/g, "").trim();
   // The roll call adds "a.k.a." itself, so a typed "aka Long Johnson" keeps just "Long Johnson".
   const nick = (x: string) => bare(x).replace(/^(a\.?\s*k\.?\s*a\.?|also known as)\s+/i, "").trim();
+  // F6: a mystery guest's first name is their own (one word, capitalized as typed).
+  const typed = m.mystery ? bare(clean(input.firstName, LIMITS.nickname)).split(/\s+/)[0] ?? "" : "";
+  const firstName = typed ? typed[0].toUpperCase() + typed.slice(1) : "";
+  if (m.mystery && !firstName) throw new ConvexError("Type your first name.");
+  const name = m.mystery ? firstName : m.name;
   // Their own first name typed again in the last-name box ("Heston Hill") keeps just the last name.
-  const first = new RegExp(`^${m.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s+`, "i");
-  const own = { nickname: nick(clean(input.nickname, LIMITS.nickname)), lastName: bare(clean(input.lastName, LIMITS.lastName)).replace(first, "") };
+  const first = new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s+`, "i");
+  const own = { nickname: nick(clean(input.nickname, LIMITS.nickname)), lastName: bare(clean(input.lastName, LIMITS.lastName)).replace(first, ""), firstName };
   return { ...input, ...own, charName: castName(m, own), realName: castRealName(m, own), sayAs: m.sayAs ?? "" };
 }
 
@@ -77,6 +84,7 @@ function validateProfile(game: Doc<"games">, input: ProfileInput) {
     sayAs: clean(input.sayAs, LIMITS.sayAs),
     nickname: clean(input.nickname, LIMITS.nickname),
     lastName: clean(input.lastName, LIMITS.lastName),
+    firstName: clean(input.firstName, LIMITS.nickname),
     // Oct 17 (D8): everyone is in the killer draw unless they tick "I'd rather not be the killer".
     killerOk: input.killerOk,
   };
@@ -125,7 +133,7 @@ export const figures = query({
       label: set.label,
       figures: set.keys.map((key) => {
         const m = castMember(key)!;
-        return { key, taken: taken.has(key), name: m.name, castName: castName(m) };
+        return { key, taken: taken.has(key), name: m.name, castName: castName(m), mystery: !!m.mystery };
       }),
     }));
   },
@@ -186,6 +194,7 @@ export const register = mutation({
       sayAs: p.sayAs || undefined,
       nickname: p.nickname || undefined,
       lastName: p.lastName || undefined,
+      firstName: p.firstName || undefined,
       figure,
       killerOk: p.killerOk,
       checkedIn: false,
@@ -231,6 +240,7 @@ export const me = query({
       sayAs: player.sayAs ?? "",
       nickname: player.nickname ?? "",
       lastName: player.lastName ?? "",
+      firstName: player.firstName ?? "",
       figure: player.figure ?? null,
       killerOk: player.killerOk,
     };
@@ -254,7 +264,7 @@ export const update = mutation({
     // Older pages don't send the nickname or last name: keep what's there.
     const p = validateProfile(
       game,
-      castProfile({ ...args, nickname: args.nickname ?? player.nickname, lastName: args.lastName ?? player.lastName }, args.figure ?? player.figure),
+      castProfile({ ...args, nickname: args.nickname ?? player.nickname, lastName: args.lastName ?? player.lastName, firstName: args.firstName ?? player.firstName }, args.figure ?? player.figure),
     );
     // A different drawing has to be free; the same one stays theirs. Checked before the name (see register).
     const figure = args.figure && args.figure !== player.figure ? await checkFigure(ctx, game, args.figure, player._id) : undefined;
@@ -270,6 +280,7 @@ export const update = mutation({
       ...(args.sayAs !== undefined || !!castMember(args.figure ?? player.figure) ? { sayAs: p.sayAs || undefined } : {}),
       nickname: p.nickname || undefined,
       lastName: p.lastName || undefined,
+      firstName: p.firstName || undefined,
       ...(figure ? { figure } : {}),
       killerOk: p.killerOk,
       updatedAt: Date.now(),

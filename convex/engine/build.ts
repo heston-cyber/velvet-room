@@ -64,8 +64,8 @@ export function checkInput(input: CaseInput): string[] {
   if (input.bodyRoomKey !== undefined && !input.rooms.some((r) => r.key === input.bodyRoomKey)) problems.push("The body room must be in play.");
   const roomKeys = new Set(input.rooms.map((r) => r.key));
   for (const m of input.markers) {
-    if (!m.roomKey) problems.push(`Marker ${m.number} needs a room.`);
-    else if (!roomKeys.has(m.roomKey)) problems.push(`Marker ${m.number} is in a room that isn't in play.`);
+    if (!m.roomKey) problems.push(`Card ${m.number} needs a room.`);
+    else if (!roomKeys.has(m.roomKey)) problems.push(`Card ${m.number} is in a room that isn't in play.`);
   }
   return problems;
 }

@@ -42,7 +42,7 @@ function drawCard(card: Card, _url: string, qr: { size: number; get: (r: number,
   g.fillStyle = RED;
   g.font = `700 26px "Josefin Sans", Futura, sans-serif`;
   // letter-spaced label
-  g.fillText("EVIDENCE MARKER".split("").join("\u200a\u200a"), PX / 2, 104);
+  g.fillText("EVIDENCE CARD".split("").join("\u200a\u200a"), PX / 2, 104);
 
   g.fillStyle = INK;
   g.font = `112px "Limelight", Didot, Georgia, serif`;

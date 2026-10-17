@@ -284,7 +284,7 @@ export const castVote = mutation({
     const vt = isPlaying(game) ? voteOf(game) : null;
     if (!vt || vt.closedAt) throw new ConvexError("The vote is closed.");
     if (game.paused) throw new ConvexError("The host paused the game. Vote when it starts again.");
-    if (!vt.voters.includes(player._id)) throw new ConvexError(player.jailed ? "You're in jail, so you can't vote. You can still bribe." : "You're not in this vote.");
+    if (!vt.voters.includes(player._id)) throw new ConvexError(player.jailed ? "You're in jail, so you can't vote. You can still bribe someone who can." : "You're not in this vote.");
     if (targetId === player._id) throw new ConvexError("You can't vote for yourself.");
     if (targetId && !vt.candidates.includes(targetId)) throw new ConvexError("Pick someone from the list, or nobody.");
     const mine = (await ballotsOf(ctx, game._id, vt.at)).find((b) => b.voterId === player._id);
@@ -533,10 +533,10 @@ export const scanMarker = mutation({
     const { player, game } = await requirePlayer(ctx, token);
     const { marker, cardNumber } = await markerForCode(ctx, game._id, code);
     if (!marker && cardNumber !== null) throw new ConvexError(`Card ${cardNumber} isn't in play tonight. Keep looking.`);
-    if (!marker) throw new ConvexError("That code isn't one of tonight's markers. Check it and try again.");
-    if (!marker.roomKey) throw new ConvexError(`Marker ${marker.number} isn't in play tonight. Keep looking.`);
-    if (game.status === "registration" || game.status === "lobby") throw new ConvexError("Nothing here yet. Markers come alive when the game starts.");
-    if (!player.inGame) throw new ConvexError("Only guests who were checked in before the draw can read markers.");
+    if (!marker) throw new ConvexError("That code isn't one of tonight's evidence cards. Check it and try again.");
+    if (!marker.roomKey) throw new ConvexError(`Card ${marker.number} isn't in play tonight. Keep looking.`);
+    if (game.status === "registration" || game.status === "lobby") throw new ConvexError("Nothing here yet. The cards come alive when the game starts.");
+    if (!player.inGame) throw new ConvexError("Only guests who were checked in before the game started can read the cards.");
     if (player.jailed) throw new ConvexError("You're in jail. You can talk and bribe, but you can't search.");
     const opens = markerOpensIn(game, marker.roomKey);
     if (isPlaying(game) && (game.round ?? 1) < opens) {
@@ -573,7 +573,7 @@ export const accuse = mutation({
     if (!isPlaying(game) || (game.round ?? 0) < 4) throw new ConvexError("The lock-in opens after the last round.");
     if (!player.inGame) throw new ConvexError("Only guests in the game can lock in.");
     if (player.jailed) throw new ConvexError("You're in jail, so you can't lock in.");
-    if (suspectId === player._id) throw new ConvexError("You can't accuse yourself. Nice try.");
+    if (suspectId === player._id) throw new ConvexError("You can't name yourself. Nice try.");
     const input = await caseInput(ctx, game);
     if (!input.suspects.some((s) => s.id === suspectId)) throw new ConvexError("Pick a suspect from the list.");
     if (!input.exhibits.some((e) => e.id === exhibitId)) throw new ConvexError("Pick a weapon from the list.");
@@ -687,6 +687,8 @@ export const phone = query({
         openRooms: started && game.roomOrder ? openRoomsIn(round, game.roomOrder, game.search).map(roomLabel) : [],
         wifi: game.wifi?.name ? game.wifi : null,
         introEndsAt: game.introEndsAt ?? null,
+        // W4 (Oct 17): when the TV's roll call starts, after the Don dies on screen; phones don't say he's dead before.
+        rollAt: game.show?.rollAt ?? null,
         rolesOut,
         revealAt: game.revealAt ?? null,
         // v2: a killer + accomplice game (fixed at Start), and when the TV's reveal reaches the verdict.
@@ -801,7 +803,7 @@ export const readMarker = query({
     if (!marker || !marker.roomKey) return { error: "That card isn't part of this game." };
     const game = (await ctx.db.get(player.gameId))!;
     if (game.status === "registration" || game.status === "lobby") return { error: "Nothing here yet. The game hasn't started." };
-    if (!player.inGame) return { error: "Only guests who were checked in before the draw can read markers." };
+    if (!player.inGame) return { error: "Only guests who were checked in before the game started can read the cards." };
     const room = game.rooms.find((r) => r.key === marker.roomKey);
     const opens = markerOpensIn(game, marker.roomKey);
     if (isPlaying(game) && (game.round ?? 1) < opens) return { error: `${room?.label ?? "This room"} is sealed until Round ${opens}. Come back then.` };
@@ -865,7 +867,7 @@ export const saveMarkers = mutation({
   },
   handler: async (ctx, { slug, hostKey, markers }) => {
     const game = await requireHost(ctx, slug, hostKey);
-    if (game.status !== "registration" && game.status !== "lobby") throw new ConvexError("The game has started, so markers are locked.");
+    if (game.status !== "registration" && game.status !== "lobby") throw new ConvexError("The game has started, so the cards are locked.");
     await writeMarkers(ctx, game, markers);
     return { ok: true };
   },
@@ -875,12 +877,12 @@ export const saveMarkers = mutation({
 async function writeMarkers(ctx: MutationCtx, game: Doc<"games">, markers: { number: number; roomKey: string }[]) {
   const rooms = new Set(game.rooms.map((r) => r.key));
   const numbers = new Set<number>();
-  if (markers.length > MAX_CARDS) throw new ConvexError(`The printed sheet has ${MAX_CARDS} cards, so use ${MAX_CARDS} markers at most.`);
+  if (markers.length > MAX_CARDS) throw new ConvexError(`The printed sheet has ${MAX_CARDS} cards, so use ${MAX_CARDS} cards at most.`);
   for (const m of markers) {
-    if (!Number.isInteger(m.number) || m.number < 1 || m.number > MAX_CARDS) throw new ConvexError(`Markers are numbered 1 to ${MAX_CARDS}.`);
+    if (!Number.isInteger(m.number) || m.number < 1 || m.number > MAX_CARDS) throw new ConvexError(`Cards are numbered 1 to ${MAX_CARDS}.`);
     // "" means not placed yet: the game won't start until every marker has a room.
-    if (m.roomKey !== "" && !rooms.has(m.roomKey)) throw new ConvexError(`Marker ${m.number} is in a room that isn't in play.`);
-    if (numbers.has(m.number)) throw new ConvexError(`Marker ${m.number} is listed twice.`);
+    if (m.roomKey !== "" && !rooms.has(m.roomKey)) throw new ConvexError(`Card ${m.number} is in a room that isn't in play.`);
+    if (numbers.has(m.number)) throw new ConvexError(`Card ${m.number} is listed twice.`);
     numbers.add(m.number);
   }
   const existing = await ctx.db

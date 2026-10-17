@@ -5,14 +5,13 @@ import ProfileForm from "../components/ProfileForm";
 import MemberCard, { Deco } from "../components/MemberCard";
 import Shell, { Loading } from "../components/Shell";
 import { saveToken } from "../lib/storage";
-import { figureUrl } from "../lib/figure";
 import PartyPhone from "../party/PartyPhone";
 
 export default function Guest({ token }: { token: string }) {
   const me = useQuery(api.registration.me, { token });
   const party = useQuery(api.game.phone, { token });
   const [editing, setEditing] = useState(false);
-  const [copied, setCopied] = useState<"" | "Copied" | "Selected">("");
+  const [copied, setCopied] = useState<"" | "Copied" | "Selected" | "Saved">("");
 
   useEffect(() => {
     if (me) saveToken(me.game.slug, token);
@@ -50,6 +49,7 @@ export default function Guest({ token }: { token: string }) {
             sayAs: me.sayAs,
             nickname: me.nickname,
             lastName: me.lastName,
+            firstName: me.firstName,
             figure: me.figure ?? "",
           }}
           onDone={() => setEditing(false)}
@@ -63,21 +63,29 @@ export default function Guest({ token }: { token: string }) {
   const shown = link.replace(/^https?:\/\//, "");
   const first = me.charName.replace(/[“”"][^“”"]*[“”"]/g, "").trim().split(/\s+/)[0] || me.charName;
 
-  function copy() {
-    const fallback = () => {
-      const el = document.getElementById("keylink");
-      if (!el) return;
-      const range = document.createRange();
-      range.selectNodeContents(el);
-      const sel = window.getSelection();
-      sel?.removeAllRanges();
-      sel?.addRange(range);
-      setCopied("Selected");
-    };
+  // S7 (Oct 17): one button. Phones with a share sheet send the link wherever they like; others copy it.
+  async function save() {
     try {
-      navigator.clipboard.writeText(link).then(() => setCopied("Copied"), fallback);
+      if (navigator.share) {
+        await navigator.share({ title: "My Velvet Room link", url: link });
+        setCopied("Saved");
+        return;
+      }
     } catch {
-      fallback();
+      return; // they closed the share sheet
+    }
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied("Copied");
+    } catch {
+      const el = document.getElementById("keylink");
+      if (el) {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        window.getSelection()?.removeAllRanges();
+        window.getSelection()?.addRange(range);
+        setCopied("Selected");
+      }
     }
     window.setTimeout(() => setCopied(""), 2000);
   }
@@ -87,44 +95,22 @@ export default function Guest({ token }: { token: string }) {
       <div className="screen">
         {me.game.isTest && <div className="testflag">Test game · not the real party</div>}
         <span className="eyebrow">You're on the list</span>
-        <h1 className="title-lg">See you inside, {first}.</h1>
+        <h1 className="title-lg">You're in, {first}.</h1>
         <MemberCard charName={me.charName} figure={me.figure} />
-        {me.figure && (
-          <figure className="my-figure">
-            <img src={figureUrl(me.figure)} alt="Your character drawing" />
-            <figcaption>
-              <span className="eyebrow">Your character drawing</span>
-              <span className="help">This is how you'll show up on the TV tonight.</span>
-            </figcaption>
-          </figure>
-        )}
+        <p className="lede">Open this page on party night. When the doors open, tap “I'm here”.</p>
         <div className="key">
-          <span className="eyebrow">Your key for party night</span>
           <code id="keylink">{shown}</code>
-          <div className="key-row">
-            <button type="button" className="copy" onClick={copy}>
-              {copied || "Copy link"}
-            </button>
-            <a className="copy" href={`sms:?&body=${encodeURIComponent(`My Velvet Room link: ${link}`)}`}>
-              Text it to me
-            </a>
-          </div>
-          <span className="help">
-            Bookmark this page or add it to your Home Screen. On party night, open it and keep it open: when the host opens the doors,
-            you're let in automatically.
-          </span>
+          <button type="button" className="primary" onClick={() => void save()}>
+            {copied || "Save my link"}
+          </button>
+          <span className="help">Lost it? Type the room code from the TV at {window.location.host}/join and tap your name.</span>
         </div>
         {me.game.open ? (
-          <>
-            <p className="help">Want to change something? You can edit until the doors open on party night.</p>
-            <div className="actions">
-              <button type="button" className="ghost-btn" onClick={() => setEditing(true)}>
-                Edit my entry
-              </button>
-            </div>
-          </>
+          <button type="button" className="back center-text" onClick={() => setEditing(true)}>
+            Edit my entry (until the doors open)
+          </button>
         ) : (
-          <p className="help">The guest list is closed and your entry is locked in.</p>
+          <p className="help">The doors are open, so your entry is locked in.</p>
         )}
       </div>
     </Shell>

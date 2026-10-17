@@ -148,7 +148,7 @@ export const ADULT: Script = {
   innocentLines: [
     "You're innocent. You didn't kill the Don, for once in your life.",
     "You can lie about your secret, but not about the murder. Only the killer gets to bullshit about that.",
-    "Find the markers, compare notes, and figure out who did it, with what, and where.",
+    "Find the evidence cards, compare notes, and figure out who did it, with what, and where.",
     "After Round 2 you can vote somebody into jail, if most of you agree; after Round 3, a vote to let them out. Jailbirds can't search, vote or lock in.",
   ],
   // Accomplice games (v2), with Heston's comedy notes: deadpan, specific, the swearing rationed.
@@ -170,7 +170,7 @@ export const ADULT: Script = {
     "You're innocent. You didn't kill the Don, for once in your life.",
     "Tonight the killer brought a friend: an accomplice who didn't do it, knows who did, and will lie through their teeth about it.",
     "You can lie about your secret, but not about the murder. Only the killer and the accomplice get to bullshit about that.",
-    "Find the markers, compare notes, and figure out who did it, with what, and where. When you lock in, take a guess at the accomplice too.",
+    "Find the evidence cards, compare notes, and figure out who did it, with what, and where. When you lock in, take a guess at the accomplice too.",
     "After every round, vote somebody into jail if most of you agree. Jailbirds can't search, vote or lock in.",
   ],
 };

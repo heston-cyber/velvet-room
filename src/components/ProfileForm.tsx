@@ -30,6 +30,8 @@ export type ProfileValues = {
   /** Party cast: their 1920s nickname and last name, typed here. */
   nickname: string;
   lastName: string;
+  /** F6 (Oct 17): a mystery guest's own first name. */
+  firstName: string;
 };
 
 export const EMPTY_PROFILE: ProfileValues = {
@@ -43,6 +45,7 @@ export const EMPTY_PROFILE: ProfileValues = {
   figure: "",
   nickname: "",
   lastName: "",
+  firstName: "",
 };
 
 const MAX: Record<keyof Omit<ProfileValues, "killerOk" | "figure">, number> = {
@@ -54,6 +57,7 @@ const MAX: Record<keyof Omit<ProfileValues, "killerOk" | "figure">, number> = {
   sayAs: 80,
   nickname: 24,
   lastName: 30,
+  firstName: 24,
 };
 
 type StepId = "door" | "you" | "review";
@@ -70,10 +74,12 @@ export default function ProfileForm(props: {
   onCancel?: () => void;
 }) {
   const { game, mode } = props;
+  // S9 (Oct 17): a walk-in at the door starts right on the faces.
+  const walkIn = !!props.roomCode;
   const steps: StepId[] = useMemo(() => {
     const form: StepId[] = ["you", "review"];
-    return mode === "new" ? ["door", ...form] : form;
-  }, [mode]);
+    return mode === "new" && !walkIn ? ["door", ...form] : form;
+  }, [mode, walkIn]);
   const formSteps: StepId[] = steps.filter((s) => s !== "door");
 
   const [stepIndex, setStepIndex] = useState(0);
@@ -86,17 +92,19 @@ export default function ProfileForm(props: {
   // The party cast: tap your own face and that's who you are (the server fills in the name).
   const allFigures = gallery?.flatMap((g) => g.figures) ?? [];
   const castPick = allFigures.find((f) => f.key === values.figure) ?? null;
-  function pickFigure(f: { key: string; name: string; castName: string }) {
-    setValues((v) => ({ ...v, figure: f.key, realName: f.name, sayAs: "" }));
+  function pickFigure(f: { key: string; name: string; castName: string; mystery?: boolean }) {
+    setValues((v) => ({ ...v, figure: f.key, realName: f.mystery ? v.firstName || f.name : f.name, sayAs: "" }));
     setNeedFigure(false);
   }
+  const mystery = !!castPick?.mystery;
+  const firstName = mystery ? values.firstName.replace(/[“”"]/g, "").trim().split(/\s+/)[0] ?? "" : castPick?.name ?? "";
   // "Josh “Two-Tone” Lee": their first name from the cast, the rest as they type it (the server makes it final).
   const tidy = (s: string) => s.replace(/[“”"]/g, "").replace(/\s+/g, " ").trim();
   // Same as the server: a typed "aka" goes (the roll call says a.k.a. itself), and so does their own first name typed
   // again in the last-name box ("Heston Hill" → "Hill").
   const nick = (s: string) => tidy(s).replace(/^(a\.?\s*k\.?\s*a\.?|also known as)\s+/i, "");
-  const last = (s: string) => (castPick ? tidy(s).replace(new RegExp(`^${castPick.name}\\s+`, "i"), "") : tidy(s));
-  const fullName = castPick ? [castPick.name, nick(values.nickname) ? `“${nick(values.nickname)}”` : "", last(values.lastName)].filter(Boolean).join(" ") : "";
+  const last = (s: string) => (castPick && firstName ? tidy(s).replace(new RegExp(`^${firstName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s+`, "i"), "") : tidy(s));
+  const fullName = castPick ? [firstName || "Your name", nick(values.nickname) ? `“${nick(values.nickname)}”` : "", last(values.lastName)].filter(Boolean).join(" ") : "";
   const topRef = useRef<HTMLDivElement>(null);
 
   const register = useMutation(api.registration.register);
@@ -111,7 +119,7 @@ export default function ProfileForm(props: {
   const requiredFor = (s: StepId): TextKey[] => {
     switch (s) {
       case "you":
-        return castPick ? ["lastName"] : [];
+        return castPick ? (castPick.mystery ? ["firstName", "lastName"] : ["lastName"]) : [];
       default:
         return [];
     }
@@ -271,7 +279,7 @@ export default function ProfileForm(props: {
                             <img src={faceUrl(f.key)} alt="" />
                             {takenByOther && <span>Taken</span>}
                           </button>
-                          <span className="figure-name">{f.name}</span>
+                          <span className="figure-name">{f.mystery ? (f.key === "mystery-f" ? "Woman" : "Man") : f.name}</span>
                         </div>
                       );
                     })}
@@ -284,14 +292,17 @@ export default function ProfileForm(props: {
                 <img src={figureUrl(castPick.key)} alt="" />
                 <span className="help">
                   <strong className="figure-chosen-name">{fullName}</strong>
-                  That's you. Not you? Tap your own face.
+                  {mystery ? "A mystery guest. Type your name below." : "That's you. Not you? Tap your own face."}
                 </span>
               </div>
             )}
             {needFigure && <span className="err">Tap your face to continue.</span>}
+            {/* F6 (Oct 17): a face someone else tapped by mistake can be freed by the host. */}
+            <span className="help">Your face says Taken? Ask your host to free it. Not in the cast? Pick a mystery guest and type your name.</span>
           </div>
           {castPick && (
             <>
+              {mystery && field("firstName", "Your first name", { ph: "e.g. Ruth" })}
               {field("lastName", "Your last name", { ph: "e.g. Hill" })}
               {field("nickname", "Your 1920s nickname · optional", {
                 ph: "e.g. Two-Tone, The Knife, Lucky",

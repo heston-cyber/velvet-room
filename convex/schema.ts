@@ -156,6 +156,8 @@ export default defineSchema({
     photoId: v.optional(v.id("_storage")),
     motive: v.optional(v.string()),
     secret: v.optional(v.string()),
+    // F6 (Oct 17): a mystery guest's own first name (cast members' come from the cast list).
+    firstName: v.optional(v.string()),
     killerOk: v.boolean(),
     checkedIn: v.boolean(),
     exhibitLetter: v.optional(v.string()), // dealt at check-in from a shuffled pool
