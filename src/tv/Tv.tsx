@@ -743,7 +743,7 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
             <div className="tv-how-text">
               <span className="tv-kick fade">How to play · {i + 1} of {n}</span>
               {HOW_TITLE[step.cue] && <h2 className="tv-how-title fade">{HOW_TITLE[step.cue]}</h2>}
-              <div className="tv-rule fade">{captionText(step.cue, g.script ?? g.tone, g.narrator.host, step.v)}</div>
+              <HowRule text={captionText(step.cue, g.script ?? g.tone, g.narrator.host, step.v)} />
             </div>
           </div>
         </div>
@@ -1304,6 +1304,19 @@ function AllEvidence({ data }: { data: Data }) {
         ))}
         {!ev.length && <p className="tv-sub">Nothing on the TV yet. Round 1 evidence is on the cards.</p>}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Oct 17: a How to play card's words, sized to fit. The longer rules lines (up to about 400 characters in Sailor mode)
+ * pushed the card's "How to play · 6 of 6" off the top of the screen at the usual size.
+ */
+const howRuleSize = (len: number) => Math.min(2.5, Math.sqrt(1300 / Math.max(1, len)));
+function HowRule({ text }: { text: string }) {
+  return (
+    <div className="tv-rule fade" style={{ fontSize: `${howRuleSize(text.length).toFixed(2)}cqw` }}>
+      {text}
     </div>
   );
 }

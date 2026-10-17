@@ -153,6 +153,11 @@ with sync_playwright() as p:
         if not wait_for(lambda: f"· {i} of" in kick(), 30):
             break
         audit(f"how-{i}", 1600)
+        # Oct 17: LONG_HOW=<text>: the longest rules line any script has (pass it in) still fits this card's layout.
+        if os.environ.get("LONG_HOW"):
+            host.evaluate("""(t) => { const r = document.querySelector('.tv-how .tv-rule'); if (!r) return;
+              r.textContent = t; r.style.fontSize = Math.min(2.5, Math.sqrt(1300 / t.length)).toFixed(2) + 'cqw'; }""", os.environ["LONG_HOW"])
+            audit(f"how-{i}-longest", 300)
     text = lambda: host.evaluate("() => document.body.textContent")
     for label, words in (("intro-1", "New York City · October 31, 1929"), ("intro-2", "The Don is dead."), ("intro-3", "One of you did it.")):
         wait_for(lambda: words in text(), 45)
