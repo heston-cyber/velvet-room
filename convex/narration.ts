@@ -7,7 +7,7 @@
 /**
  * Which script the narrator reads. A game's own setting is Classic or Adult (GameTone); Sailor mode (Oct 16, Heston:
  * "a toggle in the voice setup area that is 'Sailor mode'", "totally unhinged, delivered with utmost intensity and
- * seriousness") is Duke reading his own furious, filthy script over an Adult game.
+ * seriousness") is Joel (Mister Gruff's voice since Oct 17) reading his own furious, filthy script over an Adult game.
  */
 export type Tone = "classic" | "adult" | "sailor";
 export type GameTone = "classic" | "adult";
@@ -22,7 +22,7 @@ export const HOSTS: Record<HostKey, { name: string; voiceId: string; describe: s
 export const VOICE_SETTINGS = {
   steady: { stability: 0.45, similarity_boost: 0.8 },
   unstable: { stability: 0.0, similarity_boost: 0.75 },
-  /** Sailor: Duke with more range, so the fury comes through. */
+  /** Sailor: more range, so the fury comes through. */
   sailor: { stability: 0.3, similarity_boost: 0.8 },
 };
 export const settingsFor = (voice: string) => (voice.endsWith("-sailor") ? VOICE_SETTINGS.sailor : voice.endsWith("-unstable") ? VOICE_SETTINGS.unstable : VOICE_SETTINGS.steady);
@@ -32,7 +32,13 @@ export const TTS_MODEL = "eleven_v4";
  * Sailor mode's own voice (Oct 17, Heston: "a different voice that sounds like an angry old man", then picked
  * "mister gruff"): Mister Gruff from the ElevenLabs voice library. Until then Sailor mode was Duke (duke-sailor).
  */
-export const SAILOR_VOICE = { name: "Mister Gruff", voiceId: "mSOmKHC6GZcZbSTGlqHO" };
+export const SAILOR_VOICE = { voice: "Mister Gruff", voiceId: "mSOmKHC6GZcZbSTGlqHO" };
+
+/** Sailor mode's narrator calls himself Joel (Oct 17, Heston: "Sailors name is Joel"). */
+export const SAILOR_NAME = "Joel";
+
+/** The name the narrator goes by: Ivy or Duke, or Joel in Sailor mode. */
+export const narratorName = (host: HostKey, tone: Tone) => (tone === "sailor" ? SAILOR_NAME : HOSTS[host].name);
 
 /** Folder name for one recorded set: ivy, ivy-unstable, duke, duke-unstable, gruff-sailor (duke-sailor before Oct 17). */
 export const voiceKey = (host: HostKey, unstable: boolean, sailor = false) => (sailor ? "gruff-sailor" : `${host}${unstable ? "-unstable" : ""}`);
@@ -895,7 +901,7 @@ export const ADULT_D: Partial<Record<CueKey, string>> = {
 };
 export const D_PCT = 10;
 
-/** Sailor mode's script: Duke, furious, swearing hard (two versions a line). Lines it lacks fall back to Adult. */
+/** Sailor mode's script: Joel, furious, swearing hard (two versions a line). Lines it lacks fall back to Adult. */
 export const SAILOR: Partial<Record<CueKey, string[]>> = {
   doors: [
     "[seething] Shit. Welcome to the Velvet Room. I'm {host}, your host, God help every one of you bastards. [shouting] And if one more son of a bitch asks me where the bathroom is, [suddenly calm] it's down the hall. On the left. Fuck.",
@@ -1083,7 +1089,7 @@ export const SAILOR: Partial<Record<CueKey, string[]>> = {
   ],
   soundCheck: [
     "[growling] Sound check. One, two. [shouting] One, two, goddamnit! [dead serious] If you can hear this, the TV is ready.",
-    "[dead serious] Sound check. [shouting] Shit! Fuck! Bastard! Cunt! [calmly] If you heard all that, the TV works. [short pause] Sorry, Ma.",
+    "[dead serious] Sound check. [shouting] Shit! Fuck! Bastard! Bollocks! [calmly] If you heard all that, the TV works. [short pause] Sorry, Ma.",
   ],
   howRound: [
     "[dead serious] When you're done searching, tap Ready on your phone. [short pause] When most of you are ready, the round ends. [roaring] So get a goddamn wiggle on!",
@@ -1191,7 +1197,7 @@ export const plain = (text: string) => text.replace(TAG, "").replace(/\s{2,}/g, 
 export function recordingText(cue: CueKey, tone: Tone, host: HostKey, unstable: boolean, v = 0): string {
   const c: Cue = CUES[cue];
   const versions = cueVersions(cue, tone);
-  const base = (versions[v] ?? versions[0]).replaceAll("{host}", HOSTS[host].name);
+  const base = (versions[v] ?? versions[0]).replaceAll("{host}", narratorName(host, tone));
   if (!unstable) return base;
   const kept = base.replace(TAG, (t) => (KEEP.test(t) ? t : "")).replace(/\s{2,}/g, " ").trim();
   return [c.wild[0], kept, c.wild[1]].filter(Boolean).join(" ");
@@ -1200,7 +1206,7 @@ export function recordingText(cue: CueKey, tone: Tone, host: HostKey, unstable: 
 /** What the TV caption and the live reader say for a cue (version v of the line). */
 export function captionText(cue: CueKey, tone: Tone, host: HostKey, v = 0): string {
   const versions = cueVersions(cue, tone);
-  return plain((versions[v] ?? versions[0]).replaceAll("{host}", HOSTS[host].name));
+  return plain((versions[v] ?? versions[0]).replaceAll("{host}", narratorName(host, tone)));
 }
 
 // ---------- custom lines: made per party from what guests typed and from the draw ----------
@@ -1259,7 +1265,7 @@ export const ADULT_CUSTOM: Partial<Record<CustomKind, string[]>> = {
     "{name} is free. Don't let the bars hit your ass on the way out.",
   ],
 };
-/** Sailor mode's per-game lines (Duke, furious). Kinds it lacks use Adult's. */
+/** Sailor mode's per-game lines (Joel, furious). Kinds it lacks use Adult's. */
 export const SAILOR_CUSTOM: Partial<Record<CustomKind, string[]>> = {
   body: [
     "[growling] They found him in {room}. Face down. On the good fucking rug.",

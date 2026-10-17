@@ -1,9 +1,9 @@
 // The joke rewrite (Oct 16, Heston after his play test): "Humor needs a rewrite", "more cursing and crude and
-// suggestive content in adult mode", Adult D ("mixes the noisy and cussing together"), Sailor mode (Duke, "totally
+// suggestive content in adult mode", Adult D ("mixes the noisy and cussing together"), Sailor mode (Joel since Oct 17, "totally
 // unhinged, delivered with utmost intensity and seriousness"), no repeats per host laptop, and the running gag only
 // every third game.
 import { describe, expect, test } from "vitest";
-import { ADULT_CUSTOM, ADULT_D, CAST_INTROS, INSULTS, INSULT_KINDS, LATER_KINDS, SAILOR, SAILOR_CUSTOM, cleanVersions, cueVariant, cueVersions, customText, insultText, isD, pickLines, plain, verdictText, voiceKey, type CueKey } from "../convex/narration";
+import { ADULT_CUSTOM, ADULT_D, CAST_INTROS, CUES, captionText, narratorName, recordingText, INSULTS, INSULT_KINDS, LATER_KINDS, SAILOR, SAILOR_CUSTOM, cleanVersions, cueVariant, cueVersions, customText, insultText, isD, pickLines, plain, verdictText, voiceKey, type CueKey } from "../convex/narration";
 import { heckleLines, HECKLES, SAILOR_HECKLES } from "../convex/heckles";
 import { laterWanted, scriptOf, startWanted, variantOf } from "../convex/voiceLines";
 import { howCues } from "../convex/show";
@@ -47,7 +47,7 @@ describe("the new adult script", () => {
 });
 
 describe("Sailor mode", () => {
-  test("Duke's own voice set, his own script (two versions a line), and Sailor needs Adult", () => {
+  test("Sailor's own voice set, his own script (two versions a line), and Sailor needs Adult", () => {
     expect(voiceKey("duke", false, true)).toBe("gruff-sailor");
     expect(scriptOf({ tone: "adult", narrator: { host: "duke", unstable: false, sailor: true } })).toBe("sailor");
     expect(scriptOf({ tone: "adult", narrator: { host: "duke", unstable: false } })).toBe("adult");
@@ -58,9 +58,20 @@ describe("Sailor mode", () => {
     }
   });
 
-  test("the C-word is never aimed at anyone", () => {
-    const all = [...ACTIVE.flatMap((c) => cleanVersions(c, "sailor")), ...Object.values(SAILOR_CUSTOM).flat(), ...CAST_INTROS.sailor, ...Object.values(SAILOR_HECKLES).flat()] as string[];
-    for (const t of all) expect(t, t).not.toMatch(/(you|\{real\}|\{name\}|the Don)\W+(?:\w+\W+){0,5}cunt/i);
+  test("no C-word anywhere in Sailor mode (Oct 17, Heston: \"No cunt\")", () => {
+    const all = [...(Object.keys(CUES) as CueKey[]).flatMap((c) => cueVersions(c, "sailor")), ...Object.values(SAILOR_CUSTOM).flat(), ...CAST_INTROS.sailor, ...Object.values(SAILOR_HECKLES).flat(), ...JSON.stringify(INSULTS).split('","')] as string[];
+    for (const t of all) expect(t, t).not.toMatch(/cunt/i);
+  });
+
+  test("Sailor's narrator is Joel (Oct 17), in the recording and the caption", () => {
+    expect(narratorName("duke", "sailor")).toBe("Joel");
+    expect(narratorName("duke", "adult")).toBe("Duke");
+    expect(narratorName("ivy", "classic")).toBe("Ivy");
+    for (const v of [0, 1]) {
+      expect(recordingText("doors", "sailor", "duke", false, v)).toContain("I'm Joel");
+      expect(captionText("doors", "sailor", "duke", v)).toContain("I'm Joel");
+    }
+    expect(captionText("doors", "adult", "duke")).toContain("I'm Duke");
   });
 
   test("per-game lines and heckles have Sailor versions", () => {

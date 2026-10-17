@@ -19,7 +19,7 @@ const PICKS: { key: Pick; title: string; sub: string }[] = [
   { key: "duke-classic", title: "Duke · Classic", sub: "New York mobster. Clean." },
   { key: "ivy-adult", title: "Ivy · Adult", sub: "Swearing, crude jokes." },
   { key: "duke-adult", title: "Duke · Adult", sub: "Swearing, crude jokes." },
-  { key: "sailor", title: "Sailor mode", sub: "An angry old man with his own filthy script. Explicit." },
+  { key: "sailor", title: "Sailor mode", sub: "Joel, an angry old man with his own filthy script. Explicit." },
 ];
 
 /**
@@ -58,7 +58,7 @@ export function NarratorSection({ game, locked, save }: { game: Game; locked: bo
       )}
       <div className="row">
         <button type="button" className="btn" onClick={() => hear(`/audio/narration/${voice}/${sailor ? "sailor" : game.tone}/doors.mp3`)}>
-          Hear {sailor ? "Sailor mode" : `${HOSTS[n.host].name} · ${game.tone === "adult" ? "Adult" : "Classic"}`} on this laptop
+          Hear {sailor ? "Joel · Sailor mode" : `${HOSTS[n.host].name} · ${game.tone === "adult" ? "Adult" : "Classic"}`} on this laptop
         </button>
       </div>
       <Levels game={game} save={save} />

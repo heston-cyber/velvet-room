@@ -300,7 +300,7 @@ function shuffled<T>(xs: T[], seed: string): T[] {
 export type HeckleGuest = { id: string; real: string; weapon: string; figure: string | null };
 export type HeckleLine = { purpose: string; text: string; target: string | null; figure: string | null; gag: boolean; /** Which line of which pool ("adult:bit:12"), so a laptop can avoid it next game. */ id: string };
 
-/** Sailor mode's heckles (Duke, furious). Until they're written, Adult's. */
+/** Sailor mode's heckles (Joel, furious). Until they're written, Adult's. */
 export const SAILOR_HECKLES: Partial<Pools> = {
   bit: [
     "[seething] A message from management. {real}, put the {weapon} down. [roaring] Put the goddamn {weapon} DOWN! [dead serious] Thank you.",

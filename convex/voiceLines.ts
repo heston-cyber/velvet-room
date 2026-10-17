@@ -6,7 +6,7 @@ import { LATER_KINDS, cueVariant, customRecordingText, customText, insultText, p
 import { openRoomsIn } from "./engine/build";
 import { castMember, shortName } from "./figures";
 
-export type Narrator = { host: HostKey; unstable: boolean; /** Sailor mode (Oct 16): Duke, furious, his own filthy script. */ sailor?: boolean };
+export type Narrator = { host: HostKey; unstable: boolean; /** Sailor mode (Oct 16): Joel, furious, his own filthy script. */ sailor?: boolean };
 export type Levels = { voice: number; music: number; sfx: number };
 
 export const DEFAULT_NARRATOR: Narrator = { host: "ivy", unstable: false };
@@ -16,7 +16,7 @@ export const narratorOf = (g: { narrator?: Narrator }): Narrator => g.narrator ?
 export const levelsOf = (g: { levels?: Levels }): Levels => g.levels ?? DEFAULT_LEVELS;
 export const voiceOf = (n: Narrator) => voiceKey(n.host, n.unstable, !!n.sailor);
 
-/** The script the narrator reads in this game: Classic, Adult, or Sailor (Duke's own, over an Adult game). */
+/** The script the narrator reads in this game: Classic, Adult, or Sailor (Joel's own, over an Adult game). */
 export const scriptOf = (g: { tone?: GameTone; narrator?: Narrator }): Tone => (g.narrator?.sailor ? "sailor" : g.tone ?? "classic");
 
 /** What a game picked at Start (Oct 16; older games have none): a version of each line, whether tonight has a running

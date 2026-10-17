@@ -227,7 +227,7 @@ export const updateSettings = mutation({
       update.levels = { voice: lv(patch.levels.voice), music: lv(patch.levels.music), sfx: lv(patch.levels.sfx) };
     }
     if (patch.narrator) {
-      // Sailor mode is Duke, steady (the fury is in the script), over the Adult script.
+      // Sailor mode is Joel (Mister Gruff's voice), steady (the fury is in the script), over the Adult script.
       update.narrator = patch.narrator.sailor ? { host: "duke", unstable: false, sailor: true } : { host: patch.narrator.host, unstable: patch.narrator.unstable };
       const wasSailor = !!game.narrator?.sailor;
       if (patch.narrator.sailor && !wasSailor) {

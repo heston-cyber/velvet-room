@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { HOSTS, captionText, cueFile, cueVariant, type CueKey } from "../../convex/narration";
+import { captionText, cueFile, cueVariant, narratorName, type CueKey } from "../../convex/narration";
 import { VOTE } from "../../convex/shared";
 import { HOW_TITLE, SHOW } from "../../convex/show";
 import { Qr, wifiQrText } from "../lib/qr";
@@ -231,7 +231,7 @@ function TvInner({ slug, tvKey, onNext, overlay, bare }: { slug: string; tvKey: 
         ? captionText(speaking.cue, tone, host, speaking.v)
         : speaking.clip?.caption ?? ""
       : null;
-  const who = HOSTS[host].name;
+  const who = narratorName(host, tone);
   // Oct 16 (Heston: "keep the players on screen at the bottom"): the guests stay in a strip along the bottom while
   // the house is searched, Rounds 1 to 3.
   const strip = !bare && !held && !card && !g.paused && !g.tvShowAll && /^r[123]$/.test(scene.key);
