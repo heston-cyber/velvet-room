@@ -28,15 +28,15 @@ const pct = (a: number, b: number) => `${Math.round((100 * a) / b)}%`;
 console.log(`${GAMES} games per row. Open after each round = suspects/weapons/rooms still possible, pooling every marker and every tip.`);
 for (const guests of [6, 8, 10, 12, 14, 16]) {
   const setup = setupFor(guests);
-  const rows: { r1: Open; r2: Open; r1NoTip: Open; solvedR1: boolean; solvedR2: boolean; markers: number; clueMarkers: number; distinctTips: number; info: number; attempts: number }[] = [];
+  const rows: { r1: Open; r2: Open; r3: Open; r1NoTip: Open; solvedR1: boolean; solvedR2: boolean; markers: number; clueMarkers: number; distinctTips: number; info: number; attempts: number }[] = [];
   for (let g = 0; g < GAMES; g++) {
     const rng = seeded(1000 * guests + g);
-    const input: CaseInput = { ...fakeCast({ rng, guests: Math.min(guests, 12), rooms: roomsN(setup.rooms), markers: setup.markers }), search: "waves", tone: "classic" };
+    // Oct 16: the game draws the night's weapons (setup.weapons), not one per guest.
+    const input: CaseInput = { ...fakeCast({ rng, guests: Math.min(guests, 12), rooms: roomsN(setup.rooms), markers: setup.markers, weaponsHandedIn: Math.min(12, setup.weapons ?? 6) }), search: "waves", tone: "classic" };
     // more than 12 guests: clone fake guests
     while (input.suspects.length < guests) {
       const i = input.suspects.length + 1;
       input.suspects.push({ ...input.suspects[i % 12], id: `p${i}`, name: `Guest ${i}` });
-      input.exhibits.push({ ...input.exhibits[i % 12], id: `w${i}`, name: `Weapon ${i}`, ownerId: `p${i}` });
     }
     const cf = buildCase(input, rng);
     const r1 = openAfter(input, cf, 1, true);
@@ -44,6 +44,7 @@ for (const guests of [6, 8, 10, 12, 14, 16]) {
     rows.push({
       r1,
       r2,
+      r3: openAfter(input, cf, 3, true),
       r1NoTip: openAfter(input, cf, 1, false),
       solvedR1: r1.s * r1.e * r1.r === 1,
       solvedR2: r2.s * r2.e * r2.r === 1,
@@ -55,11 +56,12 @@ for (const guests of [6, 8, 10, 12, 14, 16]) {
     });
   }
   const avg = (f: (x: (typeof rows)[number]) => number) => (rows.reduce((a, x) => a + f(x), 0) / rows.length).toFixed(1);
-  const W = Math.min(guests, 22);
+  const W = setup.weapons ?? 6;
   console.log(
     `${String(guests).padStart(2)} guests, ${setup.rooms} rooms, ${setup.markers} markers (${avg((x) => x.clueMarkers)} with evidence), ${avg((x) => x.info)} clues, ${avg((x) => x.distinctTips)} different tips, max tries ${Math.max(...rows.map((x) => x.attempts))} | ` +
       `start ${guests}/${W}/${setup.rooms} | after R1, markers only: ${avg((x) => x.r1NoTip.s)}/${avg((x) => x.r1NoTip.e)}/${avg((x) => x.r1NoTip.r)} | ` +
       `after R1 + tips: ${avg((x) => x.r1.s)}/${avg((x) => x.r1.e)}/${avg((x) => x.r1.r)} | after R2: ${avg((x) => x.r2.s)}/${avg((x) => x.r2.e)}/${avg((x) => x.r2.r)} | ` +
+      `at the end: ${avg((x) => x.r3.s)}/${avg((x) => x.r3.e)}/${avg((x) => x.r3.r)} | ` +
       `solved by R1 ${pct(rows.filter((x) => x.solvedR1).length, rows.length)}, by R2 ${pct(rows.filter((x) => x.solvedR2).length, rows.length)}`,
   );
 }

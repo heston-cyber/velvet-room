@@ -59,12 +59,7 @@ def sign_up(pg, last):
     pg.get_by_role("button", name="Step inside").click(timeout=15000)
     pg.locator(".figure-grid button:not([disabled])").first.click()
     pg.fill("#f-lastName", last)
-    pg.get_by_role("button", name="Next: your character").click()
-    pg.fill("#f-who", "Here for the gin."); pg.fill("#f-signature", "A borrowed hat")
-    pg.get_by_role("button", name="Next: motive and secret").click()
-    pg.get_by_role("button", name="Next: your weapon").click()
-    pg.locator(".weapon-grid button:not([disabled])").first.click(timeout=15000)
-    pg.get_by_role("button", name="Next: review").click()
+    pg.get_by_role("button", name="Next: last look").click()
     pg.get_by_role("button", name="Put me on the list").click()
     pg.wait_for_url(re.compile(r"/p/[a-z0-9]+$"), timeout=15000)
 

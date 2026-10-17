@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { buildCase, draw, eligibleKillers, openRound, openRoomsIn, waveSizes } from "../convex/engine/build";
+import { buildCase, draw, eligibleKillers, openEnding, openRound, openRoomsIn, waveSizes } from "../convex/engine/build";
+import { setupFor } from "../convex/engine/setup";
 import { fakeCast, roomsN, ROOMS_5, ROOMS_6 } from "../convex/engine/fake";
 import { seeded } from "../convex/engine/rng";
 import { mid } from "../convex/engine/text";
@@ -98,20 +99,27 @@ describe("the engine", () => {
         if (input.suspects.filter((s) => s.killerOk).length >= 3 && !killer?.killerOk) failures.push(`${tag}: killer didn't opt in`);
         if (!input.exhibits.some((e) => e.id === sol.exhibitId)) failures.push(`${tag}: weapon wasn't handed in`);
 
-        // independent solve
+        // independent solve (v4, Oct 16: the evidence leaves a planned few standing, the answer among them; Heston: "it
+        // should not narrow down to exactly the answer ... still be ambiguous, but close")
         const fin = candidates(input, cf.clues, 3);
-        if (!(fin.s.length === 1 && fin.s[0] === sol.killerId && fin.e.length === 1 && fin.e[0] === sol.exhibitId && fin.r.length === 1 && fin.r[0] === sol.roomKey)) {
-          failures.push(`${tag}: public clues don't narrow to exactly the answer`);
+        const open = cf.open!;
+        if (!(fin.s.length === open.suspects && fin.s.includes(sol.killerId) && fin.e.length === open.exhibits && fin.e.includes(sol.exhibitId) && fin.r.length === open.rooms && fin.r.includes(sol.roomKey))) {
+          failures.push(`${tag}: public clues don't leave the planned few standing (${fin.s.length}/${fin.e.length}/${fin.r.length} vs ${JSON.stringify(open)})`);
         }
+        if (input.suspects.length >= 3 && open.suspects < 2 && cf.attempts < 80) failures.push(`${tag}: the evidence names the killer outright`);
+        if (open.exhibits > 2 || open.rooms > 2) failures.push(`${tag}: weapon or room left wide open`);
         if (candidates(input, cf.clues, 2).combos < 2) failures.push(`${tag}: solved before Round 3`);
         const r1 = candidates(input, cf.clues, 1);
         if (r1.s.length < Math.min(3, input.suspects.length)) failures.push(`${tag}: too easy after Round 1`);
 
-        // each wrong suspect, exhibit and room is ruled out by at least one clue
+        // every wrong suspect, exhibit and room is ruled out by at least one clue, except the planned few left standing
         const ruledOut = new Set(cf.clues.flatMap((c) => [...c.elim.suspects, ...c.elim.exhibits, ...c.elim.rooms]));
-        for (const s of input.suspects) if (s.id !== sol.killerId && !ruledOut.has(s.id)) failures.push(`${tag}: ${s.name} never cleared`);
-        for (const e of input.exhibits) if (e.id !== sol.exhibitId && !ruledOut.has(e.id)) failures.push(`${tag}: the ${e.name} never cleared`);
-        for (const r of input.rooms) if (r.key !== sol.roomKey && !ruledOut.has(r.key)) failures.push(`${tag}: ${r.label} never cleared`);
+        const never = (list: string[]) => list.filter((id) => !ruledOut.has(id)).length;
+        if (never(input.suspects.map((s) => s.id)) !== open.suspects) failures.push(`${tag}: suspects never cleared don't match the plan`);
+        if (never(input.exhibits.map((e) => e.id)) !== open.exhibits) failures.push(`${tag}: weapons never cleared don't match the plan`);
+        if (never(input.rooms.map((r) => r.key)) !== open.rooms) failures.push(`${tag}: rooms never cleared don't match the plan`);
+        // a red herring always points at someone the evidence clears later
+        for (const h of cf.clues.filter((c) => c.kind === "herring")) if (!ruledOut.has(h.pointsAt!)) failures.push(`${tag}: a herring points at someone left standing`);
 
         // words match logic
         for (const c of cf.clues) {
@@ -312,7 +320,7 @@ describe("the engine", () => {
     expect(coroner / games).toBeGreaterThan(0.6);
     expect(clues / wrong).toBeLessThan(0.75); // the old evidence had about one clue per wrong answer
     expect(r1s / games).toBeGreaterThan(0.65); // about three quarters of the suspects still open after Round 1
-    expect(r2s / games).toBeLessThan(0.5); // under half after Round 2
+    expect(r2s / games).toBeLessThan(0.6); // well under two thirds after Round 2 (v4: a few stand to the end)
   });
 
   test("v3: the witness and the coroner name everything they clear, and never the answer", () => {
@@ -391,5 +399,58 @@ describe("the engine", () => {
           if (c.kind === "coroner" && kind === "gun" && c.elim.exhibits.length === input.exhibits.filter((e) => e.kind !== "gun").length) expect(c.text).toMatch(/\bshot\b/);
         }
       }
+  });
+
+  // v4 (Oct 16, Heston): "it should not narrow down to exactly the answer at the end of the game. It's should still be
+  // ambiguous, but close", "narrows down the room and weapons but leaves the person more unknown", and "vary slightly
+  // across player size, evidence, and rooms ... vary slightly from game to game".
+  test("v4: the evidence leaves a few suspects standing (more in bigger games, varying game to game), usually one weapon and one room", () => {
+    const stats = new Map<number, { s: number[]; w: number[]; r: number[] }>();
+    for (const guests of [4, 6, 8, 10, 12, 15]) {
+      const st = { s: [] as number[], w: [] as number[], r: [] as number[] };
+      for (let seed = 1; seed <= 80; seed++) {
+        const rng = seeded(seed * 613 + guests);
+        const setup = setupFor(guests);
+        const input: CaseInput = { ...fakeCast({ rng, guests, rooms: roomsN(setup.rooms), markers: setup.markers, weaponsHandedIn: Math.min(guests, setup.weapons!) }), search: seed % 2 ? "waves" : "all" };
+        const cf = buildCase(input, rng);
+        const fin = candidates(input, cf.clues, 3);
+        expect(fin.s).toContain(cf.solution.killerId);
+        expect(fin.s.length).toBeGreaterThanOrEqual(2);
+        expect(fin.s.length).toBeLessThanOrEqual(5);
+        expect(fin.e.length).toBeLessThanOrEqual(2);
+        expect(fin.r.length).toBeLessThanOrEqual(2);
+        st.s.push(fin.s.length);
+        st.w.push(fin.e.length);
+        st.r.push(fin.r.length);
+      }
+      stats.set(guests, st);
+    }
+    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+    // more open in bigger games
+    expect(mean(stats.get(15)!.s)).toBeGreaterThan(mean(stats.get(8)!.s));
+    expect(mean(stats.get(8)!.s)).toBeGreaterThan(mean(stats.get(4)!.s) - 0.01);
+    for (const [guests, st] of stats) {
+      // the same size varies from game to game (tiny games are always 2)
+      if (guests >= 6) expect(new Set(st.s).size).toBeGreaterThan(1);
+      // weapon and room: usually pinned
+      expect(st.w.filter((x) => x === 1).length / st.w.length).toBeGreaterThan(0.65);
+      expect(st.r.filter((x) => x === 1).length / st.r.length).toBeGreaterThan(0.7);
+    }
+    // bigger setups sometimes leave a second weapon or room
+    expect(Math.max(...stats.get(12)!.w, ...stats.get(15)!.w)).toBe(2);
+  });
+
+  test("v4: openEnding scales with the party and stays in range", () => {
+    for (const guests of [3, 4, 5, 8, 12, 20, 24]) {
+      for (let seed = 1; seed <= 200; seed++) {
+        const rng = seeded(seed + guests * 1000);
+        const input = { ...fakeCast({ rng, guests: Math.min(guests, 15), rooms: ROOMS_6, markers: 10 }), suspects: Array.from({ length: guests }, (_, i) => ({ id: `p${i}`, name: `P${i}`, signature: "", who: "", killerOk: true })) };
+        const o = openEnding(input, rng);
+        expect(o.suspects).toBeGreaterThanOrEqual(2);
+        expect(o.suspects).toBeLessThanOrEqual(Math.min(5, guests - 1, Math.max(2, Math.ceil(guests / 2))));
+        expect([1, 2]).toContain(o.exhibits);
+        expect([1, 2]).toContain(o.rooms);
+      }
+    }
   });
 });

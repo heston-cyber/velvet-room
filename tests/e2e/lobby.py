@@ -57,9 +57,7 @@ created = cx("admin:createGame", {"slug": SLUG, "title": "Lobby e2e", "isTest": 
 KEY = created["hostKey"]
 cx("game:seedFakeCast", {"slug": SLUG, "guests": 3, "markers": 6, "seed": 5, "checkIn": False})
 free_fig = lambda: next(f["key"] for s in cx("registration:figures", {"slug": SLUG}) for f in s["figures"] if not f["taken"])
-free_weapon = lambda: next(w["key"] for w in cx("registration:weapons", {"slug": SLUG}) if not w["taken"])
-ana = cx("registration:register", {"slug": SLUG, "realName": "Ana Ruiz", "charName": "Velma Kowalski", "who": "Cigarette girl.", "signature": "Silver case",
-                                   "weapon": free_weapon(), "killerOk": True, "figure": free_fig()})["token"]
+ana = cx("registration:register", {"slug": SLUG, "realName": "Ana Ruiz", "charName": "Velma Kowalski", "killerOk": True, "figure": free_fig(), "lastName": "Ruiz"})["token"]
 cx("host:updateSettings", {"slug": SLUG, "hostKey": KEY, "registrationOpen": False})
 
 with sync_playwright() as p:
@@ -102,12 +100,8 @@ with sync_playwright() as p:
     w.get_by_role("button", name="Step inside").click()
     w.locator(".figure-grid button:not([disabled])").first.click()
     w.fill("#f-lastName", "Inman")
-    w.get_by_role("button", name="Next: your character").click()
-    w.fill("#f-who", "Showed up uninvited."); w.fill("#f-signature", "Wet umbrella")
-    w.get_by_role("button", name="Next: motive and secret").click()
-    w.get_by_role("button", name="Next: your weapon").click()
-    w.locator(".weapon-grid button:not([disabled])").first.click(timeout=15000)
-    w.get_by_role("button", name="Next: review").click()
+    # Oct 16: no "about you" page and no weapon pick; straight to the last look.
+    w.get_by_role("button", name="Next: last look").click()
     w.get_by_role("button", name="Put me on the list").click()
     w.wait_for_url(re.compile(r"/p/[a-z0-9]+$"), timeout=15000)
     ok(wait_for(lambda: w.get_by_text("You're in", exact=True).count() == 1, 20), "the walk-in lands in the lobby, already in")

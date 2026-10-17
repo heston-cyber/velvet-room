@@ -182,7 +182,7 @@ export const CLASSIC: Script = {
   herring: (say, n) =>
     say("h", [
       `Found near the body: a matchbook with ${n}'s name scribbled inside. Could be nothing. Could be everything.`,
-      `A cigarette girl swears she saw ${n} slip out of the Don's office just before he died. Then again, it was dark.`,
+      `A cigarette girl swears she saw ${n} whispering with the Don just before he died. Then again, it was dark.`,
     ]),
   flavor: [
     "An empty bottle of the Don's private gin. Somebody helped themselves. Nothing more.",

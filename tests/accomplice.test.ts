@@ -29,7 +29,7 @@ beforeAll(() => {
 });
 
 describe("the engine, with an accomplice", () => {
-  test("1,000 games (7 to 12 guests, both scripts): one killer, one other accomplice, the evidence still narrows to the killer alone", () => {
+  test("1,000 games (7 to 12 guests, both scripts): one killer, one other accomplice, the evidence leaves the killer among the few standing", () => {
     const failures: string[] = [];
     let clearedAccomplice = 0;
     let killerNotOptedIn = 0;
@@ -71,18 +71,18 @@ describe("the engine, with an accomplice", () => {
           for (const b of cf.briefings.filter((x) => x.role === "innocent")) {
             if (b.lines !== S.innocentLinesAcc) failures.push(`${tag}: innocent lines aren't the accomplice-game ones`);
           }
-          // The evidence points only at the killer, and may clear the accomplice.
+          // The evidence leaves the killer among the planned few (v4), and may clear the accomplice.
           const left = new Set(input.suspects.map((s) => s.id));
           for (const c of cf.clues) c.elim.suspects.forEach((id) => left.delete(id));
-          if (left.size !== 1 || !left.has(sol.killerId)) failures.push(`${tag}: the evidence doesn't narrow to the killer`);
+          if (left.size !== cf.open!.suspects || !left.has(sol.killerId)) failures.push(`${tag}: the evidence doesn't leave the killer among the few`);
           if (cf.clues.some((c) => c.elim.suspects.includes(sol.accompliceId!))) clearedAccomplice++;
         }
       }
     }
     expect(failures.slice(0, 5)).toEqual([]);
     expect(n).toBe(1000);
-    // the evidence clears the accomplice like any innocent (always, in fact: every wrong suspect is cleared)
-    expect(clearedAccomplice).toBe(n);
+    // the evidence clears the accomplice like any innocent (mostly: a few innocents are left standing, v4)
+    expect(clearedAccomplice).toBeGreaterThan(n * 0.5);
     // the opt-in is ignored: with few opt-ins, plenty of killers didn't opt in
     expect(killerNotOptedIn).toBeGreaterThan(200);
   });

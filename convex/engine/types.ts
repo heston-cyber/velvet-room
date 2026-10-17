@@ -113,4 +113,12 @@ export type CaseFile = {
   tips: Tip[];
   briefings: Briefing[];
   attempts: number;
+  /**
+   * v4 (Oct 16): how many suspects, weapons and rooms the public evidence leaves open at the end of Round 3 (the
+   * answer is always among them). Older case files narrowed to exactly one of each.
+   */
+  open?: Open;
 };
+
+/** What the evidence leaves standing at the end (v4): a few suspects, usually one weapon and one room. */
+export type Open = { suspects: number; exhibits: number; rooms: number };

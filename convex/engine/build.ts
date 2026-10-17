@@ -7,6 +7,7 @@ import type {
   CaseInput,
   ClueKind,
   Elim,
+  Open,
   PlacedClue,
   Rng,
   Round,
@@ -161,11 +162,13 @@ export function validateCase(input: CaseInput, cf: CaseFile): Validation {
     };
   });
 
-  // Every wrong answer is ruled out by public clues, and exactly one answer is left.
+  // v4: the public evidence leaves exactly what the case planned standing (a few suspects, usually one weapon and one
+  // room), the answer always among them. Older case files planned one of each.
+  const want = cf.open ?? { suspects: 1, exhibits: 1, rooms: 1 };
   const fin = stages[2].rem;
-  if (!(fin.suspects.size === 1 && fin.suspects.has(sol.killerId))) problems.push("Suspects don't narrow to the killer.");
-  if (!(fin.exhibits.size === 1 && fin.exhibits.has(sol.exhibitId))) problems.push("Exhibits don't narrow to the weapon.");
-  if (!(fin.rooms.size === 1 && fin.rooms.has(sol.roomKey))) problems.push("Rooms don't narrow to the murder room.");
+  if (!(fin.suspects.size === want.suspects && fin.suspects.has(sol.killerId))) problems.push("Suspects don't narrow to the planned few.");
+  if (!(fin.exhibits.size === want.exhibits && fin.exhibits.has(sol.exhibitId))) problems.push("Exhibits don't narrow to the planned few.");
+  if (!(fin.rooms.size === want.rooms && fin.rooms.has(sol.roomKey))) problems.push("Rooms don't narrow to the planned few.");
 
   // Not too easy (v3), even for a table that finds every marker and shares every tip from the start:
   const tipped: PlacedClue[] = [...cf.clues, ...cf.tips.map((t, i): PlacedClue => ({ id: `tip${i}`, kind: "suspect", text: t.text, elim: t.elim, round: 1, channel: "tv" }))];
@@ -283,7 +286,7 @@ export const tipCount = (guests: number) => (guests <= 8 ? 2 : 3);
  * One big clue lands in Round 2, the other in Round 3. Markers carry a few alibis; the rest are dead ends and a red
  * herring. Tips: only two or three different ones, each given to several guests.
  */
-function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
+function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { suspects: 1, exhibits: 1, rooms: 1 }): CaseFile {
   const S = scriptFor(input);
   const say = deckPicker(rng);
   const name = new Map(input.suspects.map((s) => [s.id, s.name]));
@@ -299,17 +302,24 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
 
   // 1. The big clues, and when they land: one in Round 2, the other in Round 3 (a lone one in either).
   const bigs: Draft[] = [];
-  // The witness: the killer is a man, or a woman. Needs every guest's drawing, and at least two innocents of each sex.
-  let needAlibi = innocents;
+  // v4: the innocents the evidence never clears (plan.suspects - 1 of them). They stand with the killer at the end, and
+  // people have to make the last call themselves.
+  let standing: Suspect[] = shuffle(rng, innocents).slice(0, plan.suspects - 1);
+  let needAlibi = innocents.filter((s) => !standing.includes(s));
   let camoSus: Suspect[] = [];
-  if (killer.sex && input.suspects.every((s) => s.sex)) {
+  // The witness: the killer is a man, or a woman. Needs every guest's drawing, and at least two innocents of each sex.
+  // Not every game has one (about one in five goes without), so the ones left standing aren't always all one sex.
+  if (killer.sex && input.suspects.every((s) => s.sex) && rng() < 0.8) {
     const other = innocents.filter((s) => s.sex !== killer.sex);
+    const same = innocents.filter((s) => s.sex === killer.sex);
     // Not when it would leave the killer almost alone in their sex: that's the whole case in one clue.
-    if (other.length >= 2 && innocents.length - other.length >= 2) {
+    if (other.length >= 2 && same.length >= 2) {
       bigs.push({ kind: "witness", text: S.witness(say, killer.sex, other.map((s) => s.name)), elim: { ...NONE, suspects: other.map((s) => s.id) } });
+      // The ones left standing are the killer's sex then (the witness clears the rest).
+      standing = shuffle(rng, same).slice(0, plan.suspects - 1);
       // Some of the other sex get alibis too, before the witness talks, so the early alibis don't give the sex away.
       camoSus = shuffle(rng, other).slice(0, Math.round(other.length * (0.3 + rng() * 0.2)));
-      needAlibi = innocents.filter((s) => s.sex === killer.sex);
+      needAlibi = same.filter((s) => !standing.includes(s));
     }
   }
   // The coroner: picks the report that rules out closest to half the wrong weapons (at least two).
@@ -330,6 +340,9 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
       needClear = wrongExhibits.filter((e) => !o.out.includes(e));
     }
   }
+  // v4: a weapon the evidence never clears, now and then (plan.exhibits): one the coroner doesn't rule out.
+  const weaponsStanding = shuffle(rng, needClear).slice(0, plan.exhibits - 1);
+  needClear = needClear.filter((e) => !weaponsStanding.includes(e));
   const bigRound = new Map<ClueKind, Round>();
   const bigOrder = shuffle(rng, bigs);
   if (bigOrder.length === 2) {
@@ -385,9 +398,13 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
   let roomTargets = otherRooms;
   // When the twist says he died where he was found, it settles every room at once, so the room clears come out first.
   let roomsBy: Round | undefined;
+  let roomsStanding: typeof otherRooms = [];
   if (sol.roomKey !== body.key) {
     twist = { kind: "twist", text: S.twistMoved(body.label), elim: { ...NONE, rooms: [body.key] } };
     roomTargets = otherRooms.filter((r) => r.key !== body.key);
+    // v4: a room the evidence never clears, now and then (plan.rooms). Only here: the other twist settles the room.
+    roomsStanding = shuffle(rng, roomTargets).slice(0, plan.rooms - 1);
+    roomTargets = roomTargets.filter((r) => !roomsStanding.includes(r));
   } else {
     const held = pick(rng, otherRooms);
     twist = { kind: "twist", text: S.twistStayed(body.label), elim: { ...NONE, rooms: otherRooms.map((r) => r.key) } };
@@ -445,7 +462,8 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
 
   // 6. Red herrings at innocents who get cleared later (two in bigger games), then dead ends on the spare markers.
   const clearedIn = (sid: string) => Math.min(...placed.filter((c) => c.elim.suspects.includes(sid)).map((c) => c.round));
-  const herrings = shuffle(rng, innocents.filter((s) => clearedIn(s.id) > 1)).slice(0, input.suspects.length >= 10 ? 2 : 1);
+  // Only at someone the evidence does clear later (never at one left standing: that would never be answered).
+  const herrings = shuffle(rng, innocents.filter((s) => Number.isFinite(clearedIn(s.id)) && clearedIn(s.id) > 1)).slice(0, input.suspects.length >= 10 ? 2 : 1);
   for (const h of herrings) {
     const clearRound = clearedIn(h.id);
     const i = freeMarkers.findIndex((m) => roundOf(m) < clearRound);
@@ -525,7 +543,31 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
     return { playerId: s.id, role: "innocent", motive: m.motive, secret: m.secret, lines: sol.accompliceId ? S.innocentLinesAcc : S.innocentLines };
   });
 
-  return { solution: sol, bodyRoomKey: body.key, roomOrder: order, clues: placed, tips, briefings, attempts: 1 };
+  const open: Open = { suspects: standing.length + 1, exhibits: weaponsStanding.length + 1, rooms: roomsStanding.length + 1 };
+  return { solution: sol, bodyRoomKey: body.key, roomOrder: order, clues: placed, tips, briefings, attempts: 1, open };
+}
+
+/**
+ * v4 (Oct 16): how much the evidence leaves open at the end. Heston: "with evidence, it should not narrow down to exactly
+ * the answer at the end of the game. It's should still be ambiguous, but close", "narrows down the room and weapons but
+ * leaves the person more unknown, that way it's a human element of intuition and bluffing/blaming", and the numbers
+ * should "vary slightly across player size, evidence, and rooms ... vary slightly from game to game".
+ * - Suspects: about a quarter of the party (2 in small games, up to 5 in big ones), give or take one.
+ * - Weapons: one; two in about 1 game in 10 with 6 or 7 weapons, 1 in 5 with 8 or more.
+ * - Rooms: one; two in about 1 game in 10 with 5 rooms, 1 in 5 with 6 or more (only when the body was moved).
+ */
+export function openEnding(input: CaseInput, rng: Rng): Open {
+  const N = input.suspects.length;
+  const W = input.exhibits.length;
+  const R = input.rooms.length;
+  const base = N <= 4 ? 2 : N <= 7 ? 2.5 : N <= 10 ? 3 : N <= 14 ? 3.5 : N <= 18 ? 4 : 4.5;
+  let suspects = Math.floor(base + rng());
+  const j = rng();
+  suspects += j < 0.2 ? -1 : j >= 0.8 ? 1 : 0;
+  suspects = Math.max(Math.min(2, N - 1), Math.min(suspects, Math.max(2, Math.ceil(N / 2)), N - 1, 5));
+  const exhibits = W >= 8 ? (rng() < 0.2 ? 2 : 1) : W >= 6 ? (rng() < 0.1 ? 2 : 1) : 1;
+  const rooms = R >= 6 ? (rng() < 0.2 ? 2 : 1) : R >= 5 ? (rng() < 0.1 ? 2 : 1) : 1;
+  return { suspects, exhibits, rooms };
 }
 
 /**
@@ -537,9 +579,12 @@ export function buildCase(input: CaseInput, rng: Rng, solution?: Solution): Case
   if (problems.length) throw new Error(problems.join(" "));
   const full: CaseInput = { ...input, ...drawScene(input, rng) };
   const sol = solution ? withAccomplice(full, rng, solution) : draw(full, rng);
+  let plan = openEnding(full, rng);
   let last: Validation | null = null;
   for (let attempt = 1; attempt <= 200; attempt++) {
-    const cf = tryBuild(full, rng, sol);
+    // A plan that won't build after a while gets a little narrower.
+    if (attempt === 80 || attempt === 140) plan = { suspects: Math.max(1, plan.suspects - 1), exhibits: 1, rooms: 1 };
+    const cf = tryBuild(full, rng, sol, plan);
     const v = validateCase(full, cf);
     if (v.ok) return { ...cf, attempts: attempt, validation: v };
     last = v;
