@@ -69,7 +69,7 @@ with sync_playwright() as p:
     phone = browser.new_context(viewport={"width": 390, "height": 844}, device_scale_factor=2, is_mobile=True, has_touch=True).new_page()
     phone.on("pageerror", lambda e: errors.append(str(e)))
     phone.goto(f"{BASE}/p/{guests[0]['token']}")
-    phone.wait_for_selector("text=See you inside", timeout=15000)
+    phone.wait_for_selector("text=Save my link", timeout=15000)
 
     host = browser.new_context(viewport={"width": 1600, "height": 900}).new_page()
     host.on("pageerror", lambda e: errors.append(str(e)))
@@ -80,7 +80,7 @@ with sync_playwright() as p:
     ok(wait_for(lambda: phone.get_by_text("You're in", exact=True).count() == 1, 20), "the guest's phone is let in")
     ok(wait_for(lambda: "6" in host.locator(".hs-count").inner_text()), "6 guests are in")
     host.locator(".hs-lobby button").click()
-    host.locator(".hs-lobby button").click()
+    host.locator(".hs-lobby button").first.click()  # Oct 17: "Yes, begin" (the QR cards are hidden)
     ok(wait_for(lambda: roster()["game"]["status"] == "playing", 20), "Everyone is in starts the show")
 
     # Oct 16 (Heston): How to play first, then the Don dies, then the roll call.
@@ -123,9 +123,9 @@ with sync_playwright() as p:
     ok(host.locator(".tv-jailed img.bars").count() == 1, "the bars sit over the drawing")
 
     # The Don dies.
-    if host.get_by_text("New York City · October, 1929").count() == 0:
+    if host.get_by_text("New York City · October 31, 1929").count() == 0:
         skip("Skip to the murder")
-    ok(wait_for(lambda: host.get_by_text("New York City · October, 1929").count() == 1, 15), "then the Don dies: New York City, 1929")
+    ok(wait_for(lambda: host.get_by_text("New York City · October 31, 1929").count() == 1, 15), "then the Don dies: New York City, 1929")
     ok(wait_for(lambda: host.get_by_text("The Don is dead.").count() == 1, 40), "the second slide: the Don is dead")
     ok(wait_for(lambda: host.locator(".tv-wrow .tv-wcard").count() == 6, 40), "the third slide shows the 6 weapons in play")
     host.wait_for_timeout(2500)

@@ -253,6 +253,7 @@ export default function ProfileForm(props: {
           {progress}
           <h2>{mode === "new" ? "Who's at the door?" : "Edit your entry"}</h2>
           <p className="lede">Find your face and tap it. That's you on the TV tonight, by name.</p>
+          {walkIn && <span className="small">About a minute. The game starts once everyone's in, so be quick.</span>}
           <div className={`field${needFigure ? " bad" : ""}`}>
             <span className="lab" id="l-figure">
               Tonight's cast

@@ -76,7 +76,7 @@ with sync_playwright() as p:
 
     # Options: no Killers setting.
     host.get_by_role("button", name="Options").click(timeout=20000)
-    ok(wait_for(lambda: host.get_by_text("Ask guests if they're up for being the killer").count() == 1, 10), "Options is open")
+    ok(wait_for(lambda: host.get_by_text("Narrator and script").count() == 1, 10), "Options is open")
     ok(host.get_by_role("button", name="Killer + accomplice (7+)").count() == 0, "no Killer + accomplice option")
     def mentions(pg):
         t = pg.inner_text("body")
@@ -92,7 +92,7 @@ with sync_playwright() as p:
     ok(not mentions(host), f"the lobby never mentions an accomplice {mentions(host)[:2]}")
     shot(host, "02-lobby.png")
     host.locator(".hs-lobby button").click()
-    host.locator(".hs-lobby button").click()
+    host.locator(".hs-lobby button").first.click()  # Oct 17: "Yes, begin" (the QR cards are hidden)
     ok(wait_for(lambda: roster()["game"]["status"] == "playing", 20), "Everyone is in starts the show")
     ok(roster()["game"]["hasAccomplice"] is False, "the game has no accomplice")
 

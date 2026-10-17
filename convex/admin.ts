@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { DEFAULT_ROOMS, randomCode } from "./lib";
+import { caseFor } from "./caseFile";
 
 // Internal functions: only callable from the Convex CLI or dashboard with a deploy key,
 // never from a browser.
@@ -120,5 +121,20 @@ export const testPlayers = internalQuery({
       .withIndex("by_game", (q) => q.eq("gameId", game._id))
       .collect();
     return players.sort((a, b) => a.createdAt - b.createdAt).map((p) => ({ id: p._id, charName: p.charName, token: p.token }));
+  },
+});
+
+/** For the browser tests: in a test game, the killer and the guests the evidence clears by the end of Round 3. */
+export const testCleared = internalQuery({
+  args: { slug: v.string() },
+  handler: async (ctx, { slug }) => {
+    const game = await ctx.db
+      .query("games")
+      .withIndex("by_slug", (q) => q.eq("slug", slug))
+      .unique();
+    if (!game || !game.isTest) throw new ConvexError("Test games only.");
+    const cf = await caseFor(ctx, game);
+    if (!cf) return null;
+    return { killer: cf.solution.killerId, cleared: [...new Set(cf.clues.filter((c) => c.round <= 3).flatMap((c) => c.elim.suspects))] };
   },
 });

@@ -56,7 +56,10 @@ T = cx("admin:createGame", {"slug": TEST, "title": "Rehearsal Night (test 3)", "
 
 def sign_up(pg, last):
     """The full sign-up, from the door of the form to the guest's own page."""
-    pg.get_by_role("button", name="Step inside").click(timeout=15000)
+    # S9 (Oct 17): walk-ins start on the faces; a sign-up from the link starts at the door.
+    pg.locator(".figure-grid button, button:has-text('Step inside')").first.wait_for(timeout=15000)
+    if pg.get_by_role("button", name="Step inside").count():
+        pg.get_by_role("button", name="Step inside").click()
     pg.locator(".figure-grid button:not([disabled])").first.click()
     pg.fill("#f-lastName", last)
     pg.get_by_role("button", name="Next: last look").click()
@@ -89,8 +92,10 @@ with sync_playwright() as p:
     ok("Test game" not in text(laptop), "a real game, not a test game")
     shot(laptop, "03-new-game-title.png")
     laptop.get_by_role("button", name="Options").click()
-    ok(wait_for(lambda: laptop.locator(".hx-link code").count() == 1), "Options has the sign-up link")
-    link = laptop.locator(".hx-link code").inner_text()
+    ok(wait_for(lambda: laptop.locator(".hx-link code").count() >= 1), "Options has the sign-up link")
+    link = laptop.locator(".hx-link code").first.inner_text()
+    # F2 (Oct 17): the host link is there too, copied, never shown on the TV.
+    ok("Hidden" in laptop.locator(".hx-link code").nth(1).inner_text(), "the host link is hidden on screen")
     ok(link.endswith(f"/?game={slug}"), f"the sign-up link names this game ({link})")
     shot(laptop, "04-options.png")
     laptop.get_by_role("button", name="Back").first.click()
@@ -101,7 +106,7 @@ with sync_playwright() as p:
     ana.goto(f"{BASE}/?game={slug}")
     ana.get_by_role("button", name="Step inside").wait_for(timeout=15000)
     ana.get_by_role("button", name="Step inside").click()
-    ok(wait_for(lambda: ana.get_by_role("radio").count() == 16), "the sign-up link shows the 16 faces")
+    ok(wait_for(lambda: ana.get_by_role("radio").count() == 18), "the sign-up link shows the 16 faces and the 2 mystery guests")
     ana.goto(f"{BASE}/?game={slug}")
     sign_up(ana, "Ruiz")
     roster = cx("host:roster", {"slug": slug, "hostKey": key})
@@ -134,7 +139,9 @@ with sync_playwright() as p:
     ok(bool(re.match(r"^[A-Z]{4}$", code or "")), f"Play made the room code ({code})")
     ok(wait_for(lambda: code in text(laptop)), "the room code is on the TV")
     shot(laptop, "06-lobby-code.png")
-    ok(wait_for(lambda: ana.get_by_text("You're in", exact=True).count() == 1, 25), "the guest who signed up ahead is let in")
+    ok(wait_for(lambda: ana.get_by_role("button", name="I'm here").count() == 1, 25), "the guest who signed up ahead is asked if they're here")
+    ana.get_by_role("button", name="I'm here").click()
+    ok(wait_for(lambda: ana.get_by_text("You're in", exact=True).count() == 1, 25), "one tap and they're in")
     walk = browser.new_context(**phone).new_page(); walk.on("pageerror", lambda e: errors.append(str(e)))
     walk.goto(f"{BASE}/")
     walk.get_by_role("button", name="Join a game").click()

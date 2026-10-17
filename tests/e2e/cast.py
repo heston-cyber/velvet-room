@@ -108,7 +108,7 @@ with sync_playwright() as p:
     host.wait_for_timeout(1500)
     shot(host, "05-lobby.png")
     host.locator(".hs-lobby button").click()
-    host.locator(".hs-lobby button").click()
+    host.locator(".hs-lobby button").first.click()  # Oct 17: "Yes, begin" (the QR cards are hidden)
     ok(wait_for(lambda: roster()["game"]["status"] == "playing", 20), "Everyone is in starts the show")
 
     def skip(label):

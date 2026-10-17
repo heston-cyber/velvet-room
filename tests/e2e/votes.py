@@ -65,6 +65,12 @@ gid = [g["id"] for g in guests]
 cx("game:openDoors", {"slug": SLUG, "hostKey": KEY})
 cx("game:startGame", {"slug": SLUG, "hostKey": KEY})
 cx("game:skipIntro", {"slug": SLUG, "hostKey": KEY})
+# Oct 17 (D10): a jailbird the evidence clears walks out without a vote, so jail one it never clears.
+case = cx("admin:testCleared", {"slug": SLUG})
+J = next((i for i in range(1, 5) if gid[i] != case["killer"] and gid[i] not in case["cleared"]), None)
+if J is None:
+    J = next(i for i in range(1, 5) if gid[i] == case["killer"]) if case["killer"] in gid[1:] else 4
+OTHERS = [i for i in range(1, 5) if i != J]
 roster = lambda: cx("host:roster", {"slug": SLUG, "hostKey": KEY})
 vote = lambda i, target: cx("game:castVote", {"token": tok[i], "targetId": target})
 
@@ -76,7 +82,7 @@ with sync_playwright() as p:
     for pg in (a, b):
         pg.on("pageerror", lambda e: errors.append(str(e)))
     a.goto(f"{BASE}/p/{tok[0]}")
-    b.goto(f"{BASE}/p/{tok[4]}")
+    b.goto(f"{BASE}/p/{tok[J]}")
     for pg in (a, b):
         # past the role card
         pg.wait_for_selector("text=Press and hold", timeout=20000)
@@ -106,11 +112,11 @@ with sync_playwright() as p:
     host.wait_for_timeout(1500)
     shot(host, "01-tv-jail-vote.png")
     shot(a, "02-phone-vote.png")
-    a.get_by_role("radio").filter(has_text=guests[4]["charName"]).click()
+    a.get_by_role("radio").filter(has_text=guests[J]["charName"].split(" ")[0]).first.click()
     ok(wait_for(lambda: "Your vote is in" in a.inner_text("body"), 10), "the phone shows the vote is in")
-    for i in (1, 2, 3):
-        vote(i, gid[4])
-    vote(4, gid[0])  # the last ballot closes it
+    for i in OTHERS:
+        vote(i, gid[J])
+    vote(J, gid[0])  # the last ballot closes it
     ok(wait_for(lambda: host.get_by_text("The votes are in").count() == 1, 10), "everyone voted: the TV shows who voted for whom")
     host.wait_for_timeout(1500)
     shot(host, "03-tv-tally.png")
@@ -130,7 +136,7 @@ with sync_playwright() as p:
     host.wait_for_timeout(1200)
     shot(host, "06-tv-release.png")
     ok(wait_for(lambda: "can't vote from a cell" in b.inner_text("body"), 10), "the jailed guest can't vote")
-    for i in (0, 1, 2, 3):
+    for i in [0] + OTHERS:
         vote(i, None)
     ok(wait_for(lambda: host.get_by_text("Nobody gets out.").count() == 1, 15), "nobody gets out")
     host_step("On to the lock-in")
@@ -152,7 +158,7 @@ with sync_playwright() as p:
     ok(wait_for(lambda: a.get_by_text("Locked in").count() >= 1, 10), "locked in, final")
     shot(a, "08-phone-locked.png")
     board = cx("game:phone", {"token": tok[1]})["board"]
-    for i in (1, 2, 3):
+    for i in OTHERS:
         me = gid[i]
         other = next(s["id"] for s in board["suspects"] if s["id"] != me)
         try:

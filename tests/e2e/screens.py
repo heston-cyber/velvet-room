@@ -143,7 +143,7 @@ with sync_playwright() as p:
     wait_for(lambda: host.locator(".hs-lobby").count() == 1)
     audit("lobby", 2500)
     host.locator(".hs-lobby button").click()
-    host.locator(".hs-lobby button").click()
+    host.locator(".hs-lobby button").first.click()  # Oct 17: "Yes, begin" (the QR cards are hidden)
     wait_for(lambda: roster()["game"]["status"] == "playing", 20)
     # Oct 16: How to play, then the Don dies, then the roll call.
     kick = lambda: host.evaluate("() => document.querySelector('.tv-how .tv-kick')?.textContent || ''")
@@ -154,7 +154,7 @@ with sync_playwright() as p:
             break
         audit(f"how-{i}", 1600)
     text = lambda: host.evaluate("() => document.body.textContent")
-    for label, words in (("intro-1", "New York City · October, 1929"), ("intro-2", "The Don is dead."), ("intro-3", "One of you did it.")):
+    for label, words in (("intro-1", "New York City · October 31, 1929"), ("intro-2", "The Don is dead."), ("intro-3", "One of you did it.")):
         wait_for(lambda: words in text(), 45)
         audit(label, 1500)
     wait_for(lambda: host.locator(".tv-roll h2").count() == 1, 60)
@@ -165,7 +165,11 @@ with sync_playwright() as p:
     audit("round-1", 5500)
 
     def vote_round(rnd, kind, target):
-        wait_for(lambda: host.get_by_text("Who goes to jail?" if kind == "jail" else "Does anyone get out?").count(), 15)
+        wait_for(lambda: host.get_by_text("Who goes to jail?" if kind == "jail" else "Does anyone get out?").count() or "The evidence clears" in text(), 15)
+        if "The evidence clears" in text():
+            # D10 (Oct 17): the evidence already cleared the jailbird, so no vote.
+            audit(f"r{rnd}-{kind}-auto", 5000)
+            return
         audit(f"r{rnd}-{kind}-vote", 5000)
         vote_all(target)
         wait_for(lambda: host.get_by_text("The votes are in").count() == 1, 15)
@@ -199,6 +203,14 @@ with sync_playwright() as p:
     for at, label in ((6, "reveal-line"), (16, "reveal-name"), (21, "reveal-how"), (30, "reveal-verdict"), (40, "reveal-votes")):
         host.wait_for_timeout(max(0, int((rt + at - time.time()) * 1000)))
         audit(label, 0)
+    # Oct 17: award votes, so the awards card shows several (Best Liar is innocents only: a vote for the killer is refused).
+    for i, gst in enumerate(guests):
+        for liar in (guests[(i + 1) % len(guests)]["id"], guests[(i + 2) % len(guests)]["id"]):
+            try:
+                mut("game:vote", {"token": gst["token"], "dressed": guests[(i + 1) % len(guests)]["id"], "liar": liar})
+                break
+            except Exception:
+                pass
     mut("game:finish", {"slug": SLUG, "hostKey": KEY})
     audit("awards", 9000)
     audit("awards-names", 12000)

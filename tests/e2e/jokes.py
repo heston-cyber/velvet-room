@@ -2,7 +2,7 @@
 voice set), no repeated lines on one host laptop, and the running gag only every third game started on that laptop.
   BASE=http://localhost:4174 python3 tests/e2e/jokes.py
 """
-import json, os, subprocess, time, urllib.request
+import json, os, re, subprocess, time, urllib.request
 from playwright.sync_api import sync_playwright
 
 BASE = os.environ.get("BASE", "http://localhost:4173")
@@ -78,7 +78,7 @@ def start(host, slug):
     host.get_by_role("button", name="Play").click()
     wait_for(lambda: host.locator(".hs-lobby").count() == 1)
     host.locator(".hs-lobby button").click()
-    host.locator(".hs-lobby button").click()
+    host.locator(".hs-lobby button").first.click()  # Oct 17: "Yes, begin" (the QR cards are hidden)
     ok(wait_for(lambda: roster(slug)["game"]["status"] == "playing", 20), f"{slug} starts")
     ok(wait_for(lambda: roster(slug)["game"]["heard"] is not None, 20), f"{slug} picked its lines at Start")
     host.wait_for_timeout(1500)  # the laptop remembers them
@@ -107,12 +107,13 @@ with sync_playwright() as p:
     host.goto(f"{BASE}/host?game={slug}&key={keys[slug]}")
     host.get_by_role("button", name="Options").wait_for(timeout=20000)
     host.get_by_role("button", name="Options").click()
-    sw = host.locator("#set-sailor")
+    # S6 (Oct 17): one picker for the narrator and the script.
+    sw = host.get_by_role("radio", name=re.compile("Sailor mode"))
     sw.scroll_into_view_if_needed()
     host.wait_for_timeout(500)
     host.screenshot(path=os.path.join(OUT, "01-voice-setup.png"))
-    host.locator("label[for=set-sailor], #set-sailor").first.click()
-    ok(wait_for(lambda: roster(slug)["game"]["narrator"].get("sailor") is True, 10), "the Sailor mode switch turns it on")
+    sw.click()
+    ok(wait_for(lambda: roster(slug)["game"]["narrator"].get("sailor") is True, 10), "picking Sailor mode turns it on")
     g = roster(slug)["game"]
     ok(g["narrator"]["host"] == "duke" and g["tone"] == "adult", "Sailor mode is Duke over the Adult script")
     host.wait_for_timeout(800)

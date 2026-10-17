@@ -68,8 +68,8 @@ with sync_playwright() as p:
     # Ana signed up earlier and has her page open, waiting at the door.
     a = browser.new_context(**phone).new_page(); a.on("pageerror", lambda e: errors.append(str(e)))
     a.goto(f"{BASE}/p/{ana}")
-    a.wait_for_selector("text=See you inside", timeout=15000)
-    ok(a.get_by_text("you're let in automatically").count() == 1, "before the party, the guest page says they'll be let in automatically")
+    a.wait_for_selector("text=Save my link", timeout=15000)
+    ok(a.get_by_text("tap “I'm here”", exact=False).count() == 1, "before the party, the guest page says to tap I'm here at the party")
 
     host = browser.new_context(viewport={"width": 1600, "height": 900}).new_page(); host.on("pageerror", lambda e: errors.append(str(e)))
     host.goto(f"{BASE}/host?game={SLUG}&key={KEY}")
@@ -85,7 +85,10 @@ with sync_playwright() as p:
     code = cx("host:roster", {"slug": SLUG, "hostKey": KEY})["game"]["roomCode"]
     ok(bool(code), f"the room code is out ({code})")
 
-    ok(wait_for(lambda: a.get_by_text("You're in", exact=True).count() == 1, 20), "Ana's open page lets her in on its own")
+    # F4 (Oct 17): she taps I'm here at the door.
+    ok(wait_for(lambda: a.get_by_role("button", name="I'm here").count() == 1, 20), "Ana's open page asks if she's here")
+    a.get_by_role("button", name="I'm here").click()
+    ok(wait_for(lambda: a.get_by_text("You're in", exact=True).count() == 1, 20), "one tap and Ana's in")
     ok(a.get_by_text("Write").count() == 0 and a.get_by_text("bag").count() == 0, "no evidence bag or letter on the phone")
     shot(a, "01-ana-in.png")
 
@@ -94,10 +97,11 @@ with sync_playwright() as p:
     w.goto(f"{BASE}/join")
     w.fill("#roomcode", code.lower())
     w.get_by_role("button", name="New here? Sign up").click(timeout=15000)
-    w.get_by_role("button", name="Step inside").wait_for(timeout=15000)
+    # S9 (Oct 17): a walk-in starts right on the faces.
+    w.locator(".figure-grid button").first.wait_for(timeout=15000)
     ok(w.get_by_text("be quick").count() == 1, "the walk-in form says the game starts once everyone's in")
+    ok(w.get_by_role("button", name="Step inside").count() == 0, "no welcome screen for a walk-in")
     shot(w, "01b-walkin-door.png")
-    w.get_by_role("button", name="Step inside").click()
     w.locator(".figure-grid button:not([disabled])").first.click()
     w.fill("#f-lastName", "Inman")
     # Oct 16: no "about you" page and no weapon pick; straight to the last look.
@@ -112,8 +116,9 @@ with sync_playwright() as p:
     ok(wait_for(lambda: "5" in host.locator(".hs-count").inner_text()), "and 5 once the test guests are in")
     shot(host, "03-host-lobby.png")
     host.locator(".hs-lobby button").click()
-    ok("again" in host.locator(".hs-lobby button").inner_text().lower(), "Everyone is in asks for a second tap")
-    host.locator(".hs-lobby button").click()
+    # F1 (Oct 17): the second step asks whether the QR cards are hidden.
+    ok(wait_for(lambda: "QR cards hidden" in host.locator(".hs-lobby").inner_text()), "Everyone is in asks if the QR cards are hidden")
+    host.get_by_role("button", name="Yes, begin").click()
     ok(wait_for(lambda: cx("host:roster", {"slug": SLUG, "hostKey": KEY})["game"]["status"] == "playing", 20), "the second tap starts the game")
     ok(wait_for(lambda: host.locator(".hs-lobby").count() == 0), "the lobby bar goes away once the show starts")
     shot(host, "04-host-intro.png")
