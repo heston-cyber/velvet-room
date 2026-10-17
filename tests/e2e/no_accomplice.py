@@ -5,11 +5,11 @@ the lock-in has no accomplice guess, and the reveal goes straight from the room 
   BASE=http://localhost:4174 [TONE=adult] python3 tests/e2e/no_accomplice.py
 Screenshots go to $OUT (default ./e2e-out/no-accomplice).
 """
-import json, os, subprocess, time
+import json, os, re, subprocess, time
 from playwright.sync_api import sync_playwright
 
 BASE = os.environ.get("BASE", "http://localhost:4173")
-SLUG = os.environ.get("SLUG", "no-accomplice-e2e")
+SLUG = os.environ.get("SLUG", "one-killer-e2e")  # a name without "accomplice": the sign-up link shows it
 OUT = os.environ.get("OUT", "e2e-out/no-accomplice")
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.makedirs(OUT, exist_ok=True)
@@ -78,7 +78,10 @@ with sync_playwright() as p:
     host.get_by_role("button", name="Options").click(timeout=20000)
     ok(wait_for(lambda: host.get_by_text("Ask guests if they're up for being the killer").count() == 1, 10), "Options is open")
     ok(host.get_by_role("button", name="Killer + accomplice (7+)").count() == 0, "no Killer + accomplice option")
-    ok("accomplice" not in host.inner_text("body").lower(), "Options never mentions an accomplice")
+    def mentions(pg):
+        t = pg.inner_text("body")
+        return [t[max(0, m.start() - 80):m.end() + 40].replace("\n", " ") for m in re.finditer("accomplice", t, re.I)]
+    ok(not mentions(host), f"Options never mentions an accomplice {mentions(host)[:2]}")
     host.wait_for_timeout(600)
     shot(host, "01-options.png")
     host.get_by_role("button", name="Back").first.click()
@@ -86,7 +89,7 @@ with sync_playwright() as p:
     host.get_by_role("button", name="Play").click(timeout=20000)
     ok(wait_for(lambda: host.locator(".hs-lobby").count() == 1), "Play opens the doors")
     host.wait_for_timeout(1500)
-    ok("accomplice" not in host.inner_text("body").lower(), "the lobby never mentions an accomplice")
+    ok(not mentions(host), f"the lobby never mentions an accomplice {mentions(host)[:2]}")
     shot(host, "02-lobby.png")
     host.locator(".hs-lobby button").click()
     host.locator(".hs-lobby button").click()
@@ -141,7 +144,7 @@ with sync_playwright() as p:
     lines = kp.get_by_label("Press and hold to read your role")
     lines.dispatch_event("pointerdown")
     kp.wait_for_timeout(500)
-    ok("accomplice" not in kp.inner_text("body").lower(), "the killer's case file never mentions an accomplice")
+    ok(not mentions(kp), f"the killer's case file never mentions an accomplice {mentions(kp)[:2]}")
     shot(kp, "04-phone-killer-file.png")
     lines.dispatch_event("pointerup")
 
@@ -176,7 +179,7 @@ with sync_playwright() as p:
             print("skip", g["charName"], str(e)[-90:])
     ok(wait_for(lambda: roster()["game"]["status"] == "reveal", 25), "everyone locked in: the reveal")
     ok(wait_for(lambda: host.get_by_text("named the killer").count() == 1, 60), "the verdict")
-    ok(host.locator(".tv-reveal-acc").count() == 0 and "accomplice" not in host.inner_text("body").lower(), "the reveal never names an accomplice")
+    ok(host.locator(".tv-reveal-acc").count() == 0 and not mentions(host), f"the reveal never names an accomplice {mentions(host)[:2]}")
     host.wait_for_timeout(800)
     shot(host, "06-tv-verdict.png")
     ok(not errors, f"no page errors {errors[:2]}")
