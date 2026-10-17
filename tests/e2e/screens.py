@@ -85,6 +85,10 @@ AUDIT = """() => {
   if (hit(strip, split)) out.push('overlap: strip and the round');
   if (strip && hit(cap, split)) out.push('overlap: caption and the round');
   if (hit(strip, foot)) out.push('overlap: strip and the room code');
+  // The weapons along the top: no two names touch, and the round chip and ready count stay on one line.
+  const names = [...st.querySelectorAll('.tv-topweapons .nm')].map((e) => e.getBoundingClientRect());
+  for (let i = 1; i < names.length; i++) if (names[i].left < names[i - 1].right - 1 && names[i].top < names[i - 1].bottom && names[i - 1].top < names[i].bottom) { out.push('overlap: weapon names'); break; }
+  for (const el of st.querySelectorAll('.tv-roundbar .chip, .tv-roundbar .tv-ready')) if (el.getBoundingClientRect().height > parseFloat(getComputedStyle(el).fontSize) * 2.6) out.push('wrapped: ' + el.className);
   return [...new Set(out)].slice(0, 15);
 }"""
 

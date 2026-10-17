@@ -400,6 +400,9 @@
 .tv-topweapons { flex: 1 1 auto; min-width: 0; display: flex; justify-content: center; align-items: flex-start; gap: .3cqw; animation: fadein .6s ease both; }
 .tv-topweapons > div { width: var(--slot); display: grid; justify-items: center; gap: .15cqw; min-width: 0; }
 .tv-topweapons img { width: min(2.8cqw, calc(var(--slot) * .6)); height: min(2.8cqw, calc(var(--slot) * .6)); object-fit: contain; filter: drop-shadow(0 .3cqw .5cqw rgba(0, 0, 0, .5)); }
-/* One line, whole words (never "CANDLEST-ICK"), so the row stays about as tall as the round chip. */
-.tv-topweapons .nm { font-family: var(--label); font-size: min(.8cqw, calc(var(--slot) * .15)); font-weight: 700; letter-spacing: .02em; color: var(--paper); text-align: center; line-height: 1.1; white-space: nowrap; }
+/* Whole words only (never "CANDLEST-ICK"): a two-word name may take two short lines, a long word never breaks. */
+.tv-topweapons .nm { max-width: 100%; font-family: var(--label); font-size: min(.8cqw, calc(var(--slot) * .15)); font-weight: 700; letter-spacing: .02em; color: var(--paper); text-align: center;
+  line-height: 1.05; overflow-wrap: normal; word-break: keep-all; }
+/* The round chip and the ready count keep to one line; the weapons take what's between them. */
+.tv-roundbar .chip, .tv-roundbar .tv-ready, .tv-roundbar .tv-clock { flex: none; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .tv-topweapons { animation: none; } }
