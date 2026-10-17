@@ -48,13 +48,23 @@ export function voteAfterRound(round: number, anyoneJailed: boolean, guests = In
   return null;
 }
 
+/** I4 (Oct 17): when guests tap Ready, the round ends this long after most of them are ready. */
+export const LAST_CALL_MS = 30_000;
+
 /** Accusations get a shorter clock than the evidence rounds. */
 export const ACCUSE_MAX_MINUTES = 5;
+
+/**
+ * I5 (Oct 17): in timer games Round 3 is shorter (most of the house has been searched by then): three quarters of the
+ * round length, 3 minutes at least. Rounds 1 and 2 run the full length.
+ */
+export const roundMinutesFor = (roundMinutes: number, round: number) => (round === 3 ? Math.max(3, Math.round(roundMinutes * 0.75)) : roundMinutes);
 
 /** Rough play time shown next to the round length: intro, three rounds, accusations, reveal and awards. */
 export function estimateMinutes(pacing: { mode: "ready" | "timer"; roundMinutes: number }): string {
   if (pacing.mode === "ready") return "about 45 to 60 min of play";
-  return `about ${16 + 3 * pacing.roundMinutes} min of play`;
+  const rounds = [1, 2, 3].reduce((t, r) => t + roundMinutesFor(pacing.roundMinutes, r), 0);
+  return `about ${16 + rounds} min of play`;
 }
 
 /** The printable PDF holds this many QR cards. A game uses cards 1 to N, where N is set in the game menu. */

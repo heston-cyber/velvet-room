@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
 import { nextRound } from "./steps";
-import { VOTE } from "../convex/shared";
+import { LAST_CALL_MS, VOTE } from "../convex/shared";
 
 const modules = import.meta.glob("../convex/**/*.ts");
 const FUTURE = Date.now() + 7 * 864e5;
@@ -56,13 +56,20 @@ describe("party night", () => {
     }
   });
 
-  test("ready votes: once most guests are ready the round ends; Round 1 has no vote, Round 2 ends in the jail vote (Oct 16)", async () => {
+  test("ready votes: once most guests are ready, a 30-second last call, then the round ends; Round 1 has no vote, Round 2 ends in the jail vote (Oct 16)", async () => {
+    vi.useFakeTimers();
     const { t, hostKey, tokens } = await started({ guests: 6 });
     expect((await game(t)).round).toBe(1);
     for (const token of tokens.slice(0, 3)) await t.mutation(api.game.setReady, { token, ready: true });
     expect((await game(t)).round).toBe(1); // 3 of 6 is not most
     await t.mutation(api.game.setReady, { token: tokens[3], ready: true });
     let g = await game(t);
+    // I4 (Oct 17): the last call
+    expect(g.round).toBe(1);
+    expect(g.roundEndsAt! - Date.now()).toBeGreaterThan(LAST_CALL_MS - 2000);
+    vi.advanceTimersByTime(LAST_CALL_MS + 1000);
+    await t.finishInProgressScheduledFunctions();
+    g = await game(t);
     expect(g.round).toBe(2); // no vote after Round 1
     expect(g.vote).toBeUndefined();
     const phone = await t.query(api.game.phone, { token: tokens[0] });
@@ -70,11 +77,14 @@ describe("party night", () => {
     expect(phone!.evidence.every((e) => e.round === 2)).toBe(true);
     expect(phone!.me.ready).toBe(false); // a new round starts fresh
     for (const token of tokens.slice(0, 4)) await t.mutation(api.game.setReady, { token, ready: true });
+    vi.advanceTimersByTime(LAST_CALL_MS + 1000);
+    await t.finishInProgressScheduledFunctions();
     g = await game(t);
     expect(g.round).toBe(2);
     expect(g.vote).toMatchObject({ kind: "jail", round: 2 });
     await nextRound(t, SLUG, hostKey);
     expect((await game(t)).round).toBe(3);
+    vi.useRealTimers();
   });
 
   test("timer pacing: rounds end on their own (then the vote runs its clock), pausing keeps the time left", async () => {

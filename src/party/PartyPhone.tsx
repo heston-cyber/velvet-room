@@ -193,7 +193,7 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
 function TopLine({ data }: { data: Phone }) {
   const { game, counts } = data;
   // F12 (Oct 17): the lock-in has a clock whatever the pacing.
-  const timed = game.pacing.mode === "timer" || game.round >= 4;
+  const timed = game.pacing.mode === "timer" || game.round >= 4 || (!!game.roundEndsAt && game.roundEndsAt > 0);
   const now = useNow(game.status === "playing");
   let left = "";
   const intro = game.status === "playing" && game.round === 1 && !!game.introEndsAt && game.introEndsAt > now;
@@ -596,7 +596,10 @@ function Pacing({ token, data }: { token: string; data: Phone }) {
       <span className="help">
         {counts.ready} of {counts.inGame} ready.{" "}
         {/* Oct 16: Round 1 has no vote, Round 2 ends in the jail vote, Round 3 in the release vote (if anyone's in jail). */}
-        Once most of {game.jailVote ? "the free guests" : "you"} are ready: {next}.{game.round === 2 && game.jailVote ? " Jailing anyone is optional." : ""}
+        {game.roundEndsAt && game.roundEndsAt > 0
+          ? `Last call: 30 seconds, then ${next}.`
+          : `Once most of ${game.jailVote ? "the free guests" : "you"} are ready, a 30-second last call, then ${next}.`}
+        {game.round === 2 && game.jailVote ? " Jailing anyone is optional." : ""}
       </span>
     </div>
   );
@@ -1232,7 +1235,7 @@ function RevealVotes({ token, data }: { token: string; data: Phone }) {
       </div>
       <Swap show={sent ? 1 : 0}>
         <div className="locked pending">Tap a name to vote. Tap it again to take it back.</div>
-        <div className="locked">Saved. You can change it until the host shows the awards.</div>
+        <div className="locked">Saved. You can change it until the awards start.</div>
       </Swap>
       {error && <div className="errbox">{error}</div>}
     </div>

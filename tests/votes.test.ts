@@ -3,7 +3,7 @@ import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
 import type { Id } from "../convex/_generated/dataModel";
-import { VOTE } from "../convex/shared";
+import { LAST_CALL_MS, VOTE } from "../convex/shared";
 import { caseFor } from "../convex/caseFile";
 import { nextRound } from "./steps";
 
@@ -188,8 +188,12 @@ describe("the jail vote", () => {
     const markers = await t.run((ctx) => ctx.db.query("markers").collect());
     await expect(t.mutation(api.game.scanMarker, { token: token(j), code: markers[0].code })).rejects.toThrow(/jail/);
     expect((await t.mutation(api.game.setReady, { token: token(j), ready: true })).ok).toBe(false);
-    // ready majority counts free guests only: 3 of 4 free
+    // ready majority counts free guests only: 3 of 4 free; then the 30-second last call (I4)
+    vi.useFakeTimers();
     for (const i of free.slice(0, 3)) await t.mutation(api.game.setReady, { token: token(i), ready: true });
+    vi.advanceTimersByTime(LAST_CALL_MS + 1000);
+    await t.finishInProgressScheduledFunctions();
+    vi.useRealTimers();
     let g = await game(t);
     expect(g.vote).toMatchObject({ kind: "release", round: 3 });
     await expect(t.mutation(api.game.castVote, { token: token(j), targetId: null })).rejects.toThrow(/jail/);

@@ -171,7 +171,8 @@ describe("heckles in the lulls", () => {
     const acc = plan(data({ round: 4, roundStartedAt: T0, roundEndsAt: T0 + 300_000 }, hk), T0 + 1000, secs);
     const a = acc.events.filter((e) => e.id.startsWith("heckle:"));
     expect(a.length).toBeGreaterThanOrEqual(3);
-    expect(a[0].clip!.url).toBe("h1"); // 15 % 14
+    // W22 (Oct 17): only general asides during the lock-in (no line about a guest).
+    expect(a.every((e) => !hk.find((h) => h.clip.url === e.clip!.url)!.figure)).toBe(true);
     const rev = plan(data({ status: "reveal", revealAt: T0 }, hk), T0 + 1000, secs);
     const vote = rev.events.find((e) => e.cue === "votePrompt")!;
     const r = rev.events.filter((e) => e.id.startsWith("heckle:"));

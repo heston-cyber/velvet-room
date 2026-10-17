@@ -5,7 +5,7 @@
 import type { FunctionReturnType } from "convex/server";
 import type { api } from "../../convex/_generated/api";
 import { cueVariant, type CueKey } from "../../convex/narration";
-import { VOTE } from "../../convex/shared";
+import { LAST_CALL_MS, VOTE } from "../../convex/shared";
 import { BODY_SECS_EST, howCues, howLayout, introLayout, readSecs, rollLayout, showPartAt, showParts, SHOW, type HowArt, type ShowPart } from "../../convex/show";
 import { CARD_MS, type CardKey, type LoopKey } from "./media";
 import { CAST_KEYS } from "../../convex/figures";
@@ -197,9 +197,12 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
   // Heckles (convex/heckles.ts): in the lulls the narrator roasts a guest (their drawing leans in) or says something
   // about the night. Each lull takes the next ones in the night's order, so the running gag comes back on cue.
   const heckles = d.voice.heckles ?? [];
+  // W22 (Oct 17): during the lock-in and the votes, only general asides, so no line about a guest sways the call.
+  const asides = heckles.filter((h) => !h.guest && !h.figure);
   const heckle = (id: string, n: number, at: number, on: string) => {
-    if (!heckles.length || g.paused) return;
-    const h = heckles[n % heckles.length];
+    const pool = on === "accuse" || on === "vote" ? asides : heckles;
+    if (!pool.length || g.paused) return;
+    const h = pool[n % pool.length];
     clip(`heckle:${id}`, h.clip, at, false, true);
     if (h.figure) cameo({ id: `heckle:${id}:peek`, char: h.figure, anim: "peek", at: at - 0.4 * S, until: at + 6.6 * S, on });
   };
@@ -349,6 +352,12 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
       if (timed) {
         vo(`r${round}:${t}:1min`, "oneMinute", g.roundEndsAt! - 60 * S, false, String(round));
         if (left > 0 && left <= 60 * S) out.ambience = ["clockTick"];
+      }
+      // I4 (Oct 17): Ready games: most are ready, so a 30-second last call with the bell and the clock.
+      const lastCall = g.pacing.mode === "ready" && !g.paused && g.roundEndsAt !== null && g.roundEndsAt > 0;
+      if (lastCall) {
+        fx(`r${round}:${t}:lastcall:${g.roundEndsAt}`, "lastCall", g.roundEndsAt! - LAST_CALL_MS + 0.2 * S);
+        if (now < g.roundEndsAt!) out.ambience = ["clockTick"];
       }
       return out;
     }

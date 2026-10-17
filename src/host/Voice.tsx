@@ -1,33 +1,51 @@
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import type { Id } from "../../convex/_generated/dataModel";
 import { HOSTS, voiceKey } from "../../convex/narration";
-import { friendlyError } from "../lib/errors";
-import { Swap } from "../lib/Swap";
-import { initials, type Roster } from "./common";
-import type { FunctionReturnType } from "convex/server";
-import { Sec, Seg, Toggle, type SettingsPatch } from "./Menu";
+import { Sec, Toggle, type SettingsPatch } from "./Menu";
+import type { Roster } from "./common";
 
 type Game = Roster["game"];
 
 /** Plays a file on this laptop (not the TV), one at a time. */
 let laptopAudio: HTMLAudioElement | null = null;
-function hear(url: string) {
+export function hear(url: string) {
   laptopAudio?.pause();
   laptopAudio = new Audio(url);
   void laptopAudio.play().catch(() => undefined);
 }
 
+type Pick = "ivy-classic" | "duke-classic" | "ivy-adult" | "duke-adult" | "sailor";
+const PICKS: { key: Pick; title: string; sub: string }[] = [
+  { key: "ivy-classic", title: "Ivy · Classic", sub: "Old Hollywood. Clean." },
+  { key: "duke-classic", title: "Duke · Classic", sub: "New York mobster. Clean." },
+  { key: "ivy-adult", title: "Ivy · Adult", sub: "Swearing, crude jokes." },
+  { key: "duke-adult", title: "Duke · Adult", sub: "Swearing, crude jokes." },
+  { key: "sailor", title: "Sailor mode", sub: "An angry old man with his own filthy script. Explicit." },
+];
+
+/**
+ * S6 (Oct 17): one picker for the narrator and the script, so nothing changes behind the host's back. Unstable is a
+ * delivery on top of Ivy or Duke.
+ */
 export function NarratorSection({ game, locked, save }: { game: Game; locked: boolean; save: (p: SettingsPatch) => Promise<void> }) {
   const n = game.narrator;
   const sailor = !!n.sailor;
   const voice = voiceKey(n.host, n.unstable, sailor);
+  const value: Pick = sailor ? "sailor" : (`${n.host}-${game.tone}` as Pick);
+  function pick(k: Pick) {
+    if (k === "sailor") return save({ narrator: { host: "duke", unstable: false, sailor: true } });
+    const [host, tone] = k.split("-") as ["ivy" | "duke", "classic" | "adult"];
+    return save({ tone, narrator: { host, unstable: sailor ? false : n.unstable, sailor: false } });
+  }
   return (
-    <Sec title="Narrator and sound">
-      <span className="lab">Who runs the floor</span>
-      <Seg label="Narrator" value={n.host} options={[["ivy", "Ivy"], ["duke", "Duke"]]} disabled={locked || sailor} onPick={(host) => save({ narrator: { ...n, host } })} />
-      <span className="help">{HOSTS[n.host].describe}</span>
+    <Sec title="Narrator and script">
+      <div className="hx-voices" role="radiogroup" aria-label="Narrator and script">
+        {PICKS.map((p) => (
+          <button key={p.key} type="button" role="radio" aria-checked={value === p.key} className={p.key === "sailor" ? "wide" : ""} disabled={locked} onClick={() => void pick(p.key)}>
+            <b>{p.title}</b>
+            <span>{p.sub}</span>
+          </button>
+        ))}
+      </div>
       {!sailor && (
         <Toggle
           id="set-unstable"
@@ -38,18 +56,9 @@ export function NarratorSection({ game, locked, save }: { game: Game; locked: bo
           help="The narrator comes unglued: shouting, sobbing, cackling. No two lines alike."
         />
       )}
-      {/* Oct 16, Heston: "a toggle in the voice setup area that is 'Sailor mode'". */}
-      <Toggle
-        id="set-sailor"
-        checked={sailor}
-        disabled={locked}
-        onChange={(on) => save({ narrator: { host: on ? "duke" : n.host, unstable: false, sailor: on } })}
-        label="Sailor mode"
-        help="Duke, furious, swearing like his life depends on it, with his own script. Explicit: turns on the Adult script."
-      />
       <div className="row">
         <button type="button" className="btn" onClick={() => hear(`/audio/narration/${voice}/${sailor ? "sailor" : game.tone}/doors.mp3`)}>
-          Hear {sailor ? "Sailor mode" : HOSTS[n.host].name} on this laptop
+          Hear {sailor ? "Sailor mode" : `${HOSTS[n.host].name} · ${game.tone === "adult" ? "Adult" : "Classic"}`} on this laptop
         </button>
       </div>
       <Levels game={game} save={save} />
@@ -87,60 +96,4 @@ function Levels({ game, save }: { game: Game; save: (p: SettingsPatch) => Promis
   );
 }
 
-const STATUS: Record<string, string> = { ready: "Voice ready", pending: "Recording…", failed: "Couldn't record", none: "Not recorded", later: "Records at Start" };
-
-/** The roll call: after How to play, the narrator introduces every guest by name and nickname. */
-export function RollCallSection({ slug, hostKey, locked, onError }: { slug: string; hostKey: string; locked: boolean; onError: (m: string | null) => void }) {
-  const sheet = useQuery(api.voice.rollCallSheet, { slug, hostKey });
-  if (!sheet) return <Sec title="Roll call">{<span className="help">Loading…</span>}</Sec>;
-  const c = sheet.counts;
-  return (
-    <Sec title={<>Roll call · {c.total} guests</>}>
-      <span className="help">
-        After How to play, the narrator introduces every guest on the TV: their drawing, their name and their nickname, a few seconds each. The voices
-        record when the game starts.
-      </span>
-      {sheet.started && (
-        <span className={`hx-status ${c.failed ? "warn" : ""}`}>
-          {c.ready} of {c.total} voices recorded{c.pending ? ` · ${c.pending} recording` : ""}
-          {c.failed ? ` · ${c.failed} failed (those guests show without a voice)` : ""}
-        </span>
-      )}
-      {c.total === 0 ? (
-        <p className="help">Nobody's signed up yet.</p>
-      ) : (
-        <ul className="hx-rollcall">
-          {sheet.guests.map((gst) => (
-            <RollRow key={gst.id} g={gst} slug={slug} hostKey={hostKey} locked={locked || sheet.started} onError={onError} />
-          ))}
-        </ul>
-      )}
-    </Sec>
-  );
-}
-
-type Row = FunctionReturnType<typeof api.voice.rollCallSheet>["guests"][number];
-
-function RollRow({ g }: { g: Row; slug: string; hostKey: string; locked: boolean; onError: (m: string | null) => void }) {
-  return (
-    <li>
-      <div className="card-ph sm">{g.photoUrl ? <img src={g.photoUrl} alt="" /> : initials(g.charName)}</div>
-      <div className="main">
-        <div className="nm">
-          {g.charName}
-        </div>
-        <span className="help">“{g.line}”</span>
-        <div className="meta">
-          <span className={`st ${g.voice}`} title={g.error || undefined}>
-            {STATUS[g.voice] ?? g.voice}
-          </span>
-          {g.clipUrl && (
-            <button type="button" className="linkish" onClick={() => hear(g.clipUrl!)}>
-              Play
-            </button>
-          )}
-        </div>
-      </div>
-    </li>
-  );
-}
+export const VOICE_STATUS: Record<string, string> = { ready: "Voice ready", pending: "Recording…", failed: "Couldn't record", none: "Not recorded", later: "Records at Start" };

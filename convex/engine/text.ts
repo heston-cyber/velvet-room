@@ -87,6 +87,9 @@ export type Script = {
   /** Oct 16: points at a guest by name (signature items are gone). Always someone the evidence clears later. */
   herring: (say: Say, name: string) => string;
   flavor: string[];
+  /** I8 (Oct 17): dead-end cards that leak a motive about a guest picked at random (the killer as likely as anyone).
+   *  They clear nobody and prove nothing: material for the final read. */
+  leaks: (n: string) => string[];
   /** Shown above a guest's private tip. */
   tipLabel: string;
   motives: string[];
@@ -191,6 +194,14 @@ export const CLASSIC: Script = {
     "A stack of unpaid tabs with the Don's angry notes in the margins. Everybody owed him.",
     "A matchbook from a joint across town. Plenty of people here drink there.",
     "A cold cigar in an ashtray, barely smoked. The Don hated waste. Odd, but it proves nothing.",
+  ],
+  leaks: (n) => [
+    `A crumpled IOU signed by ${n}: five hundred dollars, owed to the Don. It doesn't say who did it. It says who had a reason.`,
+    `A note in the Don's handwriting: "${n} knows too much. Deal with it Monday." Monday never came.`,
+    `A torn page from the Don's ledger with ${n}'s name circled twice. Circled by whom, and why?`,
+    `A telegram for ${n}, unopened: "THE DON KNOWS. LEAVE TOWN." It proves nothing either way.`,
+    `A photograph of ${n} shaking hands with the Don. Someone has scratched out the Don's face.`,
+    `The Don's appointment book: "${n}, 9 PM, about the money." The rest of the page is smudged.`,
   ],
   tipLabel: "Other guests may have this same tip. If someone tells it differently, ask why.",
   motives: [

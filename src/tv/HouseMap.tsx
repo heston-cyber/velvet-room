@@ -1,10 +1,10 @@
 // The house map on the TV while guests search. Open rooms glow; sealed rooms are hatched with the
 // round they open in. Every marker is a numbered pin in its room: hollow until someone scans it,
 // then stamped gold. The body room gets a chalk outline.
-import { HOUSE, pinSpots } from "./houseMap";
+import { HOUSE, layoutFor, pinSpots } from "./houseMap";
 
 export type MapData = {
-  rooms: { key: string; label: string; opensIn: number }[];
+  rooms: { key: string; label: string; opensIn: number; note?: string }[];
   markers: { number: number; room: string; foundAt: number | null }[];
 };
 
@@ -13,6 +13,7 @@ const FRESH_MS = 6000;
 export default function HouseMap({ map, round, bodyRoomKey, now, compact }: { map: MapData; round: number; bodyRoomKey?: string | null; now: number; compact?: boolean }) {
   const byKey = new Map(map.rooms.map((r) => [r.key, r]));
   const found = map.markers.filter((m) => m.foundAt !== null && m.foundAt <= now).length;
+  const plan = layoutFor(map.rooms);
   return (
     <figure className={`tv-map ${compact ? "compact" : ""}`} aria-label="Map of the house">
       <svg viewBox={`0 0 ${HOUSE.w} ${HOUSE.h + 40}`} role="img">
@@ -29,7 +30,7 @@ export default function HouseMap({ map, round, bodyRoomKey, now, compact }: { ma
           </filter>
         </defs>
         {/* Scenery: halls and the rooms that are out of play */}
-        {HOUSE.other.map((a, i) => (
+        {plan.other.map((a, i) => (
           <g key={`o${i}`} className={`area ${a.kind}`}>
             <rect x={a.x} y={a.y} width={a.w} height={a.h} />
             {a.name && (
@@ -40,7 +41,7 @@ export default function HouseMap({ map, round, bodyRoomKey, now, compact }: { ma
           </g>
         ))}
         {/* The game rooms */}
-        {HOUSE.rooms.map((r) => {
+        {plan.rooms.map((r) => {
           const room = byKey.get(r.key);
           if (!room) return null;
           const sealed = room.opensIn > Math.max(1, round);
@@ -78,12 +79,14 @@ export default function HouseMap({ map, round, bodyRoomKey, now, compact }: { ma
           );
         })}
         {/* The front door */}
-        <g className="door" transform={`translate(${HOUSE.frontDoor.x} ${HOUSE.frontDoor.y})`}>
-          <rect x="-30" y="-4" width="60" height="8" />
-          <text y="34" textAnchor="middle">
-            Front door
-          </text>
-        </g>
+        {plan.frontDoor && (
+          <g className="door" transform={`translate(${plan.frontDoor.x} ${plan.frontDoor.y})`}>
+            <rect x="-30" y="-4" width="60" height="8" />
+            <text y="34" textAnchor="middle">
+              Front door
+            </text>
+          </g>
+        )}
       </svg>
       <figcaption>
         <b>{found}</b> of {map.markers.length} cards found

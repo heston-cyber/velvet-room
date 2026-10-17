@@ -575,7 +575,7 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
           ]
         : []),
       <div className="tv-scene" key="vverdict">
-        <Fit className="scene" watch={r.aces.length}>
+        <Fit className="scene" watch={r.aces.length + r.lockins.length * 100}>
         <span className="tv-kick">The verdict</span>
         <span className="tv-verdict fade">
           Of {r.accusers} locked in: {r.named} named the killer, {r.rightWeapon} the weapon, {r.rightRoom} the room.
@@ -586,6 +586,24 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
           <p className="tv-sub fade">
             {r.guessers ? `${r.namedAccomplice} of ${r.guessers} who guessed spotted the accomplice.` : "Nobody guessed the accomplice."}
           </p>
+        )}
+        {/* I1 (Oct 17): who named whom, the payoff for reading people. */}
+        {r.lockins.length > 0 && (
+          <div className={`tv-tally lockins fade${r.lockins.length > 5 ? " many" : ""}`}>
+            {r.lockins.slice(0, 7).map((col) => (
+              <div key={col.suspect.id}>
+                <span className="who">{col.suspect.name}</span>
+                <span className="n">{col.by.length}</span>
+                <div className="voters">
+                  {col.by.map((v) => (
+                    <span key={v.id} className="tv-av sm" title={v.name}>
+                      {v.figure ? <img src={faceUrl(v.figure)} alt="" /> : initials(v.name)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
         {r.aces.length > 0 && <p className="tv-sub fade">Ace detectives: {r.aces.join(", ")}</p>}
         <p className="tv-sub fade" style={{ color: "var(--paper)" }}>
@@ -636,7 +654,8 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
 
 function RoundBar({ d, now, label }: { d: Data; now: number; label: string }) {
   const g = d.game;
-  const timed = g.pacing.mode === "timer";
+  // I4 (Oct 17): a Ready game shows the clock during its 30-second last call.
+  const timed = g.pacing.mode === "timer" || (g.roundEndsAt !== null && g.roundEndsAt !== 0);
   const left = g.roundEndsAt === null ? 0 : g.roundEndsAt < 0 ? -g.roundEndsAt : g.roundEndsAt - now;
   const pct = d.counts.playing ? Math.min(100, (d.counts.ready / d.counts.playing) * 100) : 0;
   return (

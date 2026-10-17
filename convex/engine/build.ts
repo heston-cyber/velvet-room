@@ -587,6 +587,24 @@ export function openEnding(input: CaseInput, rng: Rng): Open {
  * Draws the answer (unless given), where the body turns up and the order rooms open in,
  * then builds a case that passes every solvability rule.
  */
+/**
+ * I8 (Oct 17): about half the dead-end cards leak a motive about a guest picked at random, blind to the answer (the
+ * killer as likely as anyone). They clear nobody, so they're written in once the case has passed its checks.
+ */
+function withLeaks(input: CaseInput, cf: CaseFile, rng: Rng): CaseFile {
+  const S = scriptFor(input);
+  const leaks = shuffle(rng, S.leaks("{n}"));
+  let k = 0;
+  let leak = rng() < 0.5;
+  const clues = cf.clues.map((c) => {
+    if (c.kind !== "flavor") return c;
+    const out = leak ? { ...c, text: leaks[k++ % leaks.length].replaceAll("{n}", pick(rng, input.suspects).name) } : c;
+    leak = !leak;
+    return out;
+  });
+  return { ...cf, clues };
+}
+
 export function buildCase(input: CaseInput, rng: Rng, solution?: Solution): CaseFile & { validation: Validation } {
   const problems = checkInput(input);
   if (problems.length) throw new Error(problems.join(" "));
@@ -599,7 +617,7 @@ export function buildCase(input: CaseInput, rng: Rng, solution?: Solution): Case
     if (attempt === 80 || attempt === 140) plan = { suspects: Math.max(1, plan.suspects - 1), exhibits: 1, rooms: 1 };
     const cf = tryBuild(full, rng, sol, plan);
     const v = validateCase(full, cf);
-    if (v.ok) return { ...cf, attempts: attempt, validation: v };
+    if (v.ok) return { ...withLeaks(full, cf, rng), attempts: attempt, validation: v };
     last = v;
   }
   throw new Error(`Couldn't build a solvable case: ${last?.problems.join(" ")}`);

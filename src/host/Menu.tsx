@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useConvex, useMutation } from "convex/react";
+import { useConvex, useMutation, useQuery } from "convex/react";
 import type { FunctionArgs } from "convex/server";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
-import { MAX_CARDS, estimateMinutes } from "../../convex/shared";
+import { MAX_CARDS, estimateMinutes, roundMinutesFor } from "../../convex/shared";
 import { RECOMMENDED, dealCards, setupFor } from "../../convex/engine/setup";
 import { friendlyError } from "../lib/errors";
 import { Swap } from "../lib/Swap";
@@ -11,7 +11,7 @@ import { TZ, initials, useConfirm, type Roster } from "./common";
 import { downloadCardsPdf } from "./printCards";
 import { weaponUrl } from "../lib/weapon";
 import { faceUrl } from "../lib/figure";
-import { NarratorSection, RollCallSection } from "./Voice";
+import { NarratorSection, VOICE_STATUS, hear } from "./Voice";
 
 export type SettingsPatch = Omit<FunctionArgs<typeof api.host.updateSettings>, "slug" | "hostKey">;
 
@@ -71,8 +71,7 @@ export default function Menu(props: { data: Roster; slug: string; hostKey: strin
         </Swap>
 
         <Sec title="The game">
-          <span className="lab">Script</span>
-          <Seg label="Script" value={game.tone} options={[["classic", "Classic"], ["adult", "Adult (explicit)"]]} disabled={locked} onPick={(tone) => save({ tone })} />
+          {/* S6 (Oct 17): the script is picked with the narrator (Narrator and script). */}
           {/* Oct 17: the game writes every motive and secret (D9); guests can opt out of being the killer at sign-up (D8). */}
           <span className="help">
             One killer, drawn in secret from everyone checked in, except guests who ticked "I'd rather not be the killer" at sign-up. The game writes everyone's
@@ -114,9 +113,8 @@ export default function Menu(props: { data: Roster; slug: string; hostKey: strin
 
         <NarratorSection game={game} locked={locked} save={save} />
 
+        {/* S5 (Oct 17): one guest list, with each guest's roll-call line and voice. */}
         <Guests data={data} slug={slug} hostKey={hostKey} locked={locked} onError={onError} />
-
-        <RollCallSection slug={slug} hostKey={hostKey} locked={locked} onError={onError} />
       </div>
     </div>
   );
@@ -170,8 +168,8 @@ function Pacing({ game, locked, save, timer }: { game: Roster["game"]; locked: b
         <span className="hx-est">{estimateMinutes({ mode: game.pacing.mode, roundMinutes: minutes })}</span>
       </div>
       <Swap show={timer ? 0 : 1}>
-        <span className="help">3 rounds, plus the intro, accusations, reveal and awards. Accusations get 5 minutes at most.</span>
-        <span className="help">Each round ends once most guests tap ready. You can always move it on from the host menu.</span>
+        <span className="help">3 rounds (Round 3 is a little shorter: {roundMinutesFor(minutes, 3)} min), plus the intro, the lock-in, the reveal and the awards. The lock-in gets 5 minutes at most.</span>
+        <span className="help">Each round ends once most guests tap ready. The lock-in still has a 5-minute clock. You can always move on from the host menu.</span>
       </Swap>
     </Sec>
   );
@@ -342,62 +340,75 @@ function Markers({ data, slug, hostKey, locked, onError }: { data: Roster; slug:
   const rec = setupFor(guests);
   const recPlan = dealCards(rec.markers, rooms);
   const isRec = JSON.stringify(list.map((m) => [m.number, m.roomKey])) === JSON.stringify(recPlan.map((m) => [m.number, m.roomKey]));
+  // S4 (Oct 17): one line and the PDF; placing cards by hand and the setups table are under Advanced.
+  const auto = !list.length || isRec;
   return (
-    <Sec title={<>Evidence cards · {list.length}</>}>
-      <div className="hx-kv">
-        <span className="lab">How many</span>
-        <span className="hx-stepper hx-ctl">
-          <button type="button" aria-label="One fewer card" disabled={locked || !list.length} onClick={() => commit(list.slice(0, -1))}>
-            −
-          </button>
-          <b>{list.length}</b>
-          <button
-            type="button"
-            aria-label="One more card"
-            disabled={locked || list.length >= MAX_MARKERS}
-            onClick={() => commit([...list, { number: (list[list.length - 1]?.number ?? 0) + 1, roomKey: "" }])}
-          >
-            +
-          </button>
-        </span>
-      </div>
-      {list.length > 0 && (
-        <div className="hx-markers">
-          {list.map((m) => {
-            const ok = !!m.roomKey && rooms.some((r) => r.key === m.roomKey);
-            return (
-              <label key={m.number} className={ok ? "" : "none"}>
-                <b>{m.number}</b>
-                <select
-                  value={ok ? m.roomKey : ""}
-                  disabled={locked}
-                  aria-label={`Card ${m.number} room`}
-                  onChange={(e) => commit(list.map((x) => (x.number === m.number ? { ...x, roomKey: e.target.value } : x)))}
-                >
-                  <option value="">No room</option>
-                  {rooms.map((r) => (
-                    <option key={r.key} value={r.key}>
-                      {r.label.replace(/^The /, "")}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            );
-          })}
-        </div>
-      )}
+    <Sec title={<>Evidence cards · {list.length || rec.markers}</>}>
       <div className="row">
+        <span className="hx-oneline">
+          {list.length ? `${list.length} cards${isRec ? ", dealt round the rooms" : ""}` : `${rec.markers} cards, dealt automatically when the doors open`}
+        </span>
         <PrintCards slug={slug} hostKey={hostKey} title={data.game.title} onError={onError} />
-        <button type="button" className="btn" disabled={locked || isRec || !rooms.length} onClick={() => commit(recPlan)}>
-          Use the recommended {rec.markers}, dealt round the rooms
-        </button>
       </div>
-      <Ledger guests={guests} rooms={rooms.length} cards={list.length} />
-      <span className="help">
-        The PDF has all {MAX_CARDS} cards, the same every game. This game uses cards 1 to {list.length || "N"}; the rest stay in the box and get no clue.
-        Print them, hide them, then pick each card's room here. Clues are written at Play. No cards set: the game deals the recommended ones when the doors open, and Play asks if they're hidden.
-      </span>
-      <span className={`hx-status ${placed < list.length ? "warn" : ""}`}>{list.length ? `${placed} of ${list.length} cards have a room${placed < list.length ? " (the rest are dealt at Play)" : ""}` : "No cards: their clues come out on the TV in Rounds 2 and 3."}</span>
+      <span className="help">Print the PDF (cards 1 to {list.length || rec.markers}), hide them around the house, and you're set. Play asks if they're hidden.</span>
+      <details className="hx-advanced" open={!auto}>
+        <summary>Advanced: how many, and which room each card is in</summary>
+        <div className="hx-kv">
+          <span className="lab">How many</span>
+          <span className="hx-stepper hx-ctl">
+            <button type="button" aria-label="One fewer card" disabled={locked || !list.length} onClick={() => commit(list.slice(0, -1))}>
+              −
+            </button>
+            <b>{list.length}</b>
+            <button
+              type="button"
+              aria-label="One more card"
+              disabled={locked || list.length >= MAX_MARKERS}
+              onClick={() => commit([...list, { number: (list[list.length - 1]?.number ?? 0) + 1, roomKey: "" }])}
+            >
+              +
+            </button>
+          </span>
+        </div>
+        {list.length > 0 && (
+          <div className="hx-markers">
+            {list.map((m) => {
+              const ok = !!m.roomKey && rooms.some((r) => r.key === m.roomKey);
+              return (
+                <label key={m.number} className={ok ? "" : "none"}>
+                  <b>{m.number}</b>
+                  <select
+                    value={ok ? m.roomKey : ""}
+                    disabled={locked}
+                    aria-label={`Card ${m.number} room`}
+                    onChange={(e) => commit(list.map((x) => (x.number === m.number ? { ...x, roomKey: e.target.value } : x)))}
+                  >
+                    <option value="">No room</option>
+                    {rooms.map((r) => (
+                      <option key={r.key} value={r.key}>
+                        {r.label.replace(/^The /, "")}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              );
+            })}
+          </div>
+        )}
+        <div className="row">
+          <button type="button" className="btn" disabled={locked || isRec || !rooms.length} onClick={() => commit(recPlan)}>
+            Use the recommended {rec.markers}, dealt round the rooms
+          </button>
+        </div>
+        <Ledger guests={guests} rooms={rooms.length} cards={list.length} />
+        <span className="help">
+          The PDF has all {MAX_CARDS} cards, the same every game; this game uses cards 1 to {list.length || "N"} and the rest get no clue. Clues are written at Play. A
+          card with no room is dealt to a room at Play.
+        </span>
+        <span className={`hx-status ${placed < list.length ? "warn" : ""}`}>
+          {list.length ? `${placed} of ${list.length} cards have a room${placed < list.length ? " (the rest are dealt at Play)" : ""}` : "No cards yet: the recommended ones are dealt when the doors open."}
+        </span>
+      </details>
     </Sec>
   );
 }
@@ -518,6 +529,9 @@ function Guests({ data, slug, hostKey, locked, onError }: { data: Roster; slug: 
   const { armed, arm, disarm } = useConfirm();
   const doors = data.game.status === "lobby";
   const here = (id: Id<"players">, v: boolean) => setHere({ slug, hostKey, playerId: id, here: v }).catch((err) => onError(friendlyError(err)));
+  const sheet = useQuery(api.voice.rollCallSheet, { slug, hostKey });
+  const roll = new Map((sheet?.guests ?? []).map((g) => [g.id as string, g]));
+  const c = sheet?.counts;
   async function remove(id: Id<"players">) {
     if (armed !== id) return arm(id);
     disarm();
@@ -529,6 +543,13 @@ function Guests({ data, slug, hostKey, locked, onError }: { data: Roster; slug: 
   }
   return (
     <Sec title={<>Guest list · {data.players.length} signed up</>}>
+      <span className="help">After How to play, the narrator introduces every guest on the TV by name and nickname. Their voices record when the game starts.</span>
+      {sheet?.started && c && (
+        <span className={`hx-status ${c.failed ? "warn" : ""}`}>
+          {c.ready} of {c.total} roll-call voices recorded{c.pending ? ` · ${c.pending} recording` : ""}
+          {c.failed ? ` · ${c.failed} failed (those guests show without a voice)` : ""}
+        </span>
+      )}
       {data.players.length === 0 ? (
         <p className="help">Nobody yet. Text the sign-up link, or sign yourself up first.</p>
       ) : (
@@ -541,6 +562,16 @@ function Guests({ data, slug, hostKey, locked, onError }: { data: Roster; slug: 
                 <div className="sub">
                   {p.realName} · {doors ? (p.checkedIn ? "here" : "not here yet") : `signed up ${when(p.registeredAt)}`}
                 </div>
+                {roll.get(p.id) && (
+                  <div className="sub roll">
+                    “{roll.get(p.id)!.line}” · {VOICE_STATUS[roll.get(p.id)!.voice] ?? roll.get(p.id)!.voice}
+                    {roll.get(p.id)!.clipUrl && (
+                      <button type="button" className="linkish" onClick={() => hear(roll.get(p.id)!.clipUrl!)}>
+                        Play
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
               {/* F4 (Oct 17): a guest whose phone checked in from home can be marked not here before the draw. */}
               {doors && (

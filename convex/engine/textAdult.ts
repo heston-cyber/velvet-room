@@ -96,6 +96,14 @@ export const ADULT: Script = {
     "A whoopee cushion under the Don's chair. Childish. Hilarious. Useless.",
     "A cold cigar, barely smoked. The Don hated wasting a good cigar almost as much as he hated all of you.",
   ],
+  leaks: (n) => [
+    `A crumpled IOU signed by ${n}: five hundred clams, owed to the Don. Doesn't prove murder. Proves motive, and lousy money sense.`,
+    `The Don's diary: "${n} is a pill. Cut them off Monday." Monday never came. Convenient.`,
+    `A page of the Don's ledger with ${n}'s name circled twice and DEADBEAT written in red. Harsh. Fair? You decide.`,
+    `A telegram for ${n}: "THE DON KNOWS. GET OUT OF TOWN." Unopened. Or very carefully resealed.`,
+    `A photo of ${n} shaking hands with the Don. Somebody drew horns on the Don. Childish. Also, motive.`,
+    `The Don's appointment book: "${n}, 9 PM, about the damn money." That's all it says. That's plenty.`,
+  ],
   tipLabel: "Others may have this same tip. If somebody tells it differently, somebody's lying.",
   motives: [
     "The Don owed you a fortune and laughed in your face when you asked for it. Then he farted. On purpose.",

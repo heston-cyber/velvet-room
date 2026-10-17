@@ -415,3 +415,10 @@
 /* The round chip and the ready count keep to one line; the weapons take what's between them. */
 .tv-roundbar .chip, .tv-roundbar .tv-ready, .tv-roundbar .tv-clock { flex: none; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .tv-topweapons { animation: none; } }
+/* I1 (Oct 17): who named whom at the reveal, smaller than the jail tally. */
+.tv-tally.lockins { gap: 1.2cqw; margin-top: .8cqw; }
+.tv-tally.lockins > div { min-width: 7cqw; padding: .6cqw .8cqw; }
+.tv-tally.lockins .who { font-size: 1.5cqw; }
+.tv-tally.lockins .n { font-size: 2.4cqw; }
+.tv-tally.lockins .tv-av.sm { width: 2.6cqw; height: 2.6cqw; }
+.tv-tally.lockins.many > div { min-width: 5.6cqw; padding: .5cqw .6cqw; }

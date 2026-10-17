@@ -51,3 +51,23 @@ export function pinSpots(room: Box, count: number): { x: number; y: number }[] {
   }
   return out;
 }
+
+/**
+ * I11 (Oct 17): a game with rooms that aren't on Heston's house plan (another host's house, or rooms added in the
+ * menu) gets a plain floor plan instead: every room in a grid, named, with no scenery.
+ */
+export function layoutFor(rooms: { key: string; note?: string }[]): { rooms: MapRoom[]; other: MapArea[]; frontDoor: { x: number; y: number } | null } {
+  const onPlan = rooms.every((r) => HOUSE.rooms.some((h) => h.key === r.key));
+  if (onPlan) return { rooms: HOUSE.rooms, other: HOUSE.other, frontDoor: HOUSE.frontDoor };
+  const n = Math.max(1, rooms.length);
+  const cols = n <= 3 ? n : n <= 6 ? 3 : 4;
+  const rows = Math.ceil(n / cols);
+  const gap = 20;
+  const w = (HOUSE.w - 80 - (cols - 1) * gap) / cols;
+  const h = (HOUSE.h - 80 - (rows - 1) * gap) / rows;
+  return {
+    rooms: rooms.map((r, i) => ({ key: r.key, x: 40 + (i % cols) * (w + gap), y: 40 + Math.floor(i / cols) * (h + gap), w, h, note: r.note })),
+    other: [],
+    frontDoor: null,
+  };
+}

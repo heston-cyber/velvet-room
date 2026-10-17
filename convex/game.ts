@@ -12,7 +12,7 @@ import { charKeyOf, randomCode, registrationIsOpen, requireHost, requireTv } fro
 import { seal } from "./seal";
 import { caseFor } from "./caseFile";
 import { ensureAllCards, markerForCode } from "./cards";
-import { ACCUSE_MAX_MINUTES, LOCKED_UP_MS, MAX_CARDS, hasJailVote, revealTimes, VOTE, voteAfterRound } from "./shared";
+import { ACCUSE_MAX_MINUTES, LAST_CALL_MS, LOCKED_UP_MS, MAX_CARDS, hasJailVote, revealTimes, roundMinutesFor, VOTE, voteAfterRound } from "./shared";
 import { SHOW, cueSecs, howCues, howLayout, introLayout, revealLayout, rollLayout, showParts } from "./show";
 import { inOrder, rollGuests, slotsFor } from "./rollCall";
 import { heckleWanted } from "./heckles";
@@ -150,14 +150,18 @@ async function nextRound(ctx: MutationCtx, game: Doc<"games">) {
   if (!isPlaying(game)) return;
   const round = game.round ?? 1;
   if (round >= 4) {
-    await ctx.db.patch(game._id, { status: "reveal", roundEndsAt: undefined, paused: false, tvShowAll: false, revealAt: Date.now(), revealPlan: await revealPlanFor(ctx, game) });
+    const revealAt = Date.now();
+    const revealPlan = await revealPlanFor(ctx, game);
+    await ctx.db.patch(game._id, { status: "reveal", roundEndsAt: undefined, paused: false, tvShowAll: false, revealAt, revealPlan });
+    // I6 (Oct 17): award voting closes on its own 90 seconds after the verdict (sooner once everyone has voted).
+    await ctx.scheduler.runAt(revealAt + revealPlan.verdict + AWARD_VOTE_MS, internal.game.autoFinish, { gameId: game._id, revealAt });
     return;
   }
   const next = round + 1;
   const timed = game.pacing.mode === "timer";
   // F12 (Oct 17): the lock-in always runs on a clock (5 minutes at most), even when guests tap Ready, so one dead
   // phone can't hold up the reveal.
-  const minutes = next === 4 ? (timed ? Math.min(game.pacing.roundMinutes, ACCUSE_MAX_MINUTES) : ACCUSE_MAX_MINUTES) : game.pacing.roundMinutes;
+  const minutes = next === 4 ? (timed ? Math.min(game.pacing.roundMinutes, ACCUSE_MAX_MINUTES) : ACCUSE_MAX_MINUTES) : roundMinutesFor(game.pacing.roundMinutes, next);
   const endsAt = timed || next === 4 ? Date.now() + minutes * 60_000 : undefined;
   // Skipping ahead also cuts the intro short.
   await ctx.db.patch(game._id, { round: next, roundStartedAt: Date.now(), roundEndsAt: endsAt, paused: false, introEndsAt: Math.min(game.introEndsAt ?? 0, Date.now()), rolesOut: true });
@@ -371,12 +375,19 @@ async function publicVote(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">
   };
 }
 
-/** Ready votes: once most guests in the game are ready, the next round starts. */
+/**
+ * Ready votes: once most guests in the game are ready, the round ends after a 30-second last call (I4, Oct 17: nobody
+ * gets cut off mid-search), on the round's clock.
+ */
 async function maybeAdvanceOnReady(ctx: MutationCtx, game: Doc<"games">) {
   if (game.pacing.mode !== "ready" || game.paused || !game.round || game.round > 3 || voteOf(game)) return;
+  if (game.roundEndsAt) return; // the last call is already running
   const inGame = freeOf(await playersOf(ctx, game._id));
   const ready = inGame.filter((p) => p.readyRound === game.round).length;
-  if (inGame.length && ready > inGame.length / 2) await advance(ctx, game);
+  if (!inGame.length || ready <= inGame.length / 2) return;
+  const endsAt = Date.now() + LAST_CALL_MS;
+  await ctx.db.patch(game._id, { roundEndsAt: endsAt });
+  await scheduleTimer(ctx, game._id, game.round, endsAt);
 }
 
 /** Accusations: once everyone in the game has accused, the reveal starts. */
@@ -446,6 +457,19 @@ async function scoreGame(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile) {
 }
 
 type Scored = Awaited<ReturnType<typeof scoreGame>>;
+
+/** I1 (Oct 17): each guest named at the lock-in, and the faces of who named them, most named first. */
+async function lockinTally(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[]) {
+  const accs = await ctx.db
+    .query("accusations")
+    .withIndex("by_game", (q) => q.eq("gameId", game._id))
+    .collect();
+  const p = (id: string) => all.find((x) => x._id === id);
+  const face = (id: string) => ({ id, name: p(id) ? shortName(p(id)!) : "", figure: p(id)?.figure ?? null });
+  const by = new Map<string, string[]>();
+  for (const a of accs.sort((x, y) => x.at - y.at)) by.set(a.suspectId, [...(by.get(a.suspectId) ?? []), a.playerId]);
+  return [...by.entries()].sort((a, b) => b[1].length - a[1].length).map(([id, ids]) => ({ suspect: face(id), by: ids.map(face) }));
+}
 
 /** The awards, in the order the TV gives them. CUE: the narrator's line before the names. */
 export const AWARDS = {
@@ -615,6 +639,17 @@ export const vote = mutation({
       .unique();
     if (existing) await ctx.db.patch(existing._id, { dressed, liar });
     else await ctx.db.insert("votes", { gameId: game._id, playerId: player._id, dressed, liar });
+    // I6: once everyone in the game has voted for both, the awards follow shortly (after the verdict has shown).
+    const votes = await ctx.db
+      .query("votes")
+      .withIndex("by_game", (q) => q.eq("gameId", game._id))
+      .collect();
+    const done = new Set(votes.filter((x) => x.dressed && x.liar).map((x) => x.playerId as string));
+    const players = playingOf(await playersOf(ctx, game._id));
+    if (game.revealAt && players.length && players.every((p) => done.has(p._id))) {
+      const verdictAt = game.revealAt + (game.revealPlan ?? revealTimes(!!game.hasAccomplice, game.tone ?? "classic")).verdict;
+      await ctx.scheduler.runAt(Math.max(Date.now() + ALL_VOTED_MS, verdictAt + 20_000), internal.game.autoFinish, { gameId: game._id, revealAt: game.revealAt });
+    }
     return { ok: true };
   },
 });
@@ -1201,6 +1236,19 @@ export const setPaused = mutation({
   },
 });
 
+/** I6 (Oct 17): how long award voting stays open after the verdict, and the pause once everyone has voted. */
+const AWARD_VOTE_MS = 90_000;
+const ALL_VOTED_MS = 8_000;
+
+export const autoFinish = internalMutation({
+  args: { gameId: v.id("games"), revealAt: v.number() },
+  handler: async (ctx, { gameId, revealAt }) => {
+    const game = await ctx.db.get(gameId);
+    if (!game || game.status !== "reveal" || game.revealAt !== revealAt) return;
+    await ctx.db.patch(game._id, { status: "done", doneAt: Date.now(), tvShowAll: false });
+  },
+});
+
 /** Host: close the voting and show the awards. */
 export const finish = mutation({
   args: { slug: v.string(), hostKey: v.string() },
@@ -1367,7 +1415,7 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
   const heckles = [];
   for (const h of await heckleWanted(ctx, game)) {
     const c = await clip(h);
-    if (c) heckles.push({ id: h.purpose, figure: h.line.figure, gag: h.line.gag, clip: c });
+    if (c) heckles.push({ id: h.purpose, figure: h.line.figure, guest: !!h.line.target, gag: h.line.gag, clip: c });
   }
   // The vote's verdict, once it has closed on someone: "Velma is going to jail."
   const vt = voteOf(game);
@@ -1434,6 +1482,8 @@ export const tv = query({
         rightRoom: scored.rightRoom,
         accusers: scored.accusers,
         aces: scored.scores.filter((s) => s.ace).map((s) => name(s.playerId)),
+        // I1 (Oct 17): who named whom at the lock-in, most named first (public once the reveal starts).
+        lockins: await lockinTally(ctx, game, all),
         awards,
       };
     }
@@ -1548,7 +1598,7 @@ async function tvMap(ctx: QueryCtx, game: Doc<"games">) {
     for (const s of scans) if (!found.has(s.markerNumber) || s.at < found.get(s.markerNumber)!) found.set(s.markerNumber, s.at);
   }
   return {
-    rooms: game.rooms.map((r) => ({ key: r.key, label: r.label, opensIn: started ? markerOpensIn(game, r.key) : 1 })),
+    rooms: game.rooms.map((r) => ({ key: r.key, label: r.label, note: r.houseName, opensIn: started ? markerOpensIn(game, r.key) : 1 })),
     markers: markers
       .sort((a, b) => a.number - b.number)
       .map((m) => ({ number: m.number, room: m.roomKey, foundAt: found.get(m.number) ?? null })),
