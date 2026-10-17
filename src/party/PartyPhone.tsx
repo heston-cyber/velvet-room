@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { api } from "../../convex/_generated/api";
@@ -494,26 +494,16 @@ function Murder({ data, onDone }: { data: Phone; onDone: () => void }) {
       <span className="eyebrow">Check your phone</span>
       <h1 className="title-xl">The Don is dead.</h1>
       <p className="lede">Don Ray Sanders has been found in {mid(data.game.bodyRoom)}.</p>
-      <div {...props} aria-label="Press and hold to see your role" className={`hold-card${holding ? " showing" : ""}`}>
+      <div {...props} aria-label="Press and hold to see your role" className={`hold-card role-hold no-select${holding ? " showing" : ""}`}>
         {holding ? (
-          role === "killer" ? (
-            <>
-              <span className="eyebrow">Your role</span>
-              <span className="big">You did it.</span>
-              <p>{b!.lines[0].replace(/^You did it\. /, "")}</p>
-            </>
-          ) : role === "accomplice" ? (
+          role === "accomplice" ? (
             <>
               <span className="eyebrow">Your role</span>
               <span className="big">Accomplice.</span>
               <p>{b!.lines[0].replace(/^You're the accomplice\. /, "")}</p>
             </>
           ) : (
-            <>
-              <span className="eyebrow">Your role</span>
-              <span className="big">Innocent.</span>
-              <p>You didn't kill the Don. Now prove who did.</p>
-            </>
+            <RoleCard role={role} card={b?.card ?? null} />
           )
         ) : (
           <>
@@ -570,38 +560,130 @@ function Pacing({ token, data }: { token: string; data: Phone }) {
   );
 }
 
+/** Little line drawings for the role card. */
+type IconName = "search" | "scan" | "mask" | "secret" | "bars" | "lock" | "target" | "trophy";
+function RoleIcon({ name }: { name: IconName }) {
+  const d: Record<IconName, ReactNode> = {
+    search: (
+      <>
+        <circle cx="10.5" cy="10.5" r="6" />
+        <path d="M15 15l5.5 5.5" />
+      </>
+    ),
+    mask: (
+      <>
+        <path d="M2.5 9c2.2-2.2 6.5-2.2 9.5 0 3-2.2 7.3-2.2 9.5 0 0 5.2-3 7.5-5.2 7.5-2 0-3-2-4.3-2s-2.3 2-4.3 2C5.5 16.5 2.5 14.2 2.5 9z" />
+        <circle cx="8" cy="11" r="1.4" />
+        <circle cx="16" cy="11" r="1.4" />
+      </>
+    ),
+    scan: <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 12h10" />,
+    secret: (
+      <>
+        <path d="M2.5 12c3.2-5.2 15.8-5.2 19 0-3.2 5.2-15.8 5.2-19 0z" />
+        <path d="M6 12h12M8.5 10v4M12 9.5v5M15.5 10v4" />
+      </>
+    ),
+    bars: (
+      <>
+        <rect x="4" y="3" width="16" height="18" rx="1" />
+        <path d="M8 3v18M12 3v18M16 3v18" />
+      </>
+    ),
+    lock: (
+      <>
+        <rect x="5" y="11" width="14" height="10" rx="1.5" />
+        <path d="M8 11V8a4 4 0 0 1 8 0v3M12 15v2.5" />
+      </>
+    ),
+    target: (
+      <>
+        <circle cx="12" cy="12" r="8" />
+        <circle cx="12" cy="12" r="3" />
+        <path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4" />
+      </>
+    ),
+    trophy: (
+      <>
+        <path d="M8 4h8v5a4 4 0 0 1-8 0V4z" />
+        <path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M9 20.5h6M10 17h4" />
+      </>
+    ),
+  };
+  return (
+    <svg viewBox="0 0 24 24" className="ri" aria-hidden="true">
+      {d[name]}
+    </svg>
+  );
+}
+
+/**
+ * The role card (Oct 16, Heston: "In the role cards, let's use more visuals to explain and less text. More concise
+ * information."). Same shape and size for every role, behind press-and-hold, so a glance gives nothing away.
+ */
+function RoleCard({ role, card }: { role: string; card: NonNullable<Phone["briefing"]>["card"] }) {
+  const killer = role === "killer";
+  const tiles: [IconName, string][] = killer
+    ? [
+        ["mask", "Lie about anything"],
+        ["target", card?.herring ? `Point at ${card.herring}` : "Point at someone else"],
+        ["bars", "Stay out of jail"],
+        ["lock", "Lock in someone else"],
+      ]
+    : [
+        ["scan", "Search, scan, compare notes"],
+        ["secret", "Lie only about your secret"],
+        ["bars", "Jail vote after Round 2"],
+        ["lock", "Lock in who, what, where"],
+      ];
+  return (
+    <div className={`role-card${killer ? " killer" : ""}`}>
+      <div className="rc-head">
+        {killer && card?.weapon.key ? <img src={weaponUrl(card.weapon.key)} alt="" /> : <RoleIcon name={killer ? "mask" : "search"} />}
+        <div>
+          <span className="big">{killer ? "You did it." : "Innocent."}</span>
+          <span className="sub">{killer ? `With the ${(card?.weapon.name ?? "").toLowerCase()}, in ${mid(card?.room ?? "")}.` : "You didn't kill the Don. Find who did."}</span>
+        </div>
+      </div>
+      <ul className="rc-tiles">
+        {tiles.map(([icon, text]) => (
+          <li key={icon}>
+            <RoleIcon name={icon} />
+            <span>{text}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="rc-win">
+        <RoleIcon name="trophy" />
+        <span>{killer ? "You win if they don't pin it on you." : "You win together if you catch the killer."}</span>
+      </p>
+    </div>
+  );
+}
+
 function CaseFile({ token, data }: { token: string; data: Phone }) {
   const b = data.briefing!;
   const { holding, props } = useHold();
-  // The card never grows: if the lines don't fit, the text shrinks until they do.
-  const card = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const el = card.current;
-    const list = el?.querySelector<HTMLElement>(".role-lines");
-    if (!el || !list) return;
-    let size = 16;
-    list.style.fontSize = `${size}px`;
-    while (el.scrollHeight > el.clientHeight + 1 && size > 11) {
-      size -= 0.5;
-      list.style.fontSize = `${size}px`;
-    }
-  }, [holding, b.lines]);
-  // One layout for every guest. The role lines sit behind press-and-hold in a card of fixed size,
+  // One layout for every guest. The role sits behind press-and-hold in a card of fixed size,
   // so neither the screen nor the card's shape tells anyone who the killer is.
   return (
     <div className="screen">
       {data.me.jailed && <JailBanner />}
       <h1 className="title-lg">Your case file</h1>
-      <div {...props} ref={card} aria-label="Press and hold to read your role" className={`hold-card role-hold no-select${holding ? " showing" : ""}`}>
-        <span className="eyebrow">Your role</span>
+      <div {...props} aria-label="Press and hold to read your role" className={`hold-card role-hold no-select${holding ? " showing" : ""}`}>
         {holding ? (
-          <ul className="role-lines">
-            {b.lines.map((l) => (
-              <li key={l}>{l}</li>
-            ))}
-          </ul>
+          b.role === "accomplice" ? (
+            <ul className="role-lines">
+              {b.lines.map((l) => (
+                <li key={l}>{l}</li>
+              ))}
+            </ul>
+          ) : (
+            <RoleCard role={b.role} card={b.card} />
+          )
         ) : (
           <>
+            <span className="eyebrow">Your role</span>
             <span className="hold-hint">Press and hold to read it.</span>
             <span className="help">Let go and it hides again. Keep your screen to yourself.</span>
           </>
@@ -610,6 +692,7 @@ function CaseFile({ token, data }: { token: string; data: Phone }) {
       <div className="file private">
         <span className="lab">Your motive</span>
         <p>{b.motive}</p>
+        <span className="help">Hint at it, deny it or lie about it.</span>
       </div>
       <div className="file private">
         <span className="lab">Your secret</span>

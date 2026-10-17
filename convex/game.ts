@@ -269,6 +269,18 @@ async function myBallot(ctx: QueryCtx, game: Doc<"games">, playerId: Id<"players
   return { canVote: vt.voters.includes(playerId), voted: !!mine, targetId: mine?.targetId ?? null };
 }
 
+/** The killer's role card (Oct 16): the weapon (with its picture), the room, and who the red herring points at. */
+async function killerCard(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile, all: Doc<"players">[]) {
+  const w = (await gameWeapons(ctx, game)).find((x) => x.id === cf.solution.exhibitId);
+  const herring = cf.clues.find((c) => c.kind === "herring" && c.pointsAt)?.pointsAt;
+  const h = herring ? all.find((p) => p._id === herring) : undefined;
+  return {
+    weapon: { name: w?.name ?? "", key: w?.key ?? null },
+    room: game.rooms.find((r) => r.key === cf.solution.roomKey)?.label ?? "",
+    herring: h ? shortName(h) : null,
+  };
+}
+
 /** Each weapon's pool key (for the art), by its id. */
 async function weaponKeys(ctx: QueryCtx, game: Doc<"games">) {
   return new Map((await gameWeapons(ctx, game)).map((w) => [w.id, w.key]));
@@ -606,7 +618,16 @@ export const phone = query({
       myBallot: started ? await myBallot(ctx, game, player._id) : null,
       briefing:
         brief && cf
-          ? { role: brief.role, motive: brief.motive, secret: brief.secret, lines: brief.lines, tip: tip?.text ?? null, tipLabel: S.tipLabel }
+          ? {
+              role: brief.role,
+              motive: brief.motive,
+              secret: brief.secret,
+              lines: brief.lines,
+              tip: tip?.text ?? null,
+              tipLabel: S.tipLabel,
+              // Oct 16: the role card is pictures and a few words. Only the killer's own phone gets the facts.
+              card: brief.role === "killer" ? await killerCard(ctx, game, cf, all) : null,
+            }
           : null,
       scans: cf
         ? scans

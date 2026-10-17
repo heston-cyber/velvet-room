@@ -192,7 +192,7 @@ export const CLASSIC: Script = {
     "A matchbook from a joint across town. Plenty of people here drink there.",
     "A cold cigar in an ashtray, barely smoked. The Don hated waste. Odd, but it proves nothing.",
   ],
-  tipLabel: "A tip. A few other guests got this same one: if someone tells it differently, ask why. Use it, trade it or keep it to yourself.",
+  tipLabel: "Other guests may have this same tip. If someone tells it differently, ask why.",
   motives: [
     "The Don owed you a small fortune and laughed when you asked for it.",
     "He caught you skimming from the till and promised you'd regret it.",
@@ -245,7 +245,7 @@ export const CLASSIC: Script = {
     "You're innocent. You didn't kill the Don.",
     "You may lie about your secret, but not about the murder. Only the killer may lie about that.",
     "Find the markers, compare notes, and work out who did it, with which weapon, and where.",
-    "After every round, vote someone into jail if most of you agree. Jailbirds can't search, vote or lock in.",
+    "After Round 2 you can vote someone into jail, if most of you agree; after Round 3, a vote to let them out. Jailbirds can't search, vote or lock in.",
   ],
   accompliceLines: (f) => [
     `You're the accomplice. You didn't kill the Don, but you know who did: ${f.killerName}.`,

@@ -96,7 +96,7 @@ export const ADULT: Script = {
     "A whoopee cushion under the Don's chair. Childish. Hilarious. Useless.",
     "A cold cigar, barely smoked. The Don hated wasting a good cigar almost as much as he hated all of you.",
   ],
-  tipLabel: "Psst. A tip. A few others got the same one, so if somebody tells it differently, somebody's lying. Share it, trade it or keep your damn mouth shut.",
+  tipLabel: "Others may have this same tip. If somebody tells it differently, somebody's lying.",
   motives: [
     "The Don owed you a fortune and laughed in your face when you asked for it. Then he farted. On purpose.",
     "He caught you skimming from the till and swore he'd break your goddamn kneecaps.",
@@ -149,7 +149,7 @@ export const ADULT: Script = {
     "You're innocent. You didn't kill the Don, for once in your life.",
     "You can lie about your secret, but not about the murder. Only the killer gets to bullshit about that.",
     "Find the markers, compare notes, and figure out who did it, with what, and where.",
-    "After every round, vote somebody into jail if most of you agree. Jailbirds can't search, vote or lock in.",
+    "After Round 2 you can vote somebody into jail, if most of you agree; after Round 3, a vote to let them out. Jailbirds can't search, vote or lock in.",
   ],
   // Accomplice games (v2), with Heston's comedy notes: deadpan, specific, the swearing rationed.
   accompliceLines: (f) => [
