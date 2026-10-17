@@ -63,7 +63,7 @@ describe("sign-up: older pages", () => {
     expect(me).toMatchObject({ rumor: "Once cheated a priest at cards, and won.", sayAs: "" });
     await t.mutation(api.registration.update, { token, ...base, who: "Cigarette girl, retired." });
     me = await t.query(api.registration.me, { token });
-    expect(me).toMatchObject({ rumor: "Once cheated a priest at cards, and won.", who: "Cigarette girl, retired." });
+    expect(me).toMatchObject({ rumor: "Once cheated a priest at cards, and won." });
     await expect(t.mutation(api.registration.update, { token, ...base, rumor: "x".repeat(141) })).rejects.toThrow(/140/);
   });
 });
@@ -78,7 +78,7 @@ describe("roll call (v2)", () => {
       expect(g.line).toContain(g.realName.split(" ")[0]);
       expect(g.line).not.toMatch(/Signature|Weapon|motive|[{}]/);
       expect(g.voice).toBe("later");
-      expect(g.weapon).toBeTruthy();
+      expect(g).not.toHaveProperty("weapon");
     }
   });
 

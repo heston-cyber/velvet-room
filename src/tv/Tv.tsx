@@ -460,14 +460,8 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
                   <h2 className="tv-h2" style={{ fontSize: "5cqw", marginTop: "1cqw" }}>Find the markers.</h2>
                   <p className="tv-sub">Scan them with your phone. Question everyone.</p>
                   <p className="tv-sub small">The body was found in {mid(g.bodyRoom)}.</p>
-                  {d.weapons.length > 0 ? (
-                    <>
-                      <WeaponRow weapons={d.weapons} />
-                      <p className="tv-sub small">The weapons in play</p>
-                    </>
-                  ) : (
-                    <Exhibits letters={d.exhibits} caption="Exhibits on the evidence table" />
-                  )}
+                  {/* Oct 16: the weapons in play sit along the top of the screen through every round. */}
+                  {d.weapons.length === 0 && <Exhibits letters={d.exhibits} caption="Exhibits on the evidence table" />}
                 </div>
                 {houseMap}
               </div>
@@ -650,6 +644,7 @@ function RoundBar({ d, now, label }: { d: Data; now: number; label: string }) {
         <span className="chip">
           Round {g.round} · {label}
         </span>
+        {d.weapons.length > 0 && <TopWeapons weapons={d.weapons} />}
         {timed ? <span className="tv-clock">{clock(left)}</span> : <span className="tv-ready">{d.counts.ready} of {d.counts.playing} ready</span>}
       </div>
       <div className="tv-meter">{!timed && <i style={{ width: `${pct}%` }} />}</div>
@@ -914,6 +909,24 @@ function WeaponRow({ weapons }: { weapons: Weapon[] }) {
     <div className="tv-wrow">
       {weapons.map((w, i) => (
         <WeaponCard key={w.key} weapon={w} className="fade" style={{ animationDelay: `${0.3 + i * 0.12}s` }} />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The weapons in play along the top of the screen during the rounds (Oct 16, Heston: "attach the weapons in play for
+ * that particular game at the top of the screen as well"), like the guests along the bottom. Never by owner.
+ */
+function TopWeapons({ weapons }: { weapons: Weapon[] }) {
+  const slot = Math.min(6, 40 / weapons.length);
+  return (
+    <div className="tv-topweapons" style={{ "--slot": `${slot}cqw` } as CSSProperties} aria-label="The weapons in play">
+      {weapons.map((w) => (
+        <div key={w.key}>
+          <img src={weaponUrl(w.key)} alt="" />
+          <span className="nm">{w.name}</span>
+        </div>
       ))}
     </div>
   );

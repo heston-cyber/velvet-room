@@ -62,14 +62,14 @@ export const ADULT: Script = {
           `Not a whiff of powder on the ${name}. Nobody fired the son of a bitch tonight. Not the weapon.`,
         ])
       : say("e1", [
-          `The ${name} sat in the coat check all night under a pile of mink. Nobody touched the damn thing. Not the weapon.`,
-          `The ${name} was locked in the Don's office safe all night. Only the Don knew the combination, and he's not talking. Not the weapon.`,
+          `The ${name} sat in the coat check all night under a pile of mink. Nobody laid a damn finger on the pile. Not the weapon.`,
+          `The Don locked the ${name} in his office safe before the party. Only he knew the combination, and he's not talking. Not the weapon.`,
           `A three-hundred-pound bouncer sat on the crate with the ${name} in it all damn night. Nobody got near it. Not the weapon.`,
         ]),
   exhibitPairClear: (say, a, b) =>
     say("e2", [
       `The ${a} and the ${b} sat behind the bar all night, right under the bartender's big nose. Neither one did shit. Not the weapon.`,
-      `The ${a} and the ${b} were locked in the Don's office safe all night. Only the Don knew the combination, and he's in no shape to share it. Neither is the weapon.`,
+      `The Don locked the ${a} and the ${b} in his office safe before the party. Only he knew the combination, and he's in no shape to share it. Neither is the weapon.`,
     ]),
   roomClear: (say, label) =>
     say("r1", [
@@ -83,10 +83,10 @@ export const ADULT: Script = {
     `The twist: the Don wasn't even killed in ${mid(body)}. Some son of a bitch dragged his fat ass there afterward. Look at the carpet.`,
   twistStayed: (body) =>
     `The twist: no drag marks. Nobody hauled his heavy ass anywhere. The Don was killed right where he dropped, in ${mid(body)}.`,
-  herring: (say, s) =>
+  herring: (say, n) =>
     say("h", [
-      `Found next to the body: ${q(s)}. Whoever owns that has some explaining to do, and probably a lawyer to call.`,
-      `A drunk witness swears they saw ${q(s)} near the Don right before he croaked. Then again, the witness was seeing two of everything.`,
+      `Found next to the body: a bar tab with ${n}'s name on it. Whoever ran that up has some explaining to do, and probably a lawyer to call.`,
+      `A drunk witness swears they saw ${n} near the Don right before he croaked. Then again, the witness was seeing two of everything.`,
     ]),
   flavor: [
     "An empty bottle of the Don's private gin. Some greedy bastard finished it. Nothing more.",
@@ -100,7 +100,7 @@ export const ADULT: Script = {
   motives: [
     "The Don owed you a fortune and laughed in your face when you asked for it. Then he farted. On purpose.",
     "He caught you skimming from the till and swore he'd break your goddamn kneecaps.",
-    "He told everyone what your {s} is really for, and now nobody will shake your hand.",
+    "He told everyone what you keep in your coat pocket, and now nobody will shake your hand.",
     "He fired your sweetheart from the band for sounding like a cat in a blender. Rude. Accurate, but rude.",
     "You lost your car to him in a card game, and that cheating bastard had aces up both sleeves.",
     "He cut you out of a deal you'd busted your ass on for a year.",
@@ -115,7 +115,7 @@ export const ADULT: Script = {
   ],
   secrets: [
     "You've been ratting to the Feds for months, and you're shit at it.",
-    "Your {s} is stolen, and the real owner is somewhere in this room, drunk.",
+    "Your gold watch is stolen, and the real owner is somewhere in this room, drunk.",
     "You're flat broke. Every dollar you're flashing tonight belongs to your mother.",
     "You snuck somewhere off-limits tonight looking for something. You found something way worse.",
     "Your real name is on a wanted poster in Cleveland, and the drawing makes you look fat.",
@@ -131,9 +131,8 @@ export const ADULT: Script = {
   ],
   killerLines: (f) => [
     `You did it. You whacked Don Ray Sanders with the ${f.weapon.toLowerCase()} in ${mid(f.room)}.`,
-    f.ownWeapon
-      ? `The ${f.weapon.toLowerCase()} is the weapon you brought, genius. If anyone figures that out, start lying your ass off.`
-      : `The ${f.weapon.toLowerCase()} isn't even your weapon. Lucky break, you sneaky bastard.`,
+    // Only older games had weapons that belonged to a guest.
+    ...(f.ownWeapon ? [`The ${f.weapon.toLowerCase()} is the weapon you brought, genius. If anyone figures that out, start lying your ass off.`] : []),
     ...(f.accompliceName ? [`Your accomplice is ${f.accompliceName}. They know what you did and they'll lie for you, which is more than your own family would do.`] : []),
     "Over three rounds the evidence will close in on you. Your job: keep these idiots guessing.",
     ...(f.herringName ? [`One clue points at ${f.herringName}. Throw them under the bus.`] : []),

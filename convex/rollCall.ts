@@ -10,7 +10,6 @@ import { readSecs, rollSlotMs } from "./show";
 
 export type RollGuest = {
   player: Doc<"players">;
-  weapon: { key: string; name: string } | null;
   /** The party cast member they play, if any. */
   cast: { real: string; nickname: string | null } | null;
   wanted: Wanted;
@@ -25,13 +24,7 @@ export async function rollGuests(ctx: QueryCtx, game: Doc<"games">, _cf: CaseFil
       .withIndex("by_game", (q) => q.eq("gameId", game._id))
       .collect()
   ).sort((a, b) => a.createdAt - b.createdAt);
-  const weapons = await ctx.db
-    .query("weapons")
-    .withIndex("by_game", (q) => q.eq("gameId", game._id))
-    .collect();
   return players.map((p) => {
-    const w = weapons.find((x) => x.playerId === p._id);
-    const weapon = w?.key ? { key: w.key, name: w.name } : null;
     const m = castMember(p.figure);
     const own = { nickname: p.nickname, lastName: p.lastName };
     const cast = m ? { real: castRealName(m, own), nickname: castNickname(m, own) || null } : null;
@@ -43,7 +36,7 @@ export async function rollGuests(ctx: QueryCtx, game: Doc<"games">, _cf: CaseFil
       cast: m ? { real: castRealName(m, own), nickname: castNickname(m, own), sayAs: m.sayAs } : null,
       seed: game.slug,
     });
-    return { player: p, weapon, cast, wanted };
+    return { player: p, cast, wanted };
   });
 }
 

@@ -1,4 +1,4 @@
-import { weaponUrl } from "../lib/weapon";
+import { faceUrl } from "../lib/figure";
 
 export function initials(name: string): string {
   const letters = name
@@ -14,13 +14,8 @@ export function Deco() {
   return <div className="deco" aria-hidden="true" />;
 }
 
-export default function MemberCard(props: {
-  charName: string;
-  who: string;
-  signature: string;
-  photoUrl?: string | null;
-  weapon?: { key: string; name: string } | null;
-}) {
+/** The membership card: the guest's drawing and full name (Oct 16: nothing else; sign-up asks for nothing else). */
+export default function MemberCard(props: { charName: string; figure: string | null }) {
   return (
     <div className="card">
       <div className="card-head">
@@ -28,25 +23,9 @@ export default function MemberCard(props: {
         <span>Member · 1929</span>
       </div>
       <div className="card-who">
-        <div className="card-ph">
-          {props.photoUrl ? <img src={props.photoUrl} alt="" /> : initials(props.charName)}
-        </div>
+        <div className="card-ph">{props.figure ? <img src={faceUrl(props.figure)} alt="" /> : initials(props.charName)}</div>
         <div className="card-name">{props.charName || "Your character"}</div>
       </div>
-      {props.who && <div className="card-desc">{props.who}</div>}
-      <dl>
-        <dt>Signature</dt>
-        <dd>{props.signature || "—"}</dd>
-        {props.weapon && (
-          <>
-            <dt>Weapon</dt>
-            <dd className="card-weapon">
-              <img src={weaponUrl(props.weapon.key)} alt="" />
-              {props.weapon.name}
-            </dd>
-          </>
-        )}
-      </dl>
     </div>
   );
 }

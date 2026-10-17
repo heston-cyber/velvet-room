@@ -21,7 +21,8 @@ export type Exhibit = {
   letter: string;
   name: string;
   description: string;
-  ownerId: string;
+  /** Older games: the guest who picked it at sign-up. Since Oct 16 the game draws the weapons, so nobody owns one. */
+  ownerId?: string;
   kind?: WeaponKind;
 };
 
@@ -34,7 +35,7 @@ export type SearchMode = "all" | "waves";
 
 export type CaseInput = {
   suspects: Suspect[]; // guests who checked in
-  exhibits: Exhibit[]; // weapons handed in
+  exhibits: Exhibit[]; // the night's weapons
   rooms: Room[];
   /** Where the body is found. Drawn at Start unless given (tests). Public once the game starts. */
   bodyRoomKey?: string;

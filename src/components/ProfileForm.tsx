@@ -1,12 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import type { Id } from "../../convex/_generated/dataModel";
 import MemberCard, { Deco } from "./MemberCard";
-import { shrinkPhoto, uploadPhoto } from "../lib/photo";
 import { friendlyError } from "../lib/errors";
-import { avatarSrc, faceUrl, figureUrl } from "../lib/figure";
-import { weaponUrl } from "../lib/weapon";
+import { faceUrl, figureUrl } from "../lib/figure";
 
 export type GameInfo = {
   slug: string;
@@ -17,15 +14,13 @@ export type GameInfo = {
   killerOptIn: boolean;
 };
 
+// Oct 16 (Heston): no "about you" page (who you are, signature item, costume photo) and no weapon pick. Sign-up is
+// your face, your last name and nickname, then your motive and secret only if the host has players write their own.
 export type ProfileValues = {
   realName: string;
   charName: string;
-  who: string;
-  signature: string;
   motive: string;
   secret: string;
-  /** The weapon they picked from the pool (a key). */
-  weapon: string;
   killerOk: boolean;
   rumor: string;
   sayAs: string;
@@ -39,11 +34,8 @@ export type ProfileValues = {
 export const EMPTY_PROFILE: ProfileValues = {
   realName: "",
   charName: "",
-  who: "",
-  signature: "",
   motive: "",
   secret: "",
-  weapon: "",
   killerOk: true,
   rumor: "",
   sayAs: "",
@@ -52,11 +44,9 @@ export const EMPTY_PROFILE: ProfileValues = {
   lastName: "",
 };
 
-const MAX: Record<keyof Omit<ProfileValues, "killerOk" | "figure" | "weapon">, number> = {
+const MAX: Record<keyof Omit<ProfileValues, "killerOk" | "figure">, number> = {
   realName: 60,
   charName: 60,
-  who: 280,
-  signature: 120,
   motive: 280,
   secret: 280,
   rumor: 140,
@@ -65,14 +55,13 @@ const MAX: Record<keyof Omit<ProfileValues, "killerOk" | "figure" | "weapon">, n
   lastName: 30,
 };
 
-type StepId = "door" | "you" | "character" | "motive" | "weapon" | "review";
+type StepId = "door" | "you" | "motive" | "review";
 type TextKey = keyof typeof MAX;
 
 export default function ProfileForm(props: {
   game: GameInfo;
   mode: "new" | "edit";
   initial: ProfileValues;
-  initialPhotoUrl?: string | null;
   token?: string;
   /** Walk-ins sign up on party night with the room code from the TV. */
   roomCode?: string;
@@ -80,25 +69,20 @@ export default function ProfileForm(props: {
   onCancel?: () => void;
 }) {
   const { game, mode } = props;
-  const steps: StepId[] = useMemo(
-    () => (mode === "new" ? ["door", "you", "character", "motive", "weapon", "review"] : ["you", "character", "motive", "weapon", "review"]),
-    [mode],
-  );
+  // The motive page only when guests write their own; otherwise the last look says the house writes them.
+  const steps: StepId[] = useMemo(() => {
+    const form: StepId[] = game.motiveMode === "players" ? ["you", "motive", "review"] : ["you", "review"];
+    return mode === "new" ? ["door", ...form] : form;
+  }, [mode, game.motiveMode]);
   const formSteps: StepId[] = steps.filter((s) => s !== "door");
 
   const [stepIndex, setStepIndex] = useState(0);
   const [values, setValues] = useState<ProfileValues>(props.initial);
   const [bad, setBad] = useState<Set<TextKey>>(new Set());
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(props.initialPhotoUrl ?? null);
-  const [removePhoto, setRemovePhoto] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needFigure, setNeedFigure] = useState(false);
-  const [needWeapon, setNeedWeapon] = useState(false);
   const gallery = useQuery(api.registration.figures, mode === "new" ? { slug: game.slug } : { token: props.token });
-  const rack = useQuery(api.registration.weapons, mode === "new" ? { slug: game.slug } : { token: props.token });
-  const weaponName = rack?.find((w) => w.key === values.weapon)?.name ?? "";
   // The party cast: tap your own face and that's who you are (the server fills in the name).
   const allFigures = gallery?.flatMap((g) => g.figures) ?? [];
   const castPick = allFigures.find((f) => f.key === values.figure) ?? null;
@@ -108,10 +92,13 @@ export default function ProfileForm(props: {
   }
   // "Josh “Two-Tone” Lee": their first name from the cast, the rest as they type it (the server makes it final).
   const tidy = (s: string) => s.replace(/[“”"]/g, "").replace(/\s+/g, " ").trim();
-  const fullName = castPick ? [castPick.name, tidy(values.nickname) ? `“${tidy(values.nickname)}”` : "", tidy(values.lastName)].filter(Boolean).join(" ") : "";
+  // Same as the server: a typed "aka" goes (the roll call says a.k.a. itself), and so does their own first name typed
+  // again in the last-name box ("Heston Hill" → "Hill").
+  const nick = (s: string) => tidy(s).replace(/^(a\.?\s*k\.?\s*a\.?|also known as)\s+/i, "");
+  const last = (s: string) => (castPick ? tidy(s).replace(new RegExp(`^${castPick.name}\\s+`, "i"), "") : tidy(s));
+  const fullName = castPick ? [castPick.name, nick(values.nickname) ? `“${nick(values.nickname)}”` : "", last(values.lastName)].filter(Boolean).join(" ") : "";
   const topRef = useRef<HTMLDivElement>(null);
 
-  const generateUploadUrl = useMutation(api.registration.generateUploadUrl);
   const register = useMutation(api.registration.register);
   const update = useMutation(api.registration.update);
 
@@ -121,18 +108,10 @@ export default function ProfileForm(props: {
     topRef.current?.scrollIntoView({ block: "start" });
   }, [stepIndex]);
 
-  useEffect(() => {
-    return () => {
-      if (photoPreview && photoPreview.startsWith("blob:")) URL.revokeObjectURL(photoPreview);
-    };
-  }, [photoPreview]);
-
   const requiredFor = (s: StepId): TextKey[] => {
     switch (s) {
       case "you":
         return castPick ? ["lastName"] : [];
-      case "character":
-        return ["who", "signature"];
       case "motive":
         return game.motiveMode === "players" ? ["motive", "secret"] : [];
       default:
@@ -164,11 +143,6 @@ export default function ProfileForm(props: {
       document.getElementById("f-figure")?.focus();
       return;
     }
-    if (step === "weapon" && !values.weapon) {
-      setNeedWeapon(true);
-      document.getElementById("f-weapon")?.focus();
-      return;
-    }
     setError(null);
     setStepIndex((i) => Math.min(steps.length - 1, i + 1));
   }
@@ -183,18 +157,12 @@ export default function ProfileForm(props: {
     setBusy(true);
     setError(null);
     try {
-      let photoId: Id<"_storage"> | undefined;
-      if (photoFile) {
-        const blob = await shrinkPhoto(photoFile);
-        const url = await generateUploadUrl({ slug: game.slug, roomCode: props.roomCode });
-        photoId = (await uploadPhoto(url, blob)) as Id<"_storage">;
-      }
-      const payload = { ...values, figure: values.figure || undefined, photoId };
+      const payload = { ...values, figure: values.figure || undefined };
       if (mode === "new") {
         const { token } = await register({ slug: game.slug, roomCode: props.roomCode, ...payload });
         props.onDone(token);
       } else {
-        await update({ token: props.token!, ...payload, removePhoto });
+        await update({ token: props.token!, ...payload });
         props.onDone(props.token!);
       }
     } catch (err) {
@@ -268,7 +236,7 @@ export default function ProfileForm(props: {
             </button>
           </div>
           <span className="small">
-            {props.roomCode ? "About 3 minutes. The game starts once everyone's in, so be quick." : `About 3 minutes. You can change your answers until ${game.deadlineLabel}.`}
+            {props.roomCode ? "About a minute. The game starts once everyone's in, so be quick." : `About a minute. You can change your answers until ${game.deadlineLabel}.`}
           </span>
         </div>
       );
@@ -329,144 +297,33 @@ export default function ProfileForm(props: {
               {field("lastName", "Your last name", { ph: "e.g. Hill" })}
               {field("nickname", "Your 1920s nickname · optional", {
                 ph: "e.g. Two-Tone, The Knife, Lucky",
-                help: "The narrator calls you by it at the roll call: “Josh Lee, a.k.a. Two-Tone.”",
+                help: "Just the nickname: Two-Tone, not “aka Two-Tone”. The narrator adds the a.k.a.",
                 publicHelp: true,
               })}
             </>
           )}
-          {nav("Next: your character")}
-        </>
-      );
-      break;
-    case "character":
-      body = (
-        <>
-          {progress}
-          <h2>{castPick ? `You're ${fullName}` : "Who are you tonight?"}</h2>
-          <p className="lede">A little about your 1929 self. Random and funny is welcome.</p>
-          {field("who", "Who you are tonight, in a line or two", {
-            area: true,
-            ph: "e.g. Runs numbers for the Bowery boys and knows every secret in the joint.",
-          })}
-          {field("signature", "Signature item or habit", {
-            ph: "e.g. A silver cigarette case she never opens",
-            help: "Everyone will see this. Clues may point to it, so wear it or carry it.",
-            publicHelp: true,
-          })}
-          <div className="field">
-            <span className="lab">Costume photo · optional</span>
-            <div className="photo">
-              <div className="ph">{photoPreview && !removePhoto ? <img src={photoPreview} alt="" /> : "None"}</div>
-              <label className="pick" htmlFor="f-photo">
-                {photoPreview && !removePhoto ? "Change photo" : "Choose a photo"}
-              </label>
-              <input
-                type="file"
-                id="f-photo"
-                accept="image/*"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (!f) return;
-                  setPhotoFile(f);
-                  setRemovePhoto(false);
-                  setPhotoPreview(URL.createObjectURL(f));
-                }}
-              />
-              {photoPreview && !removePhoto && (
-                <button
-                  type="button"
-                  className="back"
-                  onClick={() => {
-                    setPhotoFile(null);
-                    setRemovePhoto(true);
-                  }}
-                >
-                  Remove
-                </button>
-              )}
-            </div>
-            <span className="help">No costume yet? Add one later from your personal link.</span>
-          </div>
-          {nav("Next: motive and secret")}
+          {nav(game.motiveMode === "players" ? "Next: motive and secret" : "Next: last look")}
         </>
       );
       break;
     case "motive":
-      body =
-        game.motiveMode === "game" ? (
-          <>
-            {progress}
-            <h2>Everyone here has a reason</h2>
-            <div className="sealed">
-              <div className="wax" aria-hidden="true">
-                V
-              </div>
-              <p>
-                The house writes your motive and your secret. They arrive on your phone when the game begins, and
-                they're yours alone.
-              </p>
-            </div>
-            <p className="help">You may lie about your secret. Only the killer may lie about the murder.</p>
-            {nav("Next: your weapon")}
-          </>
-        ) : (
-          <>
-            {progress}
-            <h2>Everyone here has a reason</h2>
-            <p className="lede">
-              Only you see these, on your phone. You may lie about your secret. Only the killer may lie about the
-              murder.
-            </p>
-            {field("motive", "Why might you have wanted the Don dead?", {
-              area: true,
-              ph: "e.g. He owes me three months of tips and laughed when I asked.",
-            })}
-            {field("secret", "A secret you'd lie to protect", {
-              area: true,
-              ph: "e.g. I've been selling his ledger pages to the Feds.",
-            })}
-            {nav("Next: your weapon")}
-          </>
-        );
-      break;
-    case "weapon":
       body = (
         <>
           {progress}
-          <h2>Pick your weapon</h2>
-          <p className="lede">Every guest gets a murder weapon. Each one goes to one guest, so grab yours.</p>
-          <div className={`field${needWeapon ? " bad" : ""}`}>
-            <span className="lab" id="l-weapon">
-              Your weapon
-            </span>
-            <span className="help public">Everyone will see the weapons in play, and the TV shows yours with your character.</span>
-            <div className="weapon-grid" role="radiogroup" aria-labelledby="l-weapon" id="f-weapon" tabIndex={-1}>
-              {rack === undefined && <span className="help">Loading the weapons…</span>}
-              {rack?.map((w) => {
-                const takenByOther = w.taken && values.weapon !== w.key;
-                return (
-                  <button
-                    type="button"
-                    key={w.key}
-                    role="radio"
-                    aria-checked={values.weapon === w.key}
-                    aria-label={takenByOther ? `${w.name}, taken` : w.name}
-                    disabled={takenByOther}
-                    className={`${values.weapon === w.key ? "on" : ""} ${takenByOther ? "taken" : ""}`}
-                    onClick={() => {
-                      set("weapon", w.key);
-                      setNeedWeapon(false);
-                    }}
-                  >
-                    <img src={weaponUrl(w.key)} alt="" />
-                    <span className="weapon-name">{takenByOther ? "Taken" : w.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-            {needWeapon && <span className="err">Pick a weapon to continue.</span>}
-          </div>
-          {nav("Next: review")}
+          <h2>Everyone here has a reason</h2>
+          <p className="lede">
+            Only you see these, on your phone. You may lie about your secret. Only the killer may lie about the
+            murder.
+          </p>
+          {field("motive", "Why might you have wanted the Don dead?", {
+            area: true,
+            ph: "e.g. He owes me three months of tips and laughed when I asked.",
+          })}
+          {field("secret", "A secret you'd lie to protect", {
+            area: true,
+            ph: "e.g. I've been selling his ledger pages to the Feds.",
+          })}
+          {nav("Next: last look")}
         </>
       );
       break;
@@ -475,13 +332,10 @@ export default function ProfileForm(props: {
         <>
           {progress}
           <h2>Last look</h2>
-          <MemberCard
-            charName={values.charName}
-            who={values.who}
-            signature={values.signature}
-            photoUrl={avatarSrc(removePhoto ? null : photoPreview, values.figure)}
-            weapon={values.weapon ? { key: values.weapon, name: weaponName } : null}
-          />
+          <MemberCard charName={fullName || values.charName} figure={values.figure || null} />
+          {game.motiveMode === "game" && (
+            <p className="help">The house writes your motive and your secret. They arrive on your phone when the game begins.</p>
+          )}
           {game.killerOptIn && (
             <label className="optin" htmlFor="f-killer">
               <input

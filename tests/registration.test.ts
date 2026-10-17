@@ -7,13 +7,16 @@ import { CAST, castName } from "../convex/figures";
 const modules = import.meta.glob("../convex/**/*.ts");
 const FUTURE = Date.now() + 7 * 864e5;
 
-// Every guest is one of the party cast: their face brings their name.
+// Every guest is one of the party cast: their face brings their name. Oct 16: sign-up is the face, a last name and
+// a nickname (and motive and secret when guests write their own). No "about you", signature, photo or weapon.
 const nameOf = (key: string) => castName(CAST.find((c) => c.key === key)!);
 const guests = [
-  { realName: "Emily", charName: nameOf("emily"), who: "Cigarette girl who sells secrets.", signature: "Silver cigarette case", weapon: "candlestick", killerOk: true, figure: "emily" },
-  { realName: "Josh", charName: nameOf("josh"), who: "A priest who drinks too much.", signature: "Rosary he twirls", weapon: "gnome", killerOk: false, figure: "josh" },
-  { realName: "Sam", charName: nameOf("sam"), who: "Bookie with bad luck.", signature: "Lucky green dice", weapon: "rope", killerOk: true, figure: "sam" },
+  { realName: "Emily", charName: nameOf("emily"), killerOk: true, figure: "emily", lastName: "Hill" },
+  { realName: "Josh", charName: nameOf("josh"), killerOk: false, figure: "josh", lastName: "Lee", nickname: "Two-Tone" },
+  { realName: "Sam", charName: nameOf("sam"), killerOk: true, figure: "sam", lastName: "Reed" },
 ];
+// What a page from before Oct 16 sent as well.
+const OLD_FIELDS = { who: "Cigarette girl who sells secrets.", signature: "Silver cigarette case", weapon: "candlestick" };
 
 async function setup(motiveMode: "game" | "players" = "game", closesAt = FUTURE) {
   const t = convexTest(schema, modules);
@@ -35,16 +38,15 @@ describe("registration", () => {
     expect(new Set(tokens).size).toBe(3);
     for (let i = 0; i < 3; i++) {
       const me = await t.query(api.registration.me, { token: tokens[i] });
-      expect(me?.charName).toBe(guests[i].charName);
-      expect(me?.weapon).toBe(guests[i].weapon);
+      expect(me?.charName).toContain(guests[i].lastName);
       for (let j = 0; j < 3; j++) {
-        if (j !== i) expect(JSON.stringify(me)).not.toContain(guests[j].weapon);
+        if (j !== i) expect(JSON.stringify(me)).not.toContain(guests[j].lastName);
       }
     }
     expect(await t.query(api.registration.me, { token: "nope" })).toBeNull();
   });
 
-  test("the host roster never contains weapons, motives, secrets or opt-ins", async () => {
+  test("the host roster never contains motives, secrets or opt-ins", async () => {
     const { t, hostKey } = await setup("players");
     for (const g of guests) {
       await t.mutation(api.registration.register, { ...g, motive: `Motive of ${g.realName}`, secret: `Secret of ${g.realName}` });
@@ -53,8 +55,7 @@ describe("registration", () => {
     const json = JSON.stringify(roster);
     expect(roster.players).toHaveLength(3);
     for (const g of guests) {
-      expect(json).toContain(g.charName);
-      expect(json).not.toContain(g.weapon);
+      expect(json).toContain(g.lastName);
       expect(json).not.toContain(`Motive of ${g.realName}`);
       expect(json).not.toContain(`Secret of ${g.realName}`);
     }
@@ -80,10 +81,33 @@ describe("registration", () => {
     await t.mutation(api.registration.register, { ...guests[0], motive: "He owes me.", secret: "I'm a fed." });
   });
 
-  test("required fields are enforced", async () => {
+  test("sign-up needs only a face (the last name comes with the form); no weapon, signature or about you", async () => {
     const { t } = await setup();
-    await expect(t.mutation(api.registration.register, { ...guests[0], weapon: "  " })).rejects.toThrow(/weapon/);
-    await expect(t.mutation(api.registration.register, { ...guests[0], signature: "" })).rejects.toThrow(/Signature/);
+    await expect(t.mutation(api.registration.register, { ...guests[0], figure: undefined })).rejects.toThrow(/drawing/);
+    const { token } = await t.mutation(api.registration.register, guests[0]);
+    const p = await t.run(async (ctx) => (await ctx.db.query("players").collect())[0]);
+    expect(p).toMatchObject({ who: "", signature: "" });
+    expect(p.photoId).toBeUndefined();
+    expect(await t.run((ctx) => ctx.db.query("weapons").collect())).toEqual([]);
+    expect(await t.query(api.registration.me, { token })).not.toHaveProperty("weapon");
+  });
+
+  test("an older page that still sends who, signature and a weapon is accepted, and they're ignored", async () => {
+    const { t } = await setup();
+    await t.mutation(api.registration.register, { ...guests[0], ...OLD_FIELDS });
+    const p = await t.run(async (ctx) => (await ctx.db.query("players").collect())[0]);
+    expect(p).toMatchObject({ who: "", signature: "" });
+    expect(await t.run((ctx) => ctx.db.query("weapons").collect())).toEqual([]);
+  });
+
+  test("a typed 'aka' in the nickname is dropped (the roll call says a.k.a. itself)", async () => {
+    const { t } = await setup();
+    for (const [typed, kept] of [["Aka Long Johnson", "Long Johnson"], ["a.k.a. The Knife", "The Knife"], ["AKA Lucky", "Lucky"], ["Akash", "Akash"]]) {
+      const t2 = (await setup()).t;
+      const { token } = await t2.mutation(api.registration.register, { ...guests[0], nickname: typed });
+      expect((await t2.query(api.registration.me, { token }))?.nickname).toBe(kept);
+    }
+    expect(t).toBeTruthy();
   });
 
   test("registration closes at the deadline", async () => {
@@ -93,35 +117,13 @@ describe("registration", () => {
     expect(pub?.open).toBe(false);
   });
 
-  test("a guest can edit their entry, weapon included", async () => {
+  test("a guest can edit their entry", async () => {
     const { t } = await setup();
     const { token } = await t.mutation(api.registration.register, guests[0]);
-    await t.mutation(api.registration.update, { token, ...guests[0], weapon: "knife" });
+    await t.mutation(api.registration.update, { token, ...guests[0], nickname: "Two-Bits", lastName: "Rose" });
     const me = await t.query(api.registration.me, { token });
-    expect(me?.weapon).toBe("knife");
-    expect(me?.weaponName).toBe("Knife");
-  });
-
-  test("weapons come from the pool, one guest per weapon", async () => {
-    const { t } = await setup();
-    await expect(t.mutation(api.registration.register, { ...guests[0], weapon: "Rubber chicken" })).rejects.toThrow(/from the list/);
-    const { token } = await t.mutation(api.registration.register, guests[0]);
-    await expect(t.mutation(api.registration.register, { ...guests[1], weapon: "candlestick" })).rejects.toThrow(/Someone just took that weapon/);
-    const rack = (await t.query(api.registration.weapons, { slug: "test-unit" }))!;
-    expect(rack).toHaveLength(22);
-    expect(rack.filter((w) => w.taken).map((w) => w.key)).toEqual(["candlestick"]);
-    // A guest's own weapon isn't "taken" for them, and saving without changing it is fine.
-    const mine = (await t.query(api.registration.weapons, { token }))!;
-    expect(mine.some((w) => w.taken)).toBe(false);
-    await t.mutation(api.registration.update, { token, ...guests[0], who: "Changed." });
-    // Switching frees the old weapon for everyone else.
-    const { token: t2 } = await t.mutation(api.registration.register, guests[1]);
-    await expect(t.mutation(api.registration.update, { token: t2, ...guests[1], weapon: "candlestick" })).rejects.toThrow(/Someone just took/);
-    await t.mutation(api.registration.update, { token, ...guests[0], weapon: "wrench" });
-    await t.mutation(api.registration.update, { token: t2, ...guests[1], weapon: "candlestick" });
-    expect((await t.query(api.registration.me, { token: t2 }))?.weapon).toBe("candlestick");
-    const stored = await t.run((ctx) => ctx.db.query("weapons").collect());
-    expect(stored.map((w) => [w.key, w.name]).sort()).toEqual([["candlestick", "Candlestick"], ["wrench", "Wrench"]]);
+    expect(me?.nickname).toBe("Two-Bits");
+    expect(me?.charName).toContain("Rose");
   });
 
   test("when the opt-in is off, everyone is eligible", async () => {

@@ -296,7 +296,12 @@ const poolTag = (tone: Tone, kind: string) => `${tone === "sailor" && SAILOR_HEC
 
 /** Options a game picked at Start (Oct 16): the running gag only every third game on a laptop, and lines that laptop
  *  heard lately go last. Older games: a gag every game, nothing avoided. */
-export type HeckleOpts = { gag?: boolean; avoid?: string[] };
+export type HeckleOpts = {
+  gag?: boolean;
+  avoid?: string[];
+  /** Oct 16: guests no longer have a weapon of their own, so new games skip the lines that pair a guest with one. */
+  noWeapons?: boolean;
+};
 
 /**
  * A night's heckles, in order. The game's seed picks the running gag's guest, the order of the others and which
@@ -313,7 +318,7 @@ export function heckleLines(tone: Tone, seed: string, guests: HeckleGuest[], opt
   const others = !gagNight ? order : order.length > 1 ? order.slice(1) : order;
   // Each pool in this game's order, with the lines this laptop heard lately moved to the back.
   const deal = (kind: "bit" | "jab" | "aside") => {
-    const tagged = pools[kind].map((t, i) => ({ t, id: `${poolTag(tone, kind)}:${i}` }));
+    const tagged = pools[kind].map((t, i) => ({ t, id: `${poolTag(tone, kind)}:${i}` })).filter((x) => !(opts.noWeapons && x.t.includes("{weapon}")));
     const mixed = shuffled(tagged, `${seed}|${kind}`);
     return [...mixed.filter((x) => !avoid.has(x.id)), ...mixed.filter((x) => avoid.has(x.id))];
   };
@@ -354,16 +359,20 @@ export async function heckleWanted(ctx: QueryCtx, game: Doc<"games">): Promise<(
       .withIndex("by_game", (q) => q.eq("gameId", game._id))
       .collect()
   ).filter((p) => p.inGame);
-  const weapons = await ctx.db
-    .query("weapons")
-    .withIndex("by_game", (q) => q.eq("gameId", game._id))
-    .collect();
+  // Games from Oct 16 on draw their weapons (no guest has one); older games still joke about each guest's pick.
+  const noWeapons = !!game.weaponKeys?.length;
+  const weapons = noWeapons
+    ? []
+    : await ctx.db
+        .query("weapons")
+        .withIndex("by_game", (q) => q.eq("gameId", game._id))
+        .collect();
   const guests = players
     .sort((a, b) => a.createdAt - b.createdAt)
     .map((p) => ({ id: p._id as string, real: p.realName, weapon: weapons.find((w) => w.playerId === p._id)?.name ?? "", figure: p.figure ?? null }));
   const n = narratorOf(game);
   const tone = scriptOf(game);
-  return heckleLines(tone, game.slug, guests, { gag: game.lines?.gag, avoid: game.lines?.avoid }).map((line) => ({
+  return heckleLines(tone, game.slug, guests, { gag: game.lines?.gag, avoid: game.lines?.avoid, noWeapons }).map((line) => ({
     purpose: line.purpose,
     caption: plain(line.text),
     text: customRecordingText(sprinkle(line.text, tone, `${game.slug}|${line.purpose}`), n.unstable),

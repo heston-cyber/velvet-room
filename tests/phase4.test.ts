@@ -4,6 +4,7 @@ import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
 import { nextRound } from "./steps";
 import { RECOMMENDED, setupFor } from "../convex/engine/setup";
+import { recommendedWeapons, weaponKind } from "../convex/weapons";
 import type { Id } from "../convex/_generated/dataModel";
 
 const modules = import.meta.glob("../convex/**/*.ts");
@@ -208,15 +209,53 @@ describe("Phase 4: drawn body room, waves, Wi-Fi, the TV", () => {
     expect((await game(t)).status).toBe("playing");
   });
 
-  test("the recommended setups grow with the party", () => {
-    let last = { rooms: 0, markers: 0 };
+  test("the recommended setups grow with the party (weapons too: 6 like Clue, more for big parties)", () => {
+    let last = { rooms: 0, markers: 0, weapons: 0 };
     for (const r of RECOMMENDED) {
       expect(r.rooms).toBeGreaterThanOrEqual(last.rooms);
       expect(r.markers).toBeGreaterThanOrEqual(last.markers);
+      expect(r.weapons).toBeGreaterThanOrEqual(last.weapons);
       expect(r.markers).toBeLessThanOrEqual(36); // the printed sheet
-      expect(setupFor(r.guests[0])).toEqual({ rooms: r.rooms, markers: r.markers });
+      expect(setupFor(r.guests[0])).toEqual({ rooms: r.rooms, markers: r.markers, weapons: r.weapons });
       last = r;
     }
+    expect([5, 9, 10, 16, 17, 24].map(recommendedWeapons)).toEqual([6, 6, 8, 8, 10, 10]);
+  });
+
+  // Oct 16 (Heston: "We should get rid of players picking weapons at sign up"): the game draws the night's weapons.
+  test("weapons: drawn at Play for the sign-ups unless the host picked them; the host can draw, pick or clear them", async () => {
+    const { t, hostKey } = await setup({ guests: 4, start: false });
+    let g = await game(t);
+    expect(g.weaponKeys).toBeUndefined();
+    let roster = (await t.query(api.host.roster, { slug: SLUG, hostKey }))!;
+    expect(roster.game.weapons).toEqual([]);
+    expect(roster.weaponsRecommended).toBe(6);
+    expect(roster.weaponPool).toHaveLength(22);
+    // Draw a set, swap one, refuse junk, clear.
+    await t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, drawWeapons: 6 });
+    g = await game(t);
+    expect(g.weaponKeys).toHaveLength(6);
+    expect(new Set(g.weaponKeys!.map((k) => weaponKind(k))).size).toBeGreaterThanOrEqual(3);
+    await expect(t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, weapons: ["candlestick", "candlestick", "rope"] })).rejects.toThrow(/only once/);
+    await expect(t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, weapons: ["candlestick", "spatula"] })).rejects.toThrow(/from the list/);
+    await t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, weapons: ["candlestick", "rope", "revolver", "knife"] });
+    expect((await game(t)).weaponKeys).toEqual(["candlestick", "rope", "revolver", "knife"]);
+    await t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, weapons: [] });
+    expect((await game(t)).weaponKeys).toBeUndefined();
+    // Play draws them; Start plays exactly those, never tied to a guest.
+    await t.mutation(api.game.openDoors, { slug: SLUG, hostKey });
+    g = await game(t);
+    expect(g.weaponKeys).toHaveLength(6);
+    await t.mutation(api.game.startGame, { slug: SLUG, hostKey });
+    const tv = await t.query(api.game.tv, { slug: SLUG, tvKey: await tvKey(t) });
+    expect(tv.weapons.map((w) => w.key).sort()).toEqual([...g.weaponKeys!].sort());
+    expect(await t.run((ctx) => ctx.db.query("weapons").collect())).toEqual([]);
+  });
+
+  test("weapons: fewer than 3 picked can't start", async () => {
+    const { t, hostKey } = await setup({ guests: 4, start: false });
+    await t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, weapons: ["candlestick", "rope"] });
+    await expect(t.mutation(api.game.startGame, { slug: SLUG, hostKey })).rejects.toThrow(/at least 3 weapons/);
   });
 
   test("host controls: show all evidence, sound check, awards, end of the night", async () => {

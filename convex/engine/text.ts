@@ -84,7 +84,8 @@ export type Script = {
   roomClearHere: (label: string) => string;
   twistMoved: (bodyLabel: string) => string;
   twistStayed: (bodyLabel: string) => string;
-  herring: (say: Say, signature: string) => string;
+  /** Oct 16: points at a guest by name (signature items are gone). Always someone the evidence clears later. */
+  herring: (say: Say, name: string) => string;
   flavor: string[];
   /** Shown above a guest's private tip. */
   tipLabel: string;
@@ -153,18 +154,19 @@ export const CLASSIC: Script = {
   exhibitClear: (say, name, kind) =>
     kind === "gun"
       ? say("e1g", [
-          `The ${name} is still fully loaded, and it hasn't been fired tonight. Not the weapon.`,
+          `The ${name} is still fully loaded and hasn't been fired tonight. Not the weapon.`,
           `Not a whiff of powder on the ${name}. Nobody fired it tonight. Not the weapon.`,
         ])
-      : say("e1", [
-          `The ${name} sat in the coat check all night and nobody touched it. Not the weapon.`,
-          `The ${name} was locked in the Don's office safe all night, and only the Don knew the combination. Not the weapon.`,
-          `There's a perfect ring of dust around the ${name}. It hasn't moved all night. Not the weapon.`,
+      : // Weapon names can be plural ("the gloves", "the garden shears"): no "it" and no "was" after the name.
+        say("e1", [
+          `The ${name} sat in the coat check all night, and the coat-check girl never let anyone near. Not the weapon.`,
+          `The Don locked the ${name} in his office safe before the party, and only he knew the combination. Not the weapon.`,
+          `The dust around the ${name} hasn't been disturbed all night. Not the weapon.`,
         ]),
   exhibitPairClear: (say, a, b) =>
     say("e2", [
       `The ${a} and the ${b} were behind the bar under the bartender's nose all evening. Neither one was used.`,
-      `The ${a} and the ${b} were locked in the Don's office safe all night, and only the Don knew the combination. Neither is the weapon.`,
+      `The Don locked the ${a} and the ${b} in his office safe before the party, and only he knew the combination. Neither is the weapon.`,
     ]),
   roomClear: (say, label) =>
     say("r1", [
@@ -177,10 +179,10 @@ export const CLASSIC: Script = {
     `The twist: the Don wasn't killed in ${mid(body)} at all. Drag marks say someone moved him there after he was dead.`,
   twistStayed: (body) =>
     `The twist: there are no drag marks anywhere. The Don was killed right where he was found, in ${mid(body)}.`,
-  herring: (say, s) =>
+  herring: (say, n) =>
     say("h", [
-      `Found near the body: ${q(s)}. Whoever that belongs to has some explaining to do.`,
-      `A witness swears they saw ${q(s)} near the Don just before he died. Then again, it was dark.`,
+      `Found near the body: a matchbook with ${n}'s name scribbled inside. Could be nothing. Could be everything.`,
+      `A cigarette girl swears she saw ${n} slip out of the Don's office just before he died. Then again, it was dark.`,
     ]),
   flavor: [
     "An empty bottle of the Don's private gin. Somebody helped themselves. Nothing more.",
@@ -194,7 +196,7 @@ export const CLASSIC: Script = {
   motives: [
     "The Don owed you a small fortune and laughed when you asked for it.",
     "He caught you skimming from the till and promised you'd regret it.",
-    "He threatened to tell everyone what your {s} is really hiding.",
+    "He threatened to tell everyone what you're really hiding.",
     "He fired your sweetheart from the band last week, in front of everyone.",
     "You lost your car to him in a card game, and you're sure he cheated.",
     "He cut you out of a deal you'd spent a year setting up.",
@@ -209,7 +211,7 @@ export const CLASSIC: Script = {
   ],
   secrets: [
     "You've been passing notes to the Feds.",
-    "Your {s} is stolen, and its real owner is somewhere in this room.",
+    "Your best suit is stolen, and its real owner is somewhere in this room.",
     "You're flat broke. Every dollar you flash tonight is borrowed.",
     "You snuck somewhere off-limits earlier tonight looking for something. You didn't find it.",
     "You aren't who you say you are. Your real name is on a wanted poster in Cleveland.",
@@ -225,9 +227,8 @@ export const CLASSIC: Script = {
   ],
   killerLines: (f) => [
     `You did it. You killed Don Ray Sanders with the ${f.weapon.toLowerCase()} in ${mid(f.room)}.`,
-    f.ownWeapon
-      ? `The ${f.weapon.toLowerCase()} is the weapon you brought. If anyone works that out, you'll need a good story.`
-      : `The ${f.weapon.toLowerCase()} isn't the weapon you brought. That's lucky for you.`,
+    // Only older games had weapons that belonged to a guest.
+    ...(f.ownWeapon ? [`The ${f.weapon.toLowerCase()} is the weapon you brought. If anyone works that out, you'll need a good story.`] : []),
     ...(f.accompliceName ? [`Your accomplice is ${f.accompliceName}. They know what you did, and they'll lie to protect you.`] : []),
     "Over three rounds, the evidence will close in on you. Your job is to keep them guessing.",
     ...(f.herringName ? [`One clue points at ${f.herringName}. Lean on it.`] : []),

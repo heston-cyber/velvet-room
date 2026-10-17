@@ -12,7 +12,6 @@ import {
   required,
 } from "./lib";
 import { castMember, castName, castRealName, figureSets, isFigure, takenFigures } from "./figures";
-import { WEAPONS, isWeapon, takenWeapons, weaponName } from "./weapons";
 import { normalizeCode } from "./join";
 import { dealLetter } from "./game";
 
@@ -21,15 +20,17 @@ function walkInOk(game: Doc<"games">, roomCode: string | undefined) {
   return !!roomCode && game.status === "lobby" && !game.endedAt && !!game.roomCode && game.roomCode === normalizeCode(roomCode);
 }
 
+// Oct 16 (Heston): sign-up no longer asks who you are, for a signature item, a costume photo or a weapon. Older pages
+// may still send them; they're ignored (who and signature are stored empty).
 const profileArgs = {
   realName: v.string(),
   charName: v.string(),
-  who: v.string(),
-  signature: v.string(),
+  who: v.optional(v.string()),
+  signature: v.optional(v.string()),
   motive: v.optional(v.string()),
   secret: v.optional(v.string()),
-  weapon: v.string(), // a key from the weapon pool (convex/weapons.ts)
-  weaponDesc: v.optional(v.string()), // older pages still send a description; it's ignored
+  weapon: v.optional(v.string()),
+  weaponDesc: v.optional(v.string()),
   killerOk: v.boolean(),
   photoId: v.optional(v.id("_storage")),
   rumor: v.optional(v.string()),
@@ -42,11 +43,8 @@ const profileArgs = {
 type ProfileInput = {
   realName: string;
   charName: string;
-  who: string;
-  signature: string;
   motive?: string;
   secret?: string;
-  weapon: string;
   killerOk: boolean;
   rumor?: string;
   sayAs?: string;
@@ -61,7 +59,11 @@ function castProfile<T extends ProfileInput>(input: T, figure: string | undefine
   const m = castMember(figure);
   if (!m) return input;
   const bare = (x: string) => x.replace(/[“”"]/g, "").trim();
-  const own = { nickname: bare(clean(input.nickname, LIMITS.nickname)), lastName: bare(clean(input.lastName, LIMITS.lastName)) };
+  // The roll call adds "a.k.a." itself, so a typed "aka Long Johnson" keeps just "Long Johnson".
+  const nick = (x: string) => bare(x).replace(/^(a\.?\s*k\.?\s*a\.?|also known as)\s+/i, "").trim();
+  // Their own first name typed again in the last-name box ("Heston Hill") keeps just the last name.
+  const first = new RegExp(`^${m.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s+`, "i");
+  const own = { nickname: nick(clean(input.nickname, LIMITS.nickname)), lastName: bare(clean(input.lastName, LIMITS.lastName)).replace(first, "") };
   return { ...input, ...own, charName: castName(m, own), realName: castRealName(m, own), sayAs: m.sayAs ?? "" };
 }
 
@@ -69,8 +71,6 @@ function validateProfile(game: Doc<"games">, input: ProfileInput) {
   const out = {
     realName: required(input.realName, LIMITS.realName, "Your name"),
     charName: required(input.charName, LIMITS.charName, "Character name"),
-    who: required(input.who, LIMITS.who, "Who they are"),
-    signature: required(input.signature, LIMITS.signature, "Signature item or habit"),
     motive: clean(input.motive, LIMITS.motive),
     secret: clean(input.secret, LIMITS.secret),
     rumor: clean(input.rumor, LIMITS.rumor),
@@ -110,31 +110,6 @@ async function checkFigure(ctx: MutationCtx, game: Doc<"games">, figure: string 
   if ((await takenFigures(ctx, game._id, self)).has(figure)) throw new ConvexError("Someone just took that drawing. Pick another.");
   return figure;
 }
-
-/** The weapon a guest picked: one from the pool, and nobody else's in this game. */
-async function checkWeapon(ctx: MutationCtx, game: Doc<"games">, weapon: string | undefined, self?: Id<"players">) {
-  if (!weapon) throw new ConvexError("Pick your weapon.");
-  if (!isWeapon(weapon)) throw new ConvexError("Pick a weapon from the list.");
-  if ((await takenWeapons(ctx, game._id, self)).has(weapon)) throw new ConvexError("Someone just took that weapon. Pick another.");
-  return weapon;
-}
-
-/** The sign-up weapon rack: every weapon and whether another guest already has it. Nothing private. */
-export const weapons = query({
-  args: { slug: v.optional(v.string()), token: v.optional(v.string()) },
-  handler: async (ctx, { slug, token }) => {
-    const me = token
-      ? await ctx.db
-          .query("players")
-          .withIndex("by_token", (q) => q.eq("token", token))
-          .unique()
-      : null;
-    const game = me ? await ctx.db.get(me.gameId) : await gameBySlugOrActive(ctx, slug);
-    if (!game) return null;
-    const taken = await takenWeapons(ctx, game._id, me?._id);
-    return WEAPONS.map((w) => ({ key: w.key, name: w.name, taken: taken.has(w.key) }));
-  },
-});
 
 /** The sign-up gallery: every drawing and whether another guest already has it. Nothing private. */
 export const figures = query({
@@ -179,17 +154,6 @@ export const publicGame = query({
   },
 });
 
-export const generateUploadUrl = mutation({
-  args: { slug: v.optional(v.string()), roomCode: v.optional(v.string()) },
-  handler: async (ctx, { slug, roomCode }) => {
-    const game = await gameBySlugOrActive(ctx, slug);
-    if (!game || !(registrationIsOpen(game, Date.now()) || walkInOk(game, roomCode))) {
-      throw new ConvexError("Registration is closed.");
-    }
-    return await ctx.storage.generateUploadUrl();
-  },
-});
-
 export const register = mutation({
   args: { slug: v.optional(v.string()), roomCode: v.optional(v.string()), ...profileArgs },
   handler: async (ctx, args) => {
@@ -203,7 +167,6 @@ export const register = mutation({
     // The drawing first: in a cast game a taken face is also a taken name, and the drawing is what they tapped.
     const figure = await checkFigure(ctx, game, args.figure);
     await assertNameFree(ctx, game._id, p.charName);
-    const weapon = await checkWeapon(ctx, game, args.weapon);
 
     let token = randomCode(10);
     while (await ctx.db.query("players").withIndex("by_token", (q) => q.eq("token", token)).first()) {
@@ -216,9 +179,8 @@ export const register = mutation({
       realName: p.realName,
       charName: p.charName,
       charKey: charKeyOf(p.charName),
-      who: p.who,
-      signature: p.signature,
-      photoId: args.photoId,
+      who: "",
+      signature: "",
       motive: p.motive || undefined,
       secret: p.secret || undefined,
       rumor: p.rumor || undefined,
@@ -231,7 +193,6 @@ export const register = mutation({
       createdAt: now,
       updatedAt: now,
     });
-    await ctx.db.insert("weapons", { gameId: game._id, playerId, key: weapon, name: weaponName(weapon)!, description: "" });
     if (walkIn) {
       // A walk-in is in the room already: they're checked in, and the TV announces them like any join.
       await ctx.db.patch(playerId, { checkedIn: true, weaponIn: true, exhibitLetter: await dealLetter(ctx, game), claimedAt: now });
@@ -241,7 +202,7 @@ export const register = mutation({
   },
 });
 
-/** A guest's own profile, weapon included. Only reachable with their personal code. */
+/** A guest's own profile. Only reachable with their personal code. */
 export const me = query({
   args: { token: v.string() },
   handler: async (ctx, { token }) => {
@@ -253,10 +214,6 @@ export const me = query({
     if (!player) return null;
     const game = await ctx.db.get(player.gameId);
     if (!game) return null;
-    const weapon = await ctx.db
-      .query("weapons")
-      .withIndex("by_player", (q) => q.eq("playerId", player._id))
-      .unique();
     return {
       game: {
         slug: game.slug,
@@ -269,9 +226,6 @@ export const me = query({
       },
       realName: player.realName,
       charName: player.charName,
-      who: player.who,
-      signature: player.signature,
-      photoUrl: player.photoId ? await ctx.storage.getUrl(player.photoId) : null,
       motive: player.motive ?? "",
       secret: player.secret ?? "",
       rumor: player.rumor ?? "",
@@ -280,15 +234,12 @@ export const me = query({
       lastName: player.lastName ?? "",
       figure: player.figure ?? null,
       killerOk: player.killerOk,
-      // The pool key ("" for a guest who typed their own weapon before the pool, so they pick again).
-      weapon: weapon?.key ?? "",
-      weaponName: weapon?.name ?? "",
     };
   },
 });
 
 export const update = mutation({
-  args: { token: v.string(), ...profileArgs, removePhoto: v.optional(v.boolean()) },
+  args: { token: v.string(), ...profileArgs, removePhoto: v.optional(v.boolean()) }, // removePhoto: older pages
   handler: async (ctx, args) => {
     const player = await ctx.db
       .query("players")
@@ -309,29 +260,10 @@ export const update = mutation({
     // A different drawing has to be free; the same one stays theirs. Checked before the name (see register).
     const figure = args.figure && args.figure !== player.figure ? await checkFigure(ctx, game, args.figure, player._id) : undefined;
     await assertNameFree(ctx, game._id, p.charName, player._id);
-    const weapon = await ctx.db
-      .query("weapons")
-      .withIndex("by_player", (q) => q.eq("playerId", player._id))
-      .unique();
-    // A different weapon has to be free; the same one stays theirs.
-    const weaponKey = args.weapon === weapon?.key ? args.weapon : await checkWeapon(ctx, game, args.weapon, player._id);
-
-    let photoId = player.photoId;
-    if (args.photoId && args.photoId !== player.photoId) {
-      if (player.photoId) await ctx.storage.delete(player.photoId);
-      photoId = args.photoId;
-    } else if (args.removePhoto && player.photoId) {
-      await ctx.storage.delete(player.photoId);
-      photoId = undefined;
-    }
-
     await ctx.db.patch(player._id, {
       realName: p.realName,
       charName: p.charName,
       charKey: charKeyOf(p.charName),
-      who: p.who,
-      signature: p.signature,
-      photoId,
       motive: p.motive || undefined,
       secret: p.secret || undefined,
       // Older pages don't send these: leave what's there.
@@ -343,9 +275,6 @@ export const update = mutation({
       killerOk: p.killerOk,
       updatedAt: Date.now(),
     });
-    const row = { key: weaponKey, name: weaponName(weaponKey)!, description: "" };
-    if (weapon) await ctx.db.patch(weapon._id, row);
-    else await ctx.db.insert("weapons", { gameId: game._id, playerId: player._id, ...row });
     return { ok: true };
   },
 });

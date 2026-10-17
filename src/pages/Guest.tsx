@@ -5,7 +5,7 @@ import ProfileForm from "../components/ProfileForm";
 import MemberCard, { Deco } from "../components/MemberCard";
 import Shell, { Loading } from "../components/Shell";
 import { saveToken } from "../lib/storage";
-import { avatarSrc, figureUrl } from "../lib/figure";
+import { figureUrl } from "../lib/figure";
 import PartyPhone from "../party/PartyPhone";
 
 export default function Guest({ token }: { token: string }) {
@@ -43,11 +43,8 @@ export default function Guest({ token }: { token: string }) {
           initial={{
             realName: me.realName,
             charName: me.charName,
-            who: me.who,
-            signature: me.signature,
             motive: me.motive,
             secret: me.secret,
-            weapon: me.weapon,
             killerOk: me.killerOk,
             rumor: me.rumor,
             sayAs: me.sayAs,
@@ -55,7 +52,6 @@ export default function Guest({ token }: { token: string }) {
             lastName: me.lastName,
             figure: me.figure ?? "",
           }}
-          initialPhotoUrl={me.photoUrl}
           onDone={() => setEditing(false)}
           onCancel={() => setEditing(false)}
         />
@@ -92,13 +88,7 @@ export default function Guest({ token }: { token: string }) {
         {me.game.isTest && <div className="testflag">Test game · not the real party</div>}
         <span className="eyebrow">You're on the list</span>
         <h1 className="title-lg">See you inside, {first}.</h1>
-        <MemberCard
-          charName={me.charName}
-          who={me.who}
-          signature={me.signature}
-          photoUrl={avatarSrc(me.photoUrl, me.figure)}
-          weapon={me.weapon ? { key: me.weapon, name: me.weaponName } : null}
-        />
+        <MemberCard charName={me.charName} figure={me.figure} />
         {me.figure && (
           <figure className="my-figure">
             <img src={figureUrl(me.figure)} alt="Your character drawing" />

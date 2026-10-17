@@ -127,7 +127,7 @@ function RollRow({ g }: { g: Row; slug: string; hostKey: string; locked: boolean
       <div className="card-ph sm">{g.photoUrl ? <img src={g.photoUrl} alt="" /> : initials(g.charName)}</div>
       <div className="main">
         <div className="nm">
-          {g.charName} <span className="sub">{g.weapon ? `· ${g.weapon}` : ""}</span>
+          {g.charName}
         </div>
         <span className="help">“{g.line}”</span>
         <div className="meta">

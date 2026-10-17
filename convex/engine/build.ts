@@ -451,9 +451,9 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution): CaseFile {
     const i = freeMarkers.findIndex((m) => roundOf(m) < clearRound);
     if (i >= 0) {
       const m = freeMarkers.splice(i, 1)[0];
-      placed.push({ id: id(), kind: "herring", text: S.herring(say, h.signature), elim: NONE, round: roundOf(m), channel: "marker", markerNumber: m.number, pointsAt: h.id });
+      placed.push({ id: id(), kind: "herring", text: S.herring(say, h.name), elim: NONE, round: roundOf(m), channel: "marker", markerNumber: m.number, pointsAt: h.id });
     } else if (clearRound === 3) {
-      placed.push({ id: id(), kind: "herring", text: S.herring(say, h.signature), elim: NONE, round: 2, channel: "tv", pointsAt: h.id });
+      placed.push({ id: id(), kind: "herring", text: S.herring(say, h.name), elim: NONE, round: 2, channel: "tv", pointsAt: h.id });
     }
   }
   const flavor = shuffle(rng, S.flavor);

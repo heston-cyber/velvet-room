@@ -155,7 +155,7 @@ describe("the accomplice is off", () => {
 
   test("8 guests with the old setting on: one killer, no accomplice anywhere (phones, TV, How to play, the reveal, the host)", async () => {
     const { t, hostKey, tvKey, started, roles } = await setup(8);
-    expect(started).toEqual({ suspects: 8, exhibits: 8, markers: 8 });
+    expect(started).toEqual({ suspects: 8, exhibits: 6, markers: 8 });
     const counts = [...roles.values()].reduce<Record<string, number>>((m, r) => ({ ...m, [r]: (m[r] ?? 0) + 1 }), {});
     expect(counts).toEqual({ killer: 1, innocent: 7 });
     const g = await t.run(async (ctx) => (await ctx.db.query("games").first())!);

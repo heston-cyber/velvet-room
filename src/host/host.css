@@ -110,3 +110,12 @@
 .hx-rollcall .st.failed { color: var(--blood); }
 .hx-rollcall .st.pending { color: var(--brass); }
 .linkish { background: none; border: 0; padding: 0; color: var(--brass); font-family: var(--label); font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+
+/* Oct 16: the night's weapons, picked in Options (or drawn by the game at Play). */
+.hx-weapons { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
+.hx-weapons button { display: grid; justify-items: center; gap: 2px; padding: 6px 4px 5px; border: 1px solid var(--rule); background: var(--felt); color: var(--muted); border-radius: 8px; cursor: pointer;
+  font-family: var(--label); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; line-height: 1.15; text-align: center; }
+.hx-weapons button img { width: 52px; height: 52px; object-fit: contain; opacity: .45; filter: grayscale(.6); }
+.hx-weapons button.on { border: 2px solid var(--brass); color: var(--paper); }
+.hx-weapons button.on img { opacity: 1; filter: none; }
+.hx-weapons button:disabled { cursor: default; }

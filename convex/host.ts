@@ -6,6 +6,8 @@ import { ACCOMPLICE_ON, MAX_ROOMS, MIN_ROOMS, openRoomsIn } from "./engine/build
 import { randomCode, registrationIsOpen, requireHost } from "./lib";
 import { ensureAllCards } from "./cards";
 import { MAX_CARDS } from "./shared";
+import { WEAPONS, checkWeaponKeys, drawWeapons, recommendedWeapons } from "./weapons";
+import { secure } from "./engine/rng";
 import { levelsOf, narratorOf, scriptOf } from "./voiceLines";
 import { heckleWanted } from "./heckles";
 
@@ -82,6 +84,8 @@ export const roster = query({
         hasAccomplice: started(game) ? !!game.hasAccomplice : null,
         lookalikes: !!game.lookalikes,
         rooms: game.rooms,
+        // The night's weapons (Oct 16: drawn by the game). Empty: drawn at Play, as many as recommendedWeapons says.
+        weapons: game.weaponKeys ?? [],
         pacing: game.pacing,
         tone: game.tone ?? "classic",
         search: game.search ?? "all",
@@ -113,6 +117,9 @@ export const roster = query({
         openRooms: started(game) && game.roomOrder ? openRoomsIn(round, game.roomOrder, game.search).map(label) : [],
       },
       players: rows,
+      // Every weapon the game can draw (for the Options picker), and how many the ledger recommends for the sign-ups.
+      weaponPool: WEAPONS.map((w) => ({ key: w.key, name: w.name, kind: w.kind })),
+      weaponsRecommended: recommendedWeapons(players.length),
       markers: markers.sort((a, b) => a.number - b.number).map((m) => ({ number: m.number, roomKey: m.roomKey })),
       counts: {
         total: players.length,
@@ -141,6 +148,9 @@ export const updateSettings = mutation({
     registrationClosesAt: v.optional(v.number()),
     deadlineLabel: v.optional(v.string()),
     rooms: v.optional(v.array(roomV)),
+    // The night's weapons: keys from the pool; [] clears them (the game draws them at Play); drawWeapons draws n now.
+    weapons: v.optional(v.array(v.string())),
+    drawWeapons: v.optional(v.number()),
     pacing: v.optional(
       v.object({
         mode: v.union(v.literal("ready"), v.literal("timer")),
@@ -178,6 +188,14 @@ export const updateSettings = mutation({
         .collect();
       for (const m of markers) if (m.roomKey && !keys.has(m.roomKey)) await ctx.db.patch(m._id, { roomKey: "" });
     }
+    if (patch.weapons) {
+      if (patch.weapons.length) {
+        const bad = checkWeaponKeys(patch.weapons);
+        if (bad) throw new ConvexError(bad);
+      }
+      update.weaponKeys = patch.weapons.length ? patch.weapons : undefined;
+    }
+    if (patch.drawWeapons !== undefined) update.weaponKeys = drawWeapons(patch.drawWeapons, secure());
     if (patch.pacing) {
       if (patch.pacing.roundMinutes < 3 || patch.pacing.roundMinutes > 60) throw new ConvexError("Round length must be between 3 and 60 minutes.");
       update.pacing = { mode: patch.pacing.mode, roundMinutes: Math.round(patch.pacing.roundMinutes) };

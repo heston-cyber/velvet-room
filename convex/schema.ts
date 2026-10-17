@@ -36,6 +36,9 @@ export default defineSchema({
     // The order rooms open in when searching in waves. Drawn at Start, independent of the answer.
     roomOrder: v.optional(v.array(v.string())),
     search: v.optional(v.union(v.literal("all"), v.literal("waves"))),
+    // The night's weapons (Oct 16: the game draws them; guests no longer pick one). Keys from convex/weapons.ts, set
+    // by the host in Options or drawn at Play. Games without it (started earlier) play their guests' picks.
+    weaponKeys: v.optional(v.array(v.string())),
     // deprecated: Self MC was removed in v2; old documents may still carry it. The server ignores both fields
     // (every game is "everyone plays") and never writes them.
     mode: v.optional(v.union(v.literal("play"), v.literal("mc"))),

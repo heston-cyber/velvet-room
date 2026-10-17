@@ -20,7 +20,7 @@ import { customCounts, pickLines, type CueKey } from "./narration";
 import { scheduleRecording } from "./voice";
 import { ensureRoomCode } from "./join";
 import { castMember, castName, fakeGuestPool, shortName, standIns, takenFigures } from "./figures";
-import { anyFreeWeapon, takenWeapons, weaponKind, weaponName } from "./weapons";
+import { MIN_WEAPONS, drawWeapons, gameWeapons, recommendedWeapons } from "./weapons";
 import { clipMatches, levelsOf, narratorOf, scriptOf, startWanted, variantOf, voiceOf, type GameLines, type Wanted } from "./voiceLines";
 
 // ---------- shared helpers ----------
@@ -52,32 +52,16 @@ async function caseInput(ctx: QueryCtx, game: Doc<"games">): Promise<CaseInput> 
   const before = game.status === "registration" || game.status === "lobby";
   // Before the draw: everyone checked in. After: exactly who was in the draw.
   const players = (await playersOf(ctx, game._id)).filter((p) => (before ? p.checkedIn : p.inGame));
-  const weapons = await ctx.db
-    .query("weapons")
-    .withIndex("by_game", (q) => q.eq("gameId", game._id))
-    .collect();
+  const weapons = await gameWeapons(ctx, game);
   const markers = await ctx.db
     .query("markers")
     .withIndex("by_game", (q) => q.eq("gameId", game._id))
     .collect();
-  const byId = new Map(players.map((p) => [p._id, p]));
   return {
     // The evidence names guests by first name (shortName): clues stay short enough to read on the TV.
     suspects: players.map((p) => ({ id: p._id, name: shortName(p), signature: p.signature, who: p.who, killerOk: p.killerOk, sex: castMember(p.figure)?.sex })),
-    exhibits: weapons
-      .filter((w) => {
-        const p = byId.get(w.playerId);
-        return p && p.weaponIn && p.exhibitLetter;
-      })
-      .map((w) => ({
-        id: w._id,
-        letter: byId.get(w.playerId)!.exhibitLetter!,
-        name: w.name,
-        description: w.description,
-        ownerId: w.playerId,
-        kind: weaponKind(w.key),
-      }))
-      .sort((a, b) => a.letter.localeCompare(b.letter)),
+    // Oct 16: the night's weapons, drawn by the game (never tied to a guest).
+    exhibits: weapons.map((w) => ({ id: w.id, letter: w.letter, name: w.name, description: "", kind: w.kind })),
     rooms: game.rooms.map((r) => ({ key: r.key, label: r.label })),
     // Drawn at Start; afterwards it's on the game for everyone to see.
     bodyRoomKey: before ? undefined : game.bodyRoomKey,
@@ -285,13 +269,17 @@ async function myBallot(ctx: QueryCtx, game: Doc<"games">, playerId: Id<"players
   return { canVote: vt.voters.includes(playerId), voted: !!mine, targetId: mine?.targetId ?? null };
 }
 
-/** Each weapon row's pool key (for the art), by its id. */
+/** Each weapon's pool key (for the art), by its id. */
 async function weaponKeys(ctx: QueryCtx, game: Doc<"games">) {
-  const rows = await ctx.db
-    .query("weapons")
-    .withIndex("by_game", (q) => q.eq("gameId", game._id))
-    .collect();
-  return new Map(rows.map((w) => [w._id as string, w.key ?? null]));
+  return new Map((await gameWeapons(ctx, game)).map((w) => [w.id, w.key]));
+}
+
+/** Oct 16: the game draws the night's weapons unless the host picked them in Options (at Play, else at Start). */
+async function ensureWeapons(ctx: MutationCtx, game: Doc<"games">, guests: number): Promise<Doc<"games">> {
+  if (game.weaponKeys?.length) return game;
+  const weaponKeys = drawWeapons(recommendedWeapons(guests), secure());
+  await ctx.db.patch(game._id, { weaponKeys });
+  return { ...game, weaponKeys };
 }
 
 /** Who voted for whom, once a vote has closed (the TV and the phones show it). */
@@ -787,7 +775,9 @@ export const openDoors = mutation({
       .query("markers")
       .withIndex("by_game", (q) => q.eq("gameId", game._id))
       .first();
-    if (!hasCards) await writeMarkers(ctx, game, cardPlan((await playersOf(ctx, game._id)).length, game.rooms));
+    const signedUp = (await playersOf(ctx, game._id)).length;
+    if (!hasCards) await writeMarkers(ctx, game, cardPlan(signedUp, game.rooms));
+    await ensureWeapons(ctx, game, signedUp);
     await ctx.db.patch(game._id, { status: "lobby", doorsAt: Date.now() });
     await ensureRoomCode(ctx, game);
     return { ok: true };
@@ -811,8 +801,11 @@ function linesFor(game: Doc<"games">, heard: { lines: Record<string, number[]>; 
 export const startGame = mutation({
   args: { slug: v.string(), hostKey: v.string(), heard: heardArg, gag: v.optional(v.boolean()) },
   handler: async (ctx, { slug, hostKey, heard, gag }) => {
-    const game = await requireHost(ctx, slug, hostKey);
-    if (game.status !== "registration" && game.status !== "lobby") throw new ConvexError("This game has already started.");
+    const host = await requireHost(ctx, slug, hostKey);
+    if (host.status !== "registration" && host.status !== "lobby") throw new ConvexError("This game has already started.");
+    // Started straight from sign-ups: the weapons are drawn now, for who's checked in.
+    const game = await ensureWeapons(ctx, host, (await playersOf(ctx, host._id)).filter((p) => p.checkedIn).length);
+    if ((game.weaponKeys?.length ?? 0) < MIN_WEAPONS) throw new ConvexError(`Pick at least ${MIN_WEAPONS} weapons in Options, or clear them and the game draws its own.`);
     const input = await caseInput(ctx, game);
     const problems = checkInput(input);
     if (problems.length) throw new ConvexError(problems.join(" "));
@@ -1161,7 +1154,6 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
         cast: g.cast,
         photoUrl: g.player.photoId ? await ctx.storage.getUrl(g.player.photoId) : null,
         figure: g.player.figure ?? null,
-        weapon: g.weapon,
         line: g.wanted.caption,
         clip: await clip(g.wanted),
       })),
@@ -1230,15 +1222,10 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
   return { voice: voiceOf(n), rollCall, body: await get("body"), rooms, reveal, winners, heckles, verdict };
 }
 
-/** The weapons the guests in the game picked (v2), by name. */
-async function weaponsInPlay(ctx: QueryCtx, game: Doc<"games">, players: Doc<"players">[]) {
-  const ids = new Set(players.map((p) => p._id as string));
-  const rows = await ctx.db
-    .query("weapons")
-    .withIndex("by_game", (q) => q.eq("gameId", game._id))
-    .collect();
-  return rows
-    .filter((w) => w.key && ids.has(w.playerId))
+/** The night's weapons, by name (never by who brought them). */
+async function weaponsInPlay(ctx: QueryCtx, game: Doc<"games">) {
+  return (await gameWeapons(ctx, game))
+    .filter((w) => w.key)
     .map((w) => ({ key: w.key!, name: w.name }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -1380,8 +1367,8 @@ export const tv = query({
       },
       vote: started ? await publicVote(ctx, game, all) : null,
       exhibits: input ? input.exhibits.map((e) => e.letter) : [],
-      // v2: the weapons in play are public, like Clue. Picked at sign-up, one per guest.
-      weapons: started ? await weaponsInPlay(ctx, game, shown) : [],
+      // The weapons in play are public, like Clue (drawn by the game since Oct 16).
+      weapons: started ? await weaponsInPlay(ctx, game) : [],
       evidence: cf
         ? cf.clues
             .filter((c) => c.channel === "tv" && c.round <= Math.min(round, 3))
@@ -1487,17 +1474,14 @@ export const seedFakeCast = internalMutation({
         charName: name,
         charKey: charKeyOf(name),
         ...own,
-        who: g.who,
-        signature: g.signature,
-        rumor: g.rumor,
+        // Oct 16: sign-up no longer asks who you are or for a signature item, so test guests don't have them either.
+        who: "",
+        signature: "",
         killerOk: rng() < 0.8,
         checkedIn: false,
         createdAt: now,
         updatedAt: now,
       });
-      // Test guests pick from the weapon pool like everyone else (one guest per weapon).
-      const weapon = anyFreeWeapon(await takenWeapons(ctx, game._id), rng);
-      await ctx.db.insert("weapons", { gameId: game._id, playerId, key: weapon, name: weaponName(weapon)!, description: "" });
     }
     const players = await playersOf(ctx, game._id);
     if (checkIn !== false) {

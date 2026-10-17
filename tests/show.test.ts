@@ -65,12 +65,12 @@ describe("the show (Oct 16): Start → How to play → the Don dies → roll cal
     expect(rc.slots).toHaveLength(players.length);
     expect(rc.frozen).toBe(false);
     for (const it of rc.items) {
-      expect(it.weapon?.key).toBeTruthy();
+      expect(it).not.toHaveProperty("weapon");
       expect(it.cast).toBeTruthy();
       expect(it.line).toContain(it.cast!.real);
       expect(it.line).not.toMatch(/Weapon|motive|Signature|played by/i);
     }
-    expect(tv.weapons.length).toBe(players.length);
+    expect(tv.weapons.length).toBe(6); // drawn by the game (Oct 16), not one per guest
   });
 
   test("the roll call's turns are fixed when it begins; the roles reach the phones at check your phones", async () => {

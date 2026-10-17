@@ -160,8 +160,8 @@ describe("walk-ins (v2): new guests sign up at the door with the room code", () 
   });
   async function freePicks(t: Awaited<ReturnType<typeof setup>>["t"]) {
     const face = (await t.query(api.registration.figures, { slug: SLUG }))!.flatMap((s) => s.figures).find((f) => !f.taken)!;
-    const weapon = (await t.query(api.registration.weapons, { slug: SLUG }))!.find((w) => !w.taken)!.key;
-    return { figs: face.key, name: face.castName, weapon };
+    // Oct 16: no weapon at sign-up any more; older pages still send one, and it's ignored.
+    return { figs: face.key, name: face.castName, weapon: "candlestick" };
   }
 
   test("with tonight's code a walk-in signs up after the deadline, is checked in, and the TV announces them", async () => {

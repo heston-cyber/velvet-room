@@ -11,6 +11,7 @@ import { clipMatches, narratorOf, scriptOf, secondsOfMp3, startWanted, voiceOf, 
 import { caseFor } from "./caseFile";
 import { inOrder, rollGuests } from "./rollCall";
 import { heckleWanted } from "./heckles";
+import { gameWeapons } from "./weapons";
 
 const CLAIM_MS = 90_000; // a pending recording older than this is treated as stuck
 
@@ -41,17 +42,7 @@ async function wantedFor(ctx: QueryCtx, game: Doc<"games">, scope: "roll" | "sta
     return inOrder(await rollGuests(ctx, game, await caseFor(ctx, game)), game.show.order).map(({ wanted: w }) => ({ purpose: w.purpose, caption: w.caption, text: w.text, voice: w.voice }));
   }
   const inGame = players.filter((p) => p.inGame);
-  const byId = new Map(players.map((p) => [p._id as string, p]));
-  const weapons = await ctx.db
-    .query("weapons")
-    .withIndex("by_game", (q) => q.eq("gameId", game._id))
-    .collect();
-  const exhibits = weapons
-    .filter((w) => {
-      const p = byId.get(w.playerId);
-      return p?.inGame && p.weaponIn && p.exhibitLetter;
-    })
-    .map((w) => ({ id: w._id as string, letter: byId.get(w.playerId)!.exhibitLetter!, name: w.name }));
+  const exhibits = (await gameWeapons(ctx, game)).map((w) => ({ id: w.id, letter: w.letter, name: w.name }));
   const lines = startWanted(scriptOf(game), narratorOf(game), {
     players: inGame.map((p) => ({ id: p._id, charName: p.charName, sayAs: p.sayAs })),
     exhibits,
@@ -223,7 +214,6 @@ export const rollCallSheet = query({
           photoUrl: p.photoId ? await ctx.storage.getUrl(p.photoId) : null,
           figure: p.figure ?? null,
           checkedIn: p.checkedIn,
-          weapon: g.weapon?.name ?? "",
           line: g.wanted.caption,
           voice: !started ? "later" : ok ? "ready" : row && row.text === w.text && row.voice === w.voice ? row.status : "none",
           error: row && !ok && row.status === "failed" ? row.error ?? "" : "",

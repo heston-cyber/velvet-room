@@ -9,6 +9,8 @@ import { friendlyError } from "../lib/errors";
 import { Swap } from "../lib/Swap";
 import { TZ, initials, useConfirm, type Roster } from "./common";
 import { downloadCardsPdf } from "./printCards";
+import { weaponUrl } from "../lib/weapon";
+import { faceUrl } from "../lib/figure";
 import { NarratorSection, RollCallSection } from "./Voice";
 
 export type SettingsPatch = Omit<FunctionArgs<typeof api.host.updateSettings>, "slug" | "hostKey">;
@@ -129,6 +131,7 @@ export default function Menu(props: { data: Roster; slug: string; hostKey: strin
       <div className="hx-col">
         <Rooms game={game} markers={data.markers} locked={locked} save={save} />
         <Markers data={data} slug={slug} hostKey={hostKey} locked={locked} onError={onError} />
+        <Weapons data={data} locked={locked} save={save} />
 
         <Sec title="Sound">
           <div className="row">
@@ -428,6 +431,46 @@ function Markers({ data, slug, hostKey, locked, onError }: { data: Roster; slug:
 }
 
 /**
+ * The night's weapons (Oct 16, Heston: "We should get rid of players picking weapons at sign up"): the game draws
+ * them at Play unless the host picks them here. Tap a weapon to add or drop it; draw a set to start from.
+ */
+function Weapons({ data, locked, save }: { data: Roster; locked: boolean; save: (p: SettingsPatch) => Promise<void> }) {
+  const picked = data.game.weapons;
+  const rec = data.weaponsRecommended;
+  const toggle = (k: string) => void save({ weapons: picked.includes(k) ? picked.filter((x) => x !== k) : [...picked, k] });
+  return (
+    <Sec title={<>Weapons · {picked.length ? picked.length : `${rec}, drawn at Play`}</>}>
+      <div className="hx-weapons" role="group" aria-label="Weapons in play">
+        {data.weaponPool.map((w) => (
+          <button key={w.key} type="button" className={picked.includes(w.key) ? "on" : ""} aria-pressed={picked.includes(w.key)} disabled={locked} onClick={() => toggle(w.key)}>
+            <img src={weaponUrl(w.key)} alt="" />
+            <span>{w.name}</span>
+          </button>
+        ))}
+      </div>
+      <div className="row">
+        <button type="button" className="btn" disabled={locked} onClick={() => void save({ drawWeapons: rec })}>
+          {picked.length ? `Draw a new ${rec}` : `Draw ${rec} now`}
+        </button>
+        {picked.length > 0 && (
+          <button type="button" className="btn" disabled={locked} onClick={() => void save({ weapons: [] })}>
+            Clear (the game draws them at Play)
+          </button>
+        )}
+      </div>
+      <span className={`hx-status ${picked.length && picked.length < 3 ? "warn" : ""}`}>
+        {picked.length === 0
+          ? `None picked: the game draws ${rec} when you press Play.`
+          : picked.length < 3
+            ? `${picked.length} picked. Pick at least 3.`
+            : `${picked.length} weapons in play.`}
+      </span>
+      <span className="help">Everyone sees the weapons in play. They belong to nobody, so no guest is tied to one.</span>
+    </Sec>
+  );
+}
+
+/**
  * Recommended setups (Oct 16, Heston: "put a small ledger for recommended setups for different arrangements of rooms
  * to evidence ratio for playability and difficulty"). From the simulations: how hard the case is barely moves with
  * rooms or cards; rooms change how many are still possible going into Round 3, and cards how many searches come up
@@ -445,6 +488,7 @@ function Ledger({ guests, rooms, cards }: { guests: number; rooms: number; cards
             <th>Rooms</th>
             <th>Cards</th>
             <th>Per room</th>
+            <th>Weapons</th>
           </tr>
         </thead>
         <tbody>
@@ -456,6 +500,7 @@ function Ledger({ guests, rooms, cards }: { guests: number; rooms: number; cards
               <td>{r.rooms}</td>
               <td>{r.markers}</td>
               <td>{Math.round((r.markers / r.rooms) * 10) / 10}</td>
+              <td>{r.weapons}</td>
             </tr>
           ))}
         </tbody>
@@ -515,13 +560,12 @@ function Guests({ data, slug, hostKey, locked, onError }: { data: Roster; slug: 
         <ul className="hx-roster">
           {data.players.map((p) => (
             <li key={p.id}>
-              <div className="card-ph sm">{p.photoUrl ? <img src={p.photoUrl} alt="" /> : initials(p.charName)}</div>
+              <div className="card-ph sm">{p.figure ? <img src={faceUrl(p.figure)} alt="" /> : initials(p.charName)}</div>
               <div className="main">
                 <div className="nm">{p.charName}</div>
                 <div className="sub">
                   {p.realName} · signed up {when(p.registeredAt)}
                 </div>
-                <div className="sig">Signature: {p.signature}</div>
               </div>
               <button type="button" className={armed === p.id ? "copy danger" : "copy"} disabled={locked} onClick={() => remove(p.id)}>
                 <Swap show={armed === p.id ? 1 : 0}>
