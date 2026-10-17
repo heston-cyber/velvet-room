@@ -5,7 +5,7 @@ import type { QueryCtx } from "./_generated/server";
 import { ACCOMPLICE_ON, MAX_ROOMS, MIN_ROOMS, openRoomsIn } from "./engine/build";
 import { randomCode, registrationIsOpen, requireHost } from "./lib";
 import { ensureAllCards } from "./cards";
-import { MAX_CARDS } from "./shared";
+import { MAX_CARDS, hasJailVote } from "./shared";
 import { WEAPONS, checkWeaponKeys, drawWeapons, recommendedWeapons } from "./weapons";
 import { secure } from "./engine/rng";
 import { levelsOf, narratorOf, scriptOf } from "./voiceLines";
@@ -78,6 +78,8 @@ export const roster = query({
         deadlineLabel: game.deadlineLabel,
         motiveMode: game.motiveMode,
         killerOptIn: game.killerOptIn,
+        // Oct 17 (D5): no jail vote with fewer than 5 guests in the game (before Start: the ones checked in).
+        jailVote: hasJailVote(started(game) ? rows.filter((p) => p.inGame).length : rows.filter((p) => p.checkedIn).length),
         // v2: a killer and an accomplice (7+ players). hasAccomplice: what Start decided (null before Start).
         // Oct 16: the role is off (ACCOMPLICE_ON), so this reads false whatever was saved.
         accomplice: ACCOMPLICE_ON && !!game.accomplice,
@@ -124,6 +126,8 @@ export const roster = query({
       counts: {
         total: players.length,
         optedIn: players.filter((p) => p.killerOk).length,
+        // Oct 17 (D8): checked-in guests who can be drawn as the killer (everyone who didn't opt out). A count, no names.
+        killerPool: players.filter((p) => p.checkedIn && p.killerOk).length,
         checkedIn: rows.filter((p) => p.checkedIn).length,
         weaponsIn: rows.filter((p) => p.checkedIn && p.weaponIn).length,
         inGame: playing.length,
@@ -220,7 +224,9 @@ export const updateSettings = mutation({
     if (patch.tone === "classic" && !patch.narrator && game.narrator?.sailor) update.narrator = { ...game.narrator, sailor: false };
     // The accomplice setting is ignored while the role is off (ACCOMPLICE_ON).
     if (ACCOMPLICE_ON && patch.accomplice !== undefined) update.accomplice = patch.accomplice;
-    for (const key of ["motiveMode", "killerOptIn", "lookalikes", "registrationOpen", "registrationClosesAt", "deadlineLabel", "tone", "search"] as const) {
+    // Oct 17: guests no longer write their own motives (D9) and the killer opt-out is always on (D8), so older pages'
+    // motiveMode and killerOptIn are ignored.
+    for (const key of ["lookalikes", "registrationOpen", "registrationClosesAt", "deadlineLabel", "tone", "search"] as const) {
       if (patch[key] !== undefined) (update as Record<string, unknown>)[key] = patch[key];
     }
     await ctx.db.patch(game._id, update);

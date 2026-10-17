@@ -246,6 +246,13 @@ export const CUES = {
     adult: "Not enough votes. The jailbirds stay put. Rot well.",
     wild: ["[cackling]", ""],
   },
+  // Oct 17 (D10): the evidence already cleared the guest in jail, so there's no release vote. Their name follows.
+  releaseCleared: {
+    when: "End of Round 3: the evidence has cleared the guest in jail, no vote",
+    classic: "No vote needed. The evidence says our jailbird didn't do it.",
+    adult: "No vote needed. The evidence says the jailbird's innocent. Of this, anyway.",
+    wild: ["[jangling keys, disappointed]", ""],
+  },
   // ---- roll call (before the murder) ----
   rollCallOpen: {
     when: "Roll call begins",
@@ -409,6 +416,19 @@ export const CUES = {
     adult: "And Best Liar, who could sell the Brooklyn Bridge to Brooklyn, goes to…",
     wild: ["[whispers, scandalized]", ""],
   },
+  // Oct 17 (D11, D6): the innocent everyone blamed, and the killer who walked. Only played when someone won them.
+  awardPrimeSuspect: {
+    when: "Before the Prime Suspect name (the innocent blamed most)",
+    classic: "Prime Suspect, the innocent you all wanted to hang, goes to…",
+    adult: "Prime Suspect. Innocent, and you all wanted them strung up anyway. It goes to…",
+    wild: ["[gasping, delighted]", ""],
+  },
+  awardGotAway: {
+    when: "Before the killer's name, when the killer got away with it",
+    classic: "And for getting away with murder, under all your noses…",
+    adult: "And for getting away with murder while you saps watched…",
+    wild: ["[slow, menacing applause]", ""],
+  },
   goodnight: {
     when: "Night over",
     classic: "The Velvet Room is closed for the night. Settle your debts in chips.",
@@ -495,6 +515,10 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
   releaseNobody: [
     "Release denied. Somebody bring them a sandwich. A crap one.",
     "Nobody gets out. Shit happens, and tonight it happened to them.",
+  ],
+  releaseCleared: [
+    "No vote needed. The evidence says our jailbird is clean. Applesauce, but fine.",
+    "Put the ballots away. The evidence cleared the jailbird, so open the damn cell.",
   ],
   howTo4: [
     "Then search the house. Evidence markers are hidden in every room on the map. Feel around under things. Nobody here is a stranger to feeling around under things. Scan every one you find.",
@@ -656,6 +680,15 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
     "And Best Liar, who fed you crap all night with a smile, goes to…",
     "And Best Liar, who'll deny winning this, goes to…",
   ],
+  // Oct 17 drafts (in the script doc for Heston's OK).
+  awardPrimeSuspect: [
+    "Prime Suspect. Innocent as a newborn, and you saps wanted them hanged. It goes to…",
+    "Prime Suspect, for the most fingers pointed at the wrong damn person, goes to…",
+  ],
+  awardGotAway: [
+    "And for getting away with murder, while you chumps argued about the rug…",
+    "And the one who looked you in the eye and said horsefeathers, and got away with it…",
+  ],
   goodnight: [
     "We're closed. Staying over? The couch has seen worse.",
     "The Velvet Room is closed. Piss off home, the lot of you.",
@@ -798,6 +831,9 @@ export const ADULT_D: Partial<Record<CueKey, string>> = {
   awardDetective: "Best Detective. Sharp eyes, sharp mind, sha- [sneezes] [short pause] shit. Sharp everything. It goes to…",
   awardDressed: "Best Dressed, [burps] [short pause] not me, damnit, goes to…",
   awardLiar: "And Best Liar, in a town run by Tammany Hall, [snorts] [short pause] tough fucking field, goes to…",
+  awardPrimeSuspect: "Prime Suspect. Innocent, [hiccups] [short pause] and you all wanted them hanged. Damn. It goes to…",
+  awardGotAway: "And for getting away with murder, [snorts] [short pause] you sly bastard…",
+  releaseCleared: "No vote needed. The evidence cleared the jailbird. [burps] [short pause] Open the damn cell.",
   goodnight: "We're closed. Settle up in chips, and [burps] [short pause] piss off. Lovingly.",
   paused: "Everybody shut the hell up. [burps] [short pause] Including me, apparently.",
   resumed: "Carry on. [sneezes] [short pause] Nobody? Bless me, then. Wankers.",
@@ -919,6 +955,10 @@ export const SAILOR: Partial<Record<CueKey, string[]>> = {
     "[dead serious] Not enough votes. Nobody's going to jail. [screaming] I cleaned that cell! I put a pillow in there! For NOTHING! Shit!",
     "[dead serious] Not enough votes. Nobody goes to jail. [short pause] Bollocks. [growling] That's English. It means you're all fucking useless.",
   ],
+  releaseCleared: [
+    "[grumbling] No vote. The evidence says the jailbird didn't do it. [shouting] So open the damn cell already!",
+    "[seething] The evidence cleared them. [short pause] Fine. [shouting] Get the hell out of my jail!",
+  ],
   releaseNobody: [
     "[seething] Not enough votes. The jailbirds stay put. [shouting] Somebody throw them a goddamn sandwich!",
     "[dead serious] Not enough votes. Nobody gets out. [whispers, furious] Rot in there. Rot, you bastards.",
@@ -962,6 +1002,14 @@ export const SAILOR: Partial<Record<CueKey, string[]>> = {
   awardDressed: [
     "[growling] Best fucking Dressed goes to…",
     "[seething] Best Dressed goes to… [short pause] Shit. Fine. It goes to…",
+  ],
+  awardPrimeSuspect: [
+    "[seething] Prime Suspect. Didn't do it. Every damn one of you wanted them strung up anyway. [shouting] It goes to…",
+    "[dead serious] Prime Suspect, the most wrongly blamed poor bastard in New York tonight, goes to…",
+  ],
+  awardGotAway: [
+    "[furious, through gritted teeth] And getting away with murder, right under your useless damn noses…",
+    "[shouting] And the one who got away with it while you dumbasses pointed at everybody else…",
   ],
   awardLiar: [
     "[dead serious] And the biggest lying sack of shit in this room is…",

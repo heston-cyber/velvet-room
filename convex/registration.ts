@@ -77,13 +77,10 @@ function validateProfile(game: Doc<"games">, input: ProfileInput) {
     sayAs: clean(input.sayAs, LIMITS.sayAs),
     nickname: clean(input.nickname, LIMITS.nickname),
     lastName: clean(input.lastName, LIMITS.lastName),
-    // When the game menu turns the opt-in off, everyone is eligible.
-    killerOk: game.killerOptIn ? input.killerOk : true,
+    // Oct 17 (D8): everyone is in the killer draw unless they tick "I'd rather not be the killer".
+    killerOk: input.killerOk,
   };
-  if (game.motiveMode === "players") {
-    if (!out.motive) throw new ConvexError("Motive is required.");
-    if (!out.secret) throw new ConvexError("Secret is required.");
-  }
+  // Oct 17 (D9): guests no longer write their own motive and secret; the game writes them.
   if (!charKeyOf(out.charName)) throw new ConvexError("Character name needs at least one letter.");
   return out;
 }

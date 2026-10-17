@@ -402,6 +402,17 @@ function VoteScreen({ token, data, now }: { token: string; data: Phone; now: num
       setError(friendlyError(e));
     }
   }
+  if (vt.closedAt && vt.auto && vt.target) {
+    // Oct 17 (D10): the evidence already cleared the guest in jail, so there was no release vote.
+    return (
+      <div className="screen center">
+        <span className="eyebrow">No vote needed</span>
+        <h1 className="title-lg">{vt.target.id === data.me.id ? "You're free." : `${vt.target.name} is free.`}</h1>
+        <p className="lede">The evidence cleared {vt.target.id === data.me.id ? "you" : "them"}, so they're out of jail and back in for the lock-in.</p>
+        <p className="help">Eyes on the TV.</p>
+      </div>
+    );
+  }
   if (vt.closedAt) {
     const verdict =
       vt.outcome === "nobody" || !vt.target
@@ -503,7 +514,7 @@ function Murder({ data, onDone }: { data: Phone; onDone: () => void }) {
               <p>{b!.lines[0].replace(/^You're the accomplice\. /, "")}</p>
             </>
           ) : (
-            <RoleCard role={role} card={b?.card ?? null} />
+            <RoleCard role={role} card={b?.card ?? null} jail={data.game.jailVote} />
           )
         ) : (
           <>
@@ -529,8 +540,19 @@ function Pacing({ token, data }: { token: string; data: Phone }) {
   const { game, counts, me } = data;
   if (me.jailed) return null;
   if (game.paused) return <p className="help">The host paused the game. Hang tight.</p>;
-  if (game.pacing.mode === "timer") return <p className="help">The next evidence drops on the TV when the timer runs out.</p>;
   if (game.round > 3) return null;
+  // W9 (Oct 17): what the end of this round brings. D5: games under 5 guests have no jail vote.
+  const next =
+    game.round === 1
+      ? "Round 2 and its evidence"
+      : game.round === 2
+        ? game.jailVote
+          ? "the jail vote, then Round 3"
+          : "Round 3 and its evidence"
+        : game.jailVote
+          ? "a release vote if anyone's in jail, then the lock-in"
+          : "the lock-in";
+  if (game.pacing.mode === "timer") return <p className="help">When the timer runs out: {next}.</p>;
   return (
     <div className="ready">
       <button
@@ -550,11 +572,7 @@ function Pacing({ token, data }: { token: string; data: Phone }) {
       <span className="help">
         {counts.ready} of {counts.inGame} ready.{" "}
         {/* Oct 16: Round 1 has no vote, Round 2 ends in the jail vote, Round 3 in the release vote (if anyone's in jail). */}
-        {game.round === 1
-          ? "Round 2 starts once most of the free guests are ready."
-          : game.round === 2
-            ? "The round ends in a jail vote once most of the free guests are ready. Jailing anyone is optional."
-            : "Once most of the free guests are ready: a release vote if anyone's in jail, then the lock-in."}
+        Once most of {game.jailVote ? "the free guests" : "you"} are ready: {next}.{game.round === 2 && game.jailVote ? " Jailing anyone is optional." : ""}
       </span>
     </div>
   );
@@ -621,21 +639,24 @@ function RoleIcon({ name }: { name: IconName }) {
  * The role card (Oct 16, Heston: "In the role cards, let's use more visuals to explain and less text. More concise
  * information."). Same shape and size for every role, behind press-and-hold, so a glance gives nothing away.
  */
-function RoleCard({ role, card }: { role: string; card: NonNullable<Phone["briefing"]>["card"] }) {
+function RoleCard({ role, card, jail }: { role: string; card: NonNullable<Phone["briefing"]>["card"]; jail: boolean }) {
   const killer = role === "killer";
-  const tiles: [IconName, string][] = killer
-    ? [
-        ["mask", "Lie about anything"],
-        ["target", card?.herring ? `Point at ${card.herring}` : "Point at someone else"],
-        ["bars", "Stay out of jail"],
-        ["lock", "Lock in someone else"],
-      ]
-    : [
-        ["scan", "Search, scan, compare notes"],
-        ["secret", "Lie only about your secret"],
-        ["bars", "Jail vote after Round 2"],
-        ["lock", "Lock in who, what, where"],
-      ];
+  // D5 (Oct 17): no jail tile in games too small for a jail vote.
+  const tiles: [IconName, string][] = (
+    killer
+      ? [
+          ["mask", "Lie about anything"],
+          ["target", card?.herring ? `Point at ${card.herring}` : "Point at someone else"],
+          ["bars", "Stay out of jail"],
+          ["lock", "Lock in someone else"],
+        ]
+      : [
+          ["scan", "Search, scan, compare notes"],
+          ["secret", "Lie only about your secret"],
+          ["bars", "Jail vote after Round 2"],
+          ["lock", "Lock in who, what, where"],
+        ]
+  ).filter(([icon]) => jail || icon !== "bars") as [IconName, string][];
   return (
     <div className={`role-card${killer ? " killer" : ""}`}>
       <div className="rc-head">
@@ -655,7 +676,8 @@ function RoleCard({ role, card }: { role: string; card: NonNullable<Phone["brief
       </ul>
       <p className="rc-win">
         <RoleIcon name="trophy" />
-        <span>{killer ? "You win if they don't pin it on you." : "You win together if you catch the killer."}</span>
+        {/* D1 (Oct 17): the one win rule, worded the same everywhere. */}
+        <span>{killer ? "You win unless more than half get you, more than half the weapon, and more than half the room." : "You all win if more than half get the killer, more than half the weapon, and more than half the room."}</span>
       </p>
     </div>
   );
@@ -679,7 +701,7 @@ function CaseFile({ token, data }: { token: string; data: Phone }) {
               ))}
             </ul>
           ) : (
-            <RoleCard role={b.role} card={b.card} />
+            <RoleCard role={b.role} card={b.card} jail={data.game.jailVote} />
           )
         ) : (
           <>
@@ -1114,6 +1136,8 @@ function RevealVotes({ token, data }: { token: string; data: Phone }) {
     );
   }
   const mine = r?.mine;
+  // W20 (Oct 17): an innocent's phone leads with who won, then their own score.
+  const verdict = r ? (r.killerWins ? (r.accomplice ? "The killer and the accomplice got away." : "The killer got away.") : "The detectives win.") : "";
   const headline = r?.iWasKiller
     ? r.killerWins
       ? "You got away with it."
@@ -1122,28 +1146,46 @@ function RevealVotes({ token, data }: { token: string; data: Phone }) {
     ? r.killerWins
       ? "You both got away with it."
       : "Your partner got caught."
+    : verdict;
+  const myScore = r?.iWasKiller || r?.iWasAccomplice
+    ? null
     : mine
       ? mine.ace
-        ? "Ace Detective."
-        : `${mine.score} of 3.`
-      : "You didn't accuse anyone.";
-  const opt = (k: "dressed" | "liar", id: string, name: string) => (
-    <button
-      key={id}
-      type="button"
-      aria-pressed={votes[k] === id}
-      onClick={() => {
-        setVotes((v) => ({ ...v, [k]: id }));
-        setSent(false);
-      }}
-    >
-      {name}
+        ? "You got all three. Ace detective."
+        : `You got ${mine.score} of 3.`
+      : data.me.satOut
+        ? "You sat out the lock-in in jail."
+        : "You didn't lock in.";
+  // Best Liar is for the innocents (Oct 17, D6): the killer has "Got Away With It".
+  const innocents = others.filter((s) => s.id !== r?.killerId && s.id !== r?.accompliceId);
+  // S8: a tap saves the vote.
+  async function pick(k: "dressed" | "liar", id: string) {
+    const next = { ...votes, [k]: votes[k] === id ? null : id };
+    setVotes(next);
+    setError(null);
+    setSent(false);
+    try {
+      await vote({
+        token,
+        dressed: (next.dressed ?? undefined) as Id<"players"> | undefined,
+        liar: (next.liar ?? undefined) as Id<"players"> | undefined,
+      });
+      setSent(true);
+    } catch (e) {
+      setError(friendlyError(e));
+    }
+  }
+  const opt = (k: "dressed" | "liar", s: { id: string; name: string; figure: string | null }) => (
+    <button key={s.id} type="button" className="who-opt" aria-pressed={votes[k] === s.id} onClick={() => void pick(k, s.id)}>
+      {s.figure && <img src={faceUrl(s.figure)} alt="" />}
+      <span>{s.name}</span>
     </button>
   );
   return (
     <div className="screen">
       <span className="eyebrow">Eyes on the TV</span>
       <h1 className="title-lg">{headline}</h1>
+      {myScore && <p className="lede strong">{myScore}</p>}
       {r && (
         <p className="lede">
           It was {r.killer}, with the {r.exhibit?.name.toLowerCase()}, in {mid(r.room)}.
@@ -1153,40 +1195,20 @@ function RevealVotes({ token, data }: { token: string; data: Phone }) {
       {r?.accomplice && mine && data.myAccusation?.accompliceId && !r.iWasKiller && !r.iWasAccomplice && (
         <p className="help">{mine.gotAccomplice ? "And you spotted the accomplice." : "Your accomplice guess missed."}</p>
       )}
-      <p className="help">Best Detective is scored automatically. Vote for the other two.</p>
+      <p className="help">Best Detective and Prime Suspect come from the lock-ins. Vote for these two:</p>
       <div className="pick">
         <span className="eyebrow">Best Dressed</span>
-        <div className="opts">{others.map((s) => opt("dressed", s.id, s.name))}</div>
+        <div className="opts">{others.map((s) => opt("dressed", s))}</div>
       </div>
       <div className="pick">
-        <span className="eyebrow">Best Liar</span>
-        <div className="opts">{others.map((s) => opt("liar", s.id, s.name))}</div>
+        <span className="eyebrow">Best Liar · innocents only</span>
+        <div className="opts">{innocents.map((s) => opt("liar", s))}</div>
       </div>
       <Swap show={sent ? 1 : 0}>
-        <div className="locked pending">Pick your favorites, then cast your votes.</div>
-        <div className="locked">Votes in. You can change them until the host shows the awards.</div>
+        <div className="locked pending">Tap a name to vote. Tap it again to take it back.</div>
+        <div className="locked">Saved. You can change it until the host shows the awards.</div>
       </Swap>
       {error && <div className="errbox">{error}</div>}
-      <button
-        type="button"
-        className="primary"
-        disabled={!votes.dressed && !votes.liar}
-        onClick={async () => {
-          setError(null);
-          try {
-            await vote({
-              token,
-              dressed: (votes.dressed ?? undefined) as Id<"players"> | undefined,
-              liar: (votes.liar ?? undefined) as Id<"players"> | undefined,
-            });
-            setSent(true);
-          } catch (e) {
-            setError(friendlyError(e));
-          }
-        }}
-      >
-        Cast my votes
-      </button>
     </div>
   );
 }

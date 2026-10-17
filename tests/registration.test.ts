@@ -75,10 +75,9 @@ describe("registration", () => {
     await expect(t.mutation(api.registration.register, { ...guests[0], figure: "sam" })).rejects.toThrow(/Someone just took that drawing/);
   });
 
-  test("players-write mode requires a motive and a secret", async () => {
+  test("Oct 17 (D9): guests never have to write a motive or a secret, even in an old players-write game", async () => {
     const { t } = await setup("players");
-    await expect(t.mutation(api.registration.register, guests[0])).rejects.toThrow(/Motive/);
-    await t.mutation(api.registration.register, { ...guests[0], motive: "He owes me.", secret: "I'm a fed." });
+    await t.mutation(api.registration.register, guests[0]);
   });
 
   test("sign-up needs only a face (the last name comes with the form); no weapon, signature or about you", async () => {
@@ -126,10 +125,14 @@ describe("registration", () => {
     expect(me?.charName).toContain("Rose");
   });
 
-  test("when the opt-in is off, everyone is eligible", async () => {
+  test("Oct 17 (D8): an opt-out of being the killer always counts; the old host switch is ignored", async () => {
     const { t, hostKey } = await setup();
     await t.mutation(api.host.updateSettings, { slug: "test-unit", hostKey, killerOptIn: false });
-    await t.mutation(api.registration.register, guests[1]);
+    await t.mutation(api.registration.register, guests[1]); // opted out
+    await t.mutation(api.registration.register, guests[0]);
+    const ps = await t.run((ctx) => ctx.db.query("players").collect());
+    expect(ps.find((p) => p.figure === "josh")!.killerOk).toBe(false);
+    expect(ps.find((p) => p.figure === "emily")!.killerOk).toBe(true);
     const roster = await t.query(api.host.roster, { slug: "test-unit", hostKey });
     expect(roster.counts.optedIn).toBe(1);
   });

@@ -1,6 +1,7 @@
 import { pick, shuffle } from "./rng";
 import { CLASSIC, deckPicker, fill, mid, type Script } from "./text";
 import { ADULT } from "./textAdult";
+import { hasJailVote } from "../shared";
 import type {
   Briefing,
   CaseFile,
@@ -28,8 +29,6 @@ type Draft = {
   by?: Round;
 };
 
-/** Fewer opt-ins than this and the draw uses everyone who checked in (Heston's rule). */
-export const MIN_OPT_INS = 3;
 
 /** A killer and an accomplice need at least this many guests (Heston's rule, v2). */
 export const MIN_ACCOMPLICE = 7;
@@ -42,13 +41,14 @@ export const MIN_ACCOMPLICE = 7;
 export const ACCOMPLICE_ON = false;
 
 /**
- * Guests the draw may pick: those who opted in, or everyone if fewer than 3 did. With an accomplice, everyone
- * (the opt-in is ignored in that mode).
+ * Guests the draw may pick (Oct 17, D8: "an 'opt out' of being the killer for people who just don't want to play that
+ * role. Everyone is opted in by default."): everyone who didn't opt out. Only if everyone opted out is everyone in the
+ * draw. With an accomplice, everyone (the opt-out is ignored in that mode).
  */
 export function eligibleKillers(input: CaseInput): Suspect[] {
   if (input.accomplice) return input.suspects;
   const ok = input.suspects.filter((s) => s.killerOk);
-  return ok.length >= MIN_OPT_INS ? ok : input.suspects;
+  return ok.length ? ok : input.suspects;
 }
 
 export const MIN_ROOMS = 2;
@@ -208,6 +208,8 @@ export function validateCase(input: CaseInput, cf: CaseFile): Validation {
     for (const s of input.suspects) if (!tippedIds.has(s.id)) problems.push(`${s.name} has no tip.`);
   }
   if (cf.tips.length !== tippedIds.size) problems.push("Someone got two tips.");
+  const killerTip = cf.tips.find((t) => t.playerId === sol.killerId);
+  if (killerTip && cf.tips.length > 1 && cf.tips.filter((t) => t.clueId === killerTip.clueId).length < 2) problems.push("Only the killer holds their tip.");
   if (new Set(cf.tips.map((t) => t.clueId)).size > tipCount(N)) problems.push("Too many different tips.");
 
   // A herring must be cleared publicly no earlier than it appears.
@@ -508,6 +510,15 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
       k++;
       tips.push({ playerId: s.id, clueId: choice.id, text: choice.text, elim: choice.elim });
     }
+    // F13 (Oct 17): the killer's tip is always one somebody else holds too, so they can't lie about it safely. Any
+    // tip suits the killer: tips are true, so none clears them.
+    const held = (clueId: string) => tips.filter((t) => t.clueId === clueId).length;
+    const mine = tips.find((t) => t.playerId === sol.killerId);
+    if (mine && held(mine.clueId) < 2 && tips.length > 1) {
+      const others = tips.filter((t) => t.playerId !== sol.killerId);
+      const shared = [...others].sort((a, b) => held(b.clueId) - held(a.clueId))[0];
+      Object.assign(mine, { clueId: shared.clueId, text: shared.text, elim: shared.elim });
+    }
   }
 
   // 8. Briefings for every phone.
@@ -517,6 +528,8 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
   const herringClue = placed.find((c) => c.kind === "herring");
   const herringAt = herringClue?.pointsAt;
   const accompliceName = sol.accompliceId ? name.get(sol.accompliceId) : undefined;
+  // Oct 17 (D5): a game too small for a jail vote doesn't mention jail.
+  const noJail = (lines: string[]) => (hasJailVote(input.suspects.length) ? lines : lines.filter((l) => !/\bjail/i.test(l)));
   const briefings: Briefing[] = input.suspects.map((s) => {
     const m = motives.get(s.id)!;
     if (s.id === sol.killerId) {
@@ -527,7 +540,7 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
         herringName: herringAt ? name.get(herringAt) : undefined,
         accompliceName,
       });
-      return { playerId: s.id, role: "killer", motive: m.motive, secret: m.secret, lines };
+      return { playerId: s.id, role: "killer", motive: m.motive, secret: m.secret, lines: noJail(lines) };
     }
     if (s.id === sol.accompliceId) {
       const lines = S.accompliceLines({
@@ -538,9 +551,9 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
         herringName: herringAt && herringAt !== s.id && herringAt !== sol.killerId ? name.get(herringAt) : undefined,
         herringIsMe: herringAt === s.id,
       });
-      return { playerId: s.id, role: "accomplice", motive: m.motive, secret: m.secret, lines };
+      return { playerId: s.id, role: "accomplice", motive: m.motive, secret: m.secret, lines: noJail(lines) };
     }
-    return { playerId: s.id, role: "innocent", motive: m.motive, secret: m.secret, lines: sol.accompliceId ? S.innocentLinesAcc : S.innocentLines };
+    return { playerId: s.id, role: "innocent", motive: m.motive, secret: m.secret, lines: noJail(sol.accompliceId ? S.innocentLinesAcc : S.innocentLines) };
   });
 
   const open: Open = { suspects: standing.length + 1, exhibits: weaponsStanding.length + 1, rooms: roomsStanding.length + 1 };

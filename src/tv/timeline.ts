@@ -270,6 +270,15 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
       const id = `vote:${t}`;
       out.loop = "vote";
       out.music = "rounds";
+      if (vt.auto) {
+        // Oct 17 (D10): the evidence already cleared the guest in jail. The Release card, then "no vote needed" and
+        // their name. No ballots, no tally.
+        out.holdUntil = card("release", t);
+        fx(`${id}:card`, "keys", t + 0.15 * S);
+        const said = vo(`${id}:cleared`, "releaseCleared", t + VOTE.autoVerdictMs, false, `${round}`);
+        clip(`${id}:verdict`, d.voice.verdict ?? undefined, said + 0.2 * S);
+        return out;
+      }
       // The Jail Vote / The Release Vote title card (a gavel, or the keys), then the narrator.
       out.holdUntil = card(vt.kind === "jail" ? "jailvote" : "release", t);
       fx(`${id}:card`, vt.kind === "jail" ? "gavel" : "keys", t + 0.15 * S);
@@ -425,16 +434,15 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
     cameo({ id: `aw:${t}:detective`, char: dress(d, "guest1"), anim: "stand", at: out.holdUntil + 0.4 * S, until: t + FOREVER, on: "awards" });
     cameo({ id: `aw:${t}:flapper`, char: dress(d, "guest2"), anim: "standRight", at: out.holdUntil + 0.8 * S, until: t + FOREVER, on: "awards" });
     let e = vo(`aw:${t}`, "awards", t + 4.3 * S);
-    const order: [CueKey, Clip | undefined][] = [
-      ["awardDetective", w?.detective ?? undefined],
-      ["awardDressed", w?.dressed ?? undefined],
-      ["awardLiar", w?.liar ?? undefined],
-    ];
-    for (const [cue, c] of order) {
-      const said = vo(`aw:${t}:${cue}`, cue, e + 0.8 * S);
+    // Oct 17: only the awards someone won, each line then every winner's name (a shared award names them all).
+    for (const a of d.results?.awards ?? []) {
+      const said = vo(`aw:${t}:${a.key}`, a.cue, e + 0.8 * S);
       out.awardsAt.push(said);
-      const named = clip(`aw:${t}:${cue}:name`, c, said + 0.2 * S);
-      fx(`aw:${t}:${cue}:clap`, "applause", named + 0.1 * S);
+      let named = said + 0.2 * S;
+      (w?.[a.key] ?? []).forEach((c, i) => {
+        named = clip(`aw:${t}:${a.key}:name:${i}`, c ?? undefined, named + (i ? 0.25 * S : 0));
+      });
+      fx(`aw:${t}:${a.key}:clap`, "applause", named + 0.1 * S);
       e = named + 1.6 * S;
     }
     return out;

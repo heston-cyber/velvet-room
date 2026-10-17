@@ -308,7 +308,7 @@ function partyClipUrls(d: Data): string[] {
   out.push(v.body?.url);
   for (const c of Object.values(v.rooms)) out.push(c?.url);
   out.push(v.reveal?.killer?.url, v.reveal?.exhibit?.url, v.reveal?.room?.url, v.reveal?.accomplice?.url);
-  out.push(v.winners?.detective?.url, v.winners?.dressed?.url, v.winners?.liar?.url);
+  for (const cs of Object.values(v.winners ?? {})) for (const c of cs) out.push(c?.url);
   return out.filter((u): u is string => !!u);
 }
 
@@ -598,12 +598,8 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
     return { scene: { key: `reveal${step}`, node: frames[step] } };
   }
   if (g.status === "done" && d.results?.awards) {
-    const a = d.results.awards;
-    const list: [string, string, string][] = [
-      ["Best Detective", a.bestDetective?.name ?? "", a.bestDetective ? `${a.bestDetective.score} of 3 right` : "Nobody scored"],
-      ["Best Dressed", names(a.bestDressed), a.bestDressed.length ? `${a.bestDressed[0].votes} vote${a.bestDressed[0].votes === 1 ? "" : "s"}` : "No votes"],
-      ["Best Liar", names(a.bestLiar), a.bestLiar.length ? `${a.bestLiar[0].votes} vote${a.bestLiar[0].votes === 1 ? "" : "s"}` : "No votes"],
-    ];
+    // Oct 17: only the awards someone won, in the order the narrator gives them; a shared award shows every winner.
+    const list = d.results.awards;
     return {
       scene: {
         key: "awards",
@@ -611,15 +607,21 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
           <div className="tv-scene">
             <span className="tv-kick">The Velvet Room awards</span>
             <h2 className="tv-h2" style={{ fontSize: "5cqw" }}>To the winners</h2>
-            <div className="tv-awards">
-              {list.map(([title, who, sub], i) => {
-                const shown = !p.awardsAt.length || now >= p.awardsAt[i];
+            <div className={`tv-awards${list.length > 3 ? " many" : ""}`} style={{ "--n": list.length } as CSSProperties}>
+              {list.map((a, i) => {
+                const shown = !p.awardsAt.length || now >= (p.awardsAt[i] ?? 0);
                 return (
-                  <div className={`tv-award ${shown ? "fade" : "waiting"}`} key={`${title}:${shown}`}>
-                    <span className="tv-kick">{title}</span>
-                    <span className="tv-av">{shown ? (who ? initials(who) : "–") : "?"}</span>
-                    <span className="n">{shown ? who || "—" : "…"}</span>
-                    <span className="sub">{shown ? sub : " "}</span>
+                  <div className={`tv-award ${a.key} ${shown ? "fade" : "waiting"}`} key={`${a.key}:${shown}`}>
+                    <span className="tv-kick">{a.title}</span>
+                    <span className="faces">
+                      {a.winners.slice(0, 3).map((w) => (
+                        <span className="tv-av" key={w.id}>
+                          {shown ? w.figure ? <img src={faceUrl(w.figure)} alt="" /> : initials(w.name) : "?"}
+                        </span>
+                      ))}
+                    </span>
+                    <span className="n">{shown ? names(a.winners) : "…"}</span>
+                    <span className="sub">{shown ? a.sub : " "}</span>
                   </div>
                 );
               })}
@@ -761,6 +763,25 @@ type Vote = NonNullable<Data["vote"]>;
 /** The jail and release votes: the candidates while it's open, then who voted for whom, then the verdict. */
 function voteScene(d: Data, vt: Vote, now: number): Scene {
   const jail = vt.kind === "jail";
+  if (vt.auto && vt.target) {
+    // Oct 17 (D10): no release vote, the evidence already cleared them.
+    const who = vt.target;
+    return {
+      key: `vote-auto-${vt.at}`,
+      node: (
+        <div className="tv-scene">
+          <div className="tv-verdict-who">
+            {who.figure && <img className="freed" src={figureUrl(who.figure)} alt="" />}
+            <div>
+              <span className="tv-kick fade">Released</span>
+              <h2 className="tv-h2 fade" style={{ fontSize: "5cqw" }}>The evidence clears {who.name}.</h2>
+              <p className="tv-sub fade" style={{ animationDelay: ".6s" }}>No vote needed. Back in the game: they can lock in.</p>
+            </div>
+          </div>
+        </div>
+      ),
+    };
+  }
   if (!vt.closedAt) {
     return {
       key: `vote-open-${vt.at}`,
@@ -844,7 +865,7 @@ function voteScene(d: Data, vt: Vote, now: number): Scene {
               <span className="tv-kick fade">{vt.outcome === "jailed" ? "Locked up" : "Released"}</span>
               <h2 className="tv-h2 fade" style={{ fontSize: "5cqw" }}>{vt.outcome === "jailed" ? `${who.name} is going to jail.` : `${who.name} is free.`}</h2>
               <p className="tv-sub fade" style={{ animationDelay: ".6s" }}>
-                {vt.outcome === "jailed" ? "They can talk and bribe. No searching, no voting, no lock-in." : "Back in the game, with a vote."}
+                {vt.outcome === "jailed" ? "They can talk and bribe. No searching, no voting, no lock-in." : "Back in the game: they can lock in."}
               </p>
             </div>
           </div>

@@ -15,7 +15,8 @@ export type GameInfo = {
 };
 
 // Oct 16 (Heston): no "about you" page (who you are, signature item, costume photo) and no weapon pick. Sign-up is
-// your face, your last name and nickname, then your motive and secret only if the host has players write their own.
+// your face, your last name and nickname, then a last look. Oct 17: the game always writes the motive and secret (D9),
+// and everyone is in the killer draw unless they tick "I'd rather not be the killer" (D8).
 export type ProfileValues = {
   realName: string;
   charName: string;
@@ -55,7 +56,7 @@ const MAX: Record<keyof Omit<ProfileValues, "killerOk" | "figure">, number> = {
   lastName: 30,
 };
 
-type StepId = "door" | "you" | "motive" | "review";
+type StepId = "door" | "you" | "review";
 type TextKey = keyof typeof MAX;
 
 export default function ProfileForm(props: {
@@ -69,11 +70,10 @@ export default function ProfileForm(props: {
   onCancel?: () => void;
 }) {
   const { game, mode } = props;
-  // The motive page only when guests write their own; otherwise the last look says the house writes them.
   const steps: StepId[] = useMemo(() => {
-    const form: StepId[] = game.motiveMode === "players" ? ["you", "motive", "review"] : ["you", "review"];
+    const form: StepId[] = ["you", "review"];
     return mode === "new" ? ["door", ...form] : form;
-  }, [mode, game.motiveMode]);
+  }, [mode]);
   const formSteps: StepId[] = steps.filter((s) => s !== "door");
 
   const [stepIndex, setStepIndex] = useState(0);
@@ -112,8 +112,6 @@ export default function ProfileForm(props: {
     switch (s) {
       case "you":
         return castPick ? ["lastName"] : [];
-      case "motive":
-        return game.motiveMode === "players" ? ["motive", "secret"] : [];
       default:
         return [];
     }
@@ -302,27 +300,6 @@ export default function ProfileForm(props: {
               })}
             </>
           )}
-          {nav(game.motiveMode === "players" ? "Next: motive and secret" : "Next: last look")}
-        </>
-      );
-      break;
-    case "motive":
-      body = (
-        <>
-          {progress}
-          <h2>Everyone here has a reason</h2>
-          <p className="lede">
-            Only you see these, on your phone. You may lie about your secret. Only the killer may lie about the
-            murder.
-          </p>
-          {field("motive", "Why might you have wanted the Don dead?", {
-            area: true,
-            ph: "e.g. He owes me three months of tips and laughed when I asked.",
-          })}
-          {field("secret", "A secret you'd lie to protect", {
-            area: true,
-            ph: "e.g. I've been selling his ledger pages to the Feds.",
-          })}
           {nav("Next: last look")}
         </>
       );
@@ -333,25 +310,14 @@ export default function ProfileForm(props: {
           {progress}
           <h2>Last look</h2>
           <MemberCard charName={fullName || values.charName} figure={values.figure || null} />
-          {game.motiveMode === "game" && (
-            <p className="help">The house writes your motive and your secret. They arrive on your phone when the game begins.</p>
-          )}
-          {game.killerOptIn && (
-            <label className="optin" htmlFor="f-killer">
-              <input
-                type="checkbox"
-                id="f-killer"
-                checked={values.killerOk}
-                onChange={(e) => set("killerOk", e.target.checked)}
-              />
-              <span>
-                <strong>I'm up for being the killer</strong>
-                <span>
-                  If the game picks you, you'll find out on your phone when the game starts. Nobody else will know. If fewer than 3 guests opt in, everyone is in the running.
-                </span>
-              </span>
-            </label>
-          )}
+          <p className="help">The house writes your motive and your secret. Your role arrives on your phone right after the roll call.</p>
+          <label className="optin" htmlFor="f-killer">
+            <input type="checkbox" id="f-killer" checked={!values.killerOk} onChange={(e) => set("killerOk", !e.target.checked)} />
+            <span>
+              <strong>I'd rather not be the killer</strong>
+              <span>Everyone can be drawn as the killer unless they tick this. Nobody else sees it.</span>
+            </span>
+          </label>
           {error && (
             <div className="errbox" role="alert">
               {error}

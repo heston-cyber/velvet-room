@@ -83,16 +83,11 @@ export default function Menu(props: { data: Roster; slug: string; hostKey: strin
         <Sec title="The game">
           <span className="lab">Script</span>
           <Seg label="Script" value={game.tone} options={[["classic", "Classic"], ["adult", "Adult (explicit)"]]} disabled={locked} onPick={(tone) => save({ tone })} />
-          <span className="lab">Motives and secrets</span>
-          <Seg label="Motives and secrets" value={game.motiveMode} options={[["game", "Game writes them"], ["players", "Players write their own"]]} disabled={locked} onPick={(motiveMode) => save({ motiveMode })} />
-          <Toggle
-            id="set-optin"
-            checked={game.killerOptIn}
-            disabled={locked}
-            onChange={(v) => save({ killerOptIn: v })}
-            label="Ask guests if they're up for being the killer"
-            help="One killer, drawn in secret. On, the draw uses only those who opted in, unless fewer than 3 did. Off, anyone checked in can be drawn."
-          />
+          {/* Oct 17: the game writes every motive and secret (D9); guests can opt out of being the killer at sign-up (D8). */}
+          <span className="help">
+            One killer, drawn in secret from everyone checked in, except guests who ticked "I'd rather not be the killer" at sign-up. The game writes everyone's
+            motive and secret.
+          </span>
         </Sec>
 
         <Pacing game={game} locked={locked} save={save} timer={timer} />

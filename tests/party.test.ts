@@ -204,18 +204,20 @@ describe("party night", () => {
     for (let i = 0; i < 4; i++) await nextRound(t, SLUG, hostKey);
     expect((await game(t)).status).toBe("reveal");
     await expect(t.mutation(api.game.vote, { token: tokens[0], dressed: players[0]._id })).rejects.toThrow(/yourself/);
-    for (const token of tokens.slice(1)) await t.mutation(api.game.vote, { token, dressed: players[0]._id, liar: players[0]._id });
+    for (const token of tokens.slice(1)) await t.mutation(api.game.vote, { token, dressed: players[0]._id });
     expect((await t.query(api.game.results, { slug: SLUG }))!.awards).toBeNull();
     await t.mutation(api.game.finish, { slug: SLUG, hostKey });
     const res = (await t.query(api.game.results, { slug: SLUG }))!;
-    expect(res.awards!.bestDressed[0].name).toBe(players[0].charName);
+    expect(res.awards!.find((a) => a.key === "dressed")!.names).toEqual([players[0].charName]);
+    // Nobody voted Best Liar, so it isn't shown (Oct 17).
+    expect(res.awards!.some((a) => a.key === "liar")).toBe(false);
   });
 
   test("the adult script reaches the phones when the game menu picks it", async () => {
     const { t, killerToken } = await started({ guests: 5, tone: "adult" });
     const phone = (await t.query(api.game.phone, { token: killerToken }))!;
     expect(phone.briefing!.lines[0]).toMatch(/whacked/);
-    expect(phone.briefing!.tipLabel).toMatch(/damn/);
+    expect(phone.briefing!.tipLabel).toMatch(/somebody's lying/);
   });
 
   test("check-in before the doors open works, and a late guest without a weapon gets no letter", async () => {

@@ -117,8 +117,13 @@ export default defineSchema({
         outcome: v.optional(v.union(v.literal("jailed"), v.literal("released"), v.literal("nobody"))),
         targetId: v.optional(v.id("players")),
         nextAt: v.optional(v.number()),
+        // Oct 17 (D10): the evidence had already cleared the guest in jail, so they were let out without a vote.
+        auto: v.optional(v.boolean()),
       }),
     ),
+    // When this game's jail vote opened (its ballots' voteAt): a Best Detective tie goes to whoever voted to jail the
+    // killer, and Prime Suspect counts the jail votes (Oct 17).
+    jailVoteAt: v.optional(v.number()),
     // The narrator: Ivy or Duke, steady or Unstable, or Sailor mode (Duke's own furious script; Oct 16). Volume
     // levels 0 to 100 (0 is off).
     narrator: v.optional(v.object({ host: v.union(v.literal("ivy"), v.literal("duke")), unstable: v.boolean(), sailor: v.optional(v.boolean()) })),

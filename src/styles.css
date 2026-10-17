@@ -275,6 +275,10 @@ img { max-width: 100%; }
 .pick .opts { display: flex; flex-wrap: wrap; gap: 6px; }
 .pick .opts button { background: var(--well); border: 1px solid var(--rule); padding: 8px 11px 6px; font-size: 15px; cursor: pointer; color: var(--paper); }
 .pick .opts button[aria-pressed="true"] { background: var(--brass); color: var(--ink); border-color: var(--brass); }
+/* Award ballots (Oct 17): each guest's drawing with their name, and a bigger target. */
+.pick .opts button.who-opt { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 12px 4px 4px; }
+.pick .opts button.who-opt img { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; background: var(--ink); }
+.lede.strong { color: var(--paper); font-style: normal; }
 .locked { border: 1px solid var(--ok); color: var(--ok); padding: 10px 12px; font-size: 16px; }
 .inline-num { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .inline-num input { width: 64px; background: var(--well); border: 0; border-bottom: 1px solid var(--brass-dim); padding: 6px 8px; color: var(--paper); font-size: 16px; }

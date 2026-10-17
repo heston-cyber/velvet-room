@@ -73,7 +73,16 @@
 .tv-reveal-name { font-family: var(--display); font-size: 8cqw; line-height: .95; color: var(--blood); text-wrap: balance; }
 .tv-reveal-name.tv-reveal-acc { color: var(--brass); }
 .tv-verdict { font-family: var(--display); font-size: 4.4cqw; line-height: 1.1; color: var(--brass); }
-.tv-awards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2cqw; width: 100%; }
+.tv-awards { display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: 2cqw; width: 100%; }
+.tv-awards.many { gap: 1.2cqw; }
+.tv-award .faces { display: flex; justify-content: center; gap: .6cqw; }
+.tv-award .faces .tv-av img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.tv-awards.many .tv-award { padding: 1.6cqw .9cqw; }
+.tv-awards.many .tv-award .tv-av { width: 6.4cqw; height: 6.4cqw; }
+.tv-awards.many .tv-award .n { font-size: 2.1cqw; }
+.tv-awards.many .tv-award .sub { font-size: 1.1cqw; }
+.tv-award.gotAway { border-color: var(--blood); }
+.tv-award .faces:has(.tv-av:nth-child(2)) .tv-av { width: 5.4cqw; height: 5.4cqw; font-size: 2cqw; }
 .tv-award { border: 1px solid var(--brass); background: rgba(18, 5, 10, .5); padding: 2cqw 1.4cqw; display: grid; justify-items: center; gap: .8cqw; }
 .tv-award .tv-kick { font-size: 1.1cqw; }
 .tv-award .tv-av { width: 8cqw; height: 8cqw; font-size: 3cqw; }

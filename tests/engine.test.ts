@@ -169,16 +169,19 @@ describe("the engine", () => {
     for (const n of counts.values()) expect(n).toBeGreaterThan(120); // roughly even, ~200 each
   });
 
-  test("if fewer than 3 opted in, anyone checked in can be drawn", () => {
+  test("opt-outs are never drawn, unless everyone opted out (Oct 17)", () => {
     const rng = seeded(7);
     const input = fakeCast({ rng, guests: 6 });
     input.suspects.forEach((s) => (s.killerOk = false));
     expect(eligibleKillers(input)).toHaveLength(6);
     input.suspects[0].killerOk = true;
+    expect(eligibleKillers(input).map((s) => s.id)).toEqual(["p1"]);
     input.suspects[1].killerOk = true;
-    expect(eligibleKillers(input)).toHaveLength(6);
-    input.suspects[2].killerOk = true;
-    expect(eligibleKillers(input).map((s) => s.id)).toEqual(["p1", "p2", "p3"]);
+    expect(eligibleKillers(input).map((s) => s.id)).toEqual(["p1", "p2"]);
+    input.suspects.forEach((s) => (s.killerOk = true));
+    input.suspects[3].killerOk = false;
+    expect(eligibleKillers(input)).toHaveLength(5);
+    for (let i = 0; i < 300; i++) expect(draw(input, rng).killerId).not.toBe("p4");
   });
 
   test("every room, weapon and guest can come up", () => {

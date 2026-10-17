@@ -27,16 +27,23 @@ export const LIGHTS_OUT_MS = 3_000;
  * The jail and release votes (v2): how long the phones stay open, and, after it closes, when the TV shows who
  * voted for whom, the verdict, and when the night moves on.
  */
-export const VOTE = { ms: 90_000, lastCallMs: 15_000, tallyMs: 0, verdictAtMs: 7_500, nextMs: 16_000 } as const;
+// autoVerdictMs (Oct 17): when the evidence already cleared the guest in jail, the release vote doesn't happen; the
+// TV shows the Release card and the verdict straight away (D10).
+export const VOTE = { ms: 90_000, lastCallMs: 15_000, tallyMs: 0, verdictAtMs: 7_500, nextMs: 16_000, autoVerdictMs: 4_500, autoNextMs: 11_000 } as const;
+
+/** The fewest guests in the game for a jail vote (Heston, Oct 17, D5: "no jail vote under 5 guests"). */
+export const MIN_JAIL_VOTE = 5;
+export const hasJailVote = (guests: number) => guests >= MIN_JAIL_VOTE;
 
 /**
  * Which vote ends a round (Heston, Oct 16: "jail vote only can happen on round 2, no votes to release. round 3 no
  * voting to put anyone in jail, but we can vote to release. (so its rnd 2 vote to lock up, rnd 3 vote to release)").
  * Round 1 ends with no vote; Round 3's release vote comes at its end, right before the lock-in, and only if someone is
- * in jail. Jailing is never required: nobody is always on the ballot.
+ * in jail. Jailing is never required: nobody is always on the ballot. Games with fewer than MIN_JAIL_VOTE guests in
+ * them have no votes at all (Oct 17).
  */
-export function voteAfterRound(round: number, anyoneJailed: boolean): "jail" | "release" | null {
-  if (round === 2) return "jail";
+export function voteAfterRound(round: number, anyoneJailed: boolean, guests = Infinity): "jail" | "release" | null {
+  if (round === 2) return hasJailVote(guests) ? "jail" : null;
   if (round === 3 && anyoneJailed) return "release";
   return null;
 }

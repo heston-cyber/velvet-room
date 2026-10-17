@@ -46,13 +46,14 @@ export type HowArt = string;
  * How to play, v3 (Oct 16, Heston: "Use visuals to help explain the rules, and condense the rules if possible"): five
  * cards, each with a picture of the rule; a killer + accomplice game adds the accomplice card after the first.
  */
-export function howCues(g: { search: "all" | "waves"; pacing: { mode: "ready" | "timer" }; accomplice?: boolean }): [CueKey, HowArt][] {
+export function howCues(g: { search: "all" | "waves"; pacing: { mode: "ready" | "timer" }; accomplice?: boolean; jailVote?: boolean }): [CueKey, HowArt][] {
   return [
     ["howCase", "suspects"],
     ...(g.accomplice ? [["howAccomplice", "pair"] as [CueKey, HowArt]] : []),
     ["howWeapons", "weapons"],
     ["howSearch", "search"],
-    ["howJail2", "jail"],
+    // Oct 17 (D5): games with fewer than 5 guests have no jail vote, so no jail card.
+    ...(g.jailVote === false ? [] : [["howJail2", "jail"] as [CueKey, HowArt]]),
     ["howWin2", "win"],
   ];
 }

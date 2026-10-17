@@ -12,7 +12,7 @@ import { charKeyOf, randomCode, registrationIsOpen, requireHost, requireTv } fro
 import { seal } from "./seal";
 import { caseFor } from "./caseFile";
 import { ensureAllCards, markerForCode } from "./cards";
-import { ACCUSE_MAX_MINUTES, LOCKED_UP_MS, MAX_CARDS, revealTimes, VOTE, voteAfterRound } from "./shared";
+import { ACCUSE_MAX_MINUTES, LOCKED_UP_MS, MAX_CARDS, hasJailVote, revealTimes, VOTE, voteAfterRound } from "./shared";
 import { SHOW, cueSecs, howCues, howLayout, introLayout, revealLayout, rollLayout, showParts } from "./show";
 import { inOrder, rollGuests, slotsFor } from "./rollCall";
 import { heckleWanted } from "./heckles";
@@ -69,7 +69,7 @@ async function caseInput(ctx: QueryCtx, game: Doc<"games">): Promise<CaseInput> 
     search: game.search ?? "all",
     markers: markers.map((m) => ({ number: m.number, roomKey: m.roomKey })),
     tone: game.tone ?? "classic",
-    playerMotives: Object.fromEntries(players.map((p) => [p._id, { motive: p.motive, secret: p.secret }])),
+    // Oct 17 (D9): the game writes every motive and secret (guests no longer write their own).
     // v2: before the draw, the host's setting (if there are enough players); after it, what Start decided.
     // Oct 16: the role is off (ACCOMPLICE_ON), so a new game never has one.
     accomplice: before ? ACCOMPLICE_ON && !!game.accomplice && players.length >= MIN_ACCOMPLICE : !!game.hasAccomplice,
@@ -112,8 +112,14 @@ async function advance(ctx: MutationCtx, game: Doc<"games">) {
   if (round >= 4) return nextRound(ctx, game);
   const v = voteOf(game);
   if (!v) {
-    const anyJailed = playingOf(await playersOf(ctx, game._id)).some((p) => p.jailed);
-    const kind = voteAfterRound(round, anyJailed);
+    const playing = playingOf(await playersOf(ctx, game._id));
+    const kind = voteAfterRound(round, playing.some((p) => p.jailed), playing.length);
+    // Oct 17 (D10): a guest the evidence has already cleared walks out of jail without a vote.
+    if (kind === "release") {
+      const cf = await caseFor(ctx, game);
+      const cleared = cf ? playing.find((p) => p.jailed && clearedBy(cf, p._id, round)) : undefined;
+      if (cleared) return autoRelease(ctx, game, cleared._id);
+    }
     return kind ? startVote(ctx, game, kind) : nextRound(ctx, game);
   }
   if (!v.closedAt) return closeVote(ctx, game);
@@ -179,7 +185,7 @@ async function startVote(ctx: MutationCtx, game: Doc<"games">, kind: "jail" | "r
   const at = Date.now();
   const endsAt = at + VOTE.ms;
   const vote = { kind, round: game.round ?? 1, at, endsAt, voters: free.map((p) => p._id), candidates: candidates.map((p) => p._id) };
-  await ctx.db.patch(game._id, { vote, roundEndsAt: undefined, paused: false });
+  await ctx.db.patch(game._id, { vote, roundEndsAt: undefined, paused: false, ...(kind === "jail" ? { jailVoteAt: at } : {}) });
   // Nobody to vote, or nobody to vote for: it closes straight away with nobody.
   if (!vote.voters.length || !vote.candidates.length) return closeVote(ctx, (await ctx.db.get(game._id))!);
   await ctx.scheduler.runAt(endsAt, internal.game.voteTick, { gameId: game._id, at });
@@ -215,6 +221,29 @@ async function closeVote(ctx: MutationCtx, game: Doc<"games">) {
   const nextAt = Math.max(now + VOTE.nextMs, saidAt + verdictSecs * 1000 + 1500);
   await ctx.db.patch(game._id, { vote: { ...v, closedAt: now, outcome, targetId: target, nextAt } });
   await ctx.scheduler.runAt(nextAt, internal.game.afterVote, { gameId: game._id, at: v.at });
+}
+
+/** Whether the evidence released so far (every card and TV clue up to this round) rules this guest out. */
+const clearedBy = (cf: CaseFile, playerId: Id<"players">, round: number) =>
+  cf.clues.some((c) => c.round <= round && c.elim.suspects.includes(playerId));
+
+/**
+ * Oct 17 (D10): the guest in jail is already cleared by the evidence, so there's no release vote. A vote that is
+ * closed as it opens, released, with nobody voting: the TV shows the Release card and "The evidence clears them".
+ */
+async function autoRelease(ctx: MutationCtx, game: Doc<"games">, target: Id<"players">) {
+  const now = Date.now();
+  await ctx.db.patch(target, { jailed: false });
+  const row = (await ctx.db
+    .query("clips")
+    .withIndex("by_game", (q) => q.eq("gameId", game._id))
+    .collect()).find((r) => r.purpose === `released:${target}` && r.seconds);
+  const n = narratorOf(game);
+  const said = cueSecs(voiceOf(n), scriptOf(game), n.host, "releaseCleared", variantOf(game, "releaseCleared", `${game.round}`));
+  const nextAt = Math.max(now + VOTE.autoNextMs, now + VOTE.autoVerdictMs + (said + (row?.seconds ?? 3)) * 1000 + 2000);
+  const vote = { kind: "release" as const, round: game.round ?? 3, at: now, endsAt: now, voters: [], candidates: [target], closedAt: now, outcome: "released" as const, targetId: target, nextAt, auto: true };
+  await ctx.db.patch(game._id, { vote, roundEndsAt: undefined, paused: false });
+  await ctx.scheduler.runAt(nextAt, internal.game.afterVote, { gameId: game._id, at: now });
 }
 
 /** After the verdict, the next round (after Round 3, the lock-in). Each round ends in one vote at most (Oct 16). */
@@ -325,6 +354,7 @@ async function publicVote(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">
     closedAt: vt.closedAt ?? null,
     nextAt: vt.nextAt ?? null,
     outcome: vt.outcome ?? null,
+    auto: !!vt.auto,
     target: vt.targetId ? { id: vt.targetId, name: p(vt.targetId)?.charName ?? "", figure: p(vt.targetId)?.figure ?? null } : null,
     candidates: vt.candidates.map((id) => ({ id, name: p(id) ? shortName(p(id)!) : "", full: p(id)?.charName ?? "", figure: p(id)?.figure ?? null, jailed: !!p(id)?.jailed })),
     voters: vt.voters.length,
@@ -363,7 +393,6 @@ async function scoreGame(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile) {
   const sol = cf.solution;
   const scores = accs.map((a) => {
     const score = Number(a.suspectId === sol.killerId) + Number(a.exhibitId === sol.exhibitId) + Number(a.roomKey === sol.roomKey);
-    // v2: the accomplice guess doesn't change who wins; it breaks ties for Best Detective.
     const gotAccomplice = !!sol.accompliceId && a.accompliceId === sol.accompliceId;
     return { playerId: a.playerId, score, ace: score === 3, gotKiller: a.suspectId === sol.killerId, gotAccomplice, at: a.at };
   });
@@ -374,12 +403,24 @@ async function scoreGame(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile) {
   const rightWeapon = scores.filter((s) => byId.get(s.playerId)?.exhibitId === sol.exhibitId).length;
   const rightRoom = scores.filter((s) => byId.get(s.playerId)?.roomKey === sol.roomKey).length;
   // The group wins only if more than half of the lock-ins have the killer, more than half the weapon, and more than
-  // half the room (Heston: "No ties"). Otherwise the killer wins.
+  // half the room (Heston: "No ties"; Oct 17: "Keep it as is"). Otherwise the killer wins.
   const groupWins = n > 0 && named > n / 2 && rightWeapon > n / 2 && rightRoom > n / 2;
-  // Best Detective: never the killer or the accomplice. Most right wins; a right accomplice guess breaks a tie; then
-  // whoever locked in first.
-  const detectives = scores.filter((s) => s.playerId !== sol.killerId && s.playerId !== sol.accompliceId);
-  const best = [...detectives].sort((a, b) => b.score - a.score || Number(b.gotAccomplice) - Number(a.gotAccomplice) || a.at - b.at)[0];
+  const jailBallots = game.jailVoteAt ? await ballotsOf(ctx, game._id, game.jailVoteAt) : [];
+  // Best Detective (Oct 17, D7: "most accurate guesses wins the award"): only guests who named the killer, never the
+  // killer or the accomplice. Most right wins; a tie goes to whoever voted to jail the killer; otherwise it's shared.
+  const jailedKiller = new Set<string>(jailBallots.filter((b) => b.targetId === sol.killerId).map((b) => b.voterId));
+  const detectives = scores.filter((s) => s.gotKiller && s.playerId !== sol.killerId && s.playerId !== sol.accompliceId);
+  const top = Math.max(0, ...detectives.map((s) => s.score));
+  let best = detectives.filter((s) => s.score === top);
+  if (best.length > 1 && best.some((s) => jailedKiller.has(s.playerId))) best = best.filter((s) => jailedKiller.has(s.playerId));
+  // Prime Suspect (Oct 17, D11): the innocent the most lock-ins and jail votes pointed at.
+  const blame = new Map<string, number>();
+  const pointAt = (id: string | null | undefined) => {
+    if (id && id !== sol.killerId && id !== sol.accompliceId) blame.set(id, (blame.get(id) ?? 0) + 1);
+  };
+  for (const a of accs) pointAt(a.suspectId);
+  for (const b of jailBallots) pointAt(b.targetId);
+  const most = Math.max(0, ...blame.values());
   const name = (id: string) => players.find((p) => p._id === id)?.charName ?? "";
   return {
     scores,
@@ -389,10 +430,64 @@ async function scoreGame(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile) {
     rightRoom,
     accusers: n,
     // Killer + accomplice games: how many of the innocent lock-ins guessed the accomplice.
-    namedAccomplice: sol.accompliceId ? detectives.filter((s) => s.gotAccomplice).length : null,
-    guessers: sol.accompliceId ? detectives.filter((s) => byId.get(s.playerId)?.accompliceId).length : null,
-    bestDetective: best && best.score > 0 ? { playerId: best.playerId, name: name(best.playerId), score: best.score, gotAccomplice: best.gotAccomplice } : null,
+    namedAccomplice: sol.accompliceId ? scores.filter((s) => s.playerId !== sol.killerId && s.playerId !== sol.accompliceId && s.gotAccomplice).length : null,
+    guessers: sol.accompliceId ? scores.filter((s) => s.playerId !== sol.killerId && s.playerId !== sol.accompliceId && byId.get(s.playerId)?.accompliceId).length : null,
+    bestDetectives: best.map((s) => ({ playerId: s.playerId, name: name(s.playerId), score: s.score })),
+    primeSuspects: most ? [...blame.entries()].filter(([, k]) => k === most).map(([id]) => ({ playerId: id as Id<"players">, name: name(id), blamed: most })) : [],
   };
+}
+
+type Scored = Awaited<ReturnType<typeof scoreGame>>;
+
+/** The awards, in the order the TV gives them. CUE: the narrator's line before the names. */
+export const AWARDS = {
+  detective: { title: "Best Detective", cue: "awardDetective" },
+  prime: { title: "Prime Suspect", cue: "awardPrimeSuspect" },
+  dressed: { title: "Best Dressed", cue: "awardDressed" },
+  liar: { title: "Best Liar", cue: "awardLiar" },
+  gotAway: { title: "Got Away With It", cue: "awardGotAway" },
+} as const satisfies Record<string, { title: string; cue: CueKey }>;
+export type AwardKey = keyof typeof AWARDS;
+
+/**
+ * The night's awards (Oct 17): only the ones someone won (Heston: "don't show awards at the end if no one won them").
+ * Best Dressed and Best Liar are voted on the phones, for guests in the game only; Best Liar is among the innocents
+ * (D6), since the killer gets "Got Away With It" when they walk. A tie is shared.
+ */
+async function awardsOf(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile, all: Doc<"players">[], scored: Scored) {
+  const votes = await ctx.db
+    .query("votes")
+    .withIndex("by_game", (q) => q.eq("gameId", game._id))
+    .collect();
+  const sol = cf.solution;
+  const p = (id: string) => all.find((x) => x._id === id);
+  const inGame = new Set<string>(playingOf(all).map((x) => x._id));
+  const who = (ids: string[]) => ids.filter((id) => p(id)).map((id) => ({ id: id as Id<"players">, name: p(id)!.charName, figure: p(id)!.figure ?? null }));
+  const tally = (key: "dressed" | "liar", ok: (id: string) => boolean) => {
+    const c = new Map<string, number>();
+    for (const vt of votes) {
+      const pick = vt[key];
+      if (pick && pick !== vt.playerId && ok(pick)) c.set(pick, (c.get(pick) ?? 0) + 1);
+    }
+    const most = Math.max(0, ...c.values());
+    return { ids: most ? [...c.entries()].filter(([, k]) => k === most).map(([id]) => id) : [], votes: most };
+  };
+  const plural = (k: number, one: string) => `${k} ${one}${k === 1 ? "" : "s"}`;
+  const out: { key: AwardKey; title: string; cue: CueKey; winners: ReturnType<typeof who>; sub: string }[] = [];
+  const add = (key: AwardKey, ids: string[], sub: string) => {
+    const winners = who(ids);
+    if (winners.length) out.push({ key, title: AWARDS[key].title, cue: AWARDS[key].cue, winners, sub });
+  };
+  const det = scored.bestDetectives;
+  if (det.length) add("detective", det.map((d) => d.playerId), `${det[0].score} of 3 right`);
+  const prime = scored.primeSuspects;
+  if (prime.length) add("prime", prime.map((d) => d.playerId), `Innocent, and blamed ${prime[0].blamed === 1 ? "once" : `${prime[0].blamed} times`}`);
+  const dressed = tally("dressed", (id) => inGame.has(id));
+  add("dressed", dressed.ids, plural(dressed.votes, "vote"));
+  const liar = tally("liar", (id) => inGame.has(id) && id !== sol.killerId && id !== sol.accompliceId);
+  add("liar", liar.ids, plural(liar.votes, "vote"));
+  if (scored.killerWins) add("gotAway", [sol.killerId, ...(sol.accompliceId ? [sol.accompliceId] : [])], "The killer walks");
+  return out;
 }
 
 // ---------- party night: guests ----------
@@ -496,12 +591,16 @@ export const vote = mutation({
   handler: async (ctx, { token, dressed, liar }) => {
     const { player, game } = await requirePlayer(ctx, token);
     if (game.status !== "reveal") throw new ConvexError("Voting opens after the reveal.");
+    const sol = (await caseFor(ctx, game))?.solution;
     for (const pick of [dressed, liar]) {
       if (!pick) continue;
       if (pick === player._id) throw new ConvexError("You can't vote for yourself.");
       const p = await ctx.db.get(pick);
-      if (!p || p.gameId !== game._id) throw new ConvexError("Pick someone from tonight's guests.");
+      // Oct 17: only guests who played this game can win its awards.
+      if (!p || p.gameId !== game._id || !p.inGame) throw new ConvexError("Pick someone who played tonight.");
     }
+    // Best Liar is among the innocents (D6): the killer gets "Got Away With It" when they walk.
+    if (liar && sol && (liar === sol.killerId || liar === sol.accompliceId)) throw new ConvexError("Best Liar is for the innocents. The killer has their own award.");
     const existing = await ctx.db
       .query("votes")
       .withIndex("by_player", (q) => q.eq("playerId", player._id))
@@ -574,6 +673,8 @@ export const phone = query({
         bodyRoom: started ? roomLabel(game.bodyRoomKey) : "",
         markerCount: markers.length,
         search: game.search ?? "all",
+        // Oct 17 (D5): games with fewer than 5 guests in them have no jail vote.
+        jailVote: started ? hasJailVote(inGame.length) : hasJailVote(all.length),
         // Rooms open for searching right now (all of them unless searching in waves).
         openRooms: started && game.roomOrder ? openRoomsIn(round, game.roomOrder, game.search).map(roomLabel) : [],
         wifi: game.wifi?.name ? game.wifi : null,
@@ -595,6 +696,8 @@ export const phone = query({
         checkedIn: player.checkedIn,
         inGame: !!player.inGame,
         jailed: !!player.jailed,
+        // Jailed when the lock-in opened (they sat it out), for the reveal (F15).
+        satOut: !!player.jailed && (game.round ?? 0) >= 4,
         weaponIn: !!player.weaponIn,
         exhibitLetter: player.exhibitLetter ?? null,
         ready: !!game.round && player.readyRound === game.round,
@@ -666,6 +769,8 @@ export const phone = query({
               })(),
               room: game.rooms.find((r) => r.key === cf.solution.roomKey)?.label ?? "",
               accomplice: cf.solution.accompliceId ? all.find((p) => p._id === cf.solution.accompliceId)?.charName ?? "" : null,
+              killerId: cf.solution.killerId,
+              accompliceId: cf.solution.accompliceId ?? null,
               killerWins: scored.killerWins,
               mine: scored.scores.find((s) => s.playerId === player._id) ?? null,
               iWasKiller: cf.solution.killerId === player._id,
@@ -855,7 +960,7 @@ export const startGame = mutation({
     const picked = { ...game, lines };
     // Oct 16 (Heston): How to play first, then the Don dies, then the roll call.
     const howAt = now;
-    const introAt = howLayout(howAt, howCues({ search: game.search ?? "all", pacing: game.pacing, accomplice: !!input.accomplice }), showSecs(picked)).end;
+    const introAt = howLayout(howAt, howCues({ search: game.search ?? "all", pacing: game.pacing, accomplice: !!input.accomplice, jailVote: hasJailVote(input.suspects.length) }), showSecs(picked)).end;
     const rollAt = introLayout(introAt, showSecs(picked)).end;
     const est = await rollPlan(ctx, picked, rollAt, order, file as CaseFile);
     const introEndsAt = est.end;
@@ -1109,20 +1214,7 @@ export const results = query({
     const input = await caseInput(ctx, game);
     const scored = await scoreGame(ctx, game, cf);
     const name = (id: string) => input.suspects.find((s) => s.id === id)?.name ?? "";
-    let awards = null;
-    if (game.status === "done") {
-      const votes = await ctx.db
-        .query("votes")
-        .withIndex("by_game", (q) => q.eq("gameId", game._id))
-        .collect();
-      const tally = (key: "dressed" | "liar") => {
-        const c = new Map<string, number>();
-        for (const vt of votes) if (vt[key]) c.set(vt[key]!, (c.get(vt[key]!) ?? 0) + 1);
-        const top = Math.max(0, ...c.values());
-        return top ? [...c.entries()].filter(([, n]) => n === top).map(([id]) => ({ name: name(id), votes: top })) : [];
-      };
-      awards = { bestDressed: tally("dressed"), bestLiar: tally("liar"), bestDetective: scored.bestDetective };
-    }
+    const awards = game.status === "done" ? (await awardsOf(ctx, game, cf, await playersOf(ctx, game._id), scored)).map((a) => ({ key: a.key, title: a.title, names: a.winners.map((w) => w.name), sub: a.sub })) : null;
     const exhibit = input.exhibits.find((e) => e.id === cf.solution.exhibitId);
     return {
       killer: name(cf.solution.killerId),
@@ -1201,7 +1293,7 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
   const rooms: Record<string, Clip> = {};
   for (const r of [1, 2, 3]) if (r <= (game.round ?? 0)) rooms[r] = await get(`rooms:${r}`);
   let reveal = null;
-  let winners = null;
+  let winners: Record<string, Clip[]> | null = null;
   if ((game.status === "reveal" || game.status === "done") && cf) {
     reveal = {
       killer: await get(`killer:${cf.solution.killerId}`),
@@ -1211,25 +1303,11 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
     };
   }
   if (game.status === "done" && cf) {
-    const scored = await scoreGame(ctx, game, cf);
-    const votes = await ctx.db
-      .query("votes")
-      .withIndex("by_game", (q) => q.eq("gameId", game._id))
-      .collect();
-    const top = (key: "dressed" | "liar") => {
-      const c = new Map<string, number>();
-      for (const vt of votes) if (vt[key]) c.set(vt[key]!, (c.get(vt[key]!) ?? 0) + 1);
-      const best = Math.max(0, ...c.values());
-      return best ? [...c.entries()].find(([, k]) => k === best)![0] : null;
-    };
-    const det = scored.bestDetective?.playerId ?? null;
-    const dressed = top("dressed");
-    const liar = top("liar");
-    winners = {
-      detective: det ? await get(`winner:${det}`) : null,
-      dressed: dressed ? await get(`winner:${dressed}`) : null,
-      liar: liar ? await get(`winner:${liar}`) : null,
-    };
+    // Each award's winners' names, in the TV's order (a shared award says every name).
+    winners = {} as Record<string, Clip[]>;
+    for (const a of await awardsOf(ctx, game, cf, all, await scoreGame(ctx, game, cf))) {
+      winners[a.key] = (await Promise.all(a.winners.map((w) => get(`winner:${w.id}`)))).filter((c): c is NonNullable<Clip> => !!c);
+    }
   }
   // The night's heckles for the lulls, the ones that are recorded (convex/heckles.ts).
   const heckles = [];
@@ -1283,20 +1361,7 @@ export const tv = query({
       const name = (id: string) => all.find((p) => p._id === id)?.charName ?? "";
       const killer = all.find((p) => p._id === cf.solution.killerId);
       const exhibit = input.exhibits.find((e) => e.id === cf.solution.exhibitId);
-      let awards = null;
-      if (game.status === "done") {
-        const votes = await ctx.db
-          .query("votes")
-          .withIndex("by_game", (q) => q.eq("gameId", game._id))
-          .collect();
-        const tally = (key: "dressed" | "liar") => {
-          const c = new Map<string, number>();
-          for (const vt of votes) if (vt[key]) c.set(vt[key]!, (c.get(vt[key]!) ?? 0) + 1);
-          const top = Math.max(0, ...c.values());
-          return top ? [...c.entries()].filter(([, n]) => n === top).map(([id]) => ({ name: name(id), votes: top })) : [];
-        };
-        awards = { bestDressed: tally("dressed"), bestLiar: tally("liar"), bestDetective: scored.bestDetective ? { name: scored.bestDetective.name, score: scored.bestDetective.score } : null };
-      }
+      const awards = game.status === "done" ? await awardsOf(ctx, game, cf, all, scored) : null;
       const keyOf = await weaponKeys(ctx, game);
       const accomplice = cf.solution.accompliceId ? all.find((p) => p._id === cf.solution.accompliceId) : undefined;
       results = {
@@ -1350,6 +1415,8 @@ export const tv = query({
         narrator: narratorOf(game),
         levels: levelsOf(game),
         search: game.search ?? "all",
+        // Oct 17 (D5): no jail vote (and no jail card in How to play) with fewer than 5 guests in the game.
+        jailVote: hasJailVote(started ? playingOf(all).length : all.filter((p) => p.checkedIn).length),
         // v2: a killer + accomplice game (fixed at Start): How to play adds the accomplice, the reveal names them.
         accomplice: started && !!game.hasAccomplice,
         wifi: game.wifi?.name ? game.wifi : null,

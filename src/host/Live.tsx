@@ -34,7 +34,14 @@ export function useNextStep(data: Roster, slug: string, hostKey: string, now: nu
     return {
       label: "Start the game",
       confirm: `Tap again to start · ${c.checkedIn} of ${c.total} checked in`,
-      help: "Runs the secret draw and picks where the body turns up. Anyone not checked in can't join after this.",
+      // Oct 17 (D8): a count only, never who opted out.
+      help: `Runs the secret draw and picks where the body turns up. Anyone not checked in can't join after this.${
+        c.checkedIn && c.killerPool < c.checkedIn
+          ? c.killerPool
+            ? ` ${c.killerPool} of the ${c.checkedIn} checked in can be drawn as the killer (the rest opted out).`
+            : " Everyone checked in opted out of being the killer, so anyone can be drawn."
+          : ""
+      }${c.checkedIn && !g.jailVote ? " Under 5 guests: no jail vote tonight." : ""}`,
       run: () => startGame({ ...args, ...heardForStart(scriptOf(g)) }),
     };
   if (intro && g.show) {
@@ -56,7 +63,16 @@ export function useNextStep(data: Roster, slug: string, hostKey: string, now: nu
       return {
         label: `End Round ${g.round}`,
         // Oct 16: Round 1 has no vote, Round 2 ends in the jail vote, Round 3 in the release vote (if anyone's in jail).
-        help: g.round === 1 ? "On to Round 2. No vote after Round 1." : g.round === 2 ? "Ends the round in the jail vote." : "Ends the round in the release vote if anyone's in jail, then the lock-in.",
+        help:
+          g.round === 1
+            ? "On to Round 2. No vote after Round 1."
+            : !g.jailVote
+              ? g.round === 2
+                ? "On to Round 3. Under 5 guests, there's no jail vote."
+                : "On to the lock-in."
+              : g.round === 2
+                ? "Ends the round in the jail vote."
+                : "Ends the round in the release vote if anyone's in jail (no vote if the evidence already cleared them), then the lock-in.",
         run: () => advance(args),
       };
     const allIn = c.accused >= c.inGame;
@@ -67,7 +83,7 @@ export function useNextStep(data: Roster, slug: string, hostKey: string, now: nu
       run: () => advance(args),
     };
   }
-  if (g.status === "reveal") return { label: "Show the awards", help: "Closes the voting for Best Dressed and Best Liar.", run: () => finish(args) };
+  if (g.status === "reveal") return { label: "Show the awards", help: "Closes the voting for Best Dressed and Best Liar. Only awards someone won are shown.", run: () => finish(args) };
   if (!g.endedAt) return { label: "End the night", help: "The TV shows the closing card. After that you can start a new game.", run: () => endNight(args) };
   const goTo = (next: string) => navigate(`/host?game=${encodeURIComponent(next)}&key=${encodeURIComponent(hostKey)}`);
   if (g.nextSlug) return { label: "Go to the new game", help: "The new game is open for sign-ups. The TV has already switched to it.", run: async () => goTo(g.nextSlug!) };

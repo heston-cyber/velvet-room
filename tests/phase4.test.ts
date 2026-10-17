@@ -271,7 +271,7 @@ describe("Phase 4: drawn body room, waves, Wi-Fi, the TV", () => {
     await t.mutation(api.game.vote, { token: tokens[1], dressed: players[0]._id as Id<"players"> });
     await t.mutation(api.game.finish, { slug: SLUG, hostKey });
     const tv = await t.query(api.game.tv, { slug: SLUG, tvKey: await tvKey(t) });
-    expect(tv.results!.awards!.bestDressed[0].name).toBe(players[0].charName);
+    expect(tv.results!.awards!.find((a) => a.key === "dressed")!.winners.map((w) => w.name)).toEqual([players[0].charName]);
     await t.mutation(api.game.endNight, { slug: SLUG, hostKey });
     expect((await t.query(api.game.tv, { slug: SLUG, tvKey: await tvKey(t) })).game.endedAt).toBeGreaterThan(0);
   });
