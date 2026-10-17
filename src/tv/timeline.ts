@@ -260,7 +260,8 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
     // The show (v2): the intro, How to play, the roll call, "check your phones". Then Round 1.
     if (round === 1 && g.startedAt && g.introEndsAt && now < g.introEndsAt) return show(d, now, cs, out, { vo, clip, fx, card, cameo, pick });
     out.music = "rounds";
-    const timed = g.pacing.mode === "timer" && !g.paused && g.roundEndsAt !== null && g.roundEndsAt > 0;
+    // F12 (Oct 17): the lock-in has a clock whatever the pacing.
+    const timed = (g.pacing.mode === "timer" || round >= 4) && !g.paused && g.roundEndsAt !== null && g.roundEndsAt > 0;
     const left = timed ? g.roundEndsAt! - now : Infinity;
 
     // The votes after a round (v2): the jail vote, and from Round 2 a release vote first if anyone is in jail.
@@ -286,7 +287,8 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
       // Heckles while the votes come in, then the last call.
       heckle(`${id}:0`, 23 + round * 3 + (vt.kind === "jail" ? 0 : 2), t + HECKLE.voteOpenFirst, "vote");
       heckle(`${id}:1`, 24 + round * 3 + (vt.kind === "jail" ? 0 : 2), t + HECKLE.voteOpenFirst + HECKLE.voteOpenEvery, "vote");
-      vo(`${id}:last`, "voteLastCall", vt.endsAt - VOTE.lastCallMs, false, `${round}:${vt.kind}`);
+      // A paused vote (F8) doesn't get its last call until it's running again.
+      if (vt.left === null || vt.left === undefined) vo(`${id}:last`, "voteLastCall", vt.endsAt - VOTE.lastCallMs, false, `${round}:${vt.kind}`);
       if (vt.closedAt) {
         // Closed: who voted for whom, then the verdict. Whatever the open vote still had queued doesn't play.
         const c = vt.closedAt;

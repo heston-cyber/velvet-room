@@ -155,8 +155,10 @@ async function nextRound(ctx: MutationCtx, game: Doc<"games">) {
   }
   const next = round + 1;
   const timed = game.pacing.mode === "timer";
-  const minutes = next === 4 ? Math.min(game.pacing.roundMinutes, ACCUSE_MAX_MINUTES) : game.pacing.roundMinutes;
-  const endsAt = timed ? Date.now() + minutes * 60_000 : undefined;
+  // F12 (Oct 17): the lock-in always runs on a clock (5 minutes at most), even when guests tap Ready, so one dead
+  // phone can't hold up the reveal.
+  const minutes = next === 4 ? (timed ? Math.min(game.pacing.roundMinutes, ACCUSE_MAX_MINUTES) : ACCUSE_MAX_MINUTES) : game.pacing.roundMinutes;
+  const endsAt = timed || next === 4 ? Date.now() + minutes * 60_000 : undefined;
   // Skipping ahead also cuts the intro short.
   await ctx.db.patch(game._id, { round: next, roundStartedAt: Date.now(), roundEndsAt: endsAt, paused: false, introEndsAt: Math.min(game.introEndsAt ?? 0, Date.now()), rolesOut: true });
   await scheduleTimer(ctx, game._id, next, endsAt);
@@ -219,7 +221,7 @@ async function closeVote(ctx: MutationCtx, game: Doc<"games">) {
   }
   const saidAt = now + VOTE.verdictAtMs + (outcome === "jailed" ? LOCKED_UP_MS + 100 : 500);
   const nextAt = Math.max(now + VOTE.nextMs, saidAt + verdictSecs * 1000 + 1500);
-  await ctx.db.patch(game._id, { vote: { ...v, closedAt: now, outcome, targetId: target, nextAt } });
+  await ctx.db.patch(game._id, { vote: { ...v, left: undefined, closedAt: now, outcome, targetId: target, nextAt } });
   await ctx.scheduler.runAt(nextAt, internal.game.afterVote, { gameId: game._id, at: v.at });
 }
 
@@ -258,6 +260,8 @@ export const voteTick = internalMutation({
   handler: async (ctx, { gameId, at }) => {
     const game = await ctx.db.get(gameId);
     if (!game || !isPlaying(game) || game.vote?.at !== at || game.vote.closedAt) return;
+    // F8 (Oct 17): a paused vote waits; resuming moves its clock on and schedules it again.
+    if (game.paused || game.vote.endsAt > Date.now() + 500) return;
     await closeVote(ctx, game);
   },
 });
@@ -267,6 +271,7 @@ export const afterVote = internalMutation({
   handler: async (ctx, { gameId, at }) => {
     const game = await ctx.db.get(gameId);
     if (!game || !isPlaying(game) || game.vote?.at !== at || !game.vote.closedAt || game.round !== game.vote.round) return;
+    if (game.paused || (game.vote.nextAt ?? 0) > Date.now() + 500) return;
     await afterVoteNow(ctx, game);
   },
 });
@@ -278,6 +283,7 @@ export const castVote = mutation({
     const { player, game } = await requirePlayer(ctx, token);
     const vt = isPlaying(game) ? voteOf(game) : null;
     if (!vt || vt.closedAt) throw new ConvexError("The vote is closed.");
+    if (game.paused) throw new ConvexError("The host paused the game. Vote when it starts again.");
     if (!vt.voters.includes(player._id)) throw new ConvexError(player.jailed ? "You're in jail, so you can't vote. You can still bribe." : "You're not in this vote.");
     if (targetId === player._id) throw new ConvexError("You can't vote for yourself.");
     if (targetId && !vt.candidates.includes(targetId)) throw new ConvexError("Pick someone from the list, or nobody.");
@@ -355,6 +361,8 @@ async function publicVote(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">
     nextAt: vt.nextAt ?? null,
     outcome: vt.outcome ?? null,
     auto: !!vt.auto,
+    // While the game is paused: the vote's time left (F8).
+    left: game.paused ? vt.left ?? null : null,
     target: vt.targetId ? { id: vt.targetId, name: p(vt.targetId)?.charName ?? "", figure: p(vt.targetId)?.figure ?? null } : null,
     candidates: vt.candidates.map((id) => ({ id, name: p(id) ? shortName(p(id)!) : "", full: p(id)?.charName ?? "", figure: p(id)?.figure ?? null, jailed: !!p(id)?.jailed })),
     voters: vt.voters.length,
@@ -890,6 +898,31 @@ async function writeMarkers(ctx: MutationCtx, game: Doc<"games">, markers: { num
   }
 }
 
+/**
+ * Before the draw (Oct 17): with no cards tonight (F1), the game's cards go and their clues come out on the TV. A card
+ * with no room, or in a room that's no longer in play, is dealt to the rooms in play, fewest cards first (F10), so
+ * Play never fails in front of everyone.
+ */
+async function settleCards(ctx: MutationCtx, game: Doc<"games">, none: boolean) {
+  const markers = await ctx.db
+    .query("markers")
+    .withIndex("by_game", (q) => q.eq("gameId", game._id))
+    .collect();
+  if (none) {
+    for (const m of markers) await ctx.db.delete(m._id);
+    return;
+  }
+  const rooms = game.rooms.map((r) => r.key);
+  const count = new Map(rooms.map((k) => [k, markers.filter((m) => m.roomKey === k).length]));
+  for (const m of markers.sort((a, b) => a.number - b.number)) {
+    if (rooms.includes(m.roomKey)) continue;
+    const to = [...count.entries()].sort((a, b) => a[1] - b[1])[0]?.[0];
+    if (!to) return;
+    await ctx.db.patch(m._id, { roomKey: to });
+    count.set(to, (count.get(to) ?? 0) + 1);
+  }
+}
+
 /** Host: party night begins. Guests can check in. */
 export const openDoors = mutation({
   args: { slug: v.string(), hostKey: v.string() },
@@ -925,10 +958,13 @@ function linesFor(game: Doc<"games">, heard: { lines: Record<string, number[]>; 
 }
 
 export const startGame = mutation({
-  args: { slug: v.string(), hostKey: v.string(), heard: heardArg, gag: v.optional(v.boolean()) },
-  handler: async (ctx, { slug, hostKey, heard, gag }) => {
+  // cards (F1, Oct 17): the host's answer to "Are the QR cards hidden?" at Play. "none": no cards tonight, so their
+  // clues come out on the TV instead. Older pages don't send it.
+  args: { slug: v.string(), hostKey: v.string(), heard: heardArg, gag: v.optional(v.boolean()), cards: v.optional(v.union(v.literal("hidden"), v.literal("none"))) },
+  handler: async (ctx, { slug, hostKey, heard, gag, cards }) => {
     const host = await requireHost(ctx, slug, hostKey);
     if (host.status !== "registration" && host.status !== "lobby") throw new ConvexError("This game has already started.");
+    await settleCards(ctx, host, cards === "none");
     // Started straight from sign-ups: the weapons are drawn now, for who's checked in.
     const game = await ensureWeapons(ctx, host, (await playersOf(ctx, host._id)).filter((p) => p.checkedIn).length);
     if ((game.weaponKeys?.length ?? 0) < MIN_WEAPONS) throw new ConvexError(`Pick at least ${MIN_WEAPONS} weapons in Options, or clear them and the game draws its own.`);
@@ -1132,13 +1168,29 @@ export const setPaused = mutation({
     const game = await requireHost(ctx, slug, hostKey);
     if (!isPlaying(game)) throw new ConvexError("The game isn't running.");
     if (paused === !!game.paused) return { ok: true };
+    const now = Date.now();
+    const vt = voteOf(game);
     if (paused) {
-      const left = game.roundEndsAt ? Math.max(0, game.roundEndsAt - Date.now()) : undefined;
+      const left = game.roundEndsAt ? Math.max(0, game.roundEndsAt - now) : undefined;
       // store the remaining time in roundEndsAt as a negative number while paused
-      await ctx.db.patch(game._id, { paused: true, pausedAt: Date.now(), roundEndsAt: left !== undefined ? -left : undefined });
+      // F8 (Oct 17): an open vote keeps its time left too, and a verdict on screen waits.
+      const vote = vt ? { ...vt, left: vt.closedAt ? Math.max(0, (vt.nextAt ?? now) - now) : Math.max(0, vt.endsAt - now) } : undefined;
+      await ctx.db.patch(game._id, { paused: true, pausedAt: now, roundEndsAt: left !== undefined ? -left : undefined, ...(vote ? { vote } : {}) });
     } else {
-      const endsAt = game.roundEndsAt !== undefined && game.roundEndsAt <= 0 ? Date.now() - game.roundEndsAt : undefined;
-      await ctx.db.patch(game._id, { paused: false, resumedAt: Date.now(), roundEndsAt: endsAt });
+      const endsAt = game.roundEndsAt !== undefined && game.roundEndsAt <= 0 ? now - game.roundEndsAt : undefined;
+      await ctx.db.patch(game._id, { paused: false, resumedAt: now, roundEndsAt: endsAt });
+      if (vt) {
+        const { left, ...rest } = vt;
+        if (!vt.closedAt) {
+          const endsAt = left !== undefined ? now + left : Math.max(now + 1000, vt.endsAt);
+          await ctx.db.patch(game._id, { vote: { ...rest, endsAt } });
+          await ctx.scheduler.runAt(endsAt, internal.game.voteTick, { gameId: game._id, at: vt.at });
+        } else {
+          const nextAt = left !== undefined ? now + left : Math.max(now + 1000, vt.nextAt ?? now);
+          await ctx.db.patch(game._id, { vote: { ...rest, nextAt } });
+          await ctx.scheduler.runAt(nextAt, internal.game.afterVote, { gameId: game._id, at: vt.at });
+        }
+      }
       await scheduleTimer(ctx, game._id, game.round ?? 1, endsAt);
       await maybeAdvanceOnReady(ctx, (await ctx.db.get(game._id))!);
       await maybeRevealOnAccusations(ctx, (await ctx.db.get(game._id))!);

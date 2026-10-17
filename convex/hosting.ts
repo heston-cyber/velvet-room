@@ -82,7 +82,7 @@ async function newest(ctx: QueryCtx, game: Doc<"games">) {
 export const myGames = query({
   args: { links: v.array(v.object({ slug: v.string(), hostKey: v.string() })) },
   handler: async (ctx, { links }) => {
-    const out: { slug: string; title: string; status: Doc<"games">["status"]; over: boolean; isTest: boolean; players: number; createdAt: number }[] = [];
+    const out: { slug: string; title: string; status: Doc<"games">["status"]; over: boolean; isTest: boolean; players: number; createdAt: number; roomCode: string | null; gameNumber: number }[] = [];
     for (const l of links.slice(0, 30)) {
       const first = await bySlug(ctx, l.slug);
       if (!first || first.hostKey !== l.hostKey) continue;
@@ -92,7 +92,8 @@ export const myGames = query({
         .query("players")
         .withIndex("by_game", (q) => q.eq("gameId", g._id))
         .collect();
-      out.push({ slug: g.slug, title: g.title, status: g.status, over: !!g.endedAt, isTest: g.isTest, players: players.length, createdAt: g.createdAt });
+      // I9 (Oct 17): the list tells games apart by date, room code and game number.
+      out.push({ slug: g.slug, title: g.title, status: g.status, over: !!g.endedAt, isTest: g.isTest, players: players.length, createdAt: g.createdAt, roomCode: g.endedAt ? null : g.roomCode ?? null, gameNumber: g.gameNumber ?? 1 });
     }
     return out.sort((a, b) => b.createdAt - a.createdAt);
   },

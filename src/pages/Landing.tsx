@@ -19,16 +19,17 @@ export default function Landing() {
           <button type="button" className="primary" onClick={() => navigate("/join")}>
             Join a game
           </button>
-          <button type="button" className="ghost-btn" onClick={() => navigate("/host")}>
-            Host a game
-          </button>
           {saved && (
-            <button type="button" className="back center-text" onClick={() => navigate(`/p/${saved}`)}>
+            <button type="button" className="ghost-btn" onClick={() => navigate(`/p/${saved}`)}>
               Open my card
             </button>
           )}
         </div>
         <p className="help">Joining? Type the room code from the TV. Got a sign-up link from your host? Open that instead.</p>
+        {/* I10 (Oct 17): hosting is for the laptop by the TV, so it's a small link here. */}
+        <button type="button" className="back center-text small-link" onClick={() => navigate("/host")}>
+          Hosting on a laptop? Host a game
+        </button>
       </div>
     </Shell>
   );

@@ -9,7 +9,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { friendlyError } from "../lib/errors";
 import Menu, { SoundCheck, type SettingsPatch } from "../host/Menu";
-import { Rescue, useNextStep } from "../host/Live";
+import { Rescue, useNextStep, useSideStep } from "../host/Live";
 import { useBusy, useConfirm, useNow, type Roster } from "../host/common";
 import { TvStage } from "../tv/Tv";
 import { Swap } from "../lib/Swap";
@@ -101,7 +101,14 @@ export default function Host(props: { slug: string; hostKey: string }) {
   const key = current ? keys[baseSlug(current)] ?? (props.slug === current ? props.hostKey : null) : null;
   if (!current || !key) return <Lobby keys={keys} onOpen={open} auto={!picking} />;
   return (
-    <Boundary onForget={() => forget(current)} key={`${current}:${key}`}>
+    <Boundary
+      onForget={() => forget(current)}
+      onBack={() => {
+        setPicking(true);
+        setCurrent(null);
+      }}
+      key={`${current}:${key}`}
+    >
       <HostScreen slug={current} hostKey={key} onGame={(slug) => open({ slug, hostKey: key })} onSwitch={() => {
           setPicking(true);
           setCurrent(null);
@@ -111,22 +118,38 @@ export default function Host(props: { slug: string; hostKey: string }) {
   );
 }
 
-class Boundary extends Component<{ children: ReactNode; onForget: () => void }, { error: unknown }> {
+/**
+ * F2 (Oct 17): a crash on the host screen offers Reload (the game keeps running on the server). Only a host link that
+ * really isn't valid offers to forget it, so a hiccup can't lock the host out of their own game.
+ */
+class Boundary extends Component<{ children: ReactNode; onForget: () => void; onBack: () => void }, { error: unknown }> {
   state = { error: null as unknown };
   static getDerivedStateFromError(error: unknown) {
     return { error };
   }
   render() {
     if (this.state.error) {
+      const e = this.state.error as { data?: unknown; message?: unknown };
+      const badKey = /host link isn't valid/i.test(`${String(e?.data ?? "")} ${String(e?.message ?? "")}`);
       return (
         <div className="hs-page">
           <div className="hs-setup">
             <span className="hs-kick">Host</span>
-            <h1 className="hs-h1">That host link isn't valid</h1>
-            <p className="hs-sub">Open the full host link again, including the part after "key=".</p>
-            <button type="button" className="hs-btn" onClick={this.props.onForget}>
-              Forget this link
+            <h1 className="hs-h1">{badKey ? "That host link isn't valid" : "Something went wrong"}</h1>
+            <p className="hs-sub">
+              {badKey ? "Open the full host link again, including the part after \"key=\"." : "Reload the page. The game is safe: it keeps running without this screen."}
+            </p>
+            <button type="button" className="hs-btn big" onClick={() => window.location.reload()}>
+              Reload
             </button>
+            <button type="button" className="hs-btn" onClick={this.props.onBack}>
+              Back to my games
+            </button>
+            {badKey && (
+              <button type="button" className="hs-btn" onClick={this.props.onForget}>
+                Forget this link
+              </button>
+            )}
           </div>
         </div>
       );
@@ -201,9 +224,11 @@ function Lobby({ keys, onOpen, auto }: { keys: Record<string, string>; onOpen: (
             <ul className="hs-games">
               {mine.map((g) => (
                 <li key={g.slug}>
-                  <span className="nm">{g.title.replace(/\s*\([^)]*\)/g, "")}</span>
+                  <span className="nm">
+                    {g.title.replace(/\s*\([^)]*\)/g, "")} · {new Date(g.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  </span>
                   <span className="st">
-                    {g.over ? "Over" : STATUS[g.status] ?? g.status} · {g.players} signed up{g.isTest ? " · test game" : ""}
+                    {g.over ? "Over" : STATUS[g.status] ?? g.status} · {g.players} signed up{g.roomCode ? ` · code ${g.roomCode}` : ""}{g.isTest ? " · test game" : ""}
                   </span>
                   <button type="button" className="hs-btn" onClick={() => onOpen({ slug: g.slug, hostKey: keys[baseSlug(g.slug)] })}>
                     Open
@@ -386,7 +411,7 @@ function GameHud({ data, slug, hostKey, onMenu, onError }: { data: Roster; slug:
         <span aria-hidden="true">☰</span> Menu
       </button>
       {g.status === "lobby" && <LobbyBar data={data} slug={slug} hostKey={hostKey} onError={onError} />}
-      {(g.status === "reveal" || g.status === "done") && <HostStep data={data} slug={slug} hostKey={hostKey} onError={onError} />}
+      {(g.status === "reveal" || g.status === "done" || (g.status === "playing" && g.round >= 4)) && <HostStep data={data} slug={slug} hostKey={hostKey} onError={onError} />}
     </>
   );
 }
@@ -397,13 +422,14 @@ function LobbyBar({ data, slug, hostKey, onError }: { data: Roster; slug: string
   const { busy, run } = useBusy();
   const inCount = data.counts.checkedIn;
   const isArmed = armed === "start";
-  async function go() {
-    if (!isArmed) return arm("start");
+  // F1 (Oct 17): Play asks whether the QR cards are hidden. No cards tonight: their clues come out on the TV instead.
+  const hasCards = data.markers.length > 0;
+  async function begin(cards: "hidden" | "none") {
     disarm();
     onError(null);
     await run(async () => {
       try {
-        await startGame({ slug, hostKey, ...heardForStart(scriptOf(data.game)) });
+        await startGame({ slug, hostKey, cards, ...heardForStart(scriptOf(data.game)) });
       } catch (err) {
         onError(friendlyError(err));
       }
@@ -414,23 +440,53 @@ function LobbyBar({ data, slug, hostKey, onError }: { data: Roster; slug: string
       <span className="hs-count">
         <b>{inCount}</b> {inCount === 1 ? "guest is" : "guests are"} in
       </span>
-      <button type="button" className={`hs-btn big ${isArmed ? "armed" : ""}`} disabled={busy || inCount < 3} onClick={go}>
-        <Swap show={isArmed ? 1 : 0}>
-          <span>Everyone is in</span>
-          <span>Tap again to begin</span>
-        </Swap>
-      </button>
-      {inCount < 3 ? (
-        <span className="hs-hint">At least 3 guests have to be in.</span>
-      ) : null}
+      {isArmed && hasCards ? (
+        <div className="hs-ask" role="group" aria-label="Are the QR cards hidden?">
+          <span className="hs-ask-q">Are the {data.markers.length} QR cards hidden around the house?</span>
+          <div className="hs-row">
+            <button type="button" className="hs-btn big" disabled={busy} onClick={() => void begin("hidden")}>
+              Yes, begin
+            </button>
+            <button type="button" className="hs-btn" disabled={busy} onClick={() => void begin("none")}>
+              No cards tonight
+            </button>
+          </div>
+          <span className="hs-hint">No cards: their clues come out on the TV instead.</span>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className={`hs-btn big ${isArmed ? "armed" : ""}`}
+          disabled={busy || inCount < 3}
+          onClick={() => (isArmed ? void begin("none") : arm("start"))}
+        >
+          <Swap show={isArmed ? 1 : 0}>
+            <span>Everyone is in</span>
+            <span>Tap again to begin</span>
+          </Swap>
+        </button>
+      )}
+      {inCount < 3 ? <span className="hs-hint">At least 3 guests have to be in.</span> : null}
     </div>
   );
 }
 
-/** The next step when the game is waiting on the host (the awards, the end of the night, a new game). */
+/** The next step when the game is waiting on the host (the lock-in, the awards, the end of the night, a new game). */
 function HostStep({ data, slug, hostKey, onError }: { data: Roster; slug: string; hostKey: string; onError: (m: string | null) => void }) {
   const now = useNow(1000);
   const step = useNextStep(data, slug, hostKey, now);
+  const side = useSideStep(data, slug, hostKey);
+  // F7: "Show the awards" stays off the TV until the verdict.
+  if (step.disabled) return null;
+  return (
+    <div className="hs-step">
+      {side && <StepButton step={side} onError={onError} />}
+      <StepButton step={step} onError={onError} />
+    </div>
+  );
+}
+
+function StepButton({ step, onError }: { step: ReturnType<typeof useNextStep>; onError: (m: string | null) => void }) {
   const { armed, arm, disarm } = useConfirm();
   const { busy, run } = useBusy();
   const isArmed = armed === step.label;
@@ -447,14 +503,12 @@ function HostStep({ data, slug, hostKey, onError }: { data: Roster; slug: string
     });
   }
   return (
-    <div className="hs-step">
-      <button type="button" className={`hs-btn ${isArmed ? "armed" : ""}`} disabled={busy || step.disabled} onClick={go}>
-        <Swap show={isArmed ? 1 : 0}>
-          <span>{step.label}</span>
-          <span>{step.confirm ?? step.label}</span>
-        </Swap>
-      </button>
-    </div>
+    <button type="button" className={`hs-btn ${isArmed ? "armed" : ""}`} disabled={busy || step.disabled} onClick={go}>
+      <Swap show={isArmed ? 1 : 0}>
+        <span>{step.label}</span>
+        <span>{step.confirm ?? step.label}</span>
+      </Swap>
+    </button>
   );
 }
 

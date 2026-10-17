@@ -182,10 +182,18 @@ describe("walk-ins (v2): new guests sign up at the door with the room code", () 
     const { figs, weapon } = await freePicks(t);
     const wrong = code === "BCDF" ? "BCDG" : "BCDF";
     await expect(t.mutation(api.registration.register, walkIn(wrong, figs, weapon))).rejects.toThrow(/closed/);
+    // F5 (Oct 17): once the game has started, nobody new can sign up, even with the code.
+    const late = await setup({ checkIn: true });
+    await late.t.mutation(api.game.startGame, { slug: SLUG, hostKey: late.hostKey });
+    const p2 = await freePicks(late.t);
+    await expect(late.t.mutation(api.registration.register, walkIn(late.code, p2.figs, p2.weapon))).rejects.toThrow(/closed/);
+    const room = await late.t.query(api.join.room, { code: late.code });
+    expect(room).toMatchObject({ ok: true, started: true });
+    // S1: before the doors open, sign-up is open to anyone with the link, whatever the old close date said.
     const before = await setup({ open: false });
-    await before.t.run(async (ctx) => ctx.db.patch((await ctx.db.query("games").first())!._id, { registrationClosesAt: Date.now() - 1000, roomCode: "BCDF" }));
-    const p2 = await freePicks(before.t);
-    await expect(before.t.mutation(api.registration.register, walkIn("BCDF", p2.figs, p2.weapon))).rejects.toThrow(/closed/);
+    await before.t.run(async (ctx) => ctx.db.patch((await ctx.db.query("games").first())!._id, { registrationClosesAt: Date.now() - 1000, registrationOpen: false }));
+    const p3 = await freePicks(before.t);
+    await before.t.mutation(api.registration.register, { ...walkIn("", p3.figs, p3.weapon), roomCode: undefined });
   });
 
   test("a guest who signed up before is let in by their own phone (check-in needs no weapon bag)", async () => {

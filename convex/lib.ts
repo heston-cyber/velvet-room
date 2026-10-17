@@ -55,8 +55,12 @@ export function charKeyOf(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
-export function registrationIsOpen(game: Doc<"games">, now: number): boolean {
-  return game.registrationOpen && game.status === "registration" && now <= game.registrationClosesAt;
+/**
+ * Sign-ups (S1, Oct 17: no close date and no on/off switch): open until the host opens the doors on party night. After
+ * that, new guests sign up at the door with the room code (registration.walkInOk). `now` is kept for older callers.
+ */
+export function registrationIsOpen(game: Doc<"games">, _now?: number): boolean {
+  return game.status === "registration" && !game.endedAt;
 }
 
 export async function gameBySlugOrActive(

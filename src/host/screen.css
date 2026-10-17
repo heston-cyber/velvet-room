@@ -45,7 +45,10 @@
 .hs-count { font-family: var(--label); font-size: 1.3cqw; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 .hs-count b { font-family: var(--display); font-weight: 400; font-size: 2.4cqw; color: var(--brass); letter-spacing: 0; margin-right: .3cqw; }
 .hs-hint { font-size: 1.1cqw; font-style: italic; color: var(--muted); }
-.hs-step { position: absolute; right: 3cqw; bottom: 9.5cqw; z-index: 22; }
+/* F1 (Oct 17): "Are the QR cards hidden?" at Play. */
+.hs-ask { display: grid; gap: .8cqw; justify-items: end; background: rgba(18, 5, 10, .82); border: 1px solid var(--brass); padding: 1.2cqw 1.4cqw; }
+.hs-ask-q { font-family: var(--display); font-size: 1.9cqw; color: var(--paper); max-width: 34cqw; text-wrap: balance; }
+.hs-step { position: absolute; right: 3cqw; bottom: 9.5cqw; z-index: 22; display: flex; gap: .8cqw; }
 .hs-pause { position: absolute; top: 0; right: 0; bottom: 0; width: 30cqw; z-index: 30; display: grid; align-content: start; gap: 1cqw; padding: 2.4cqw 2cqw;
   background: rgba(14, 4, 8, .95); border-left: 1px solid var(--brass-dim); overflow-y: auto; animation: hs-slide .35s ease both; }
 .hs-pause .hs-btn { width: 100%; }

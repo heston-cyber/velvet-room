@@ -173,7 +173,8 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
 
 function TopLine({ data }: { data: Phone }) {
   const { game, counts } = data;
-  const timed = game.pacing.mode === "timer";
+  // F12 (Oct 17): the lock-in has a clock whatever the pacing.
+  const timed = game.pacing.mode === "timer" || game.round >= 4;
   const now = useNow(game.status === "playing");
   let left = "";
   const intro = game.status === "playing" && game.round === 1 && !!game.introEndsAt && game.introEndsAt > now;
@@ -243,36 +244,36 @@ function todoOf(data: Phone, intro: boolean): string {
   return "Thanks for playing.";
 }
 
-/** Waiting at the door (v2): when the host presses Start, a signed-up guest with their page open is let in on their own. */
+/** At the door (Oct 17, F4): the guest taps "I'm here" once they're at the party, so a link left open at home can't put
+ *  them in the game. */
 function Arrive({ token, name }: { token: string; name: string }) {
   const checkIn = useMutation(api.game.checkIn);
   const [error, setError] = useState<string | null>(null);
-  const [tries, setTries] = useState(0);
-  useEffect(() => {
-    let live = true;
+  const [busy, setBusy] = useState(false);
+  async function arrive() {
+    setBusy(true);
     setError(null);
-    checkIn({ token, weaponIn: true }).catch((e) => live && setError(friendlyError(e)));
-    return () => {
-      live = false;
-    };
-  }, [checkIn, token, tries]);
+    try {
+      await checkIn({ token, weaponIn: true });
+    } catch (e) {
+      setError(friendlyError(e));
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <div className="screen center">
-      <span className="eyebrow">The Velvet Room</span>
+      <span className="eyebrow">The doors are open</span>
       <Deco />
       <h1 className="title-lg">Good evening, {firstName(name)}.</h1>
-      {error ? (
-        <>
-          <div className="errbox">{error}</div>
-          <div className="actions wide">
-            <button type="button" className="primary" onClick={() => setTries((n) => n + 1)}>
-              Try again
-            </button>
-          </div>
-        </>
-      ) : (
-        <p className="lede">The doors are open. Letting you in…</p>
-      )}
+      <p className="lede">At the party? Tap below and you're in the game.</p>
+      {error && <div className="errbox">{error}</div>}
+      <div className="actions wide">
+        <button type="button" className="primary big-tap" disabled={busy} onClick={() => void arrive()}>
+          {busy ? "Letting you in…" : "I'm here"}
+        </button>
+      </div>
+      <p className="help">Not there yet? Leave this page and tap it when you arrive.</p>
     </div>
   );
 }
@@ -451,7 +452,7 @@ function VoteScreen({ token, data, now }: { token: string; data: Phone; now: num
         <h1 className="title-lg">{onBallot ? "Your fate is on the ballot." : "Sit tight."}</h1>
         <p className="lede">{data.me.jailed ? "You can't vote from a cell. Talk fast. Bribes are welcome." : "This vote is for the others."}</p>
         <p className="help">
-          {vt.voted} of {vt.voters} voted · {clockOf(vt.endsAt - now)} left
+          {vt.voted} of {vt.voters} voted · {clockOf(vt.left ?? vt.endsAt - now)} left
         </p>
       </div>
     );
@@ -476,7 +477,7 @@ function VoteScreen({ token, data, now }: { token: string; data: Phone; now: num
       {error && <div className="errbox">{error}</div>}
       <p className="help">
         {b.voted ? "Your vote is in. " : ""}
-        {vt.voted} of {vt.voters} voted · {clockOf(vt.endsAt - now)} left
+        {vt.voted} of {vt.voters} voted · {clockOf(vt.left ?? vt.endsAt - now)} left
       </p>
     </div>
   );

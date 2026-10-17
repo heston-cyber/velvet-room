@@ -234,7 +234,7 @@ export default function ProfileForm(props: {
             </button>
           </div>
           <span className="small">
-            {props.roomCode ? "About a minute. The game starts once everyone's in, so be quick." : `About a minute. You can change your answers until ${game.deadlineLabel}.`}
+            {props.roomCode ? "About a minute. The game starts once everyone's in, so be quick." : "About a minute. You can change your answers until the doors open on party night."}
           </span>
         </div>
       );

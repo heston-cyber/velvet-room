@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import ProfileForm, { EMPTY_PROFILE } from "../components/ProfileForm";
@@ -9,7 +8,6 @@ import { saveToken, savedToken } from "../lib/storage";
 
 export default function Register({ slug, walkIn }: { slug?: string; walkIn?: string }) {
   const game = useQuery(api.registration.publicGame, { slug });
-  const [another, setAnother] = useState(false);
 
   if (game === undefined) return <Loading />;
   if (game === null) {
@@ -25,6 +23,19 @@ export default function Register({ slug, walkIn }: { slug?: string; walkIn?: str
     );
   }
 
+  // F5 (Oct 17): after Start, a new guest watches this game and joins the next.
+  if (walkIn && game.started && game.partyOn) {
+    return (
+      <Shell>
+        <div className="screen center">
+          <span className="eyebrow">The Velvet Room</span>
+          <Deco />
+          <h1 className="title-lg">The game's started</h1>
+          <p className="lede">Grab a drink and watch this one. You're in the next.</p>
+        </div>
+      </Shell>
+    );
+  }
   // Party night: someone new at the door signs up with the room code (Join → "New here? Sign up").
   if (walkIn && game.partyOn) {
     return (
@@ -46,7 +57,7 @@ export default function Register({ slug, walkIn }: { slug?: string; walkIn?: str
 
   const saved = savedToken(game.slug);
 
-  if (saved && !another) {
+  if (saved) {
     return (
       <Shell>
         <div className="screen center">
@@ -63,11 +74,7 @@ export default function Register({ slug, walkIn }: { slug?: string; walkIn?: str
                 Join as someone else with the room code
               </button>
             )}
-            {game.open && (
-              <button type="button" className="back center-text" onClick={() => setAnother(true)}>
-                Sign up someone else on this phone
-              </button>
-            )}
+            {/* S2 (Oct 17): no "sign up someone else on this phone": a second sign-up would replace this one's saved card. Each guest signs up on their own phone. */}
           </div>
         </div>
       </Shell>
@@ -100,7 +107,7 @@ export default function Register({ slug, walkIn }: { slug?: string; walkIn?: str
 
   return (
     <Shell>
-      {game.partyOn && !another && (
+      {game.partyOn && (
         <div className="sealed join-offer">
           <p className="help">Already signed up? Type the room code from the TV and tap your name.</p>
           <button type="button" className="primary" onClick={() => navigate("/join")}>

@@ -147,6 +147,8 @@ export const publicGame = query({
       killerOptIn: game.killerOptIn,
       // Party night: the landing page offers "Join with the room code".
       partyOn: game.status !== "registration" && !game.endedAt,
+      // F5 (Oct 17): once the game has started, nobody new can sign up for it.
+      started: game.status !== "registration" && game.status !== "lobby",
     };
   },
 });

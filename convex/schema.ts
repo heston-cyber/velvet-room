@@ -56,6 +56,8 @@ export default defineSchema({
     roundEndsAt: v.optional(v.number()), // timer pacing only
     paused: v.optional(v.boolean()),
     tone: v.optional(v.union(v.literal("classic"), v.literal("adult"))),
+    // The script before Sailor mode turned it to Adult, so turning Sailor off brings it back (Oct 17, F9).
+    toneBeforeSailor: v.optional(v.union(v.literal("classic"), v.literal("adult"))),
     introEndsAt: v.optional(v.number()), // the TV intro plays until then; Round 1's timer starts after it
     revealAt: v.optional(v.number()), // when the reveal sequence started on the TV
     // The reveal's steps (ms after revealAt), laid out from this game's recordings when it starts (Oct 16: slides wait
@@ -119,6 +121,8 @@ export default defineSchema({
         nextAt: v.optional(v.number()),
         // Oct 17 (D10): the evidence had already cleared the guest in jail, so they were let out without a vote.
         auto: v.optional(v.boolean()),
+        // Oct 17 (F8): while the game is paused, the vote's time left (or the verdict's, once it has closed).
+        left: v.optional(v.number()),
       }),
     ),
     // When this game's jail vote opened (its ballots' voteAt): a Best Detective tie goes to whoever voted to jail the

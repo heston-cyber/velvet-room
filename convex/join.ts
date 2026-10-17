@@ -69,7 +69,8 @@ export const room = query({
           taken: !!p.claimedAt,
         })),
     );
-    return { ok: true as const, slug: game.slug, title: game.title, isTest: game.isTest, guests };
+    // F5 (Oct 17): new guests can sign up at the door only until the game starts.
+    return { ok: true as const, slug: game.slug, title: game.title, isTest: game.isTest, guests, started: game.status !== "lobby" && game.status !== "registration" };
   },
 });
 

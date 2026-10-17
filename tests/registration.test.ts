@@ -109,11 +109,14 @@ describe("registration", () => {
     expect(t).toBeTruthy();
   });
 
-  test("registration closes at the deadline", async () => {
-    const { t } = await setup("game", Date.now() - 1000);
-    await expect(t.mutation(api.registration.register, guests[0])).rejects.toThrow(/closed/);
-    const pub = await t.query(api.registration.publicGame, {});
-    expect(pub?.open).toBe(false);
+  test("S1 (Oct 17): sign-ups ignore the old close date and switch, and close when the doors open", async () => {
+    const { t, hostKey } = await setup("game", Date.now() - 1000);
+    await t.run(async (ctx) => ctx.db.patch((await ctx.db.query("games").first())!._id, { registrationOpen: false }));
+    expect((await t.query(api.registration.publicGame, {}))?.open).toBe(true);
+    await t.mutation(api.registration.register, guests[0]);
+    await t.mutation(api.game.openDoors, { slug: "test-unit", hostKey });
+    await expect(t.mutation(api.registration.register, guests[2])).rejects.toThrow(/closed/);
+    expect((await t.query(api.registration.publicGame, {}))?.open).toBe(false);
   });
 
   test("a guest can edit their entry", async () => {

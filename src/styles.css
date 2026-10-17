@@ -368,3 +368,7 @@ img { max-width: 100%; }
 .role-card .rc-tiles .ri { width: 30px; height: 30px; color: var(--brass); }
 .role-card .rc-win { display: flex; gap: 8px; align-items: center; margin: 0; font-size: 15px; line-height: 1.3; color: var(--paper); }
 .role-card .rc-win .ri { width: 22px; height: 22px; flex: none; color: var(--brass); }
+
+/* Oct 17: a big "I'm here" at the door (F4), and the host link as a small one on phones (I10). */
+.primary.big-tap { min-height: 64px; font-size: 22px; }
+.back.small-link { font-size: 14px; opacity: .75; margin-top: 8px; }

@@ -19,16 +19,6 @@ const MIN_ROOMS = 2;
 const MAX_ROOMS = 8;
 const MAX_MARKERS = MAX_CARDS;
 
-function endOfDayChicago(day: string): number {
-  const hourIn = (t: number) => new Intl.DateTimeFormat("en-US", { timeZone: TZ, hour: "2-digit", hourCycle: "h23" }).format(t);
-  for (const off of ["-05:00", "-06:00"]) {
-    const t = Date.parse(`${day}T23:59:59${off}`);
-    if (hourIn(t) === "23") return t;
-  }
-  return Date.parse(`${day}T23:59:59-06:00`);
-}
-const dayLabel = (t: number) => new Date(t).toLocaleDateString("en-US", { timeZone: TZ, weekday: "short", month: "short", day: "numeric" });
-const dayValue = (t: number) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(t);
 const when = (t: number) => new Date(t).toLocaleString("en-US", { timeZone: TZ, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
 /** Equal-width options: picking one never moves anything. */
@@ -102,24 +92,11 @@ export default function Menu(props: { data: Roster; slug: string; hostKey: strin
 
         <Wifi game={game} save={save} />
 
+        {/* S1 (Oct 17): sign-ups are open until the doors open on party night; after that, walk-ins join with the room code. */}
         <Sec title="Sign-ups">
-          <Toggle id="set-open" checked={game.registrationOpen} disabled={locked} onChange={(v) => save({ registrationOpen: v })} label="Accepting sign-ups" help="Turn off to close the guest list early." />
-          <label className="hx-field">
-            <span className="lab">Sign-ups close at the end of</span>
-            <input
-              type="date"
-              className="inp date"
-              value={dayValue(game.registrationClosesAt)}
-              disabled={locked}
-              onChange={(e) => {
-                if (!e.target.value) return;
-                const t = endOfDayChicago(e.target.value);
-                void save({ registrationClosesAt: t, deadlineLabel: dayLabel(t) });
-              }}
-            />
-          </label>
-          <span className="help">Guests see "{game.deadlineLabel}". Closes at 11:59 PM Central.</span>
+          <span className="help">Open until you press Play on party night. After that, new guests join with the room code on the TV.</span>
           <RegLink game={game} />
+          <HostLink slug={slug} hostKey={hostKey} />
         </Sec>
       </div>
 
@@ -537,7 +514,10 @@ function PrintCards({ slug, hostKey, title, onError }: { slug: string; hostKey: 
 
 function Guests({ data, slug, hostKey, locked, onError }: { data: Roster; slug: string; hostKey: string; locked: boolean; onError: (m: string | null) => void }) {
   const removePlayer = useMutation(api.host.removePlayer);
+  const setHere = useMutation(api.host.setHere);
   const { armed, arm, disarm } = useConfirm();
+  const doors = data.game.status === "lobby";
+  const here = (id: Id<"players">, v: boolean) => setHere({ slug, hostKey, playerId: id, here: v }).catch((err) => onError(friendlyError(err)));
   async function remove(id: Id<"players">) {
     if (armed !== id) return arm(id);
     disarm();
@@ -559,9 +539,15 @@ function Guests({ data, slug, hostKey, locked, onError }: { data: Roster; slug: 
               <div className="main">
                 <div className="nm">{p.charName}</div>
                 <div className="sub">
-                  {p.realName} · signed up {when(p.registeredAt)}
+                  {p.realName} · {doors ? (p.checkedIn ? "here" : "not here yet") : `signed up ${when(p.registeredAt)}`}
                 </div>
               </div>
+              {/* F4 (Oct 17): a guest whose phone checked in from home can be marked not here before the draw. */}
+              {doors && (
+                <button type="button" className="copy" onClick={() => void here(p.id, !p.checkedIn)}>
+                  {p.checkedIn ? "Not here" : "Here"}
+                </button>
+              )}
               <button type="button" className={armed === p.id ? "copy danger" : "copy"} disabled={locked} onClick={() => remove(p.id)}>
                 <Swap show={armed === p.id ? 1 : 0}>
                   <span>Remove</span>
@@ -573,6 +559,39 @@ function Guests({ data, slug, hostKey, locked, onError }: { data: Roster; slug: 
         </ul>
       )}
     </Sec>
+  );
+}
+
+/** F2 (Oct 17): the way back in if this laptop forgets the game. Copied, never shown: this screen is the TV. */
+function HostLink({ slug, hostKey }: { slug: string; hostKey: string }) {
+  const [copied, setCopied] = useState(false);
+  const link = `${window.location.origin}/host?game=${encodeURIComponent(slug)}&key=${encodeURIComponent(hostKey)}`;
+  return (
+    <div className="hx-link">
+      <span className="lab">Your host link</span>
+      <div className="key-row">
+        <code>Hidden: this screen is on the TV</code>
+        <button
+          type="button"
+          className="copy"
+          onClick={() =>
+            navigator.clipboard?.writeText(link).then(
+              () => {
+                setCopied(true);
+                window.setTimeout(() => setCopied(false), 1800);
+              },
+              () => undefined,
+            )
+          }
+        >
+          <Swap show={copied ? 1 : 0}>
+            <span>Copy</span>
+            <span>Copied</span>
+          </Swap>
+        </button>
+      </div>
+      <span className="help">Paste it somewhere only you can see. It gets you back into this game from any laptop. Anyone who has it can run the game.</span>
+    </div>
   );
 }
 

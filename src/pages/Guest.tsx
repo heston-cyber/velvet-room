@@ -116,7 +116,7 @@ export default function Guest({ token }: { token: string }) {
         </div>
         {me.game.open ? (
           <>
-            <p className="help">Want to change something? You can edit until {me.game.deadlineLabel}.</p>
+            <p className="help">Want to change something? You can edit until the doors open on party night.</p>
             <div className="actions">
               <button type="button" className="ghost-btn" onClick={() => setEditing(true)}>
                 Edit my entry

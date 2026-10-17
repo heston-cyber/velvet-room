@@ -528,9 +528,8 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
               <span>
                 <b>{d.counts.accused}</b> of {d.counts.playing} in
               </span>
-              {g.pacing.mode === "timer" && g.roundEndsAt !== null && (
-                <span className="tv-mini-clock">{clock(g.roundEndsAt < 0 ? -g.roundEndsAt : g.roundEndsAt - now)}</span>
-              )}
+              {/* F12 (Oct 17): the lock-in always has a clock. */}
+              {g.roundEndsAt !== null && <span className="tv-mini-clock">{clock(g.roundEndsAt < 0 ? -g.roundEndsAt : g.roundEndsAt - now)}</span>}
             </div>
           </>
         ),
@@ -810,7 +809,7 @@ function voteScene(d: Data, vt: Vote, now: number): Scene {
             <span>
               <b>{vt.voted}</b> of {vt.voters} voted
             </span>
-            <span className="tv-mini-clock">{clock(vt.endsAt - now)}</span>
+            <span className="tv-mini-clock">{clock(vt.left ?? vt.endsAt - now)}</span>
           </div>
         </>
       ),

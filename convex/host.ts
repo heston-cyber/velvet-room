@@ -5,7 +5,7 @@ import type { QueryCtx } from "./_generated/server";
 import { ACCOMPLICE_ON, MAX_ROOMS, MIN_ROOMS, openRoomsIn } from "./engine/build";
 import { randomCode, registrationIsOpen, requireHost } from "./lib";
 import { ensureAllCards } from "./cards";
-import { MAX_CARDS, hasJailVote } from "./shared";
+import { MAX_CARDS, hasJailVote, revealTimes } from "./shared";
 import { WEAPONS, checkWeaponKeys, drawWeapons, recommendedWeapons } from "./weapons";
 import { secure } from "./engine/rng";
 import { levelsOf, narratorOf, scriptOf } from "./voiceLines";
@@ -37,6 +37,13 @@ export const roster = query({
           .collect()
       : [];
     const accused = new Set(accs.map((a) => a.playerId));
+    // Award ballots cast (a count only).
+    const awardVotes = game.status === "reveal" || game.status === "done"
+      ? (await ctx.db
+          .query("votes")
+          .withIndex("by_game", (q) => q.eq("gameId", game._id))
+          .collect()).filter((x) => x.dressed || x.liar).length
+      : 0;
     const markers = await ctx.db
       .query("markers")
       .withIndex("by_game", (q) => q.eq("gameId", game._id))
@@ -107,6 +114,8 @@ export const roster = query({
         startedAt: game.startedAt ?? null,
         // v2: the show's parts (convex/show.ts), so the host can skip to the next one.
         show: game.show ? { howAt: game.show.howAt, introAt: game.show.introAt ?? null, rollAt: game.show.rollAt, phonesAt: game.show.phonesAt ?? null } : null,
+        // F7 (Oct 17): "Show the awards" waits for the reveal's verdict, so phones get to show the ballot first.
+        verdictAt: game.revealAt ? game.revealAt + (game.revealPlan ?? revealTimes(!!game.hasAccomplice, game.tone ?? "classic")).verdict : null,
         // v2: this round's vote, so the host can close it or skip its verdict.
         vote: game.vote && game.vote.round === game.round ? { kind: game.vote.kind, closedAt: game.vote.closedAt ?? null, nextAt: game.vote.nextAt ?? null } : null,
         tvShowAll: !!game.tvShowAll,
@@ -133,6 +142,8 @@ export const roster = query({
         inGame: playing.length,
         ready: playing.filter((p) => p.ready).length,
         accused: playing.filter((p) => p.accused).length,
+        awardVotes,
+        inGameAll: rows.filter((p) => p.inGame).length,
       },
     };
   },
@@ -218,7 +229,16 @@ export const updateSettings = mutation({
     if (patch.narrator) {
       // Sailor mode is Duke, steady (the fury is in the script), over the Adult script.
       update.narrator = patch.narrator.sailor ? { host: "duke", unstable: false, sailor: true } : { host: patch.narrator.host, unstable: patch.narrator.unstable };
-      if (patch.narrator.sailor) update.tone = "adult";
+      const wasSailor = !!game.narrator?.sailor;
+      if (patch.narrator.sailor && !wasSailor) {
+        update.tone = "adult";
+        update.toneBeforeSailor = game.tone ?? "classic";
+      }
+      // F9 (Oct 17): turning Sailor mode off brings back the script the game had before it.
+      if (!patch.narrator.sailor && wasSailor && patch.tone === undefined) {
+        update.tone = game.toneBeforeSailor ?? game.tone;
+        update.toneBeforeSailor = undefined;
+      }
     }
     // Back to Classic turns Sailor mode off.
     if (patch.tone === "classic" && !patch.narrator && game.narrator?.sailor) update.narrator = { ...game.narrator, sailor: false };
@@ -273,6 +293,22 @@ export const rescuePhone = mutation({
     await ctx.db.patch(p._id, { token, updatedAt: Date.now(), claimedAt: undefined });
     await ctx.db.patch(game._id, { lastRescue: { name: p.charName, at: Date.now() } });
     return { charName: p.charName, token };
+  },
+});
+
+/**
+ * F4 (Oct 17): the host marks a guest as not here (or here) before the draw, so a link left open at home can't put
+ * someone in the game. Only before Start.
+ */
+export const setHere = mutation({
+  args: { slug: v.string(), hostKey: v.string(), playerId: v.id("players"), here: v.boolean() },
+  handler: async (ctx, { slug, hostKey, playerId, here }) => {
+    const game = await requireHost(ctx, slug, hostKey);
+    if (started(game)) throw new ConvexError("The game has started, so the guest list is locked.");
+    const p = await ctx.db.get(playerId);
+    if (!p || p.gameId !== game._id) throw new ConvexError("Guest not found.");
+    await ctx.db.patch(p._id, { checkedIn: here, updatedAt: Date.now() });
+    return { ok: true };
   },
 });
 

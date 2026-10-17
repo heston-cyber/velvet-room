@@ -7,7 +7,6 @@ import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { friendlyError } from "../lib/errors";
-import { Qr } from "../lib/qr";
 import { Swap } from "../lib/Swap";
 import { navigate } from "../lib/router";
 import { useConfirm, type Roster } from "./common";
@@ -77,47 +76,73 @@ export function useNextStep(data: Roster, slug: string, hostKey: string, now: nu
       };
     const allIn = c.accused >= c.inGame;
     return {
-      label: "Start the reveal",
+      // F12 (Oct 17): on screen during the lock-in, with the count, so one dead phone can't hold up the reveal.
+      label: `Start the reveal (${c.accused} of ${c.inGame} in)`,
       confirm: allIn ? undefined : `Tap again: only ${c.accused} of ${c.inGame} have locked in`,
-      help: "Starts on its own once everyone's in.",
+      help: "Starts on its own once everyone's in, or when the clock runs out.",
       run: () => advance(args),
     };
   }
-  if (g.status === "reveal") return { label: "Show the awards", help: "Closes the voting for Best Dressed and Best Liar. Only awards someone won are shown.", run: () => finish(args) };
-  if (!g.endedAt) return { label: "End the night", help: "The TV shows the closing card. After that you can start a new game.", run: () => endNight(args) };
+  if (g.status === "reveal") {
+    // F7 (Oct 17): not before the verdict (the phones show the ballot then), and a second tap with the count.
+    const early = !!g.verdictAt && now < g.verdictAt;
+    return {
+      label: "Show the awards",
+      confirm: `Tap again: ${c.awardVotes} of ${c.inGameAll} have voted`,
+      help: early ? "After the verdict, once the votes are in." : "Closes the voting for Best Dressed and Best Liar. Only awards someone won are shown.",
+      disabled: early,
+      run: () => finish(args),
+    };
+  }
+  if (!g.endedAt) return { label: "End the night", help: "The TV shows the closing card.", run: () => endNight(args) };
   const goTo = (next: string) => navigate(`/host?game=${encodeURIComponent(next)}&key=${encodeURIComponent(hostKey)}`);
   if (g.nextSlug) return { label: "Go to the new game", help: "The new game is open for sign-ups. The TV has already switched to it.", run: async () => goTo(g.nextSlug!) };
+  return playAgainStep(g, () => newGame(args), goTo);
+}
+
+/** S10 (Oct 17): after the awards, Play again sits next to End the night. */
+export function playAgainStep(g: Roster["game"], newGame: () => Promise<{ slug: string }>, goTo: (slug: string) => void): Step {
   return {
-    label: "Start a new game",
+    label: "Play again",
     confirm: `Tap again: Game ${g.gameNumber + 1} opens sign-ups`,
-    help: "Same rooms and marker cards. Everyone signs up again with a new character, and the TV switches over.",
-    run: async () => goTo((await newGame(args)).slug),
+    help: "Same rooms and cards. Everyone signs up again (a new nickname if they like), and the TV switches over.",
+    run: async () => goTo((await newGame()).slug),
   };
+}
+
+/** The extra step beside the next one: Play again, after the awards and before the night ends. */
+export function useSideStep(data: Roster, slug: string, hostKey: string): Step | null {
+  const newGame = useMutation(api.replay.newGame);
+  const g = data.game;
+  if (g.status !== "done" || g.endedAt || g.nextSlug) return null;
+  const goTo = (next: string) => navigate(`/host?game=${encodeURIComponent(next)}&key=${encodeURIComponent(hostKey)}`);
+  return playAgainStep(g, () => newGame({ slug, hostKey }), goTo);
 }
 
 export function Rescue({ data, slug, hostKey }: { data: Roster; slug: string; hostKey: string }) {
   const rescuePhone = useMutation(api.host.rescuePhone);
   const [who, setWho] = useState<Id<"players"> | "">("");
-  const [link, setLink] = useState<{ charName: string; token: string } | null>(null);
+  const [done, setDone] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const { armed, arm, disarm } = useConfirm();
-  const url = link ? `${window.location.origin}/p/${link.token}` : "";
   async function go() {
     if (!who) return;
     if (armed !== who) return arm(who);
     disarm();
     setErr(null);
     try {
-      setLink(await rescuePhone({ slug, hostKey, playerId: who }));
+      setDone((await rescuePhone({ slug, hostKey, playerId: who })).charName);
     } catch (e) {
       setErr(friendlyError(e));
     }
   }
+  // F3 (Oct 17): no QR code here. This screen is the TV, so a QR would let anyone in the room open that guest's role.
+  const code = data.game.roomCode;
   return (
     <Sec title="Rescue a phone">
       <span className="help">
-        A guest's phone died, they lost their link, or someone else joined as them? This frees their name and makes a new link. Their old link stops working,
-        and the TV says so. They scan the new link below, or join again with the room code.
+        A guest's phone died, they lost their link, or someone else joined as them? This frees their name and stops their old link. They rejoin on any phone
+        with the room code and tap their name.
       </span>
       <div className="hx-fields">
         <select
@@ -125,7 +150,7 @@ export function Rescue({ data, slug, hostKey }: { data: Roster; slug: string; ho
           value={who}
           onChange={(e) => {
             setWho(e.target.value as Id<"players"> | "");
-            setLink(null);
+            setDone(null);
             disarm();
           }}
         >
@@ -138,15 +163,16 @@ export function Rescue({ data, slug, hostKey }: { data: Roster; slug: string; ho
         </select>
         <button type="button" className={`btn ${armed && armed === who ? "armed" : ""}`} disabled={!who} onClick={go}>
           <Swap show={armed && armed === who ? 1 : 0}>
-            <span>Make a new link</span>
+            <span>Free their name</span>
             <span>Tap again: old link stops</span>
           </Swap>
         </button>
       </div>
-      <div className="hx-rescue">
-        {url ? <Qr className="qr" text={url} label={`New personal link for ${link?.charName}`} /> : <div className="qr empty">QR code</div>}
-        <span className="help">{url ? `New link for ${link?.charName}. Have them scan it now.` : err ?? "\u00a0"}</span>
-      </div>
+      <span className="help" role="status">
+        {done
+          ? `${done} is free. On their phone: ${window.location.host}/join${code ? `, room code ${code}` : ""}, then tap their name.`
+          : err ?? "\u00a0"}
+      </span>
     </Sec>
   );
 }

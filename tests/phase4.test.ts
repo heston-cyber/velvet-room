@@ -2,6 +2,7 @@ import { convexTest } from "convex-test";
 import { beforeAll, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
+import { caseFor } from "../convex/caseFile";
 import { nextRound } from "./steps";
 import { RECOMMENDED, setupFor } from "../convex/engine/setup";
 import { recommendedWeapons, weaponKind } from "../convex/weapons";
@@ -177,7 +178,7 @@ describe("Phase 4: drawn body room, waves, Wi-Fi, the TV", () => {
     expect((await game(t)).revealAt).toBeGreaterThan(0);
   });
 
-  test("removing a room unassigns its markers, and the game won't start until they have a room", async () => {
+  test("removing a room unassigns its markers; Play deals them to the rooms in play (F10, Oct 17)", async () => {
     const { t, hostKey } = await setup({ start: false, markers: 10 });
     const g = await game(t);
     await t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, rooms: g.rooms.filter((r) => r.key !== "bar") });
@@ -185,12 +186,23 @@ describe("Phase 4: drawn body room, waves, Wi-Fi, the TV", () => {
     const loose = markers.filter((m) => m.roomKey === "");
     expect(loose.length).toBe(2); // markers 2 and 7 were in the Bar
     await t.mutation(api.game.openDoors, { slug: SLUG, hostKey });
-    await expect(t.mutation(api.game.startGame, { slug: SLUG, hostKey })).rejects.toThrow(/Marker \d+ needs a room/);
-    await t.mutation(api.game.saveMarkers, {
-      slug: SLUG, hostKey, markers: markers.map((m) => ({ number: m.number, roomKey: m.roomKey || "office" })),
-    });
-    await t.mutation(api.game.startGame, { slug: SLUG, hostKey });
+    await t.mutation(api.game.startGame, { slug: SLUG, hostKey, cards: "hidden" });
     expect((await game(t)).status).toBe("playing");
+    const after = await t.run((ctx) => ctx.db.query("markers").collect());
+    const rooms = new Set((await game(t)).rooms.map((r) => r.key));
+    expect(after).toHaveLength(10);
+    for (const m of after) expect(rooms.has(m.roomKey)).toBe(true);
+  });
+
+  test("F1 (Oct 17): no cards tonight: the cards go and their clues come out on the TV", async () => {
+    const { t, hostKey } = await setup({ start: false, markers: 10 });
+    await t.mutation(api.game.openDoors, { slug: SLUG, hostKey });
+    await t.mutation(api.game.startGame, { slug: SLUG, hostKey, cards: "none" });
+    expect((await game(t)).status).toBe("playing");
+    expect(await t.run((ctx) => ctx.db.query("markers").collect())).toHaveLength(0);
+    const cf = await t.run(async (ctx) => (await caseFor(ctx, (await ctx.db.query("games").first())!))!);
+    expect(cf.clues.every((c) => c.channel === "tv")).toBe(true);
+    expect(cf.clues.some((c) => !c.elim.suspects.length && !c.elim.exhibits.length && !c.elim.rooms.length && c.kind !== "twist" && c.kind !== "herring" && c.kind !== "flavor")).toBe(false);
   });
 
   // Oct 16: a host who sets no cards gets the recommended ones (the ledger in the menu) at Play.
