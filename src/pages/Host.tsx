@@ -411,7 +411,9 @@ function GameHud({ data, slug, hostKey, onMenu, onError }: { data: Roster; slug:
         <span aria-hidden="true">☰</span> Menu
       </button>
       {g.status === "lobby" && <LobbyBar data={data} slug={slug} hostKey={hostKey} onError={onError} />}
-      {(g.status === "reveal" || g.status === "done" || (g.status === "playing" && g.round >= 4)) && <HostStep data={data} slug={slug} hostKey={hostKey} onError={onError} />}
+      {(g.status === "reveal" || g.status === "done" || (g.status === "playing" && g.round >= 4)) && (
+        <HostStep data={data} slug={slug} hostKey={hostKey} onError={onError} top={g.status !== "playing"} />
+      )}
     </>
   );
 }
@@ -472,14 +474,15 @@ function LobbyBar({ data, slug, hostKey, onError }: { data: Roster; slug: string
 }
 
 /** The next step when the game is waiting on the host (the lock-in, the awards, the end of the night, a new game). */
-function HostStep({ data, slug, hostKey, onError }: { data: Roster; slug: string; hostKey: string; onError: (m: string | null) => void }) {
+function HostStep({ data, slug, hostKey, onError, top }: { data: Roster; slug: string; hostKey: string; onError: (m: string | null) => void; top?: boolean }) {
   const now = useNow(1000);
   const step = useNextStep(data, slug, hostKey, now);
   const side = useSideStep(data, slug, hostKey);
   // F7: "Show the awards" stays off the TV until the verdict.
   if (step.disabled) return null;
   return (
-    <div className="hs-step">
+    // At the reveal and the awards the buttons sit up top, clear of the verdict and the award cards.
+    <div className={`hs-step${top ? " top" : ""}`}>
       {side && <StepButton step={side} onError={onError} />}
       <StepButton step={step} onError={onError} />
     </div>

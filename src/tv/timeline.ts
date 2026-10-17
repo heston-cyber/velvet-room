@@ -298,7 +298,11 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
         fx(`${id}:stamp`, "stamp", c);
         vo(`${id}:tally`, "voteTally", c + 0.4 * S, false, `${round}:${vt.kind}`);
         const at = c + VOTE.verdictAtMs;
-        if (vt.outcome === "nobody") vo(`${id}:verdict`, vt.kind === "jail" ? "jailNobody" : "releaseNobody", at + 0.3 * S, false, `${round}`);
+        if (vt.outcome === "nobody") {
+          const said = vo(`${id}:verdict`, vt.kind === "jail" ? "jailNobody" : "releaseNobody", at + 0.3 * S, false, `${round}`);
+          // Oct 17: the jailbird's "kept in" line.
+          if (vt.kind === "release") clip(`${id}:kept`, d.voice.kept ?? undefined, said + 0.4 * S);
+        }
         else if (vt.outcome === "jailed") {
           // Locked Up!: the bars slam down on the card, then the name over the drawing behind bars.
           fx(`${id}:door`, "jailSlam", at + 0.1 * S);
@@ -383,6 +387,8 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
       heckle(`acc:${t}:${k}`, 15 + k, at, "accuse");
     }
     const waitingOnFew = d.counts.playing > 1 && d.counts.accused >= d.counts.playing - 1 && d.counts.accused < d.counts.playing;
+    // Oct 17: everyone's in but one: a little after the latest lock-in, the narrator calls the last one out by name.
+    if (waitingOnFew && d.counts.lastAccusedAt && d.voice.lastLockIn) clip(`acc:${t}:last:${d.counts.lastAccusedAt}`, d.voice.lastLockIn, d.counts.lastAccusedAt + 15 * S);
     if (timed) {
       const lc = vo(`acc:${t}:lastcall`, "accuseLastCall", g.roundEndsAt! - 30 * S);
       card("lastcall", lc + 0.2 * S);
@@ -427,7 +433,9 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
     }
     const killerWins = !!d.results?.killerWins;
     fx(`rev:${t}:verdict`, killerWins ? "sinisterBrass" : "fanfare", t + REVEAL.verdict);
-    const e = vo(`rev:${t}:verdict:vo`, killerWins ? "verdictKiller" : "verdictDetectives", t + REVEAL.verdict + 0.8 * S);
+    let e = vo(`rev:${t}:verdict:vo`, killerWins ? "verdictKiller" : "verdictDetectives", t + REVEAL.verdict + 0.8 * S);
+    // Oct 17: caught: the killer gets their line (a killer who walks gets theirs at the awards).
+    if (!killerWins) e = clip(`rev:${t}:caught`, d.voice.caught ?? undefined, e + 0.6 * S);
     const voted = vo(`rev:${t}:vote`, "votePrompt", e + 1 * S);
     // Heckles while everyone votes for Best Dressed and Best Liar.
     for (let k = 0; k < 4; k++) heckle(`rev:${t}:${k}`, 19 + k, voted + HECKLE.voteFirst + k * HECKLE.voteEvery, "reveal");
@@ -455,6 +463,10 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
       });
       fx(`aw:${t}:${a.key}:clap`, "applause", named + 0.1 * S);
       e = named + 1.6 * S;
+      // Oct 17: then each winner's line, on their first name.
+      (d.voice.roasts?.[a.key] ?? []).forEach((c, i) => {
+        e = clip(`aw:${t}:${a.key}:roast:${i}`, c ?? undefined, e + (i ? 0.3 * S : 0)) + (c ? 0.8 * S : 0);
+      });
     }
     return out;
   }

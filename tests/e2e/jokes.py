@@ -123,7 +123,7 @@ with sync_playwright() as p:
     host.on("request", lambda r: audio.append(r.url) if "/audio/narration/" in r.url else None)
     hs = start(host, slug)
     ok(hs["script"] == "sailor", "the game reads the Sailor script")
-    ok(wait_for(lambda: any("/duke-sailor/sailor/" in u for u in audio), 30), "the TV plays Duke's Sailor recordings")
+    ok(wait_for(lambda: any("/gruff-sailor/sailor/" in u for u in audio), 30), "the TV plays Mister Gruff's Sailor recordings")
     ok(wait_for(lambda: host.locator(".tv-how").count() == 1, 20), "How to play is on")
     host.wait_for_timeout(4000)
     cap = host.locator(".tv-caption").inner_text() if host.locator(".tv-caption").count() else ""
@@ -136,7 +136,7 @@ with sync_playwright() as p:
     late = [(c["purpose"], c["status"], c["error"]) for c in clips if c["status"] != "ready"]
     if late:
         print("not ready:", late[:8])
-    ok(all(c["voice"] == "duke-sailor" for c in clips), "every per-game clip is Sailor Duke")
+    ok(all(c["voice"] == "gruff-sailor" for c in clips), "every per-game clip is Mister Gruff")
     browser.close()
 
 for s in SLUGS:

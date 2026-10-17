@@ -21,7 +21,7 @@ import { scheduleRecording } from "./voice";
 import { ensureRoomCode } from "./join";
 import { castMember, castName, fakeGuestPool, shortName, standIns, takenFigures } from "./figures";
 import { MIN_WEAPONS, drawWeapons, gameWeapons, recommendedWeapons } from "./weapons";
-import { clipMatches, levelsOf, narratorOf, scriptOf, startWanted, variantOf, voiceOf, type GameLines, type Wanted } from "./voiceLines";
+import { clipMatches, guestNames, laterWanted, levelsOf, narratorOf, scriptOf, startWanted, variantOf, voiceOf, type GameLines, type Wanted } from "./voiceLines";
 
 // ---------- shared helpers ----------
 
@@ -152,6 +152,14 @@ async function nextRound(ctx: MutationCtx, game: Doc<"games">) {
   if (round >= 4) {
     const revealAt = Date.now();
     const revealPlan = await revealPlanFor(ctx, game);
+    // Oct 17: the winners' lines for Prime Suspect and Best Detective, known now (Best Dressed and Best Liar at the
+    // awards).
+    const cfr = await caseFor(ctx, game);
+    if (cfr) {
+      const scored = await scoreGame(ctx, game, cfr);
+      const ids = [...scored.primeSuspects.map((x) => `primeSuspect:${x.playerId}`), ...scored.bestDetectives.map((x) => `bestDetective:${x.playerId}`)];
+      if (ids.length) await scheduleRecording(ctx, game._id, "later", ids);
+    }
     await ctx.db.patch(game._id, { status: "reveal", roundEndsAt: undefined, paused: false, tvShowAll: false, revealAt, revealPlan });
     // I6 (Oct 17): award voting closes on its own 90 seconds after the verdict (sooner once everyone has voted).
     await ctx.scheduler.runAt(revealAt + revealPlan.verdict + AWARD_VOTE_MS, internal.game.autoFinish, { gameId: game._id, revealAt });
@@ -166,6 +174,11 @@ async function nextRound(ctx: MutationCtx, game: Doc<"games">) {
   // Skipping ahead also cuts the intro short.
   await ctx.db.patch(game._id, { round: next, roundStartedAt: Date.now(), roundEndsAt: endsAt, paused: false, introEndsAt: Math.min(game.introEndsAt ?? 0, Date.now()), rolesOut: true });
   await scheduleTimer(ctx, game._id, next, endsAt);
+  // Oct 17: the lock-in: the killer's lines for the reveal (caught, or the Got Away With It roast).
+  if (next === 4) {
+    const cfk = await caseFor(ctx, game);
+    if (cfk) await scheduleRecording(ctx, game._id, "later", [`caught:${cfk.solution.killerId}`, `gotAway:${cfk.solution.killerId}`]);
+  }
 }
 
 // ---------- votes (v2): jail and release, after every round ----------
@@ -207,6 +220,8 @@ async function closeVote(ctx: MutationCtx, game: Doc<"games">) {
   for (const [id, n] of counts) if (n > v.voters.length / 2) target = id as Id<"players">;
   const now = Date.now();
   if (target) await ctx.db.patch(target, v.kind === "jail" ? { jailed: true, jailedAt: now, readyRound: 0 } : { jailed: false });
+  // Oct 17: the jailbird's "kept in" line, in case the release vote keeps them (recorded now, played a round later).
+  if (target && v.kind === "jail") await scheduleRecording(ctx, game._id, "later", [`kept:${target}`]);
   const outcome = !target ? ("nobody" as const) : v.kind === "jail" ? ("jailed" as const) : ("released" as const);
   // The next round waits for the verdict's line to finish (Oct 16: slides wait for the narrator). The TV says it
   // VOTE.verdictAtMs after the close: a name after the Locked Up! card, or "nobody" straight away.
@@ -494,7 +509,7 @@ async function awardsOf(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile, all: Do
   const sol = cf.solution;
   const p = (id: string) => all.find((x) => x._id === id);
   const inGame = new Set<string>(playingOf(all).map((x) => x._id));
-  const who = (ids: string[]) => ids.filter((id) => p(id)).map((id) => ({ id: id as Id<"players">, name: p(id)!.charName, figure: p(id)!.figure ?? null }));
+  const who = (ids: string[]) => ids.filter((id) => p(id)).map((id) => ({ id: id as Id<"players">, name: p(id)!.charName, short: shortName(p(id)!), figure: p(id)!.figure ?? null }));
   const tally = (key: "dressed" | "liar", ok: (id: string) => boolean) => {
     const c = new Map<string, number>();
     for (const vt of votes) {
@@ -613,6 +628,14 @@ export const accuse = mutation({
     // v2: a lock-in is final.
     if (existing) throw new ConvexError("You've already locked in.");
     await ctx.db.insert("accusations", { gameId: game._id, playerId: player._id, suspectId, exhibitId, roomKey, accompliceId: accompliceId || undefined, at: Date.now() });
+    // Oct 17: one guest left to lock in: their "hurry up" line.
+    const all = await ctx.db
+      .query("accusations")
+      .withIndex("by_game", (q) => q.eq("gameId", game._id))
+      .collect();
+    const done = new Set<string>(all.map((a) => a.playerId));
+    const left = freeOf(await playersOf(ctx, game._id)).filter((p) => !done.has(p._id));
+    if (left.length === 1) await scheduleRecording(ctx, game._id, "later", [`lastLockIn:${left[0]._id}`]);
     await maybeRevealOnAccusations(ctx, game);
     return { ok: true };
   },
@@ -1240,12 +1263,23 @@ export const setPaused = mutation({
 const AWARD_VOTE_MS = 90_000;
 const ALL_VOTED_MS = 8_000;
 
+/** The awards start: the TV's awards card, and the winners' lines that weren't known before now (Oct 17). */
+async function startAwards(ctx: MutationCtx, game: Doc<"games">) {
+  await ctx.db.patch(game._id, { status: "done", doneAt: Date.now(), tvShowAll: false });
+  const cf = await caseFor(ctx, game);
+  if (!cf) return;
+  const kinds: Record<string, string> = { detective: "bestDetective", prime: "primeSuspect", dressed: "bestDressed", liar: "bestLiar", gotAway: "gotAway" };
+  const awards = await awardsOf(ctx, game, cf, await playersOf(ctx, game._id), await scoreGame(ctx, game, cf));
+  const ids = awards.flatMap((a) => a.winners.map((w) => `${kinds[a.key]}:${w.id}`));
+  if (ids.length) await scheduleRecording(ctx, game._id, "later", ids);
+}
+
 export const autoFinish = internalMutation({
   args: { gameId: v.id("games"), revealAt: v.number() },
   handler: async (ctx, { gameId, revealAt }) => {
     const game = await ctx.db.get(gameId);
     if (!game || game.status !== "reveal" || game.revealAt !== revealAt) return;
-    await ctx.db.patch(game._id, { status: "done", doneAt: Date.now(), tvShowAll: false });
+    await startAwards(ctx, game);
   },
 });
 
@@ -1255,7 +1289,7 @@ export const finish = mutation({
   handler: async (ctx, { slug, hostKey }) => {
     const game = await requireHost(ctx, slug, hostKey);
     if (game.status !== "reveal") throw new ConvexError("Finish after the reveal.");
-    await ctx.db.patch(game._id, { status: "done", doneAt: Date.now(), tvShowAll: false });
+    await startAwards(ctx, game);
     return { ok: true };
   },
 });
@@ -1379,9 +1413,10 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
     };
     rollCall = { at: game.show.rollAt, items, slots: game.show.roll ?? slotsFor(guests, secondsOf), frozen: !!game.show.roll };
   }
-  if (beforeStart || !input) return { voice: voiceOf(n), rollCall, body: null, rooms: {} as Record<string, Clip>, reveal: null, winners: null, heckles: [], verdict: null as Clip };
+  if (beforeStart || !input)
+    return { voice: voiceOf(n), rollCall, body: null, rooms: {} as Record<string, Clip>, reveal: null, winners: null, roasts: null as Record<string, Clip[]> | null, caught: null as Clip, kept: null as Clip, lastLockIn: null as Clip, heckles: [], verdict: null as Clip };
   const wanted = startWanted(tone, n, {
-    players: all.filter((p) => p.inGame).map((p) => ({ id: p._id, charName: p.charName, sayAs: p.sayAs })),
+    players: all.filter((p) => p.inGame).map(guestNames),
     exhibits: input.exhibits.map((e) => ({ id: e.id, letter: e.letter, name: e.name })),
     rooms: game.rooms,
     bodyRoomKey: game.bodyRoomKey,
@@ -1392,6 +1427,9 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
     picks: game.lines?.picks,
   });
   const get = (purpose: string) => clip(wanted.find((w) => w.purpose === purpose));
+  // Oct 17: the insults on real names, recorded when their moment comes (voiceLines.laterWanted).
+  const lateLines = laterWanted(tone, n, { players: all.filter((p) => p.inGame).map(guestNames), seed: game.slug });
+  const later = (purpose: string) => clip(lateLines.find((w) => w.purpose === purpose));
   const rooms: Record<string, Clip> = {};
   for (const r of [1, 2, 3]) if (r <= (game.round ?? 0)) rooms[r] = await get(`rooms:${r}`);
   let reveal = null;
@@ -1404,12 +1442,29 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
       accomplice: cf.solution.accompliceId ? await get(`accomplice:${cf.solution.accompliceId}`) : null,
     };
   }
+  let roasts: Record<string, Clip[]> | null = null;
   if (game.status === "done" && cf) {
-    // Each award's winners' names, in the TV's order (a shared award says every name).
+    // Each award's winners' names, in the TV's order (a shared award says every name), then their lines (Oct 17).
     winners = {} as Record<string, Clip[]>;
+    roasts = {} as Record<string, Clip[]>;
+    const kinds: Record<string, string> = { detective: "bestDetective", prime: "primeSuspect", dressed: "bestDressed", liar: "bestLiar", gotAway: "gotAway" };
     for (const a of await awardsOf(ctx, game, cf, all, await scoreGame(ctx, game, cf))) {
       winners[a.key] = (await Promise.all(a.winners.map((w) => get(`winner:${w.id}`)))).filter((c): c is NonNullable<Clip> => !!c);
+      roasts[a.key] = (await Promise.all(a.winners.map((w) => later(`${kinds[a.key]}:${w.id}`)))).filter((c): c is NonNullable<Clip> => !!c);
     }
+  }
+  // Oct 17: the killer caught at the verdict.
+  let caught: Clip = null;
+  if ((game.status === "reveal" || game.status === "done") && cf && !(await scoreGame(ctx, game, cf)).killerWins) caught = await later(`caught:${cf.solution.killerId}`);
+  // The release vote kept the jailbird in.
+  const vt0 = voteOf(game);
+  const kept = vt0?.closedAt && vt0.kind === "release" && vt0.outcome === "nobody" && vt0.candidates[0] ? await later(`kept:${vt0.candidates[0]}`) : null;
+  // The last guest still to lock in.
+  let lastLockIn: Clip = null;
+  if (isPlaying(game) && (game.round ?? 0) >= 4) {
+    const done = new Set<string>((await ctx.db.query("accusations").withIndex("by_game", (q) => q.eq("gameId", game._id)).collect()).map((a) => a.playerId));
+    const left = freeOf(all).filter((p) => !done.has(p._id));
+    if (left.length === 1) lastLockIn = await later(`lastLockIn:${left[0]._id}`);
   }
   // The night's heckles for the lulls, the ones that are recorded (convex/heckles.ts).
   const heckles = [];
@@ -1420,7 +1475,7 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
   // The vote's verdict, once it has closed on someone: "Velma is going to jail."
   const vt = voteOf(game);
   const verdict = vt?.closedAt && vt.targetId ? await get(`${vt.kind === "jail" ? "jailed" : "released"}:${vt.targetId}`) : null;
-  return { voice: voiceOf(n), rollCall, body: await get("body"), rooms, reveal, winners, heckles, verdict };
+  return { voice: voiceOf(n), rollCall, body: await get("body"), rooms, reveal, winners, roasts, caught, kept, lastLockIn, heckles, verdict };
 }
 
 /** The night's weapons, by name (never by who brought them). */
@@ -1556,6 +1611,8 @@ export const tv = query({
         jailed: shown.length - free.length,
         ready: started ? free.filter((p) => p.readyRound === round).length : 0,
         accused: free.filter((p) => accused.has(p._id)).length,
+        // Oct 17: when the latest lock-in came in (the last guest's nudge waits a little after it).
+        lastAccusedAt: accs.length ? Math.max(...accs.map((a) => a.at)) : null,
       },
       vote: started ? await publicVote(ctx, game, all) : null,
       exhibits: input ? input.exhibits.map((e) => e.letter) : [],

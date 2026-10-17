@@ -5,17 +5,17 @@ import { list, mid, q, theList, type Script } from "./text";
 export const ADULT: Script = {
   suspectClear: (say, n) =>
     say("s1", [
-      `${n} was locked in the can for twenty goddamn minutes. Three people in line heard every second of it. Cleared, and frankly, get that checked.`,
+      `${n} was locked in the can for twenty damn minutes. Three people in line heard every second of it. Cleared, and frankly, get that checked.`,
       `A flash photo shows ${n} shit-faced and slow dancing with a coat rack at the very moment the Don went quiet. Cleared.`,
-      `${n} spent the whole time getting their ass handed to them at cards. Five smug bastards vouch for it. Cleared.`,
+      `${n} spent the whole time getting their ass handed to them at cards. Five smug card sharps vouch for it. Cleared.`,
       `The bandleader says ${n} was screaming the wrong words to every damn song. Too busy embarrassing themselves to kill anybody. Cleared.`,
       `${n} was out back puking in the bushes the whole time. The doorman held their hair. Cleared.`,
     ]),
   suspectPairClear: (say, a, b) =>
     say("s2", [
-      `${a} and ${b} spent the whole night screaming at each other over a goddamn bar tab. They alibi each other, sadly. Both cleared.`,
+      `${a} and ${b} spent the whole night screaming at each other over a forty-cent bar tab. They alibi each other, sadly. Both cleared.`,
       `${a} and ${b} were out back sharing a cigar and talking shit about the Don's toupee when it happened. Both cleared.`,
-      `The bartender swears ${a} and ${b} never left the bar. He'd know, because neither cheap bastard tipped. Both cleared.`,
+      `The bartender swears ${a} and ${b} never left the bar. He'd know, because neither cheapskate tipped. Both cleared.`,
     ]),
   suspectTrioClear: (say, a, b, c) =>
     say("s3", [
@@ -26,7 +26,7 @@ export const ADULT: Script = {
   witness: (say, sex, cleared) =>
     say("w", [
       sex === "m"
-        ? `The coat-check girl saw the killer sneak out the side door: a man, hat pulled down like a goddamn cartoon villain. That clears ${list(cleared)}.`
+        ? `The coat-check girl saw the killer sneak out the side door: a man, hat pulled down like a two-bit cartoon villain. That clears ${list(cleared)}.`
         : `The coat-check girl saw the killer sneak out the side door: a woman in a long coat, cool as hell. That clears ${list(cleared)}.`,
       sex === "m"
         ? `A drunk in the alley heard a man chewing the Don out right before he died. The killer's a man, so ${list(cleared)} are off the hook.`
@@ -41,14 +41,14 @@ export const ADULT: Script = {
       return {
         blunt: `The coroner's report: somebody caved the Don's head in with something heavy. ${out}`,
         blade: `The coroner's report: one deep, clean cut. Something sharp as hell did this. ${out}`,
-        gun: `The coroner's report: somebody shot the Don. Point-blank, the cold bastard. ${out}`,
-        cord: `The coroner's report: marks around the Don's neck. Some bastard strangled him. ${out}`,
+        gun: `The coroner's report: somebody shot the Don. Point-blank, the cold-blooded rat. ${out}`,
+        cord: `The coroner's report: marks around the Don's neck. Somebody strangled the poor sap. ${out}`,
         other: `The coroner's report: not a damn mark on him. No wound anywhere. ${out}`,
       }[kind];
     return say(`c-${kind}`, [
       {
-        blunt: `The coroner's report: no fractures, no crushing injuries. Nobody clobbered the old bastard. Nothing heavy was used. ${out}`,
-        blade: `The coroner's report: no stab wounds, no slashes. Nothing sharp touched the son of a bitch. ${out}`,
+        blunt: `The coroner's report: no fractures, no crushing injuries. Nobody clobbered the old crook. Nothing heavy was used. ${out}`,
+        blade: `The coroner's report: no stab wounds, no slashes. Nothing sharp touched the old so-and-so. ${out}`,
         gun: `The coroner's report: no gunshot wound, and nobody heard a shot all damn night. ${out}`,
         cord: `The coroner's report: no marks around the Don's neck. Nobody strangled him, though God knows people wanted to. ${out}`,
         other: `The coroner's report: no poison in his blood, no water in his lungs. Just gin. So much gin. ${out}`,
@@ -59,7 +59,7 @@ export const ADULT: Script = {
     kind === "gun"
       ? say("e1g", [
           `The ${name} is still fully loaded and hasn't been fired all damn night. Not the weapon.`,
-          `Not a whiff of powder on the ${name}. Nobody fired the son of a bitch tonight. Not the weapon.`,
+          `Not a whiff of powder on the ${name}. Nobody fired the damn thing tonight. Not the weapon.`,
         ])
       : say("e1", [
           `The ${name} sat in the coat check all night under a pile of mink. Nobody laid a damn finger on the pile. Not the weapon.`,
@@ -80,7 +80,7 @@ export const ADULT: Script = {
   roomClearHere: (label) =>
     `The dust in here hasn't been touched all night, which says a hell of a lot about the cleaning staff. The Don wasn't killed in ${mid(label)}.`,
   twistMoved: (body) =>
-    `The twist: the Don wasn't even killed in ${mid(body)}. Some son of a bitch dragged his fat ass there afterward. Look at the carpet.`,
+    `The twist: the Don wasn't even killed in ${mid(body)}. Some rat dragged his fat ass there afterward. Look at the carpet.`,
   twistStayed: (body) =>
     `The twist: no drag marks. Nobody hauled his heavy ass anywhere. The Don was killed right where he dropped, in ${mid(body)}.`,
   herring: (say, n) =>
@@ -89,8 +89,8 @@ export const ADULT: Script = {
       `A drunk witness swears they saw ${n} near the Don right before he croaked. Then again, the witness was seeing two of everything.`,
     ]),
   flavor: [
-    "An empty bottle of the Don's private gin. Some greedy bastard finished it. Nothing more.",
-    "A losing betting slip on a horse named Lucky Bastard. It tells you jack about tonight.",
+    "An empty bottle of the Don's private gin. Some greedy so-and-so finished it. Nothing more.",
+    "A losing betting slip on a horse named Applesauce. It tells you jack about tonight.",
     "Lipstick on a champagne glass. Half the room wears that shade, and the other half wishes they could pull it off.",
     "A stack of unpaid tabs with the Don's notes in the margins: deadbeat, cheapskate, owes me a kidney. Everybody owed him.",
     "A whoopee cushion under the Don's chair. Childish. Hilarious. Useless.",
@@ -107,15 +107,15 @@ export const ADULT: Script = {
   tipLabel: "Others may have this same tip. If somebody tells it differently, somebody's lying.",
   motives: [
     "The Don owed you a fortune and laughed in your face when you asked for it. Then he farted. On purpose.",
-    "He caught you skimming from the till and swore he'd break your goddamn kneecaps.",
+    "He caught you skimming from the till and swore he'd break your kneecaps, left one first.",
     "He told everyone what you keep in your coat pocket, and now nobody will shake your hand.",
     "He fired your sweetheart from the band for sounding like a cat in a blender. Rude. Accurate, but rude.",
-    "You lost your car to him in a card game, and that cheating bastard had aces up both sleeves.",
+    "You lost your car to him in a card game, and that cheating crook had aces up both sleeves.",
     "He cut you out of a deal you'd busted your ass on for a year.",
     "He knew what you did in Detroit, and he wouldn't shut the hell up about it.",
     "He promised you a cut of the bootleg money and paid you in IOUs and bad advice.",
-    "He was about to marry the person you've been in love with for years. The bastard.",
-    "He gave your favorite booth to a rival and pissed in your potted plant.",
+    "He was about to marry the person you've been in love with for years. The rat.",
+    "He gave your favorite booth to a rival and spat in your potted plant.",
     "He called you a two-bit nobody in front of the whole damn room. Twice.",
     "He was holding your granddad's watch as collateral and wearing it just to rub it in.",
     "He framed your brother for a job the Don pulled himself. Your brother's still in the can.",

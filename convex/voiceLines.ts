@@ -2,8 +2,9 @@
 // intro, the waves and the reveal. Pure functions, shared by the server (recording, the TV query)
 // and the host laptop. Nothing here is secret: every guest, exhibit and room gets a clip, so the
 // set of recordings never points at the answer.
-import { cueVariant, customRecordingText, customText, plain, rollNarration, sprinkle, voiceKey, type CueKey, type GameTone, type HostKey, type Tone } from "./narration";
+import { LATER_KINDS, cueVariant, customRecordingText, customText, insultText, plain, rollNarration, sprinkle, verdictText, voiceKey, type CueKey, type GameTone, type HostKey, type Tone } from "./narration";
 import { openRoomsIn } from "./engine/build";
+import { castMember, shortName } from "./figures";
 
 export type Narrator = { host: HostKey; unstable: boolean; /** Sailor mode (Oct 16): Duke, furious, his own filthy script. */ sailor?: boolean };
 export type Levels = { voice: number; music: number; sfx: number };
@@ -73,7 +74,8 @@ export function rollWanted(tone: Tone, n: Narrator, p: RollLine): Wanted {
 }
 
 type StartInfo = {
-  players: { id: string; charName: string; sayAs?: string }[];
+  /** real: the first name the insults use (Oct 17); sayReal: how to say it. */
+  players: { id: string; charName: string; sayAs?: string; real?: string; sayReal?: string }[];
   exhibits: { id: string; letter: string; name: string }[];
   rooms: { key: string; label: string }[];
   bodyRoomKey?: string;
@@ -112,12 +114,38 @@ export function startWanted(tone: Tone, n: Narrator, s: StartInfo): Wanted[] {
     out.push(make(`killer:${p.id}`, customText("killer", tone, { name: p.charName, seed: s.seed, pick: pk("killer") }), n, customText("killer", tone, { name: spokenName(p), seed: s.seed, pick: pk("killer") }), nz));
     if (s.accomplice) out.push(make(`accomplice:${p.id}`, customText("accomplice", tone, { name: p.charName, seed: s.seed, pick: pk("accomplice") }), n, customText("accomplice", tone, { name: spokenName(p), seed: s.seed, pick: pk("accomplice") }), nz));
     out.push(make(`winner:${p.id}`, customText("winner", tone, { name: p.charName }), n, customText("winner", tone, { name: spokenName(p) }), nz));
-    // v2 votes: every guest's "going to jail" and "is free", so the verdicts have names.
-    out.push(make(`jailed:${p.id}`, customText("jailed", tone, { name: p.charName, seed: s.seed, pick: pk("jailed") }), n, customText("jailed", tone, { name: spokenName(p), seed: s.seed, pick: pk("jailed") }), nz));
-    out.push(make(`released:${p.id}`, customText("released", tone, { name: p.charName, seed: s.seed, pick: pk("released") }), n, customText("released", tone, { name: spokenName(p), seed: s.seed, pick: pk("released") }), nz));
+    // v2 votes: every guest's "going to jail" and "is free", so the verdicts have names. Oct 17: with the insult
+    // layer's lines on their first name in the pool too.
+    const real = p.real || p.charName;
+    for (const kind of ["jailed", "released"] as const) {
+      const v = { seed: s.seed, id: p.id, pick: pk(kind) };
+      out.push(make(`${kind}:${p.id}`, verdictText(kind, tone, { ...v, name: p.charName, real }), n, verdictText(kind, tone, { ...v, name: spokenName(p), real: p.sayReal || real }), nz));
+    }
   }
   for (const e of s.exhibits) out.push(make(`exhibit:${e.id}`, customText("exhibit", tone, { letter: e.letter, weapon: e.name }), n, undefined, nz));
   for (const r of s.rooms) out.push(make(`room:${r.key}`, customText("room", tone, { room: r.label }), n, undefined, nz));
+  return out;
+}
+
+/** A guest's names for the per-game lines: the character name, and the first name the insults use (Oct 17). */
+export const guestNames = (p: { _id: string; charName: string; sayAs?: string; figure?: string | null; firstName?: string | null }) => {
+  const m = castMember(p.figure);
+  return { id: p._id as string, charName: p.charName, sayAs: p.sayAs, real: shortName(p), sayReal: m && !m.mystery ? p.sayAs || undefined : undefined };
+};
+
+/**
+ * Oct 17: the insults on real names for later moments (the jailbird kept in, the last to lock in, the killer caught or
+ * free, the award winners). Recorded only when the moment comes (convex/voice.ts scope "later"), never at Start.
+ */
+export function laterWanted(tone: Tone, n: Narrator, s: Pick<StartInfo, "players" | "seed">): Wanted[] {
+  const out: Wanted[] = [];
+  const nz = { tone, seed: s.seed };
+  for (const p of s.players) {
+    const real = p.real || p.charName;
+    for (const kind of LATER_KINDS) {
+      out.push(make(`${kind}:${p.id}`, insultText(kind, tone, { real, seed: s.seed, id: p.id }), n, insultText(kind, tone, { real: p.sayReal || real, seed: s.seed, id: p.id }), nz));
+    }
+  }
   return out;
 }
 

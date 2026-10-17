@@ -7,7 +7,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { HOSTS, TTS_MODEL, cueFiles, plain, recordingText, settingsFor, voiceKey, type CueKey, type HostKey, type Tone } from "../convex/narration";
+import { TTS_MODEL, cueFiles, plain, recordingText, settingsFor, voiceIdFor, voiceKey, type CueKey, type HostKey, type Tone } from "../convex/narration";
 
 const KEY = process.env.ELEVENLABS_API_KEY;
 if (!KEY) throw new Error("Set ELEVENLABS_API_KEY");
@@ -19,7 +19,7 @@ const cuesOnly = arg("--cues")?.split(",") as CueKey[] | undefined;
 const redo = process.argv.includes("--redo");
 
 type Job = { host: HostKey; unstable: boolean; tone: Tone; cue: CueKey; v: number; file: string };
-/** Every recorded set: Ivy and Duke, steady and Unstable, Classic and Adult; and Sailor mode (Duke, his own script). */
+/** Every recorded set: Ivy and Duke, steady and Unstable, Classic and Adult; and Sailor mode (Mister Gruff since Oct 17, his own script). */
 const SETS: { host: HostKey; unstable: boolean; tone: Tone }[] = [
   ...(["ivy", "duke"] as HostKey[]).flatMap((host) => [false, true].flatMap((unstable) => (["classic", "adult"] as Tone[]).map((tone) => ({ host, unstable, tone })))),
   { host: "duke", unstable: false, tone: "sailor" },
@@ -33,7 +33,8 @@ for (const set of SETS)
 const dur = (f: string) => Number(execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f]).toString().trim());
 
 async function tts(text: string, host: HostKey, vk: string): Promise<Buffer> {
-  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${HOSTS[host].voiceId}?output_format=mp3_44100_128`, {
+  void host;
+  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceIdFor(vk)}?output_format=mp3_44100_128`, {
     method: "POST",
     headers: { "xi-api-key": KEY!, "Content-Type": "application/json" },
     body: JSON.stringify({ text, model_id: TTS_MODEL, voice_settings: settingsFor(vk) }),

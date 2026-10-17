@@ -422,3 +422,13 @@
 .tv-tally.lockins .n { font-size: 2.4cqw; }
 .tv-tally.lockins .tv-av.sm { width: 2.6cqw; height: 2.6cqw; }
 .tv-tally.lockins.many > div { min-width: 5.6cqw; padding: .5cqw .6cqw; }
+
+/* W14 (Oct 17): How to play, how a round ends. */
+.tv-how-round { display: grid; justify-items: center; gap: 1.6cqw; }
+.tv-how-round .clock { font-family: var(--display); font-size: 9cqw; color: var(--brass); line-height: 1; font-variant-numeric: tabular-nums; }
+.tv-how-round .faces { display: flex; gap: 1cqw; }
+.tv-how-round .faces .tv-av { width: 6cqw; height: 6cqw; opacity: .55; }
+.tv-how-round .faces .tv-av img { width: 100%; height: 100%; object-fit: cover; }
+.tv-how-round .faces .tv-av.ready { opacity: 1; border: .25cqw solid var(--brass); animation: tvReady .5s ease both; }
+.tv-how-round .lab { font-family: var(--label); font-size: 1.5cqw; letter-spacing: .14em; text-transform: uppercase; color: var(--paper); }
+@keyframes tvReady { from { transform: scale(.85); opacity: .55; } to { transform: scale(1); opacity: 1; } }

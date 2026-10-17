@@ -39,7 +39,7 @@ export function cueSecs(voice: string, tone: Tone, host: HostKey, cue: CueKey, v
 
 /** What each How to play card shows: "suspects" (the guests' faces with the masked killer among them), "pair" (the
  *  killer and the accomplice), "weapons" (a fan of the weapons in play), "search" (the map and a scan), "jail" (a guest
- *  behind bars and the vote), "win" (who + with what + where). */
+ *  behind bars and the vote), "win" (who + with what + where), "round" (Ready faces, or the clock). */
 export type HowArt = string;
 
 /**
@@ -52,10 +52,19 @@ export function howCues(g: { search: "all" | "waves"; pacing: { mode: "ready" | 
     ...(g.accomplice ? [["howAccomplice", "pair"] as [CueKey, HowArt]] : []),
     ["howWeapons", "weapons"],
     ["howSearch", "search"],
+    // W14 (Oct 17): how a round ends, for this game's pacing and search.
+    [roundCue(g), "round"],
     // Oct 17 (D5): games with fewer than 5 guests have no jail vote, so no jail card.
     ...(g.jailVote === false ? [] : [["howJail2", "jail"] as [CueKey, HowArt]]),
     ["howWin2", "win"],
   ];
+}
+
+/** W14 (Oct 17): the How to play card that says how a round ends: Ready or the clock, rooms in waves or all open. */
+export function roundCue(g: { search: "all" | "waves"; pacing: { mode: "ready" | "timer" } }): CueKey {
+  const timer = g.pacing.mode === "timer";
+  if (g.search === "waves") return timer ? "howRoundTimer" : "howRound";
+  return timer ? "howRoundTimerAll" : "howRoundAll";
 }
 
 /** The headline on each How to play card. */
@@ -64,6 +73,10 @@ export const HOW_TITLE: Partial<Record<CueKey, string>> = {
   howAccomplice: "The accomplice",
   howWeapons: "The weapons",
   howSearch: "Search and scan",
+  howRound: "How a round ends",
+  howRoundTimer: "How a round ends",
+  howRoundAll: "How a round ends",
+  howRoundTimerAll: "How a round ends",
   howJail2: "The jail vote",
   howWin2: "Lock it in",
 };

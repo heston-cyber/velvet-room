@@ -309,6 +309,8 @@ function partyClipUrls(d: Data): string[] {
   for (const c of Object.values(v.rooms)) out.push(c?.url);
   out.push(v.reveal?.killer?.url, v.reveal?.exhibit?.url, v.reveal?.room?.url, v.reveal?.accomplice?.url);
   for (const cs of Object.values(v.winners ?? {})) for (const c of cs) out.push(c?.url);
+  for (const cs of Object.values(v.roasts ?? {})) for (const c of cs) out.push(c?.url);
+  out.push(v.caught?.url, v.kept?.url, v.lastLockIn?.url);
   return out.filter((u): u is string => !!u);
 }
 
@@ -637,7 +639,8 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
                         </span>
                       ))}
                     </span>
-                    <span className="n">{shown ? names(a.winners) : "…"}</span>
+                    {/* First names: a shared award with full names wouldn't fit the card. */}
+                    <span className="n">{shown ? a.winners.map((w) => w.short).join(" & ") : "…"}</span>
                     <span className="sub">{shown ? a.sub : " "}</span>
                   </div>
                 );
@@ -725,6 +728,8 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
                 </div>
               ) : step.art === "win" ? (
                 <HowWin face={stand[0]} weapon={d.weapons[0] ?? { key: "candlestick", name: "Candlestick" }} room={d.map.rooms[0]?.label ?? "The Lounge"} />
+              ) : step.art === "round" ? (
+                <HowRound faces={stand.slice(0, 5)} timer={g.pacing.mode === "timer"} />
               ) : step.art === "pair" ? (
                 // The accomplice: the masked killer, with someone at their shoulder.
                 <div className="tv-how-pair">
@@ -1034,6 +1039,30 @@ function VoteDots() {
 }
 
 /** How to play, locking in: who + with what + where. */
+/** W14 (Oct 17): how a round ends: most of you tap Ready, or the clock runs out. */
+function HowRound({ faces, timer }: { faces: string[]; timer: boolean }) {
+  if (timer) {
+    return (
+      <div className="tv-how-round enter">
+        <span className="clock">10:00</span>
+        <span className="lab">Then the round ends</span>
+      </div>
+    );
+  }
+  return (
+    <div className="tv-how-round enter">
+      <div className="faces">
+        {faces.map((f, i) => (
+          <span key={f} className={`tv-av ${i < 3 ? "ready" : ""}`} style={{ animationDelay: `${0.4 + i * 0.35}s` }}>
+            <img src={faceUrl(f)} alt="" />
+          </span>
+        ))}
+      </div>
+      <span className="lab">3 of {faces.length} ready: 30 seconds, then the round ends</span>
+    </div>
+  );
+}
+
 function HowWin({ face, weapon, room }: { face: string; weapon: Weapon; room: string }) {
   return (
     <div className="tv-how-win">

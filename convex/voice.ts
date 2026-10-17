@@ -5,9 +5,9 @@ import { internal } from "./_generated/api";
 import { internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { HOSTS, TTS_MODEL, settingsFor } from "./narration";
+import { voiceIdFor, TTS_MODEL, settingsFor } from "./narration";
 import { requireHost } from "./lib";
-import { clipMatches, narratorOf, scriptOf, secondsOfMp3, startWanted, voiceOf, type Wanted } from "./voiceLines";
+import { clipMatches, guestNames, laterWanted, narratorOf, scriptOf, secondsOfMp3, startWanted, voiceOf, type Wanted } from "./voiceLines";
 import { caseFor } from "./caseFile";
 import { inOrder, rollGuests } from "./rollCall";
 import { heckleWanted } from "./heckles";
@@ -33,9 +33,11 @@ async function clipRows(ctx: QueryCtx, gameId: Id<"games">) {
 }
 
 /** Everything the game wants recorded right now, for one scope. */
-async function wantedFor(ctx: QueryCtx, game: Doc<"games">, scope: "roll" | "start"): Promise<Wanted[]> {
+async function wantedFor(ctx: QueryCtx, game: Doc<"games">, scope: Scope): Promise<Wanted[]> {
   const players = await playersOf(ctx, game._id);
   if (before(game)) return [];
+  // Oct 17: the insults for later moments, recorded one by one when they're needed.
+  if (scope === "later") return laterWanted(scriptOf(game), narratorOf(game), { players: players.filter((p) => p.inGame).map(guestNames), seed: game.slug });
   // The roll call (v2) is recorded at Start: it reads each guest's motive, which comes from the case.
   if (scope === "roll") {
     if (!game.show) return [];
@@ -44,7 +46,7 @@ async function wantedFor(ctx: QueryCtx, game: Doc<"games">, scope: "roll" | "sta
   const inGame = players.filter((p) => p.inGame);
   const exhibits = (await gameWeapons(ctx, game)).map((w) => ({ id: w.id, letter: w.letter, name: w.name }));
   const lines = startWanted(scriptOf(game), narratorOf(game), {
-    players: inGame.map((p) => ({ id: p._id, charName: p.charName, sayAs: p.sayAs })),
+    players: inGame.map(guestNames),
     exhibits,
     rooms: game.rooms,
     bodyRoomKey: game.bodyRoomKey,
@@ -58,11 +60,15 @@ async function wantedFor(ctx: QueryCtx, game: Doc<"games">, scope: "roll" | "sta
   return [...lines, ...(await heckleWanted(ctx, game)).map(({ line: _l, ...w }) => w)];
 }
 
+type Scope = "roll" | "start" | "later";
+const scopeV = v.union(v.literal("roll"), v.literal("start"), v.literal("later"));
+
+
 // ---------- recording (internal) ----------
 
 /** Claims the lines that still need recording, so two runs never pay for the same line. */
 export const claim = internalMutation({
-  args: { gameId: v.id("games"), scope: v.union(v.literal("roll"), v.literal("start")), only: v.optional(v.array(v.string())) },
+  args: { gameId: v.id("games"), scope: scopeV, only: v.optional(v.array(v.string())) },
   handler: async (ctx, { gameId, scope, only }) => {
     const game = await ctx.db.get(gameId);
     if (!game) return [];
@@ -116,8 +122,7 @@ export const saveClip = internalMutation({
 async function tts(text: string, voice: string): Promise<ArrayBuffer> {
   const key = process.env.ELEVENLABS_API_KEY;
   if (!key) throw new Error("The server has no ElevenLabs key yet.");
-  const host = voice.startsWith("duke") ? "duke" : "ivy";
-  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${HOSTS[host].voiceId}?output_format=mp3_44100_128`, {
+  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceIdFor(voice)}?output_format=mp3_44100_128`, {
     method: "POST",
     headers: { "xi-api-key": key, "Content-Type": "application/json" },
     body: JSON.stringify({ text, model_id: TTS_MODEL, voice_settings: settingsFor(voice) }),
@@ -149,9 +154,9 @@ async function ttsRetry(text: string, voice: string): Promise<ArrayBuffer> {
 export const record = internalAction({
   args: {
     gameId: v.id("games"),
-    scope: v.union(v.literal("roll"), v.literal("start")),
+    scope: scopeV,
     only: v.optional(v.array(v.string())),
-    then: v.optional(v.union(v.literal("roll"), v.literal("start"))),
+    then: v.optional(scopeV),
     /** Which pass this is: lines the voice service turned away get another go a little later. */
     pass: v.optional(v.number()),
   },
@@ -186,7 +191,7 @@ export const record = internalAction({
 });
 
 /** Called from the game when the cast is set (Start) or when the host asks. */
-export async function scheduleRecording(ctx: MutationCtx, gameId: Id<"games">, scope: "roll" | "start", only?: string[], then?: "roll" | "start") {
+export async function scheduleRecording(ctx: MutationCtx, gameId: Id<"games">, scope: Scope, only?: string[], then?: Scope) {
   await ctx.scheduler.runAfter(0, internal.voice.record, { gameId, scope, only, then });
 }
 

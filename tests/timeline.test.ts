@@ -88,10 +88,15 @@ describe("TV timeline", () => {
     p = plan(data({ game: showGame(), voice: showVoice() }), HOW + 100, secs);
     expect(p.part).toBe("how");
     expect(p.loop).toBe("rollcall");
-    // v3 (Oct 16): five cards, each with a picture of the rule
-    expect(p.rules!.steps.map((s) => s.cue)).toEqual(["howCase", "howWeapons", "howSearch", "howJail2", "howWin2"]);
-    expect(p.rules!.steps.map((s) => s.art)).toEqual(["suspects", "weapons", "search", "jail", "win"]);
-    for (let i = 1; i < 5; i++) expect(p.rules!.steps[i].at).toBe(p.rules!.steps[i - 1].until);
+    // v3 (Oct 16): a card per rule, each with a picture; Oct 17 adds how a round ends (this fixture's window ends
+    // before the last card)
+    const cards = ["howCase", "howWeapons", "howSearch", "howRoundTimer", "howJail2", "howWin2"];
+    const arts = ["suspects", "weapons", "search", "round", "jail", "win"];
+    const n = p.rules!.steps.length;
+    expect(n).toBeGreaterThanOrEqual(5);
+    expect(p.rules!.steps.map((s) => s.cue)).toEqual(cards.slice(0, n));
+    expect(p.rules!.steps.map((s) => s.art)).toEqual(arts.slice(0, n));
+    for (let i = 1; i < n; i++) expect(p.rules!.steps[i].at).toBe(p.rules!.steps[i - 1].until);
     expect(p.rules!.end).toBe(ROLL);
     expect(p.events.filter((e) => e.id.startsWith("how:") && e.cue).every((e) => e.quiet)).toBe(true);
 
