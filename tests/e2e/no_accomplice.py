@@ -103,20 +103,21 @@ with sync_playwright() as p:
         ok(wait_for(lambda: btn.count() == 1, 8), f"the host menu offers {label}")
         btn.click()
 
-    # How to play: five cards, none of them the accomplice.
+    # How to play: six cards, none of them the accomplice.
     if host.locator(".tv-how").count() == 0:
         skip("Skip to How to play")
-    ok(wait_for(lambda: "how to play · 1 of 5" in host.locator(".tv-how").inner_text().lower(), 10), "five How to play cards")
+    # W14 (Oct 17): a sixth card says how a round ends.
+    ok(wait_for(lambda: "how to play · 1 of 6" in host.locator(".tv-how").inner_text().lower(), 10), "six How to play cards")
     seen, pair = [], False
     end = time.time() + 90
     while time.time() < end and host.locator(".tv-how").count():
         t = host.locator(".tv-how").inner_text().lower()
         seen.append(t)
         pair = pair or host.locator(".tv-how-pair").count() > 0
-        if "5 of 5" in t:
+        if "6 of 6" in t:
             break
         host.wait_for_timeout(1000)
-    ok(any("5 of 5" in t for t in seen), "How to play reached its last card")
+    ok(any("6 of 6" in t for t in seen), "How to play reached its last card")
     ok(not pair and not any("accomplice" in t for t in seen), "How to play never shows or mentions an accomplice")
     shot(host, "03-how.png")
 

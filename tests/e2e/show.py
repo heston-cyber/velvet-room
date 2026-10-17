@@ -91,7 +91,8 @@ with sync_playwright() as p:
     g = roster()["game"]
     show = g["show"]
     ok(show and show["howAt"] <= show["introAt"] < show["rollAt"], f"How to play, then the intro, then the roll call ({show})")
-    ok(wait_for(lambda: "how to play · 1 of 5" in host.locator(".tv-how").inner_text().lower(), 10), "five How to play cards")
+    # W14 (Oct 17): a sixth card says how a round ends.
+    ok(wait_for(lambda: "how to play · 1 of 6" in host.locator(".tv-how").inner_text().lower(), 10), "six How to play cards")
     host.wait_for_timeout(1200)
     shot(host, "03-how-1.png")
 
