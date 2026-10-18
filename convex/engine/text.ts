@@ -1,7 +1,13 @@
 // Clue wording. Every template only states what its clue proves, so the logic in
 // build.ts stays the single source of truth. A game picks one Script: Classic or Adult.
+//
+// Oct 18 (Heston: "at each start of the game you have to look at all the evidence and rooms and weapons and players and
+// make sure everything lines up properly and makes sense without any contradictions"): every alibi, weapon clear and
+// room clear says where things were (its Facts), and the builder checks those against the night (where the Don died,
+// where the body turned up, which rooms were sealed or crowded) before a word is written. See build.ts, worldProblems.
 import { shuffle } from "./rng";
-import type { Rng, WeaponKind } from "./types";
+import type { Place, Rng, WeaponKind } from "./types";
+import { MOTIVES_ADULT, MOTIVES_CLASSIC, type Motive } from "./motives";
 
 export const q = (s: string) => `“${s}”`;
 
@@ -11,18 +17,22 @@ export function mid(label: string): string {
 }
 
 /**
- * Deals sentence patterns from a shuffled deck per clue type, so one game only repeats
- * a pattern after it has used every other pattern of that type.
+ * Deals sentence patterns from a shuffled deck per clue type, so one game only repeats a pattern after it has used
+ * every other pattern of that type. With ok, deals the next pattern that fits (Oct 18: one that doesn't contradict the
+ * night); when none in the deck fits, any that fits.
  */
 export function deckPicker(rng: Rng) {
   const decks = new Map<string, number[]>();
-  return function say<T>(key: string, items: readonly T[]): T {
+  return function say<T>(key: string, items: readonly T[], ok?: (x: T) => boolean): T {
     let deck = decks.get(key);
     if (!deck || deck.length === 0) {
       deck = shuffle(rng, items.map((_, i) => i));
       decks.set(key, deck);
     }
-    return items[deck.pop()!];
+    if (!ok) return items[deck.pop()!];
+    for (let j = deck.length - 1; j >= 0; j--) if (ok(items[deck[j]])) return items[deck.splice(j, 1)[0]];
+    const fits = items.filter(ok);
+    return fits.length ? fits[Math.floor(rng() * fits.length)] : items[deck.pop()!];
   };
 }
 export type Say = ReturnType<typeof deckPicker>;
@@ -38,6 +48,15 @@ export const theList = (names: string[]) => list(names.map((n) => `the ${n}`));
 export function fill(template: string, signature: string): string {
   return template.replace("{s}", q(signature));
 }
+
+/**
+ * A sentence pattern and what it claims about the night.
+ * - at: where the guests (alibis) or the watched weapon (clears) were while the Don was killed. "out" is never one
+ *   of the house's rooms; the rest match a room by its name (build.ts, roomOfPlace).
+ * - seal: a room clear that says nobody was in the room (locked, untouched) until the body turned up.
+ * - crowd: a room clear that says the room was full of people all night.
+ */
+export type Line<A extends unknown[]> = { t: (...a: A) => string; at?: Place[]; seal?: boolean; crowd?: boolean };
 
 export type KillerFacts = {
   weapon: string;
@@ -62,10 +81,10 @@ export type AccompliceFacts = {
 };
 
 export type Script = {
-  suspectClear: (say: Say, n: string) => string;
-  suspectPairClear: (say: Say, a: string, b: string) => string;
+  suspectClear: Line<[string]>[];
+  suspectPairClear: Line<[string, string]>[];
   /** v3: three alibis in one clue. */
-  suspectTrioClear: (say: Say, a: string, b: string, c: string) => string;
+  suspectTrioClear: Line<[string, string, string]>[];
   /** v3: the killer is a man ("m") or a woman ("f"); names everyone of the other sex it clears. */
   witness: (say: Say, killerSex: "m" | "f", cleared: string[]) => string;
   /**
@@ -74,26 +93,27 @@ export type Script = {
    */
   coroner: (say: Say, kind: WeaponKind, positive: boolean, weapons: string[]) => string;
   /**
-   * v2: weapons go by name (lower case: "the lawn gnome"); exhibit letters are gone. Oct 16: weapon and room clears
-   * never reason from blood, wounds or a struggle, which would hint at how the Don died (and can contradict it). They
-   * say where the thing was all night, or, for a gun, that it was never fired.
+   * Weapons go by name (lower case: "the lawn gnome"). Oct 16: weapon and room clears never reason from blood, wounds
+   * or a struggle. They say where the thing was all night, or, for a gun, that it was never fired. Weapon names can be
+   * plural ("the gloves"), so no "it" or "was" right after a name.
    */
-  exhibitClear: (say: Say, name: string, kind?: WeaponKind) => string;
-  exhibitPairClear: (say: Say, a: string, b: string) => string;
-  roomClear: (say: Say, label: string) => string;
-  roomClearHere: (label: string) => string;
+  exhibitClear: Line<[string]>[];
+  exhibitGunClear: Line<[string]>[];
+  exhibitPairClear: Line<[string, string]>[];
+  roomClear: Line<[string]>[];
   twistMoved: (bodyLabel: string) => string;
   twistStayed: (bodyLabel: string) => string;
-  /** Oct 16: points at a guest by name (signature items are gone). Always someone the evidence clears later. */
-  herring: (say: Say, name: string) => string;
+  /**
+   * Oct 18: a herring casts suspicion without saying where anyone was when the Don died (an alibi later clears them,
+   * so "seen near the Don right before" would contradict it), and never says where it was found.
+   */
+  herring: Line<[string]>[];
   flavor: string[];
   /** I8 (Oct 17): dead-end cards that leak a motive about a guest picked at random (the killer as likely as anyone).
    *  They clear nobody and prove nothing: material for the final read. */
   leaks: (n: string) => string[];
-  /** Shown above a guest's private tip. */
-  tipLabel: string;
-  motives: string[];
-  secrets: string[];
+  /** Oct 18: every guest's motive, on their phone ("you") and read out at the roll call ("they"). */
+  motives: Motive[];
   killerLines: (f: KillerFacts) => string[];
   innocentLines: string[];
   /** Killer + accomplice games (v2). */
@@ -102,26 +122,36 @@ export type Script = {
 };
 
 export const CLASSIC: Script = {
-  suspectClear: (say, n) =>
-    say("s1", [
-      `The coat-check girl swears ${n} never left her sight while the Don was alone. ${n} is in the clear.`,
-      `A flash photo from the bar shows ${n} mid-toast at the very moment the Don went quiet. Cleared.`,
-      `${n} was losing at cards in the back the whole time. Five sore winners vouch for it. Cleared.`,
-      `The bandleader says ${n} requested the same song three times running and never left the dance floor. Cleared.`,
-      `${n} spent the whole stretch arguing with the doorman about a bar tab. He's sure of it. Cleared.`,
-    ]),
-  suspectPairClear: (say, a, b) =>
-    say("s2", [
-      `${a} and ${b} were stuck together by the piano all evening, trading insults. The piano player backs them both. Both cleared.`,
-      `The bartender kept ${a} and ${b} in his sights all night. Neither one left the bar. Both cleared.`,
-      `${a} and ${b} were caught sneaking a smoke out back together when it happened. Both cleared.`,
-    ]),
-  suspectTrioClear: (say, a, b, c) =>
-    say("s3", [
-      `${a}, ${b} and ${c} were all in the club photographer's group shot, taken the very minute the Don died. All three cleared.`,
-      `${a}, ${b} and ${c} were at the craps table the whole time, and the dealer will swear to it. All three cleared.`,
-      `The band saw ${a}, ${b} and ${c} dancing the Charleston, badly, right through it. All three cleared.`,
-    ]),
+  suspectClear: [
+    { at: ["front"], t: (n) => `The coat-check girl swears ${n} never left her sight while the Don was alone. ${n} is in the clear.` },
+    { at: ["bar"], t: (n) => `A flash photo from the bar shows ${n} mid-toast at the very moment the Don went quiet. Cleared.` },
+    { at: ["cards"], t: (n) => `${n} was losing at cards the whole time. Five sore winners vouch for it. Cleared.` },
+    { at: ["lounge"], t: (n) => `The bandleader says ${n} requested the same song three times running and never left the dance floor. Cleared.` },
+    { at: ["front"], t: (n) => `${n} spent the whole stretch arguing with the doorman about a bar tab. He's sure of it. Cleared.` },
+    { at: ["out"], t: (n) => `A cab driver waited at the curb while ${n} hunted through every pocket for the fare. That took the whole stretch. Cleared.` },
+    { at: ["bath"], t: (n) => `${n} was stuck in the line for the powder room the entire time, and four people in that line will swear to it. Cleared.` },
+    { at: ["out"], t: (n) => `The beat cop on the corner chatted with ${n} on the front steps right through it. A cop's word is good enough. Cleared.` },
+    { at: ["front"], t: (n) => `${n} was on the hall telephone to a sister in Brooklyn the whole stretch, and the operator logged the call. Cleared.` },
+    { at: ["kitchen"], t: (n) => `The cook says ${n} spent the whole stretch in the kitchen begging for another plate of oysters. Cleared.` },
+    { at: ["out"], t: (n) => `${n} was out on the fire escape getting some air, in plain view of half the street. Cleared.` },
+  ],
+  suspectPairClear: [
+    { at: ["lounge"], t: (a, b) => `${a} and ${b} were stuck together by the piano all evening, trading insults. The piano player backs them both. Both cleared.` },
+    { at: ["bar"], t: (a, b) => `The bartender kept ${a} and ${b} in his sights all night. Neither one left the bar. Both cleared.` },
+    { at: ["out"], t: (a, b) => `${a} and ${b} were caught sneaking a smoke out back together when it happened. Both cleared.` },
+    { at: ["kitchen"], t: (a, b) => `${a} and ${b} played checkers in the kitchen with the dishwasher the whole time. He won every game and remembers them both. Both cleared.` },
+    { at: ["out"], t: (a, b) => `${a} and ${b} were on a liquor run across town and walked back in after the Don was already dead. The cab driver confirms it. Both cleared.` },
+    { at: ["front"], t: (a, b) => `The coat-check girl watched ${a} and ${b} argue over the same fur coat for twenty minutes. Neither won. Both cleared.` },
+    { at: ["out"], t: (a, b) => `${a} and ${b} spent the whole stretch on the front steps arguing about baseball with the doorman. Both cleared.` },
+  ],
+  suspectTrioClear: [
+    { t: (a, b, c) => `${a}, ${b} and ${c} were all in the club photographer's group shot, taken the very minute the Don died. All three cleared.` },
+    { at: ["cards"], t: (a, b, c) => `${a}, ${b} and ${c} were at the craps table the whole time, and the dealer will swear to it. All three cleared.` },
+    { at: ["lounge"], t: (a, b, c) => `The band saw ${a}, ${b} and ${c} dancing the Charleston, badly, right through it. All three cleared.` },
+    { at: ["out"], t: (a, b, c) => `${a}, ${b} and ${c} were in the alley helping push a stalled delivery truck, and the driver will swear to it. All three cleared.` },
+    { at: ["out"], t: (a, b, c) => `${a}, ${b} and ${c} were on the front steps serenading a passing streetcar, and half the block heard them. All three cleared.` },
+    { t: (a, b, c) => `A fortune teller had ${a}, ${b} and ${c} at her table the whole stretch, reading three palms very slowly. All three cleared.` },
+  ],
   witness: (say, sex, cleared) =>
     say("w", [
       sex === "m"
@@ -133,6 +163,12 @@ export const CLASSIC: Script = {
       sex === "m"
         ? `Footprints in spilled gin lead away from the body: a man's wingtips. That clears ${list(cleared)}.`
         : `Footprints in spilled gin lead away from the body: a woman's heels. That clears ${list(cleared)}.`,
+      sex === "m"
+        ? `The cigarette girl brushed past the killer in the dark right after: a man, tall, smelling of cheap cologne. That clears ${list(cleared)}.`
+        : `The cigarette girl brushed past the killer in the dark right after: a woman, smelling of French perfume. That clears ${list(cleared)}.`,
+      sex === "m"
+        ? `A newsboy across the street saw someone hurry out a back window right after: a man in a fedora. That clears ${list(cleared)}.`
+        : `A newsboy across the street saw someone hurry out a back window right after: a woman in a cloche hat. That clears ${list(cleared)}.`,
     ]),
   coroner: (say, kind, positive, weapons) => {
     const out = `That rules out ${theList(weapons)}.`;
@@ -154,39 +190,45 @@ export const CLASSIC: Script = {
       }[kind],
     ]);
   },
-  exhibitClear: (say, name, kind) =>
-    kind === "gun"
-      ? say("e1g", [
-          `The ${name} is still fully loaded and hasn't been fired tonight. Not the weapon.`,
-          `Not a whiff of powder on the ${name}. Nobody fired it tonight. Not the weapon.`,
-        ])
-      : // Weapon names can be plural ("the gloves", "the garden shears"): no "it" and no "was" after the name.
-        say("e1", [
-          `The ${name} sat in the coat check all night, and the coat-check girl never let anyone near. Not the weapon.`,
-          `The Don locked the ${name} in his office safe before the party, and only he knew the combination. Not the weapon.`,
-          `The dust around the ${name} hasn't been disturbed all night. Not the weapon.`,
-        ]),
-  exhibitPairClear: (say, a, b) =>
-    say("e2", [
-      `The ${a} and the ${b} were behind the bar under the bartender's nose all evening. Neither one was used.`,
-      `The Don locked the ${a} and the ${b} in his office safe before the party, and only he knew the combination. Neither is the weapon.`,
-    ]),
-  roomClear: (say, label) =>
-    say("r1", [
-      `${label} was locked all evening, and the manager never let go of the key. The Don wasn't killed there.`,
-      `The dust on the floor of ${mid(label)} hasn't been disturbed all night. Nobody died in there.`,
-      `${label} was full of witnesses all evening. Nobody could have killed the Don there unseen.`,
-    ]),
-  roomClearHere: (label) => `The dust on the floor in here hasn't been disturbed all night. The Don wasn't killed in ${mid(label)}.`,
+  exhibitClear: [
+    { at: ["front"], t: (w) => `The ${w} sat in the coat check all night, and the coat-check girl never let anyone near. Not the weapon.` },
+    { t: (w) => `The Don locked the ${w} in his office safe before the party, and only he knew the combination. Not the weapon.` },
+    { t: (w) => `The dust around the ${w} hasn't been disturbed all night. Not the weapon.` },
+    { t: (w) => `The ${w} spent the whole night in a locked display case, and the only key was in the Don's own pocket. Not the weapon.` },
+    { t: (w) => `A bouncer guarded the crate with the ${w} in it all night, and nobody got past him. Not the weapon.` },
+    { at: ["lounge"], t: (w) => `The ${w} sat on the bandstand in plain view of the whole room all night. Not the weapon.` },
+    { t: (w) => `The ${w} came back from the repair shop this morning, still wrapped in brown paper with the string unbroken. Not the weapon.` },
+  ],
+  exhibitGunClear: [
+    { t: (w) => `The ${w} is still fully loaded and hasn't been fired tonight. Not the weapon.` },
+    { t: (w) => `Not a whiff of powder on the ${w}. Nobody fired it tonight. Not the weapon.` },
+    { t: (w) => `The ${w} is rusted solid. It couldn't fire tonight if it tried. Not the weapon.` },
+    { t: (w) => `The ${w} is still wrapped in the Don's oilcloth with the knots untouched. Not the weapon.` },
+  ],
+  exhibitPairClear: [
+    { at: ["bar"], t: (a, b) => `The ${a} and the ${b} were behind the bar under the bartender's nose all evening. Neither one was used.` },
+    { t: (a, b) => `The Don locked the ${a} and the ${b} in his office safe before the party, and only he knew the combination. Neither is the weapon.` },
+    { at: ["out"], t: (a, b) => `The ${a} and the ${b} were in the trunk of the Don's car, and the chauffeur sat on the bumper all night. Neither is the weapon.` },
+    { t: (a, b) => `The ${a} and the ${b} were locked in the supply closet, and the manager has the only key. Neither one was used.` },
+  ],
+  roomClear: [
+    { seal: true, t: (r) => `${r} was locked from the start of the party until the body turned up, and the manager never let go of the key. The Don wasn't killed there.` },
+    { seal: true, t: (r) => `Until the body turned up, the dust on the floor of ${mid(r)} hadn't been disturbed all night. Nobody died in there.` },
+    { seal: true, t: (r) => `The staff tied a ribbon across the door of ${mid(r)} before the party, and it was still unbroken when the body turned up. Not there.` },
+    { crowd: true, t: (r) => `${r} was full of witnesses all evening. Nobody could have killed the Don there unseen.` },
+    { crowd: true, t: (r) => `A card game ran in ${mid(r)} all night, a dozen players and a dealer who never blinked. Nobody was killed in there.` },
+    { crowd: true, t: (r) => `${r} hosted a birthday toast for the bandleader right through the evening. Thirty guests, and not one murder. Not there.` },
+  ],
   twistMoved: (body) =>
     `The twist: the Don wasn't killed in ${mid(body)} at all. Drag marks say someone moved him there after he was dead.`,
   twistStayed: (body) =>
     `The twist: there are no drag marks anywhere. The Don was killed right where he was found, in ${mid(body)}.`,
-  herring: (say, n) =>
-    say("h", [
-      `Found near the body: a matchbook with ${n}'s name scribbled inside. Could be nothing. Could be everything.`,
-      `A cigarette girl swears she saw ${n} whispering with the Don just before he died. Then again, it was dark.`,
-    ]),
+  herring: [
+    { t: (n) => `A matchbook with ${n}'s name scribbled inside turned up in the Don's coat pocket. Could be nothing. Could be everything.` },
+    { t: (n) => `Earlier tonight, ${n} was heard telling the bartender the Don wouldn't live to see Sunday. Could be talk. Could be a plan.` },
+    { t: (n) => `A note in ${n}'s handwriting, tucked in the Don's hatband: "We need to talk. Tonight." Talking isn't killing. Or is it?` },
+    { t: (n) => `${n} asked the coat-check girl twice tonight where the Don had gone. Curious. Very curious.` },
+  ],
   flavor: [
     "An empty bottle of the Don's private gin. Somebody helped themselves. Nothing more.",
     "A torn betting slip on a long shot that never paid. It tells you nothing about tonight.",
@@ -194,6 +236,10 @@ export const CLASSIC: Script = {
     "A stack of unpaid tabs with the Don's angry notes in the margins. Everybody owed him.",
     "A matchbook from a joint across town. Plenty of people here drink there.",
     "A cold cigar in an ashtray, barely smoked. The Don hated waste. Odd, but it proves nothing.",
+    "A bent hairpin on the stairs. Half the room wears them. It proves nothing.",
+    "A deck of cards with every ace missing. Somebody's been cheating, just not at murder.",
+    "A torn ticket stub for a picture show nobody here admits to seeing.",
+    "A rhinestone off somebody's dress, rolled under a radiator. Pretty, and no help at all.",
   ],
   leaks: (n) => [
     `A crumpled IOU signed by ${n}: five hundred dollars, owed to the Don. It doesn't say who did it. It says who had a reason.`,
@@ -201,41 +247,11 @@ export const CLASSIC: Script = {
     `A torn page from the Don's ledger with ${n}'s name circled twice. Circled by whom, and why?`,
     `A telegram for ${n}, unopened: "THE DON KNOWS. LEAVE TOWN." It proves nothing either way.`,
     `A photograph of ${n} shaking hands with the Don. Someone has scratched out the Don's face.`,
-    `The Don's appointment book: "${n}, 9 PM, about the money." The rest of the page is smudged.`,
+    `The Don's appointment book: "${n}, about the money." The rest of the page is smudged.`,
+    `A pawn ticket in the Don's wallet for a ring that belongs to ${n}. He had something of theirs. Now he doesn't.`,
+    `A letter to the Don from ${n}'s landlord: "Three months behind. Do what you like." A reason, maybe. Not proof.`,
   ],
-  tipLabel: "Other guests may have this same tip. If someone tells it differently, ask why.",
-  motives: [
-    "The Don owed you a small fortune and laughed when you asked for it.",
-    "He caught you skimming from the till and promised you'd regret it.",
-    "He threatened to tell everyone what you're really hiding.",
-    "He fired your sweetheart from the band last week, in front of everyone.",
-    "You lost your car to him in a card game, and you're sure he cheated.",
-    "He cut you out of a deal you'd spent a year setting up.",
-    "He knew about your past in Detroit and never let you forget it.",
-    "He promised you a cut of the bootleg money and never paid.",
-    "He was about to marry the person you love.",
-    "He sold your favorite booth to a rival, and he did it to spite you.",
-    "He called you a two-bit nobody in front of the whole room.",
-    "He was holding your family's watch as collateral and wouldn't give it back.",
-    "He framed your brother for a job the Don pulled himself.",
-    "He was going to shut down the business you run out of the back.",
-  ],
-  secrets: [
-    "You've been passing notes to the Feds.",
-    "Your best suit is stolen, and its real owner is somewhere in this room.",
-    "You're flat broke. Every dollar you flash tonight is borrowed.",
-    "You snuck somewhere off-limits earlier tonight looking for something. You didn't find it.",
-    "You aren't who you say you are. Your real name is on a wanted poster in Cleveland.",
-    "You've been watering down the gin for months.",
-    "You're secretly engaged to someone at this party.",
-    "You owe money to a rival outfit, and they're getting impatient.",
-    "You cheated at cards tonight and won big.",
-    "You were supposed to deliver a message to the Don tonight, and you didn't.",
-    "You've been writing the Don's love letters for him, and they weren't to his wife.",
-    "You were fired from your last job for stealing, and nobody here knows.",
-    "You've been sending the Don anonymous threats as a joke.",
-    "You took a payment to keep an eye on someone here tonight.",
-  ],
+  motives: MOTIVES_CLASSIC,
   killerLines: (f) => [
     `You did it. You killed Don Ray Sanders with the ${f.weapon.toLowerCase()} in ${mid(f.room)}.`,
     // Only older games had weapons that belonged to a guest.
@@ -243,9 +259,7 @@ export const CLASSIC: Script = {
     ...(f.accompliceName ? [`Your accomplice is ${f.accompliceName}. They know what you did, and they'll lie to protect you.`] : []),
     "Over three rounds, the evidence will close in on you. Your job is to keep them guessing.",
     ...(f.herringName ? [`One clue points at ${f.herringName}. Lean on it.`] : []),
-    f.accompliceName
-      ? `You may lie about anything tonight, and so may ${f.accompliceName}. Everyone else may only lie about their own secrets.`
-      : "You may lie about anything tonight. Everyone else may only lie about their own secrets.",
+    f.accompliceName ? `You may lie about anything tonight, and so may ${f.accompliceName}. Everyone else has to tell the truth.` : "You may lie about anything tonight. Everyone else has to tell the truth.",
     ...(f.accompliceName ? [`If the heat gets too close, you can try pinning it on ${f.accompliceName}. Loyalty only goes so far.`] : []),
     "Stay out of jail: jailbirds can't lock in. Getting someone else jailed is fair game.",
     f.accompliceName
@@ -254,7 +268,7 @@ export const CLASSIC: Script = {
   ],
   innocentLines: [
     "You're innocent. You didn't kill the Don.",
-    "You may lie about your secret, but not about the murder. Only the killer may lie about that.",
+    "Tell the truth. Only the killer may lie.",
     "Find the evidence cards, compare notes, and work out who did it, with which weapon, and where.",
     "After Round 2 you can vote someone into jail, if most of you agree; after Round 3, a vote to let them out. Jailbirds can't search, vote or lock in.",
   ],
@@ -268,14 +282,14 @@ export const CLASSIC: Script = {
       : f.herringName
         ? [`One clue points at ${f.herringName}. Help it stick.`]
         : []),
-    "You may lie about anything tonight, just like the killer. Everyone else may only lie about their own secrets.",
+    "You may lie about anything tonight, just like the killer. Everyone else has to tell the truth.",
     `You didn't do it, so the evidence can't prove you did, and sooner or later it will clear you. Careful: if things get hot, ${f.killerName} may try to pin it on you.`,
     "Stay out of jail: jailbirds can't lock in. You win if the killer wins.",
   ],
   innocentLinesAcc: [
     "You're innocent. You didn't kill the Don.",
     "Tonight the killer has an accomplice: someone who didn't do it, knows who did, and will lie to protect them.",
-    "You may lie about your secret, but not about the murder. Only the killer and the accomplice may lie about that.",
+    "Tell the truth. Only the killer and the accomplice may lie.",
     "Find the evidence cards, compare notes, and work out who did it, with which weapon, and where. When you lock in, you can guess the accomplice too.",
     "After every round, vote someone into jail if most of you agree. Jailbirds can't search, vote or lock in.",
   ],

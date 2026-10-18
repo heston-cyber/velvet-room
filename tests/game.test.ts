@@ -45,7 +45,7 @@ describe("the draw, sealed", () => {
     }
   });
 
-  test("exactly one phone learns it's the killer; every guest gets a tip, the killer too", async () => {
+  test("exactly one phone learns it's the killer; no tips and no secrets (Oct 18)", async () => {
     const { t, hostKey, tokens } = await setup();
     await t.mutation(api.game.startGame, { slug: "test-engine", hostKey });
     const briefs = await Promise.all(tokens.map((token) => t.query(api.game.myBriefing, { token })));
@@ -54,13 +54,11 @@ describe("the draw, sealed", () => {
     expect(roles.filter((r) => r === "innocent")).toHaveLength(8);
     for (const b of briefs) {
       if (!b || !("role" in b)) throw new Error("missing briefing");
-      expect(b.tip).toBeTruthy(); // a tip on every phone, so having one gives nobody away
-      if (b.role === "killer") {
-        expect(b.lines[0]).toMatch(/^You did it\./);
-      } else {
-        expect(b.tip).toBeTruthy();
-        expect(b.lines.join(" ")).not.toMatch(/You did it/);
-      }
+      expect(b).not.toHaveProperty("tip");
+      expect(b).not.toHaveProperty("secret");
+      expect(b.lines.join(" ")).not.toMatch(/secret|\btip\b/i);
+      if (b.role === "killer") expect(b.lines[0]).toMatch(/^You did it\./);
+      else expect(b.lines.join(" ")).not.toMatch(/You did it/);
     }
   });
 
@@ -71,7 +69,7 @@ describe("the draw, sealed", () => {
     const privateTexts: string[] = [];
     for (const token of tokens) {
       const b = await t.query(api.game.myBriefing, { token });
-      if (b && "role" in b) privateTexts.push(b.motive, b.secret, ...(b.tip ? [b.tip] : []), ...b.lines);
+      if (b && "role" in b) privateTexts.push(b.motive, ...b.lines);
     }
     const weapons = await t.run((ctx) => ctx.db.query("weapons").collect());
     privateTexts.push(...weapons.map((w) => w.name), ...weapons.map((w) => w.description).filter(Boolean));
@@ -87,6 +85,8 @@ describe("the draw, sealed", () => {
     const before = await t.query(api.game.readMarker, { token: tokens[0], code: markers[0].code });
     expect(before).toHaveProperty("error");
     await t.mutation(api.game.startGame, { slug: "test-engine", hostKey });
+    // Oct 18: rooms open in waves; by Round 3 every card reads.
+    await t.run(async (ctx) => ctx.db.patch((await ctx.db.query("games").first())!._id, { round: 3 }));
     for (const m of markers) {
       const r = await t.query(api.game.readMarker, { token: tokens[0], code: m.code });
       expect(r).toHaveProperty("text");

@@ -126,6 +126,8 @@ describe("party night", () => {
   test("scanning a marker records it for that guest only", async () => {
     const { t, tokens } = await started();
     const markers = await t.run((ctx) => ctx.db.query("markers").collect());
+    // Oct 18: rooms open in waves; by Round 3 every card reads.
+    await t.run(async (ctx) => ctx.db.patch((await ctx.db.query("games").first())!._id, { round: 3 }));
     const clue = await t.mutation(api.game.scanMarker, { token: tokens[0], code: markers[2].code.toUpperCase() });
     expect(clue.number).toBe(markers[2].number);
     await t.mutation(api.game.scanMarker, { token: tokens[0], code: markers[2].code }); // again: no duplicate
@@ -227,7 +229,8 @@ describe("party night", () => {
     const { t, killerToken } = await started({ guests: 5, tone: "adult" });
     const phone = (await t.query(api.game.phone, { token: killerToken }))!;
     expect(phone.briefing!.lines[0]).toMatch(/whacked/);
-    expect(phone.briefing!.tipLabel).toMatch(/somebody's lying/);
+    expect(phone.briefing).not.toHaveProperty("tipLabel");
+    expect(phone.briefing!.lines.join(" ")).toMatch(/Everyone else has to tell the truth/);
   });
 
   test("check-in before the doors open works, and a late guest without a weapon gets no letter", async () => {

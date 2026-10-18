@@ -44,7 +44,7 @@ describe("the show (Oct 16): Start → How to play → the Don dies → roll cal
     // Heston, Oct 16: "1. rules 2. don dies 3. Roll call"
     expect(s.howAt).toBe(g.startedAt!);
     const secs = (c: Parameters<typeof cueSecs>[3]) => cueSecs("ivy", "classic", "ivy", c);
-    expect(s.introAt).toBe(howLayout(s.howAt, howCues({ search: "all", pacing: g.pacing }), secs).end);
+    expect(s.introAt).toBe(howLayout(s.howAt, howCues({ search: "waves", pacing: g.pacing }), secs).end);
     expect(s.rollAt).toBe(introLayout(s.introAt!, secs).end);
     expect(s.rollAt - s.introAt!).toBeGreaterThanOrEqual(SHOW.introMs - 10_000);
     expect([...s.order].sort()).toEqual(players.map((p) => p._id).sort());

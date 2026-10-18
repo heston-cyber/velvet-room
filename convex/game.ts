@@ -688,11 +688,9 @@ export const phone = query({
     const photo = async (p: Doc<"players">) => (p.photoId ? await ctx.storage.getUrl(p.photoId) : null);
     const started = game.status !== "registration" && game.status !== "lobby";
     const cf = started ? await caseFor(ctx, game) : null;
-    const S = scriptFor({ tone: game.tone ?? "classic" } as CaseInput);
     // v2: roles reach the phones at "check your phones", after the roll call.
     const rolesOut = !game.show || !!game.rolesOut;
     const brief = rolesOut ? cf?.briefings.find((b) => b.playerId === player._id) : undefined;
-    const tip = cf?.tips.find((t) => t.playerId === player._id);
     const scans = await ctx.db
       .query("scans")
       .withIndex("by_player", (q) => q.eq("playerId", player._id))
@@ -792,10 +790,7 @@ export const phone = query({
           ? {
               role: brief.role,
               motive: brief.motive,
-              secret: brief.secret,
               lines: brief.lines,
-              tip: tip?.text ?? null,
-              tipLabel: S.tipLabel,
               // Oct 16: the role card is pictures and a few words. Only the killer's own phone gets the facts.
               card: brief.role === "killer" ? await killerCard(ctx, game, cf, all) : null,
             }
@@ -888,7 +883,7 @@ export const evidence = query({
   },
 });
 
-/** A guest's own private screen once the game is on: role, motive, secret, tip. */
+/** A guest's own private screen once the game is on: role and motive (Oct 18: no secret, no tip). */
 export const myBriefing = query({
   args: { token: v.string() },
   handler: async (ctx, { token }) => {
@@ -900,15 +895,12 @@ export const myBriefing = query({
     if (!cf) return { started: false as const };
     const b = cf.briefings.find((x) => x.playerId === player._id);
     if (!b) return { started: true as const, inGame: false as const };
-    const tip = cf.tips.find((t) => t.playerId === player._id);
     return {
       started: true as const,
       inGame: true as const,
       role: b.role,
       motive: b.motive,
-      secret: b.secret,
       lines: b.lines,
-      tip: tip?.text ?? null,
       exhibitLetter: player.exhibitLetter ?? null,
     };
   },
@@ -1026,7 +1018,13 @@ export const startGame = mutation({
     if (host.status !== "registration" && host.status !== "lobby") throw new ConvexError("This game has already started.");
     await settleCards(ctx, host, cards === "none");
     // Started straight from sign-ups: the weapons are drawn now, for who's checked in.
-    const game = await ensureWeapons(ctx, host, (await playersOf(ctx, host._id)).filter((p) => p.checkedIn).length);
+    let game = await ensureWeapons(ctx, host, (await playersOf(ctx, host._id)).filter((p) => p.checkedIn).length);
+    // Oct 18 (Heston: "get rid of the "all rooms open" option. it should always be a room waves"): every new game
+    // opens its rooms in waves, whatever an older game saved.
+    if (game.search !== "waves") {
+      await ctx.db.patch(game._id, { search: "waves" });
+      game = { ...game, search: "waves" };
+    }
     if ((game.weaponKeys?.length ?? 0) < MIN_WEAPONS) throw new ConvexError(`Pick at least ${MIN_WEAPONS} weapons in Options, or clear them and the game draws its own.`);
     const input = await caseInput(ctx, game);
     const problems = checkInput(input);

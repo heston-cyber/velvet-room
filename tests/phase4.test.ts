@@ -6,6 +6,7 @@ import { caseFor } from "../convex/caseFile";
 import { nextRound } from "./steps";
 import { RECOMMENDED, setupFor } from "../convex/engine/setup";
 import { recommendedWeapons, weaponKind } from "../convex/weapons";
+import { openRoomsIn } from "../convex/engine/build";
 import type { Id } from "../convex/_generated/dataModel";
 
 const modules = import.meta.glob("../convex/**/*.ts");
@@ -52,6 +53,8 @@ async function setup(o: Opts = {}) {
 
 const game = (t: ReturnType<typeof convexTest>) => t.run(async (ctx) => (await ctx.db.query("games").first())!);
 const tvKey = async (t: ReturnType<typeof convexTest>) => (await game(t)).tvKey!;
+/** Oct 18: rooms open in waves; by Round 3 every card reads. */
+const toRound3 = (t: ReturnType<typeof convexTest>) => t.run(async (ctx) => ctx.db.patch((await ctx.db.query("games").first())!._id, { round: 3 }));
 
 describe("Phase 4: drawn body room, waves, Wi-Fi, the TV", () => {
   test("where the body turns up is drawn at Start and only shown after it", async () => {
@@ -91,10 +94,16 @@ describe("Phase 4: drawn body room, waves, Wi-Fi, the TV", () => {
     expect((await t.query(api.game.phone, { token: tokens[0] }))!.game.openRooms).toHaveLength(5);
   });
 
-  test("all rooms open: every marker reads from Round 1", async () => {
+  test("Oct 18: every game opens its rooms in waves, even one saved with all rooms open", async () => {
     const { t, tokens } = await setup({ search: "all" });
+    const g = await game(t);
+    expect(g.search).toBe("waves");
     const markers = await t.run((ctx) => ctx.db.query("markers").collect());
-    for (const m of markers) expect((await t.mutation(api.game.scanMarker, { token: tokens[1], code: m.code })).number).toBe(m.number);
+    const open = openRoomsIn(1, g.roomOrder!, "waves");
+    const shut = markers.find((m) => !open.includes(m.roomKey!))!;
+    await expect(t.mutation(api.game.scanMarker, { token: tokens[1], code: shut.code })).rejects.toThrow(/sealed until Round/);
+    const first = markers.find((m) => open.includes(m.roomKey!))!;
+    expect((await t.mutation(api.game.scanMarker, { token: tokens[1], code: first.code })).number).toBe(first.number);
   });
 
   test("the host roster never holds the answer", async () => {
@@ -104,7 +113,6 @@ describe("Phase 4: drawn body room, waves, Wi-Fi, the TV", () => {
       const p = (await t.query(api.game.phone, { token }))!;
       expect(roster).not.toContain(p.briefing!.lines[0]);
       expect(roster).not.toContain(p.briefing!.motive);
-      if (p.briefing!.tip) expect(roster).not.toContain(p.briefing!.tip);
     }
     expect(roster).not.toContain("token");
   });
@@ -155,15 +163,13 @@ describe("Phase 4: drawn body room, waves, Wi-Fi, the TV", () => {
     // the TV's key can't run the host's controls
     await expect(t.mutation(api.game.advanceRound, { slug: SLUG, hostKey: await tvKey(t) })).rejects.toThrow(/host link/);
     await expect(t.query(api.host.roster, { slug: SLUG, hostKey: await tvKey(t) })).rejects.toThrow(/host link/);
-    const markerTexts = await Promise.all(
-      (await t.run((ctx) => ctx.db.query("markers").collect())).map(async (m) => (await t.mutation(api.game.scanMarker, { token: tokens[0], code: m.code })).text),
-    );
+    // Oct 18: rooms open in waves, so the cards' words come straight from the case file.
+    const markerTexts = (await t.run(async (ctx) => (await caseFor(ctx, (await ctx.db.query("games").first())!))!)).clues.filter((c) => c.channel === "marker").map((c) => c.text);
     for (let r = 1; r <= 4; r++) {
       const tv = JSON.stringify(await t.query(api.game.tv, { slug: SLUG, tvKey: await tvKey(t) }));
       for (const token of tokens) {
         const b = (await t.query(api.game.phone, { token }))!.briefing!;
         expect(tv).not.toContain(b.lines[0]);
-        expect(tv).not.toContain(b.secret); // (motives are public in v2: the roll call reads them out)
       }
       for (const text of markerTexts) if (text.length > 30) expect(tv).not.toContain(text);
       expect(JSON.parse(tv).results).toBeNull();
@@ -300,6 +306,7 @@ describe("Phase 4: drawn body room, waves, Wi-Fi, the TV", () => {
     // a card past the ones in play: a friendly "not tonight", and no clue
     await expect(t.mutation(api.game.scanMarker, { token: tokens[0], code: sheet.cards[20].code })).rejects.toThrow(/Card 21 isn't in play tonight/);
     expect(await t.query(api.game.readMarker, { token: tokens[0], code: sheet.cards[20].code })).toMatchObject({ error: expect.stringMatching(/Card 21/) });
+    await toRound3(t);
     // the case file only has clues for the 6 markers in play
     expect((await t.mutation(api.game.scanMarker, { token: tokens[0], code: sheet.cards[5].code.toUpperCase() })).number).toBe(6);
     // a second game uses the same printed cards

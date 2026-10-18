@@ -1,27 +1,34 @@
 import { pick, shuffle } from "./rng";
-import { CLASSIC, deckPicker, fill, mid, type Script } from "./text";
+import { CLASSIC, deckPicker, type Line, type Say, type Script } from "./text";
 import { ADULT } from "./textAdult";
 import { hasJailVote } from "../shared";
 import type {
   Briefing,
   CaseFile,
   CaseInput,
+  ClueFacts,
   ClueKind,
   Elim,
   Open,
+  Place,
   PlacedClue,
   Rng,
+  Room,
   Round,
   Solution,
   Suspect,
-  Tip,
 } from "./types";
 
 const NONE: Elim = { suspects: [], exhibits: [], rooms: [] };
 
 type Draft = {
   kind: ClueKind;
-  text: string;
+  /** Big clues and the twist: their words. The rest pick theirs once the night is laid out (render, below). */
+  text?: string;
+  /** Oct 18: the sentence patterns this clue may use, the deck they're dealt from, and what goes in them. */
+  lines?: Line<string[]>[];
+  deck?: string;
+  args?: string[];
   elim: Elim;
   roomKey?: string; // room clears: lets a marker in that room carry it
   pointsAt?: string;
@@ -149,7 +156,6 @@ export function validateCase(input: CaseInput, cf: CaseFile): Validation {
     e.suspects.includes(sol.killerId) || e.exhibits.includes(sol.exhibitId) || e.rooms.includes(sol.roomKey);
 
   for (const c of cf.clues) if (hitsSolution(c.elim)) problems.push(`Clue ${c.id} rules out part of the answer.`);
-  for (const t of cf.tips) if (hitsSolution(t.elim)) problems.push(`A tip rules out part of the answer.`);
 
   const stages = ([1, 2, 3] as Round[]).map((r) => {
     const rem = remainingAfter(input, cf.clues, r);
@@ -170,10 +176,9 @@ export function validateCase(input: CaseInput, cf: CaseFile): Validation {
   if (!(fin.exhibits.size === want.exhibits && fin.exhibits.has(sol.exhibitId))) problems.push("Exhibits don't narrow to the planned few.");
   if (!(fin.rooms.size === want.rooms && fin.rooms.has(sol.roomKey))) problems.push("Rooms don't narrow to the planned few.");
 
-  // Not too easy (v3), even for a table that finds every marker and shares every tip from the start:
-  const tipped: PlacedClue[] = [...cf.clues, ...cf.tips.map((t, i): PlacedClue => ({ id: `tip${i}`, kind: "suspect", text: t.text, elim: t.elim, round: 1, channel: "tv" }))];
-  const p1 = remainingAfter(input, tipped, 1);
-  const p2 = remainingAfter(input, tipped, 2);
+  // Not too easy (v3), even for a table that finds every card (Oct 18: no tips any more):
+  const p1 = remainingAfter(input, cf.clues, 1);
+  const p2 = remainingAfter(input, cf.clues, 2);
   const N = input.suspects.length;
   const W = input.exhibits.length;
   // after Round 1, more than half of every list is still open (half, in games under 6);
@@ -200,17 +205,8 @@ export function validateCase(input: CaseInput, cf: CaseFile): Validation {
   }
   for (const n of markerNums) if (used.get(n) !== 1) problems.push(`Marker ${n} doesn't have exactly one clue.`);
 
-  // Tips: one for every guest, the killer too, so having a tip gives nobody away.
-  // Every tip is a true clue the public evidence will prove later, so the killer's is harmless.
-  const tippedIds = new Set(cf.tips.map((t) => t.playerId));
-  const hasTipPool = cf.clues.some((c) => c.round > 1 && isSmall(c.kind));
-  if (hasTipPool) {
-    for (const s of input.suspects) if (!tippedIds.has(s.id)) problems.push(`${s.name} has no tip.`);
-  }
-  if (cf.tips.length !== tippedIds.size) problems.push("Someone got two tips.");
-  const killerTip = cf.tips.find((t) => t.playerId === sol.killerId);
-  if (killerTip && cf.tips.length > 1 && cf.tips.filter((t) => t.clueId === killerTip.clueId).length < 2) problems.push("Only the killer holds their tip.");
-  if (new Set(cf.tips.map((t) => t.clueId)).size > tipCount(N)) problems.push("Too many different tips.");
+  // Oct 18: no tips.
+  if (cf.tips.length) problems.push("A new game has tips.");
 
   // A herring must be cleared publicly no earlier than it appears.
   for (const c of cf.clues) {
@@ -236,6 +232,9 @@ export function validateCase(input: CaseInput, cf: CaseFile): Validation {
     }
   }
 
+  // Oct 18: nothing contradicts anything else (where people were, which rooms were sealed, where he died and was found).
+  problems.push(...worldProblems(input, cf));
+
   // Every guest has a briefing, and exactly one of them is the killer (and, with an accomplice, one the accomplice).
   if (cf.briefings.length !== input.suspects.length) problems.push("Not every guest has a briefing.");
   if (cf.briefings.filter((b) => b.role === "killer").length !== 1) problems.push("There isn't exactly one killer.");
@@ -255,26 +254,88 @@ export function scriptFor(input: CaseInput): Script {
   return input.tone === "adult" ? ADULT : CLASSIC;
 }
 
-function writeMotives(input: CaseInput, rng: Rng, S: Script): Map<string, { motive: string; secret: string }> {
+/** Every guest's motive (Oct 18: read out at the roll call), dealt so nobody shares one while the list lasts. */
+function writeMotives(input: CaseInput, rng: Rng, S: Script): Map<string, { motive: string; motiveThey: string }> {
   const motives = shuffle(rng, S.motives);
-  const secrets = shuffle(rng, S.secrets);
-  const out = new Map<string, { motive: string; secret: string }>();
+  const out = new Map<string, { motive: string; motiveThey: string }>();
   input.suspects.forEach((s, i) => {
-    const own = input.playerMotives?.[s.id];
-    out.set(s.id, {
-      motive: own?.motive?.trim() || fill(motives[i % motives.length], s.signature),
-      secret: own?.secret?.trim() || fill(secrets[i % secrets.length], s.signature),
-    });
+    const own = input.playerMotives?.[s.id]?.motive?.trim();
+    const m = motives[i % motives.length];
+    out.set(s.id, { motive: own || m.you, motiveThey: own ? "" : m.they });
   });
   return out;
 }
 
-/** The clue kinds a private tip can come from: the small ones (never the witness, the coroner or the twist). */
+/** The single, pair and trio clears and the room clears: the small clues (never the witness, the coroner or the twist). */
 const SMALL: ClueKind[] = ["suspect", "suspectPair", "suspectTrio", "exhibit", "exhibitPair", "room"];
 const isSmall = (k: ClueKind) => SMALL.includes(k);
 
-/** How many different tips a game deals: few, so pooling every tip doesn't solve it, and shared, so a liar can be caught. */
-export const tipCount = (guests: number) => (guests <= 8 ? 2 : 3);
+// ---------- the night, checked (Oct 18) ----------
+
+/** What each place is called when it's one of the house's rooms. "out" never is. */
+const PLACE_WORDS: Record<Place, RegExp | null> = {
+  bar: /\bbar\b|saloon|tavern/i,
+  office: /office|study/i,
+  lounge: /lounge|parlou?r|ballroom|dance|music|piano|band/i,
+  cards: /\bcards?\b|gaming|casino|poker|craps/i,
+  front: /coat|cloak|foyer|entry|entrance|front|hall/i,
+  kitchen: /kitchen|pantry/i,
+  bath: /bath|powder|wash|restroom|lavatory/i,
+  out: null,
+};
+
+/** The room of the house a place is, if any (by the room's name: "The Bar" is the bar). */
+export function roomOfPlace(rooms: Room[], place: Place): string | undefined {
+  const re = PLACE_WORDS[place];
+  return re ? rooms.find((r) => re.test(r.label))?.key : undefined;
+}
+
+/**
+ * Rooms a clue may put people (or a watched weapon) in, in a round: never where the Don died or was found (anyone
+ * there the whole time would have seen it), never a room another clue sealed, and only a room the evidence has already
+ * shown full of people (a "packed with witnesses" clear by then), so an alibi never gives a room away early.
+ */
+function placesFit(rooms: Room[], at: Place[] | undefined, round: Round, night: Night): boolean {
+  for (const p of at ?? []) {
+    const r = roomOfPlace(rooms, p);
+    if (!r) continue;
+    if (r === night.murderRoom || r === night.bodyRoom || night.sealed.has(r)) return false;
+    if ((night.crowded.get(r) ?? 99) > round) return false;
+  }
+  return true;
+}
+type Night = { murderRoom: string; bodyRoom: string; sealed: Set<string>; crowded: Map<string, Round> };
+
+/** Every claim the evidence makes about the night, checked against every other (the last word before a game starts). */
+export function worldProblems(input: CaseInput, cf: CaseFile): string[] {
+  const out: string[] = [];
+  const night: Night = { murderRoom: cf.solution.roomKey, bodyRoom: cf.bodyRoomKey, sealed: new Set(), crowded: new Map() };
+  for (const c of cf.clues) {
+    if (c.kind !== "room" || !c.facts) continue;
+    const r = c.elim.rooms[0];
+    if (c.facts.seal) night.sealed.add(r);
+    if (c.facts.crowd) night.crowded.set(r, Math.min(night.crowded.get(r) ?? 3, c.round) as Round);
+  }
+  for (const c of cf.clues) {
+    if (c.kind === "room" || !c.facts?.at?.length) continue;
+    if (!placesFit(input.rooms, c.facts.at, c.round, night)) out.push(`Clue ${c.id} puts people where the night says they can't have been.`);
+  }
+  for (const c of cf.clues) {
+    // Nothing says where it was found, or that it was found by the body (the cards sit all over the house).
+    if (c.kind !== "witness" && /\b(next to|near|by|beside) the body\b|\bin here\b|\bthis room\b/i.test(c.text)) out.push(`Clue ${c.id} says where it was found.`);
+  }
+  return out;
+}
+
+/** Picks a clue's words: the next pattern in its deck that fits the night (and what it claims). */
+function render(say: Say, d: { lines: Line<string[]>[]; deck: string; args: string[] }, ok: (l: Line<string[]>) => boolean): { text: string; facts: ClueFacts } {
+  const l = say(d.deck, d.lines, ok);
+  const facts: ClueFacts = {};
+  if (l.at?.length) facts.at = l.at;
+  if (l.seal) facts.seal = true;
+  if (l.crowd) facts.crowd = true;
+  return { text: l.t(...d.args), facts };
+}
 
 /**
  * v3 evidence (Heston, Oct 16: "Too easy … we need to solve the game for not too hard to play, not too easy"; he chose
@@ -363,14 +424,14 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
       const r = rng();
       if (trios && i + 2 < sus.length && r < 0.3) {
         const [a, b, c] = [sus[i], sus[i + 1], sus[i + 2]];
-        out.push({ kind: "suspectTrio", text: S.suspectTrioClear(say, a.name, b.name, c.name), elim: { ...NONE, suspects: [a.id, b.id, c.id] }, by });
+        out.push({ kind: "suspectTrio", lines: S.suspectTrioClear as Line<string[]>[], deck: "s3", args: [a.name, b.name, c.name], elim: { ...NONE, suspects: [a.id, b.id, c.id] }, by });
         i += 3;
       } else if (i + 1 < sus.length && r < 0.7) {
         const [a, b] = [sus[i], sus[i + 1]];
-        out.push({ kind: "suspectPair", text: S.suspectPairClear(say, a.name, b.name), elim: { ...NONE, suspects: [a.id, b.id] }, by });
+        out.push({ kind: "suspectPair", lines: S.suspectPairClear as Line<string[]>[], deck: "s2", args: [a.name, b.name], elim: { ...NONE, suspects: [a.id, b.id] }, by });
         i += 2;
       } else {
-        out.push({ kind: "suspect", text: S.suspectClear(say, sus[i].name), elim: { ...NONE, suspects: [sus[i].id] }, by });
+        out.push({ kind: "suspect", lines: S.suspectClear as Line<string[]>[], deck: "s1", args: [sus[i].name], elim: { ...NONE, suspects: [sus[i].id] }, by });
         i += 1;
       }
     }
@@ -382,10 +443,11 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
     for (let i = 0; i < exs.length; ) {
       if (i + 1 < exs.length && rng() < 0.55) {
         const [a, b] = [exs[i], exs[i + 1]];
-        out.push({ kind: "exhibitPair", text: S.exhibitPairClear(say, a.name.toLowerCase(), b.name.toLowerCase()), elim: { ...NONE, exhibits: [a.id, b.id] }, by });
+        out.push({ kind: "exhibitPair", lines: S.exhibitPairClear as Line<string[]>[], deck: "e2", args: [a.name.toLowerCase(), b.name.toLowerCase()], elim: { ...NONE, exhibits: [a.id, b.id] }, by });
         i += 2;
       } else {
-        out.push({ kind: "exhibit", text: S.exhibitClear(say, exs[i].name.toLowerCase(), exs[i].kind), elim: { ...NONE, exhibits: [exs[i].id] }, by });
+        const gun = exs[i].kind === "gun";
+        out.push({ kind: "exhibit", lines: (gun ? S.exhibitGunClear : S.exhibitClear) as Line<string[]>[], deck: gun ? "e1g" : "e1", args: [exs[i].name.toLowerCase()], elim: { ...NONE, exhibits: [exs[i].id] }, by });
         i += 1;
       }
     }
@@ -415,7 +477,9 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
   }
   const roomDrafts: Draft[] = shuffle(rng, roomTargets).map((r) => ({
     kind: "room",
-    text: S.roomClear(say, r.label),
+    lines: S.roomClear as Line<string[]>[],
+    deck: "r1",
+    args: [r.label],
     elim: { ...NONE, rooms: [r.key] },
     roomKey: r.key,
     by: roomsBy,
@@ -446,6 +510,12 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
   // "clean" card would hint it's the murder room. A Round 1 cover clear with no marker left is dropped: on the TV in
   // Round 2 it would arrive with the big clue it was covering for.
   const placed: PlacedClue[] = [];
+  // Oct 18: a clue's words are picked last (render, below), once every clue knows its round.
+  const later = new Map<string, Draft>();
+  const put = (c: PlacedClue, d: Draft) => {
+    placed.push({ ...c, text: d.text ?? "" });
+    if (!d.text) later.set(c.id, d);
+  };
   let n = 0;
   const id = () => `c${++n}`;
   const freeMarkers = shuffle(rng, input.markers);
@@ -456,9 +526,9 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
   for (const round of [1, 2, 3] as Round[]) {
     for (const d of byRound[round]) {
       const m = isSmall(d.kind) ? markerFor(round, d) : undefined;
-      if (m) placed.push({ id: id(), kind: d.kind, text: d.text, elim: d.elim, round, channel: "marker", markerNumber: m.number });
+      if (m) put({ id: id(), kind: d.kind, text: "", elim: d.elim, round, channel: "marker", markerNumber: m.number }, d);
       else if (round === 1 && d.by === 1) continue;
-      else placed.push({ id: id(), kind: d.kind, text: d.text, elim: d.elim, round: round === 1 ? 2 : round, channel: "tv" });
+      else put({ id: id(), kind: d.kind, text: "", elim: d.elim, round: round === 1 ? 2 : round, channel: "tv" }, d);
     }
   }
 
@@ -469,11 +539,12 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
   for (const h of herrings) {
     const clearRound = clearedIn(h.id);
     const i = freeMarkers.findIndex((m) => roundOf(m) < clearRound);
+    const d: Draft = { kind: "herring", lines: S.herring as Line<string[]>[], deck: "h", args: [h.name], elim: NONE };
     if (i >= 0) {
       const m = freeMarkers.splice(i, 1)[0];
-      placed.push({ id: id(), kind: "herring", text: S.herring(say, h.name), elim: NONE, round: roundOf(m), channel: "marker", markerNumber: m.number, pointsAt: h.id });
+      put({ id: id(), kind: "herring", text: "", elim: NONE, round: roundOf(m), channel: "marker", markerNumber: m.number, pointsAt: h.id }, d);
     } else if (clearRound === 3) {
-      placed.push({ id: id(), kind: "herring", text: S.herring(say, h.name), elim: NONE, round: 2, channel: "tv", pointsAt: h.id });
+      put({ id: id(), kind: "herring", text: "", elim: NONE, round: 2, channel: "tv", pointsAt: h.id }, d);
     }
   }
   const flavor = shuffle(rng, S.flavor);
@@ -483,42 +554,24 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
     placed.push({ id: id(), kind: "flavor", text: flavor[f++ % flavor.length], elim: NONE, round: roundOf(m), channel: "marker", markerNumber: m.number });
   }
   // The twist reads last on the final drop.
-  placed.push({ id: id(), kind: "twist", text: twist.text, elim: twist.elim, round: 3, channel: "tv" });
+  placed.push({ id: id(), kind: "twist", text: twist.text!, elim: twist.elim, round: 3, channel: "tv" });
 
-  // 7. Private tips: early word of a small Round 3 clue (Round 2 if Round 3 has none). Only two or three different
-  // tips, shared out so several guests hold each one: the killer gets one too (having a tip gives nobody away), may
-  // lie about it, and whoever holds the same tip can catch them. Nobody gets a tip that clears themselves.
-  const tips: Tip[] = [];
-  const late = placed.filter((c) => c.round === 3 && isSmall(c.kind));
-  const pool = late.length ? late : placed.filter((c) => c.round === 2 && isSmall(c.kind));
-  if (pool.length) {
-    // Each list keeps at least one Round 3 clue nobody hears about early, so pooled tips can't finish a list.
-    const listOf = (c: PlacedClue) => (c.elim.suspects.length ? "s" : c.elim.exhibits.length ? "e" : "r");
-    const kept = new Set(["s", "e", "r"].map((l) => shuffle(rng, late.filter((c) => listOf(c) === l))[0]).filter(Boolean));
-    let candidates = shuffle(rng, pool.filter((c) => !kept.has(c)));
-    if (candidates.length < tipCount(input.suspects.length)) candidates.push(...shuffle(rng, placed.filter((c) => c.round === 2 && isSmall(c.kind))));
-    if (!candidates.length) candidates = shuffle(rng, pool);
-    // Prefer a mix: not all about suspects.
-    const notSuspect = candidates.filter((c) => !c.elim.suspects.length);
-    const chosen = [...notSuspect.slice(0, 1), ...candidates.filter((c) => c !== notSuspect[0])].slice(0, tipCount(input.suspects.length));
-    let k = 0;
-    for (const s of shuffle(rng, input.suspects)) {
-      const fits = (c: PlacedClue) => !c.elim.suspects.includes(s.id);
-      let choice = chosen[k % chosen.length];
-      for (let tries = 0; tries < chosen.length && !fits(choice); tries++) choice = chosen[++k % chosen.length];
-      if (!fits(choice)) choice = pool.find(fits) ?? choice;
-      k++;
-      tips.push({ playerId: s.id, clueId: choice.id, text: choice.text, elim: choice.elim });
-    }
-    // F13 (Oct 17): the killer's tip is always one somebody else holds too, so they can't lie about it safely. Any
-    // tip suits the killer: tips are true, so none clears them.
-    const held = (clueId: string) => tips.filter((t) => t.clueId === clueId).length;
-    const mine = tips.find((t) => t.playerId === sol.killerId);
-    if (mine && held(mine.clueId) < 2 && tips.length > 1) {
-      const others = tips.filter((t) => t.playerId !== sol.killerId);
-      const shared = [...others].sort((a, b) => held(b.clueId) - held(a.clueId))[0];
-      Object.assign(mine, { clueId: shared.clueId, text: shared.text, elim: shared.elim });
-    }
+  // 7. Oct 18: the words, now that the night is laid out. Room clears first (each says the room was sealed, or full of
+  // people); then every alibi and weapon clear picks a sentence that fits them: nobody was where the Don died or was
+  // found, in a sealed room, or in a room the evidence hasn't yet shown full of people.
+  const night: Night = { murderRoom: sol.roomKey, bodyRoom: body.key, sealed: new Set(), crowded: new Map() };
+  for (const c of placed) {
+    const d = later.get(c.id);
+    if (!d || c.kind !== "room") continue;
+    const r = render(say, d as Required<Pick<Draft, "lines" | "deck" | "args">>, () => true);
+    Object.assign(c, r);
+    if (r.facts.seal) night.sealed.add(c.elim.rooms[0]);
+    if (r.facts.crowd) night.crowded.set(c.elim.rooms[0], Math.min(night.crowded.get(c.elim.rooms[0]) ?? 3, c.round) as Round);
+  }
+  for (const c of placed) {
+    const d = later.get(c.id);
+    if (!d || c.kind === "room") continue;
+    Object.assign(c, render(say, d as Required<Pick<Draft, "lines" | "deck" | "args">>, (l) => placesFit(input.rooms, l.at, c.round, night)));
   }
 
   // 8. Briefings for every phone.
@@ -540,7 +593,7 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
         herringName: herringAt ? name.get(herringAt) : undefined,
         accompliceName,
       });
-      return { playerId: s.id, role: "killer", motive: m.motive, secret: m.secret, lines: noJail(lines) };
+      return { playerId: s.id, role: "killer", motive: m.motive, motiveThey: m.motiveThey, lines: noJail(lines) };
     }
     if (s.id === sol.accompliceId) {
       const lines = S.accompliceLines({
@@ -551,13 +604,13 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
         herringName: herringAt && herringAt !== s.id && herringAt !== sol.killerId ? name.get(herringAt) : undefined,
         herringIsMe: herringAt === s.id,
       });
-      return { playerId: s.id, role: "accomplice", motive: m.motive, secret: m.secret, lines: noJail(lines) };
+      return { playerId: s.id, role: "accomplice", motive: m.motive, motiveThey: m.motiveThey, lines: noJail(lines) };
     }
-    return { playerId: s.id, role: "innocent", motive: m.motive, secret: m.secret, lines: noJail(sol.accompliceId ? S.innocentLinesAcc : S.innocentLines) };
+    return { playerId: s.id, role: "innocent", motive: m.motive, motiveThey: m.motiveThey, lines: noJail(sol.accompliceId ? S.innocentLinesAcc : S.innocentLines) };
   });
 
   const open: Open = { suspects: standing.length + 1, exhibits: weaponsStanding.length + 1, rooms: roomsStanding.length + 1 };
-  return { solution: sol, bodyRoomKey: body.key, roomOrder: order, clues: placed, tips, briefings, attempts: 1, open };
+  return { solution: sol, bodyRoomKey: body.key, roomOrder: order, clues: placed, tips: [], briefings, attempts: 1, open };
 }
 
 /**

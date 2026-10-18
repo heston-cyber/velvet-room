@@ -679,7 +679,8 @@ function RoleCard({ role, card, jail }: { role: string; card: NonNullable<Phone[
         ]
       : [
           ["scan", "Search, scan, compare notes"],
-          ["secret", "Lie only about your secret"],
+          // Oct 18: no secrets. Innocents tell the truth; only the killer lies.
+          ["secret", "Tell the truth"],
           ["bars", "Jail vote after Round 2"],
           ["lock", "Lock in who, what, where"],
         ]
@@ -741,19 +742,8 @@ function CaseFile({ token, data }: { token: string; data: Phone }) {
       <div className="file private">
         <span className="lab">Your motive</span>
         <p>{b.motive}</p>
-        <span className="help">Hint at it, deny it or lie about it.</span>
+        <span className="help">Everyone heard it at the roll call.</span>
       </div>
-      <div className="file private">
-        <span className="lab">Your secret</span>
-        <p>{b.secret}</p>
-      </div>
-      {b.tip && (
-        <div className="file private">
-          <span className="lab">Your tip</span>
-          <p>{b.tip}</p>
-          <span className="help">{b.tipLabel}</span>
-        </div>
-      )}
       <Pacing token={token} data={data} />
     </div>
   );
@@ -967,17 +957,6 @@ function Evidence({ token, data }: { token: string; data: Phone }) {
           <p className="help">None yet. Go search the house.</p>
         )}
       </section>
-      {data.briefing?.tip && (
-        <section className="ev-sec">
-          <span className="ev-h">Your tip</span>
-          <ul className="ev">
-            <li>
-              <small>Private</small>
-              {data.briefing.tip}
-            </li>
-          </ul>
-        </section>
-      )}
       {data.game.round <= 3 && <Pacing token={token} data={data} />}
     </div>
   );

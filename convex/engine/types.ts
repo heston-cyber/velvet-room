@@ -28,6 +28,15 @@ export type Exhibit = {
 
 export type Room = { key: string; label: string };
 
+/**
+ * Oct 18: a place a clue says someone (or a watched weapon) was while the Don was killed. Each matches a room of the
+ * house by its name ("The Bar" is the bar); "out" (the alley, the street, out back) is never a room.
+ */
+export type Place = "bar" | "office" | "lounge" | "cards" | "front" | "kitchen" | "bath" | "out";
+
+/** What a placed clue claims about the night (Oct 18), checked against everything else before a game starts. */
+export type ClueFacts = { at?: Place[]; seal?: boolean; crowd?: boolean };
+
 export type Marker = { number: number; roomKey: string };
 
 /** All rooms open from Round 1, or rooms open a few at a time ("waves"). */
@@ -46,8 +55,8 @@ export type CaseInput = {
   roomOrder?: string[];
   /** Which script writes the words: Classic or Adult (explicit). */
   tone?: "classic" | "adult";
-  /** Motives and secrets players wrote themselves, by suspect id. Blanks get written by the game. */
-  playerMotives?: Record<string, { motive?: string; secret?: string }>;
+  /** Older games: motives players wrote themselves, by suspect id. Blanks get written by the game. */
+  playerMotives?: Record<string, { motive?: string }>;
   /**
    * v2: a killer and an accomplice (7+ guests). Both are drawn from everyone (the opt-in is ignored). The accomplice
    * didn't do it: the evidence treats them like any innocent, and may clear them.
@@ -84,6 +93,8 @@ export type PlacedClue = {
   markerNumber?: number;
   /** For herrings: the innocent the clue seems to point at. */
   pointsAt?: string;
+  /** Oct 18: where it says people or things were, or what it says about a room. */
+  facts?: ClueFacts;
 };
 
 export type Tip = { playerId: string; clueId: string; text: string; elim: Elim };
@@ -100,7 +111,10 @@ export type Briefing = {
   playerId: string;
   role: "killer" | "accomplice" | "innocent";
   motive: string;
-  secret: string;
+  /** Oct 18: the same motive, as the roll call reads it out ("The Don owed them…"). */
+  motiveThey?: string;
+  /** Older games only (Oct 18: "players dont need secrets"). */
+  secret?: string;
   lines: string[];
 };
 
@@ -110,6 +124,7 @@ export type CaseFile = {
   bodyRoomKey: string;
   roomOrder: string[];
   clues: PlacedClue[];
+  /** Older games only (Oct 18: "players dont get a tip"). New case files have none. */
   tips: Tip[];
   briefings: Briefing[];
   attempts: number;

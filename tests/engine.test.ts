@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { buildCase, draw, eligibleKillers, openEnding, openRound, openRoomsIn, waveSizes } from "../convex/engine/build";
+import { buildCase, draw, eligibleKillers, openEnding, openRound, openRoomsIn, waveSizes, worldProblems } from "../convex/engine/build";
 import { setupFor } from "../convex/engine/setup";
 import { fakeCast, roomsN, ROOMS_5, ROOMS_6 } from "../convex/engine/fake";
 import { seeded } from "../convex/engine/rng";
@@ -40,6 +40,44 @@ function textMatchesLogic(input: CaseInput, c: PlacedClue, bodyRoomKey: string):
     if (!c.text.includes(mid(body))) return `${c.id} twist doesn't name the body room`;
   }
   return null;
+}
+
+// Oct 18 (Heston: "make sure everything lines up properly and makes sense without any contradictions"): an independent
+// read of the words. Where does an alibi or a weapon clear say people were, and what does each room clear say about its
+// room? Worked out from the text, not from the engine's own tags.
+const SAYS: [RegExp, RegExp][] = [
+  // words in a clue → words in a room's name
+  [/\bbar\b(?! tab)|bartender/i, /\bbar\b/i],
+  [/coat-check|coat check|hall telephone/i, /coat|cloak|foyer|entry|front|hall/i],
+  [/piano|bandleader|dance floor|bandstand|the band\b|Charleston/i, /lounge|ballroom|dance|music/i],
+  [/\bat cards\b|craps|card sharps/i, /\bcards?\b|gaming|casino|poker/i],
+  [/kitchen|\bcook\b|dishwasher/i, /kitchen/i],
+  [/powder room|\bthe can\b/i, /bath|powder|wash|restroom/i],
+];
+function contradictions(input: CaseInput, cf: CaseFile): string[] {
+  const out: string[] = [];
+  const sealed = new Set<string>();
+  const crowded = new Map<string, number>();
+  for (const c of cf.clues.filter((x) => x.kind === "room")) {
+    const r = c.elim.rooms[0];
+    if (/locked|dust|ribbon|set foot/i.test(c.text)) sealed.add(r);
+    else if (/witnesses|card game|toast/i.test(c.text)) crowded.set(r, Math.min(crowded.get(r) ?? 9, c.round));
+    else out.push(`${c.id}: a room clear that says neither who was there nor that it was shut`);
+  }
+  for (const c of cf.clues.filter((x) => ["suspect", "suspectPair", "suspectTrio", "exhibit", "exhibitPair"].includes(x.kind))) {
+    for (const [said, named] of SAYS) {
+      if (!said.test(c.text)) continue;
+      for (const r of input.rooms.filter((x) => named.test(x.label))) {
+        if (r.key === cf.solution.roomKey) out.push(`${c.id} puts people in the room the Don died in (${r.label}): ${c.text}`);
+        else if (r.key === cf.bodyRoomKey) out.push(`${c.id} puts people in the room the body turned up in (${r.label}): ${c.text}`);
+        else if (sealed.has(r.key)) out.push(`${c.id} puts people in ${r.label}, which another clue says was shut: ${c.text}`);
+        else if ((crowded.get(r.key) ?? 9) > c.round) out.push(`${c.id} puts people in ${r.label} before the evidence clears it: ${c.text}`);
+      }
+    }
+  }
+  // Nothing says where it was found, or that it was by the body.
+  for (const c of cf.clues) if (c.kind !== "witness" && /(next to|near|by|beside) the body|in here|this room/i.test(c.text)) out.push(`${c.id} says where it was found: ${c.text}`);
+  return out;
 }
 
 type Config = { guests: number; rooms: typeof ROOMS_5; markers: number; optIn: number; tone: "classic" | "adult"; search: "all" | "waves" };
@@ -126,13 +164,11 @@ describe("the engine", () => {
           const bad = textMatchesLogic(input, c, cf.bodyRoomKey);
           if (bad) failures.push(`${tag}: ${bad}`);
         }
-        // tips: every guest gets one (the killer too, so a tip gives nobody away), and none contradicts the answer
-        const pool = cf.clues.some((c) => c.round > 1 && ["suspect", "suspectPair", "exhibit", "exhibitPair", "room"].includes(c.kind));
-        if (pool && !cf.tips.some((t) => t.playerId === sol.killerId)) failures.push(`${tag}: the killer has no tip, so tips give them away`);
-        if (pool && new Set(cf.tips.map((t) => t.playerId)).size !== input.suspects.length) failures.push(`${tag}: not every guest has a tip`);
-        for (const t of cf.tips) {
-          if (t.elim.suspects.includes(sol.killerId) || t.elim.exhibits.includes(sol.exhibitId) || t.elim.rooms.includes(sol.roomKey)) failures.push(`${tag}: tip contradicts the answer`);
-        }
+        // Oct 18: no tips, no secrets, and nothing contradicts anything (the engine's check and an independent one)
+        if (cf.tips.length) failures.push(`${tag}: tips`);
+        if (cf.briefings.some((b) => b.secret)) failures.push(`${tag}: secrets`);
+        for (const p of worldProblems(input, cf)) failures.push(`${tag}: ${p}`);
+        for (const p of contradictions(input, cf)) failures.push(`${tag}: ${p}`);
         // every marker has exactly one clue
         for (const m of input.markers) {
           const n = cf.clues.filter((c) => c.markerNumber === m.number).length;
@@ -258,13 +294,15 @@ describe("the engine", () => {
   test("players' own motives are used when they wrote them", () => {
     const rng = seeded(11);
     const input = fakeCast({ rng, guests: 5 });
-    input.playerMotives = { p1: { motive: "He stole my parrot.", secret: "I am the parrot." } };
+    input.playerMotives = { p1: { motive: "He stole my parrot." } };
     const cf = buildCase(input, rng);
     const b = cf.briefings.find((x) => x.playerId === "p1")!;
     expect(b.motive).toBe("He stole my parrot.");
-    expect(b.secret).toBe("I am the parrot.");
+    expect(b.secret).toBeUndefined();
     const others = cf.briefings.filter((x) => x.playerId !== "p1");
     expect(new Set(others.map((x) => x.motive)).size).toBe(others.length); // game-written ones don't repeat
+    // Oct 18: each has a roll-call version too ("The Don owed them…")
+    for (const o of others) expect(o.motiveThey).toBeTruthy();
   });
 
   test("the adult script is used when the game menu picks it, and keeps every fact", () => {
@@ -280,7 +318,7 @@ describe("the engine", () => {
   });
 
   // v3 evidence (Heston, Oct 16: "Too easy, to many markers all but eliminate all other candidates"; he chose "Fully
-  // solvable, fewer clues"). Measured as a table that finds every marker and shares every tip from the start.
+  // solvable, fewer clues"). Measured as a table that finds every marker from the start (Oct 18: no tips any more).
   test("v3: harder, with fewer and bigger clues: still open after Round 1, narrowed after Round 2, solved only in Round 3", () => {
     const open = (input: CaseInput, cf: CaseFile, round: number) => {
       const s = new Set(input.suspects.map((x) => x.id));
@@ -309,9 +347,7 @@ describe("the engine", () => {
         expect(a.s).toBeGreaterThanOrEqual(Math.ceil(guests * 0.55));
         expect(a.e).toBeGreaterThanOrEqual(Math.ceil(input.exhibits.length * 0.55));
         expect(b.s).toBeGreaterThanOrEqual(3);
-        // only two or three different tips, each shared by several guests
-        const tips = new Set(cf.tips.map((t) => t.clueId));
-        expect(tips.size).toBeLessThanOrEqual(guests <= 8 ? 2 : 3);
+        expect(cf.tips).toEqual([]);
         // the big clues are on the TV in Rounds 2 and 3, never on a marker
         for (const c of cf.clues.filter((c) => c.kind === "witness" || c.kind === "coroner")) {
           expect(c.channel).toBe("tv");
