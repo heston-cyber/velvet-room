@@ -139,7 +139,8 @@ with sync_playwright() as p:
     host.wait_for_timeout(9000)
     shot(host, "06-roll-guest.png")
     card = host.locator(".tv-roll.v2").inner_text().lower()
-    ok("weapon" not in card and "motive" not in card and "signature" not in card and "played by" not in card, "the card is just the guest's drawing and name (Oct 16)")
+    ok("weapon" not in card and "signature" not in card and "played by" not in card, "the card is the guest's drawing and name (Oct 16)")
+    ok("motive" in card, "and their motive, read out at the roll call (Oct 18)")
     ok(host.locator(".tv-roast").count() == 0, "no roast on the roll call")
     ok(phone.get_by_text("Eyes on the TV").count() >= 1, "the phone still waits during the roll call")
     g = roster()["game"]
@@ -154,7 +155,7 @@ with sync_playwright() as p:
 
     # Round 1.
     skip("Begin Round 1")
-    ok(wait_for(lambda: host.get_by_text("Find the markers.").count() == 1, 15), "Round 1 begins")
+    ok(wait_for(lambda: host.get_by_text("Find the evidence cards.").count() == 1, 15), "Round 1 begins")
     host.wait_for_timeout(5000)
     # Oct 16: the weapons in play sit along the top of the screen in every round, the guests along the bottom.
     ok(host.locator(".tv-topweapons > div").count() == 6, "Round 1 shows the weapons in play along the top")
