@@ -13,6 +13,7 @@ import type * as cards from "../cards.js";
 import type * as caseFile from "../caseFile.js";
 import type * as engine_build from "../engine/build.js";
 import type * as engine_fake from "../engine/fake.js";
+import type * as engine_motives from "../engine/motives.js";
 import type * as engine_rng from "../engine/rng.js";
 import type * as engine_setup from "../engine/setup.js";
 import type * as engine_text from "../engine/text.js";
@@ -50,6 +51,7 @@ declare const fullApi: ApiFromModules<{
   caseFile: typeof caseFile;
   "engine/build": typeof engine_build;
   "engine/fake": typeof engine_fake;
+  "engine/motives": typeof engine_motives;
   "engine/rng": typeof engine_rng;
   "engine/setup": typeof engine_setup;
   "engine/text": typeof engine_text;
