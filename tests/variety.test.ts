@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { ADULT_MORE, CUES, NOISY, captionText, cleanVersions, cueFile, cueFiles, cueVariant, cueVersions, customText, isNoisy, recordingText, sprinkle, type CueKey } from "../convex/narration";
+import { ADULT_MORE, CUES, NOISY, captionText, cleanVersions, cueFile, cueFiles, cueVariant, cueVersions, customText, isNoisy, plain, recordingText, sprinkle, type CueKey } from "../convex/narration";
 import { HECKLES, heckleLines } from "../convex/heckles";
 import { howCues } from "../convex/show";
 import { REVEAL } from "../convex/shared";
@@ -99,31 +99,34 @@ describe("noises: an extra bank, played now and then", () => {
 describe("heckles in the lulls", () => {
   const guests = ["Ana Ruiz", "Ben Cho", "Cy Park", "Dee Lane", "Eli Moss", "Flo Gray"].map((real, i) => ({ id: `p${i}`, real, weapon: ["Rope", "Lawn Gnome", "Knife", "Wrench", "Poison", "Trophy"][i], figure: `fig${i}` }));
 
-  test("one guest is the night's running gag, and keeps coming back, a little worse each time", () => {
+  // Oct 18 (Heston: "no more random jokes mid game ... Only simple insults delivered deadpan, aimed at players real
+  // names every now and then. the randomizer that every 3rd game, its the same player who keeps getting insulted").
+  test("every heckle is a short deadpan insult at one guest's real first name; guests take turns, nothing repeats", () => {
     const lines = heckleLines("adult", "velvet-2026", guests);
-    expect(lines.length).toBeGreaterThanOrEqual(14);
-    const gag = lines.filter((l) => l.gag);
-    expect(gag.length).toBeGreaterThanOrEqual(5);
-    expect(new Set(gag.map((l) => l.target)).size).toBe(1);
-    const name = guests.find((g) => g.id === gag[0].target)!.real.split(" ")[0];
-    expect(gag.every((l) => l.text.includes(name))).toBe(true);
-    // older games (no gag setting) play the arc's first lines in order
-    expect(gag.map((l) => l.text)).toEqual(HECKLES.adult.gag.slice(0, gag.length).map((t) => t.replaceAll("{real}", name)));
-    // The rest roast everyone else around, by first name, and nothing repeats.
-    const roasted = new Set(lines.filter((l) => !l.gag && l.target).map((l) => l.target));
-    expect(roasted.size).toBe(guests.length - 1);
+    expect(lines.length).toBe(24);
+    expect(lines.some((l) => l.gag)).toBe(false);
+    expect(new Set(lines.map((l) => l.target)).size).toBe(guests.length);
     expect(new Set(lines.map((l) => l.text)).size).toBe(lines.length);
-    expect(lines.every((l) => !/[{}]/.test(l.text) && !/\b(Ruiz|Cho)\b|Cy Park/.test(l.text))).toBe(true);
-    expect(lines.filter((l) => !l.target).length).toBeGreaterThanOrEqual(3); // asides about the night
-    expect(lines.some((l) => l.text.split(" ").length <= 10)).toBe(true); // short, punchy ones
-    expect(HECKLES.adult.jab.filter((t) => t.split(" ").length <= 6).length).toBeGreaterThanOrEqual(3);
+    for (const l of lines) {
+      const first = guests.find((g) => g.id === l.target)!.real.split(" ")[0];
+      expect(l.text).toContain(first);
+      expect(l.text).not.toMatch(/[{}]|\b(Ruiz|Cho|Park)\b/);
+      expect(plain(l.text).length).toBeLessThan(110);
+    }
+    for (const tone of ["classic", "adult", "sailor"] as const) {
+      expect(HECKLES[tone].length).toBeGreaterThanOrEqual(30);
+      for (const t of HECKLES[tone]) expect(t.split("{real}").length - 1, t).toBe(1);
+    }
   });
 
-  test("every replay picks a different running gag and different lines", () => {
+  test("a gag night (every third game on a laptop): one guest gets every insult; replays differ", () => {
+    const gag = heckleLines("adult", "velvet-2026", guests, { gag: true });
+    expect(gag.every((l) => l.gag)).toBe(true);
+    expect(new Set(gag.map((l) => l.target)).size).toBe(1);
     const a = heckleLines("adult", "velvet-2026", guests);
     const b = heckleLines("adult", "velvet-2026-2", guests);
     expect(a.map((l) => l.text)).not.toEqual(b.map((l) => l.text));
-    const gagOf = (seed: string) => heckleLines("classic", seed, guests).find((l) => l.gag)!.target;
+    const gagOf = (seed: string) => heckleLines("classic", seed, guests, { gag: true })[0].target;
     expect(new Set(["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"].map(gagOf)).size).toBeGreaterThan(2);
   });
 

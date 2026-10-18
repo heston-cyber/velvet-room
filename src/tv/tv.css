@@ -432,3 +432,7 @@
 .tv-how-round .faces .tv-av.ready { opacity: 1; border: .25cqw solid var(--brass); animation: tvReady .5s ease both; }
 .tv-how-round .lab { font-family: var(--label); font-size: 1.5cqw; letter-spacing: .14em; text-transform: uppercase; color: var(--paper); }
 @keyframes tvReady { from { transform: scale(.85); opacity: .55; } to { transform: scale(1); opacity: 1; } }
+
+/* Oct 18: the roll call reads each guest's motive out; the card shows it too. */
+.tv-motive { margin: 1.4cqw 0 0; max-width: 40cqw; font-family: var(--body); font-style: italic; font-size: 2.2cqw; line-height: 1.25; color: var(--paper); text-wrap: balance; }
+.tv-motive span { display: block; font-family: var(--label); font-style: normal; font-size: 1.1cqw; letter-spacing: .3em; text-transform: uppercase; color: var(--brass); margin-bottom: .5cqw; }

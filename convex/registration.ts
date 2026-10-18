@@ -63,9 +63,11 @@ function castProfile<T extends ProfileInput>(input: T, figure: string | undefine
   const bare = (x: string) => x.replace(/[“”"]/g, "").trim();
   // The roll call adds "a.k.a." itself, so a typed "aka Long Johnson" keeps just "Long Johnson".
   const nick = (x: string) => bare(x).replace(/^(a\.?\s*k\.?\s*a\.?|also known as)\s+/i, "").trim();
-  // F6: a mystery guest's first name is their own (one word, capitalized as typed).
-  const typed = m.mystery ? bare(clean(input.firstName, LIMITS.nickname)).split(/\s+/)[0] ?? "" : "";
+  // F6: a mystery guest's first name is their own (one word, capitalized as typed). Oct 18: everyone types their real
+  // first name; for the party cast it's only used by the narrator's insults (their drawing's name stays their name).
+  const typed = bare(clean(input.firstName, LIMITS.nickname)).split(/\s+/)[0] ?? "";
   const firstName = typed ? typed[0].toUpperCase() + typed.slice(1) : "";
+  // The sign-up page asks everyone; an older page that doesn't send it leaves the party cast with their drawing's name.
   if (m.mystery && !firstName) throw new ConvexError("Type your first name.");
   const name = m.mystery ? firstName : m.name;
   // Their own first name typed again in the last-name box ("Heston Hill") keeps just the last name.

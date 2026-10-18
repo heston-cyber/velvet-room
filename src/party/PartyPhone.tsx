@@ -259,7 +259,7 @@ function todoOf(data: Phone, intro: boolean): string {
     if (me.jailed) return "Jailbirds sit out the lock-in. Watch the TV.";
     return data.myAccusation ? "You're locked in. Watch the TV." : "Lock in who did it, with what, and where. It's final.";
   }
-  if (game.status === "reveal") return "Watch the TV. Then vote Best Dressed and Best Liar here.";
+  if (game.status === "reveal") return "Watch the TV. Then vote Best Dressed here.";
   return "Thanks for playing.";
 }
 
@@ -1119,10 +1119,8 @@ function RevealVotes({ token, data }: { token: string; data: Phone }) {
   const vote = useMutation(api.game.vote);
   const r = data.results;
   const others = useMemo(() => (data.board?.suspects ?? []).filter((s) => s.id !== data.me.id), [data.board, data.me.id]);
-  const [votes, setVotes] = useState<{ dressed: string | null; liar: string | null }>(() => ({
-    dressed: r?.myVote?.dressed ?? null,
-    liar: r?.myVote?.liar ?? null,
-  }));
+  // Oct 18: Best Dressed is the only vote (Best Liar is gone).
+  const [votes, setVotes] = useState<{ dressed: string | null }>(() => ({ dressed: r?.myVote?.dressed ?? null }));
   const [sent, setSent] = useState(!!r?.myVote);
   const [error, setError] = useState<string | null>(null);
   if (data.game.status === "done") {
@@ -1164,10 +1162,8 @@ function RevealVotes({ token, data }: { token: string; data: Phone }) {
       : data.me.satOut
         ? "You sat out the lock-in in jail."
         : "You didn't lock in.";
-  // Best Liar is for the innocents (Oct 17, D6): the killer has "Got Away With It".
-  const innocents = others.filter((s) => s.id !== r?.killerId && s.id !== r?.accompliceId);
   // S8: a tap saves the vote.
-  async function pick(k: "dressed" | "liar", id: string) {
+  async function pick(k: "dressed", id: string) {
     const next = { ...votes, [k]: votes[k] === id ? null : id };
     setVotes(next);
     setError(null);
@@ -1176,14 +1172,13 @@ function RevealVotes({ token, data }: { token: string; data: Phone }) {
       await vote({
         token,
         dressed: (next.dressed ?? undefined) as Id<"players"> | undefined,
-        liar: (next.liar ?? undefined) as Id<"players"> | undefined,
       });
       setSent(true);
     } catch (e) {
       setError(friendlyError(e));
     }
   }
-  const opt = (k: "dressed" | "liar", s: { id: string; name: string; figure: string | null }) => (
+  const opt = (k: "dressed", s: { id: string; name: string; figure: string | null }) => (
     <button key={s.id} type="button" className="who-opt" aria-pressed={votes[k] === s.id} onClick={() => void pick(k, s.id)}>
       {s.figure && <img src={faceUrl(s.figure)} alt="" />}
       <span>{s.name}</span>
@@ -1203,14 +1198,10 @@ function RevealVotes({ token, data }: { token: string; data: Phone }) {
       {r?.accomplice && mine && data.myAccusation?.accompliceId && !r.iWasKiller && !r.iWasAccomplice && (
         <p className="help">{mine.gotAccomplice ? "And you spotted the accomplice." : "Your accomplice guess missed."}</p>
       )}
-      <p className="help">Best Detective and Prime Suspect come from the lock-ins. Vote for these two:</p>
+      <p className="help">Best Detective and Prime Suspect come from the lock-ins. Vote for Best Dressed:</p>
       <div className="pick">
         <span className="eyebrow">Best Dressed</span>
         <div className="opts">{others.map((s) => opt("dressed", s))}</div>
-      </div>
-      <div className="pick">
-        <span className="eyebrow">Best Liar · innocents only</span>
-        <div className="opts">{innocents.map((s) => opt("liar", s))}</div>
       </div>
       <Swap show={sent ? 1 : 0}>
         <div className="locked pending">Tap a name to vote. Tap it again to take it back.</div>

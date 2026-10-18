@@ -89,7 +89,7 @@ export function useNextStep(data: Roster, slug: string, hostKey: string, now: nu
     return {
       label: "Show the awards",
       confirm: `Tap again: ${c.awardVotes} of ${c.inGameAll} have voted`,
-      help: early ? "After the verdict, once the votes are in." : "Closes the voting for Best Dressed and Best Liar. Only awards someone won are shown.",
+      help: early ? "After the verdict, once the votes are in." : "Closes the voting for Best Dressed. Only awards someone won are shown.",
       disabled: early,
       run: () => finish(args),
     };

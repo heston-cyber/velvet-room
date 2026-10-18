@@ -4,7 +4,7 @@
 // every third game.
 import { describe, expect, test } from "vitest";
 import { ADULT_CUSTOM, ADULT_D, CAST_INTROS, CUES, captionText, narratorName, recordingText, INSULTS, INSULT_KINDS, LATER_KINDS, SAILOR, SAILOR_CUSTOM, cleanVersions, cueVariant, cueVersions, customText, insultText, isD, pickLines, plain, verdictText, voiceKey, type CueKey } from "../convex/narration";
-import { heckleLines, HECKLES, SAILOR_HECKLES } from "../convex/heckles";
+import { heckleLines, HECKLES } from "../convex/heckles";
 import { laterWanted, scriptOf, startWanted, variantOf } from "../convex/voiceLines";
 import { howCues } from "../convex/show";
 
@@ -59,7 +59,7 @@ describe("Sailor mode", () => {
   });
 
   test("no C-word anywhere in Sailor mode (Oct 17, Heston: \"No cunt\")", () => {
-    const all = [...(Object.keys(CUES) as CueKey[]).flatMap((c) => cueVersions(c, "sailor")), ...Object.values(SAILOR_CUSTOM).flat(), ...CAST_INTROS.sailor, ...Object.values(SAILOR_HECKLES).flat(), ...JSON.stringify(INSULTS).split('","')] as string[];
+    const all = [...(Object.keys(CUES) as CueKey[]).flatMap((c) => cueVersions(c, "sailor")), ...Object.values(SAILOR_CUSTOM).flat(), ...CAST_INTROS.sailor, ...HECKLES.sailor, ...JSON.stringify(INSULTS).split('","')] as string[];
     for (const t of all) expect(t, t).not.toMatch(/cunt/i);
   });
 
@@ -78,7 +78,7 @@ describe("Sailor mode", () => {
     expect(customText("killer", "sailor", { name: "Josh", seed: "g1" })).toContain("Josh");
     expect(SAILOR_CUSTOM.killer!.map((t) => t.replaceAll("{name}", "X"))).toContain(customText("killer", "sailor", { name: "X", seed: "g1" }));
     const lines = heckleLines("sailor", "g1", guests, { gag: true });
-    expect(lines.some((l) => l.id.startsWith("sailor:"))).toBe(true);
+    expect(lines.every((l) => l.id.startsWith("sailor:insult:"))).toBe(true);
     expect(customText("rooms", "sailor", { rooms: ["The Bar", "The Lounge"], seed: "g2" })).toMatch(/the Bar and the Lounge/);
   });
 });
@@ -122,27 +122,20 @@ describe("no repeats on a laptop, and the running gag every third game", () => {
     expect(d / n).toBeLessThan(0.15);
   });
 
-  test("no running gag unless it's that night; heckles this laptop heard lately go last", () => {
+  test("one guest gets every insult only on a gag night; insults this laptop heard lately go last", () => {
     const off = heckleLines("adult", "g1", guests, { gag: false });
     expect(off.some((l) => l.gag)).toBe(false);
     expect(new Set(off.map((l) => l.target).filter(Boolean)).size).toBe(guests.length); // everyone takes turns
     const on = heckleLines("adult", "g1", guests, { gag: true });
-    const gagged = on.filter((l) => l.gag);
-    expect(gagged.length).toBe(8);
-    expect(new Set(gagged.map((l) => l.target)).size).toBe(1);
-    // the arc plays in order, from its first line to its last
-    const idx = gagged.map((l) => Number(l.id.split(":").pop()));
-    expect(idx).toEqual([...idx].sort((a, b) => a - b));
-    expect(idx[0]).toBe(0);
-    expect(idx[idx.length - 1]).toBe(HECKLES.adult.gag.length - 1);
-    // older games (no setting): the gag every night, as before
-    expect(heckleLines("adult", "g1", guests).some((l) => l.gag)).toBe(true);
+    expect(on.every((l) => l.gag)).toBe(true);
+    expect(new Set(on.map((l) => l.target)).size).toBe(1);
+    // no setting: no gag
+    expect(heckleLines("adult", "g1", guests).some((l) => l.gag)).toBe(false);
     // the lines g1 used go to the back of the queue next time
     const heard = off.map((l) => l.id);
     const next = heckleLines("adult", "g2", guests, { gag: false, avoid: heard });
     const fresh = next.filter((l) => !heard.includes(l.id)).length;
-    const poolSize = HECKLES.adult.bit.length + HECKLES.adult.jab.length + HECKLES.adult.aside.length;
-    if (poolSize - heard.length >= next.length) expect(fresh).toBe(next.length);
+    expect(fresh).toBe(Math.min(next.length, HECKLES.adult.length - heard.length));
   });
 });
 
@@ -154,7 +147,7 @@ describe("Oct 17: mild Adult, and insults on real names", () => {
     for (const cue of ACTIVE) for (const t of [...cueVersions(cue, "adult"), ...cueVersions(cue, "classic")]) expect(plain(t), cue).not.toMatch(HARD);
     for (const pool of Object.values(ADULT_CUSTOM)) for (const t of pool!) expect(t).not.toMatch(HARD);
     for (const kind of INSULT_KINDS) for (const tone of ["classic", "adult"] as const) for (const t of INSULTS[kind][tone]) expect(t, kind).not.toMatch(HARD);
-    for (const pools of [HECKLES.classic, HECKLES.adult]) for (const lines of Object.values(pools)) for (const t of lines as string[]) expect(t).not.toMatch(HARD);
+    for (const t of [...HECKLES.classic, ...HECKLES.adult]) expect(t).not.toMatch(HARD);
   });
 
   test("every insult names the guest, and each guest gets their own version, the same all game", () => {

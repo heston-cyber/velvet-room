@@ -45,7 +45,7 @@ export const createGame = internalMutation({
       killerOptIn: true,
       rooms: DEFAULT_ROOMS,
       pacing: { mode: "ready", roundMinutes: 12 },
-      search: "all",
+      search: "waves",
       createdAt: Date.now(),
     });
     return { slug: args.slug, hostKey };

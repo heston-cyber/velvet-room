@@ -130,13 +130,13 @@ describe("the party cast: the only characters (Heston, Oct 16: the generic ones 
     expect(anyFreeFigure(taken)).toBe(CAST_KEYS[CAST_KEYS.length - 1]);
   });
 
-  test("the roll call: name and nickname only, no played by", () => {
+  test("the roll call: name and nickname, their own joke, no played by", () => {
     for (const tone of ["classic", "adult"] as const) {
       for (const seed of ["a", "b", "c", "d", "e", "f"]) {
         const line = rollNarration(tone, { name: "Josh “Two-Tone” Lee", real: "Josh Lee", nickname: "Two-Tone", seed, cast: true }).text;
         expect(line).toContain("Josh Lee, a.k.a. Two-Tone");
         expect(line).not.toMatch(/played by|better known/i);
-        expect(line.length).toBeLessThan(80);
+        expect(line.length).toBeLessThan(130);
         expect(rollNarration(tone, { name: "Josh", real: "Josh", seed, cast: true }).text).not.toContain("a.k.a.");
       }
     }

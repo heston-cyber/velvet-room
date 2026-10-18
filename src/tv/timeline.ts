@@ -437,7 +437,7 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
     // Oct 17: caught: the killer gets their line (a killer who walks gets theirs at the awards).
     if (!killerWins) e = clip(`rev:${t}:caught`, d.voice.caught ?? undefined, e + 0.6 * S);
     const voted = vo(`rev:${t}:vote`, "votePrompt", e + 1 * S);
-    // Heckles while everyone votes for Best Dressed and Best Liar.
+    // Heckles while everyone votes for Best Dressed.
     for (let k = 0; k < 4; k++) heckle(`rev:${t}:${k}`, 19 + k, voted + HECKLE.voteFirst + k * HECKLE.voteEvery, "reveal");
     return out;
   }

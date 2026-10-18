@@ -42,7 +42,7 @@ export const roster = query({
       ? (await ctx.db
           .query("votes")
           .withIndex("by_game", (q) => q.eq("gameId", game._id))
-          .collect()).filter((x) => x.dressed || x.liar).length
+          .collect()).filter((x) => x.dressed).length
       : 0;
     const markers = await ctx.db
       .query("markers")

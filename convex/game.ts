@@ -491,15 +491,14 @@ export const AWARDS = {
   detective: { title: "Best Detective", cue: "awardDetective" },
   prime: { title: "Prime Suspect", cue: "awardPrimeSuspect" },
   dressed: { title: "Best Dressed", cue: "awardDressed" },
-  liar: { title: "Best Liar", cue: "awardLiar" },
   gotAway: { title: "Got Away With It", cue: "awardGotAway" },
 } as const satisfies Record<string, { title: string; cue: CueKey }>;
 export type AwardKey = keyof typeof AWARDS;
 
 /**
  * The night's awards (Oct 17): only the ones someone won (Heston: "don't show awards at the end if no one won them").
- * Best Dressed and Best Liar are voted on the phones, for guests in the game only; Best Liar is among the innocents
- * (D6), since the killer gets "Got Away With It" when they walk. A tie is shared.
+ * Best Dressed is voted on the phones, for guests in the game only. Oct 18: no Best Liar (with no secrets, innocents
+ * have nothing to lie about; Heston: "Drop it"). A tie is shared.
  */
 async function awardsOf(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile, all: Doc<"players">[], scored: Scored) {
   const votes = await ctx.db
@@ -510,7 +509,7 @@ async function awardsOf(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile, all: Do
   const p = (id: string) => all.find((x) => x._id === id);
   const inGame = new Set<string>(playingOf(all).map((x) => x._id));
   const who = (ids: string[]) => ids.filter((id) => p(id)).map((id) => ({ id: id as Id<"players">, name: p(id)!.charName, short: shortName(p(id)!), figure: p(id)!.figure ?? null }));
-  const tally = (key: "dressed" | "liar", ok: (id: string) => boolean) => {
+  const tally = (key: "dressed", ok: (id: string) => boolean) => {
     const c = new Map<string, number>();
     for (const vt of votes) {
       const pick = vt[key];
@@ -531,8 +530,6 @@ async function awardsOf(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile, all: Do
   if (prime.length) add("prime", prime.map((d) => d.playerId), `Innocent, and blamed ${prime[0].blamed === 1 ? "once" : `${prime[0].blamed} times`}`);
   const dressed = tally("dressed", (id) => inGame.has(id));
   add("dressed", dressed.ids, plural(dressed.votes, "vote"));
-  const liar = tally("liar", (id) => inGame.has(id) && id !== sol.killerId && id !== sol.accompliceId);
-  add("liar", liar.ids, plural(liar.votes, "vote"));
   if (scored.killerWins) add("gotAway", [sol.killerId, ...(sol.accompliceId ? [sol.accompliceId] : [])], "The killer walks");
   return out;
 }
@@ -642,32 +639,30 @@ export const accuse = mutation({
 });
 
 export const vote = mutation({
+  // Oct 18: Best Dressed only (Best Liar is gone). Older pages may still send liar; it's ignored.
   args: { token: v.string(), dressed: v.optional(v.id("players")), liar: v.optional(v.id("players")) },
-  handler: async (ctx, { token, dressed, liar }) => {
+  handler: async (ctx, { token, dressed }) => {
     const { player, game } = await requirePlayer(ctx, token);
     if (game.status !== "reveal") throw new ConvexError("Voting opens after the reveal.");
-    const sol = (await caseFor(ctx, game))?.solution;
-    for (const pick of [dressed, liar]) {
+    for (const pick of [dressed]) {
       if (!pick) continue;
       if (pick === player._id) throw new ConvexError("You can't vote for yourself.");
       const p = await ctx.db.get(pick);
       // Oct 17: only guests who played this game can win its awards.
       if (!p || p.gameId !== game._id || !p.inGame) throw new ConvexError("Pick someone who played tonight.");
     }
-    // Best Liar is among the innocents (D6): the killer gets "Got Away With It" when they walk.
-    if (liar && sol && (liar === sol.killerId || liar === sol.accompliceId)) throw new ConvexError("Best Liar is for the innocents. The killer has their own award.");
     const existing = await ctx.db
       .query("votes")
       .withIndex("by_player", (q) => q.eq("playerId", player._id))
       .unique();
-    if (existing) await ctx.db.patch(existing._id, { dressed, liar });
-    else await ctx.db.insert("votes", { gameId: game._id, playerId: player._id, dressed, liar });
-    // I6: once everyone in the game has voted for both, the awards follow shortly (after the verdict has shown).
+    if (existing) await ctx.db.patch(existing._id, { dressed });
+    else await ctx.db.insert("votes", { gameId: game._id, playerId: player._id, dressed });
+    // I6: once everyone in the game has voted, the awards follow shortly (after the verdict has shown).
     const votes = await ctx.db
       .query("votes")
       .withIndex("by_game", (q) => q.eq("gameId", game._id))
       .collect();
-    const done = new Set(votes.filter((x) => x.dressed && x.liar).map((x) => x.playerId as string));
+    const done = new Set(votes.filter((x) => x.dressed).map((x) => x.playerId as string));
     const players = playingOf(await playersOf(ctx, game._id));
     if (game.revealAt && players.length && players.every((p) => done.has(p._id))) {
       const verdictAt = game.revealAt + (game.revealPlan ?? revealTimes(!!game.hasAccomplice, game.tone ?? "classic")).verdict;
@@ -838,7 +833,7 @@ export const phone = query({
               mine: scored.scores.find((s) => s.playerId === player._id) ?? null,
               iWasKiller: cf.solution.killerId === player._id,
               iWasAccomplice: !!cf.solution.accompliceId && cf.solution.accompliceId === player._id,
-              myVote: myVote ? { dressed: myVote.dressed ?? null, liar: myVote.liar ?? null } : null,
+              myVote: myVote ? { dressed: myVote.dressed ?? null } : null,
             }
           : null,
     };
@@ -1266,7 +1261,7 @@ async function startAwards(ctx: MutationCtx, game: Doc<"games">) {
   await ctx.db.patch(game._id, { status: "done", doneAt: Date.now(), tvShowAll: false });
   const cf = await caseFor(ctx, game);
   if (!cf) return;
-  const kinds: Record<string, string> = { detective: "bestDetective", prime: "primeSuspect", dressed: "bestDressed", liar: "bestLiar", gotAway: "gotAway" };
+  const kinds: Record<string, string> = { detective: "bestDetective", prime: "primeSuspect", dressed: "bestDressed", gotAway: "gotAway" };
   const awards = await awardsOf(ctx, game, cf, await playersOf(ctx, game._id), await scoreGame(ctx, game, cf));
   const ids = awards.flatMap((a) => a.winners.map((w) => `${kinds[a.key]}:${w.id}`));
   if (ids.length) await scheduleRecording(ctx, game._id, "later", ids);
@@ -1399,6 +1394,7 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
         charName: g.player.charName,
         realName: g.player.realName,
         cast: g.cast,
+        motive: g.motive,
         photoUrl: g.player.photoId ? await ctx.storage.getUrl(g.player.photoId) : null,
         figure: g.player.figure ?? null,
         line: g.wanted.caption,
@@ -1445,7 +1441,7 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
     // Each award's winners' names, in the TV's order (a shared award says every name), then their lines (Oct 17).
     winners = {} as Record<string, Clip[]>;
     roasts = {} as Record<string, Clip[]>;
-    const kinds: Record<string, string> = { detective: "bestDetective", prime: "primeSuspect", dressed: "bestDressed", liar: "bestLiar", gotAway: "gotAway" };
+    const kinds: Record<string, string> = { detective: "bestDetective", prime: "primeSuspect", dressed: "bestDressed", gotAway: "gotAway" };
     for (const a of await awardsOf(ctx, game, cf, all, await scoreGame(ctx, game, cf))) {
       winners[a.key] = (await Promise.all(a.winners.map((w) => get(`winner:${w.id}`)))).filter((c): c is NonNullable<Clip> => !!c);
       roasts[a.key] = (await Promise.all(a.winners.map((w) => later(`${kinds[a.key]}:${w.id}`)))).filter((c): c is NonNullable<Clip> => !!c);
@@ -1718,6 +1714,8 @@ export const seedFakeCast = internalMutation({
         token: randomCode(10),
         // "Tommy (test guest)": roasts use the first word of the real name, so it reads "Tommy".
         realName: `${g.first} (test guest)`,
+        // Oct 18: their "real" first name for the insults.
+        firstName: g.first,
         charName: name,
         charKey: charKeyOf(name),
         ...own,

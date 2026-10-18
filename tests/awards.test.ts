@@ -1,5 +1,5 @@
 // Oct 17 (Heston): Best Detective goes to the most accurate guesses among those who named the killer (a tie to whoever
-// voted to jail the killer, else shared); Best Liar is voted among the innocents; the killer who walks gets "Got Away
+// voted to jail the killer, else shared); Best Dressed is voted (Best Liar gone Oct 18); the killer who walks gets "Got Away
 // With It"; Prime Suspect is the innocent the most lock-ins and jail votes pointed at; and only awards someone won are
 // shown.
 import { convexTest } from "convex-test";
@@ -52,7 +52,7 @@ const finish = async (t: T, hostKey: string) => {
 };
 
 describe("awards (Oct 17)", () => {
-  test("the killer walks: Best Detective by most right and the jail-vote tie-break, Prime Suspect, Best Liar among innocents, Got Away With It", async () => {
+  test("the killer walks: Best Detective by most right and the jail-vote tie-break, Prime Suspect, Best Dressed, Got Away With It (no Best Liar since Oct 18)", async () => {
     const { t, hostKey, killer, innocents: [a, b, c, d, e], right, wrong, tvKey } = await toTheJailVote(6);
     // The jail vote: a votes to jail the killer, c and d vote to jail e. Not a majority: nobody goes to jail.
     await t.mutation(api.game.castVote, { token: a.token, targetId: killer._id });
@@ -71,14 +71,13 @@ describe("awards (Oct 17)", () => {
     await lock(e, d._id, wrong);
     await lock(killer, e._id, wrong);
     expect((await game(t)).status).toBe("reveal");
-    // Best Liar can't go to the killer; Best Dressed and Best Liar only for guests who played.
-    await expect(t.mutation(api.game.vote, { token: a.token, liar: killer._id })).rejects.toThrow(/innocents/);
+    // Best Dressed only for guests who played (Oct 18: Best Liar is gone; an old page's liar vote is ignored).
     const ghost = await t.run((ctx) => ctx.db.insert("players", { gameId: a.gameId, token: "ghost-token", realName: "Ghost", charName: "Ghost", charKey: "ghost", who: "", signature: "", killerOk: true, checkedIn: false, createdAt: 0, updatedAt: 0 }));
     await expect(t.mutation(api.game.vote, { token: a.token, dressed: ghost })).rejects.toThrow(/played tonight/);
     for (const p of [a, b, d, e, killer]) await t.mutation(api.game.vote, { token: p.token, dressed: c._id, liar: p._id === b._id ? d._id : b._id });
-    await t.mutation(api.game.vote, { token: c.token, dressed: a._id, liar: b._id });
+    await t.mutation(api.game.vote, { token: c.token, dressed: a._id });
     const awards = await finish(t, hostKey);
-    expect(awards.map((x) => x.key)).toEqual(["detective", "prime", "dressed", "liar", "gotAway"]);
+    expect(awards.map((x) => x.key)).toEqual(["detective", "prime", "dressed", "gotAway"]);
     const of = (k: string) => awards.find((x) => x.key === k)!;
     // a and b tie on 3 of 3; a voted to jail the killer.
     expect(of("detective").names).toEqual([a.charName]);
@@ -87,13 +86,12 @@ describe("awards (Oct 17)", () => {
     expect(of("prime").names).toEqual([e.charName]);
     expect(of("prime").sub).toMatch(/4 times/);
     expect(of("dressed").names).toEqual([c.charName]);
-    expect(of("liar").names).toEqual([b.charName]);
     expect(of("gotAway").names).toEqual([killer.charName]);
     // The TV gets the same list, with the winners' drawings, and a recorded name for each winner when there is one.
     const tv = await t.query(api.game.tv, { slug: SLUG, tvKey });
     expect(tv.results!.awards!.map((x) => x.key)).toEqual(awards.map((x) => x.key));
     expect(tv.results!.awards![0].cue).toBe("awardDetective");
-    expect(Object.keys(tv.voice.winners!).sort()).toEqual(["detective", "dressed", "gotAway", "liar", "prime"]);
+    expect(Object.keys(tv.voice.winners!).sort()).toEqual(["detective", "dressed", "gotAway", "prime"]);
   });
 
   test("the detectives win: no Got Away With It; an award nobody won isn't shown; a tie nobody can break is shared", async () => {

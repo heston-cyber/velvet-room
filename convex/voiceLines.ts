@@ -59,17 +59,21 @@ export type RollLine = {
   cast?: { real: string; nickname?: string; sayAs?: string } | null;
   /** The game's seed (its slug): picks this game's versions of the wording. */
   seed?: string;
+  /** Oct 18: which roll-call joke the game dealt this guest, and their motive (read out). */
+  pick?: number;
+  motive?: string;
 };
 
-/** One guest's roll-call line (Heston, Oct 16: name, a.k.a. nickname, nothing else). */
+/** One guest's roll-call line: name, a.k.a. nickname, their own joke and (Oct 18) their motive. */
 export function rollWanted(tone: Tone, n: Narrator, p: RollLine): Wanted {
+  const extra = { seed: p.seed, pick: p.pick, motive: p.motive };
   if (p.cast) {
-    const shown = rollNarration(tone, { name: p.charName, real: p.cast.real, nickname: p.cast.nickname, seed: p.seed, cast: true });
-    const said = rollNarration(tone, { name: p.charName, real: p.cast.sayAs?.trim() || p.cast.real, nickname: p.cast.nickname, seed: p.seed, cast: true });
+    const shown = rollNarration(tone, { name: p.charName, real: p.cast.real, nickname: p.cast.nickname, cast: true, ...extra });
+    const said = rollNarration(tone, { name: p.charName, real: p.cast.sayAs?.trim() || p.cast.real, nickname: p.cast.nickname, cast: true, ...extra });
     return make(`roll:${p.id}`, shown.text, n, said.text, { tone, seed: p.seed });
   }
-  const shown = rollNarration(tone, { name: p.charName, real: p.realName, seed: p.seed });
-  const said = rollNarration(tone, { name: spokenName(p), real: p.realName, seed: p.seed });
+  const shown = rollNarration(tone, { name: p.charName, real: p.realName, ...extra });
+  const said = rollNarration(tone, { name: spokenName(p), real: p.realName, ...extra });
   return make(`roll:${p.id}`, shown.text, n, said.text, { tone, seed: p.seed });
 }
 
@@ -130,7 +134,11 @@ export function startWanted(tone: Tone, n: Narrator, s: StartInfo): Wanted[] {
 /** A guest's names for the per-game lines: the character name, and the first name the insults use (Oct 17). */
 export const guestNames = (p: { _id: string; charName: string; sayAs?: string; figure?: string | null; firstName?: string | null }) => {
   const m = castMember(p.figure);
-  return { id: p._id as string, charName: p.charName, sayAs: p.sayAs, real: shortName(p), sayReal: m && !m.mystery ? p.sayAs || undefined : undefined };
+  // Oct 18: the real first name they typed at sign-up (older sign-ups: their drawing's name). The drawing's way of
+  // saying a name only applies when it's the same name.
+  const typed = (p.firstName ?? "").replace(/[“”"]/g, "").trim().split(/\s+/)[0] ?? "";
+  const real = typed || shortName(p);
+  return { id: p._id as string, charName: p.charName, sayAs: p.sayAs, real, sayReal: m && !m.mystery && real === m.name ? p.sayAs || undefined : undefined };
 };
 
 /**

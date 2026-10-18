@@ -609,7 +609,7 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
         )}
         {r.aces.length > 0 && <p className="tv-sub fade">Ace detectives: {r.aces.join(", ")}</p>}
         <p className="tv-sub fade" style={{ color: "var(--paper)" }}>
-          {r.accomplice ? `${splitName(r.killer).main} and ${splitName(r.accomplice.name).main}, stand up and confess.` : `${splitName(r.killer).main}, stand up and confess.`} Everybody: vote Best Dressed and Best Liar on your phones.
+          {r.accomplice ? `${splitName(r.killer).main} and ${splitName(r.accomplice.name).main}, stand up and confess.` : `${splitName(r.killer).main}, stand up and confess.`} Everybody: vote Best Dressed on your phones.
         </p>
         </Fit>
       </div>,
@@ -927,6 +927,13 @@ function RollCard({ step, index, count }: { step: RollStep; index: number; count
             </span>
           )}
           {!it.cast && <span className="tv-played fade" style={{ animationDelay: ".45s" }}>Played by {it.realName}</span>}
+          {/* Oct 18: their motive, read out for everyone. */}
+          {it.motive && (
+            <p className="tv-motive fade" style={{ animationDelay: "1.2s" }}>
+              <span>Motive</span>
+              {it.motive}
+            </p>
+          )}
         </div>
       </div>
     </div>

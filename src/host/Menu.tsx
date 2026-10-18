@@ -72,21 +72,18 @@ export default function Menu(props: { data: Roster; slug: string; hostKey: strin
 
         <Sec title="The game">
           {/* S6 (Oct 17): the script is picked with the narrator (Narrator and script). */}
-          {/* Oct 17: the game writes every motive and secret (D9); guests can opt out of being the killer at sign-up (D8). */}
+          {/* Oct 17: the game writes every motive (D9); guests can opt out of being the killer at sign-up (D8). Oct 18: no secrets. */}
           <span className="help">
             One killer, drawn in secret from everyone checked in, except guests who ticked "I'd rather not be the killer" at sign-up. The game writes everyone's
-            motive and secret.
+            motive, and the roll call reads them out.
           </span>
         </Sec>
 
         <Pacing game={game} locked={locked} save={save} timer={timer} />
 
+        {/* Oct 18 (Heston: "get rid of the "all rooms open" option. it should always be a room waves"). */}
         <Sec title="Searching">
-          <Seg label="Searching" value={game.search} options={[["all", "All rooms open"], ["waves", "Rooms open in waves"]]} disabled={locked} onPick={(search) => save({ search })} />
-          <Swap show={game.search === "all" ? 0 : 1}>
-            <span className="help">Every card can be found from Round 1.</span>
-            <span className="help">The game opens a few rooms each round, starting with where the body is found. Opened rooms stay open. Good for big groups, so nobody finds everything in Round 1.</span>
-          </Swap>
+          <span className="help">Rooms open a few at a time: where the body is found first, more each round, every room by Round 3. Opened rooms stay open.</span>
         </Sec>
 
         <Wifi game={game} save={save} />

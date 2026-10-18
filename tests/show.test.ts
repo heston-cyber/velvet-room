@@ -5,7 +5,7 @@ import schema from "../convex/schema";
 import { SHOW, cueSecs, howCues, howLayout, introLayout } from "../convex/show";
 import { ROASTS, RUMOR_LEADS, WEAPON_ROASTS, roastIndex, roastFor, rumorLead } from "../convex/roasts";
 import { WEAPON_KEYS, weaponName } from "../convex/weapons";
-import { rollNarration } from "../convex/narration";
+import { CAST_INTROS, plain, rollNarration } from "../convex/narration";
 
 const modules = import.meta.glob("../convex/**/*.ts");
 const FUTURE = Date.now() + 7 * 864e5;
@@ -68,8 +68,14 @@ describe("the show (Oct 16): Start → How to play → the Don dies → roll cal
       expect(it).not.toHaveProperty("weapon");
       expect(it.cast).toBeTruthy();
       expect(it.line).toContain(it.cast!.real);
-      expect(it.line).not.toMatch(/Weapon|motive|Signature|played by/i);
+      expect(it.line).not.toMatch(/Weapon|Signature|played by/i);
+      // Oct 18: their motive, read out for everyone
+      expect(it.motive).toBeTruthy();
+      expect(it.line).toContain(`Motive: ${it.motive}`);
     }
+    // Oct 18: every guest in a game gets their own joke
+    const jokes = rc.items.map((it) => it.line.replace(it.cast!.real, "X").replace(/ Motive: .*$/, ""));
+    expect(new Set(jokes).size).toBe(rc.items.length);
     expect(tv.weapons.length).toBe(6); // drawn by the game (Oct 16), not one per guest
   });
 
@@ -191,11 +197,16 @@ describe("roasts and the roll-call line", () => {
     }
   });
 
-  test("the roll-call line: name and nickname (Heston, Oct 16), a few words", () => {
-    for (const tone of ["classic", "adult"] as const) {
-      const line = rollNarration(tone, { name: "Josh “Two-Tone” Lee", real: "Josh Lee", nickname: "Two-Tone", cast: true, seed: "x" }).text;
-      expect(line).toContain("Josh Lee, a.k.a. Two-Tone");
-      expect(line.split(" ").length).toBeLessThan(14);
+  test("the roll-call line: name and nickname, their own joke, then their motive (Oct 18)", () => {
+    for (const tone of ["classic", "adult", "sailor"] as const) {
+      const lines = CAST_INTROS[tone].map((_, pick) => rollNarration(tone, { name: "Josh “Two-Tone” Lee", real: "Josh Lee", nickname: "Two-Tone", cast: true, seed: "x", pick, motive: "The Don owed them money." }).text);
+      expect(lines).toHaveLength(16);
+      expect(new Set(lines).size).toBe(16);
+      for (const line of lines) {
+        expect(line).toContain("Josh Lee, a.k.a. Two-Tone");
+        expect(line.endsWith(" Motive: The Don owed them money.")).toBe(true);
+        expect(plain(line.replace(/ Motive: .*$/, "")).split(" ").length).toBeLessThan(26);
+      }
     }
   });
 });

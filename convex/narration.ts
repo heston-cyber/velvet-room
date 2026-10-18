@@ -196,8 +196,8 @@ export const CUES = {
   // rule. Same rules as v2, fewer words. Drafts for Heston's review. ----
   howCase: {
     when: "How to play v3, card 1 (one of you did it; your phone; lying)",
-    classic: "[warm, conspiratorial] Here's how tonight works. Any minute now, Don Ray Sanders is going to die, and one of you will have done it. Your phone will tell you if it was you. [short pause] Only the guilty may lie about the murder. Everyone else may lie only about their own secret.",
-    adult: "[warm, conspiratorial] Here's the deal. Any minute, Don Ray Sanders drops dead, and one of you will have done it. Your phone will tell you if it was you. If it says you're innocent, try to look less disappointed. [short pause] Only the guilty may lie about the murder. Everyone else may lie about their own secret, and only that. Your age, your money and Atlantic City are, sadly, under oath.",
+    classic: "[warm, conspiratorial] Here's how tonight works. Any minute now, Don Ray Sanders is going to die, and one of you will have done it. Your phone will tell you if it was you. [short pause] Only the guilty may lie. Everyone else tells the truth, the whole truth, and nothing but.",
+    adult: "[warm, conspiratorial] Here's the deal. Any minute, Don Ray Sanders drops dead, and one of you will have done it. Your phone will tell you if it was you. If it says you're innocent, try to look less disappointed. [short pause] Only the guilty may lie. Everyone else tells the truth, and only the truth. Your age, your money and Atlantic City are, sadly, under oath.",
     wild: ["[clapping hands, way over the top]", "[cackles]"],
   },
   howSearch: {
@@ -427,8 +427,8 @@ export const CUES = {
   },
   votePrompt: {
     when: "After the verdict",
-    classic: "Now vote on your phones: Best Dressed and Best Liar.",
-    adult: "Now vote on your phones: Best Dressed and Best Liar. Bribes accepted at the bar.",
+    classic: "Now vote on your phones for Best Dressed. You can't vote for yourself.",
+    adult: "Now vote on your phones for Best Dressed. Bribes accepted at the bar.",
     wild: ["[sing-song, mocking]", ""],
   },
   // ---- awards and goodnight ----
@@ -601,8 +601,8 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
     "More than half the lock-ins have to get the killer, more than half the weapon, and more than half the room. The killer locks in too. Miss one, and the killer walks out a free and very smug individual. [short pause] Then we vote for Best Dressed and Best Liar.",
   ],
   howCase: [
-    "[warm, conspiratorial] House rules. Any minute now, Don Ray Sanders is going to die, and one of you will have done it. Your phone will tell you if it was you. That's how half of Tammany Hall found out. [short pause] Only the guilty may lie about the murder. The rest of you may lie about your own secret, and nothing else. It's still bloody New York, but rules are rules.",
-    "[warm, conspiratorial] Everybody, raise your right hand. Any minute now, Don Ray Sanders becomes a corpse, and one of you will have made him one. Your phone will tell you if it was you. [short pause] Do you swear that only the guilty will lie about the murder, and everyone else will lie only about their own secret? Lovely. Nobody meant it.",
+    "[warm, conspiratorial] House rules. Any minute now, Don Ray Sanders is going to die, and one of you will have done it. Your phone will tell you if it was you. That's how half of Tammany Hall found out. [short pause] Only the guilty may lie. The rest of you tell the truth. It's still bloody New York, but rules are rules.",
+    "[warm, conspiratorial] Everybody, raise your right hand. Any minute now, Don Ray Sanders becomes a corpse, and one of you will have made him one. Your phone will tell you if it was you. [short pause] Do you swear that only the guilty will lie, and everyone else will tell the truth? Lovely. Nobody meant it.",
   ],
   howSearch: [
     "Three rounds. Search for evidence cards and scan them with your phone. What a card says stays on your phone; the map up here just ticks it off, so talk. [short pause] Anything else in a nightstand, put it back.",
@@ -701,8 +701,8 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
     "Not enough of you got the killer, the weapon and the room. The killer hails a cab and sticks you with the fare. What a bunch of chumps.",
   ],
   votePrompt: [
-    "Phones out: Best Dressed, Best Liar. The only honest thing you jackasses will do tonight.",
-    "Vote on your phones: Best Dressed and Best Liar. You can't vote for yourself. Some of you just tried. Sad as hell.",
+    "Phones out: Best Dressed. The only honest thing you jackasses will do tonight.",
+    "Vote on your phones for Best Dressed. You can't vote for yourself. Some of you just tried. Sad as hell.",
   ],
   awards: [
     "Now, the awards. Every trophy here was stolen. Act surprised. You're good at that.",
@@ -798,7 +798,7 @@ export const NOISY: Record<Tone, Partial<Record<CueKey, string>>> = {
     twist: "[building] And now, the t- t- twist.",
     reveal1: "[long pause] The killer of Don Ray Sanders is… [hiccups] is…",
     verdictDetectives: "The detectives got their killer. [short pause] C- c- confess, you rat.",
-    votePrompt: "Now vote on your phones: Best Dressed and [hiccups] Best Liar.",
+    votePrompt: "Now vote on your phones [hiccups] for Best Dressed. You can't vote for yourself.",
     voteJail: "Time to vote. [clears throat] Who goes to jail? Vote on your phone. You can pick nobody.",
     jailNobody: "Not enough votes. Nobody goes to jail this t- t- time.",
     awards: "And now, the awards. [clears throat]",
@@ -826,7 +826,7 @@ export const NOISY: Record<Tone, Partial<Record<CueKey, string>>> = {
     accuseLastCall: "Thirty seconds left. Lock it in. [hiccups] Lock it in.",
     reveal1: "[long pause] The person who murdered Don Ray Sanders, in his own club, in front of his own gin, is… [hiccups] is…",
     verdictDetectives: "Justice, for once in New York. [short pause] The killer is c- c- caught, and is welcome to blame the gin.",
-    votePrompt: "Now vote on your phones: Best Dressed and Best Liar. You can't vote for yourself. [snorts] Some of you just checked.",
+    votePrompt: "Now vote on your phones for Best Dressed. You can't vote for yourself. [snorts] Some of you just checked.",
     awards: "And now, the awards. [clears throat] [clears throat again] The trophies are real. The talent is debatable.",
     awardLiar: "And Best Liar goes to someone who looked every one of you in the eye tonight and l- l- lied. Congratulations to…",
     goodnight: "The Velvet Room is closed. [burps] Settle your debts in chips. If you're staying the night, the couch has seen worse.",
@@ -849,7 +849,7 @@ export const NOISY_PCT: Record<Tone, number> = { classic: 25, adult: 20, sailor:
 export const ADULT_D: Partial<Record<CueKey, string>> = {
   doors: "[warm, smoky voice] Welcome to the Velvet Room. I'm {host}, your host tonight. A place of glamour, of mystery, of sophis- [hiccups] sophisti- [hiccups] [short pause] oh, bollocks to it. A place with gin.",
   doorsReminder: "Check in on your phone, dipshits, or so help me [burps] [short pause] I'll do that again. Closer.",
-  howCase: "[warm, conspiratorial] Here's how this goes. Any minute now, Don Ray Sanders is going to drop dead, and one of you shifty little rats will have done it. Your phone will tell you if it was you. [short pause] Only the guilty may lie about the murder. Everybody else may lie only about their own secret. For example: [farts] [short pause] That wasn't me, damnit. That's my secret.",
+  howCase: "[warm, conspiratorial] Here's how this goes. Any minute now, Don Ray Sanders is going to drop dead, and one of you shifty little rats will have done it. Your phone will tell you if it was you. [short pause] Only the guilty may lie. Everybody else tells the truth. For example: [farts] [short pause] That was me, damnit. See? Honest.",
   howAccomplice: "Tonight the killer has an accomplice: didn't do it, knows who did, will lie for them. Watch for a wink, a nod, a cough. [coughs] [short pause] No, that's just me. Bloody cigars. Guess them when you lock in.",
   howWeapons: "The house drew tonight's weapons, so none of you brought one. One of them is about to do the job. [short pause] And nobody here owns the m- m- [hiccups] [short pause] murder weapon. Shit. I almost said something else.",
   howSearch: "Three rounds. Search the house for evidence cards, under every [sneezes] [short pause] bloody hell, nobody's dusted since McKinley. Scan them with your phone. What they say stays on your phone, so compare notes. The map up here just ticks them off.",
@@ -882,7 +882,7 @@ export const ADULT_D: Partial<Record<CueKey, string>> = {
   revealAccomplice: "And the two-faced little jackass who helped them, [clears throat] allegedly, is…",
   verdictDetectives: "Case closed, detectives. [burps] [short pause] Pardon the court. Confess, you damn dirty rat.",
   verdictKiller: "Not enough of you got the killer, the weapon and the room. The killer walks. Let's hear it for the detectives. [farts] [short pause] That's all you get, dumbasses.",
-  votePrompt: "Vote on your phones: Best Dressed and Best Liar. Me? Sober as a bloody judge. [hiccups] [short pause] Vote me Best Liar.",
+  votePrompt: "Vote on your phones for Best Dressed. Me? Sober as a bloody judge. [hiccups] [short pause] Vote me Best Dressed.",
   awards: "The awards. I'd like to thank the Academy, [hiccups] and my liver, which has been through hell.",
   awardDetective: "Best Detective. Sharp eyes, sharp mind, sha- [sneezes] [short pause] shit. Sharp everything. It goes to…",
   awardDressed: "Best Dressed, [burps] [short pause] not me, damnit, goes to…",
@@ -912,8 +912,8 @@ export const SAILOR: Partial<Record<CueKey, string[]>> = {
     "[through gritted teeth] Check in on your phone. [screaming] It's one link! ONE fucking link! [dead serious] The bouncer thinks you're a fed.",
   ],
   howCase: [
-    "[conspiratorial, seething] Here's how this goes, and I'm saying it once, because my blood pressure is a goddamn tragedy. Any minute now, Don Ray Sanders drops dead, and one of you bastards will have done it. Your phone will tell you if it was you. [short pause] [furious] Only the guilty get to lie about the murder. [screaming] ONLY THE GUILTY! [dead serious] The rest of you lie about your own secret, and that's it. Not your age. Not your shoes. [growling] Your secret, damnit.",
-    "[conspiratorial, through gritted teeth] Any minute now, Don Ray Sanders is going to die. [short pause] Fuck. And one of you will have done it. Your phone will tell you if it was you, so keep it to your goddamn self. [short pause] [roaring] Only the guilty may lie about the murder! [dead serious] Innocent? You lie about your own secret and nothing else. Lie about the murder and I will personally walk you to the Hudson, motherfucker.",
+    "[conspiratorial, seething] Here's how this goes, and I'm saying it once, because my blood pressure is a goddamn tragedy. Any minute now, Don Ray Sanders drops dead, and one of you bastards will have done it. Your phone will tell you if it was you. [short pause] [furious] Only the guilty get to lie. [screaming] ONLY THE GUILTY! [dead serious] The rest of you tell the truth. Not most of it. [growling] All of it, damnit.",
+    "[conspiratorial, through gritted teeth] Any minute now, Don Ray Sanders is going to die. [short pause] Fuck. And one of you will have done it. Your phone will tell you if it was you, so keep it to your goddamn self. [short pause] [roaring] Only the guilty may lie! [dead serious] Innocent? You tell the truth. Lie to me and I will personally walk you to the Hudson, motherfucker.",
   ],
   howAccomplice: [
     "[furious] Oh, and the killer brought an accomplice, because of course the shit-bird couldn't do it alone. The accomplice didn't do it, but they'll lie to your face for the one who did. [short pause] [growling] Guess them when you lock in. Bollocks.",
@@ -1048,8 +1048,8 @@ export const SAILOR: Partial<Record<CueKey, string[]>> = {
     "[dead serious] Killer, weapon, room. You needed more than half on every one, and you blew it. The killer walks free. [growling] Babe Ruth hit sixty home runs. You lot couldn't hit three. Useless pricks.",
   ],
   votePrompt: [
-    "[growling] Best Dressed and Best Liar. Vote on your phones. [roaring] I wore a tie for this, goddamnit! A TIE!",
-    "[through gritted teeth] Phones out. Best Dressed. Best Liar. [furious] And you can't vote for yourself, you vain bastard, so quit looking for your own goddamn face!",
+    "[growling] Best Dressed. Vote on your phones. [roaring] I wore a tie for this, goddamnit! A TIE!",
+    "[through gritted teeth] Phones out. Best Dressed. [furious] And you can't vote for yourself, you vain bastard, so quit looking for your own goddamn face!",
   ],
   awards: [
     "[seething] The awards. I paid for the trophies, so clap, bastards.",
@@ -1367,240 +1367,221 @@ export function customText(
 // verdicts; the rest are recorded only when they're needed (the jailbird, the last to lock in, the killer, the award
 // winners), so a game never pays for lines it won't play.
 
-export type InsultKind = "jailed" | "kept" | "released" | "lastLockIn" | "caught" | "gotAway" | "primeSuspect" | "bestDetective" | "bestDressed" | "bestLiar";
-/** The lines recorded only when needed (jailed and released are the verdicts, recorded at Start). */
-export const LATER_KINDS: InsultKind[] = ["kept", "lastLockIn", "caught", "gotAway", "primeSuspect", "bestDetective", "bestDressed", "bestLiar"];
-export const INSULT_KINDS: InsultKind[] = ["jailed", "kept", "released", "lastLockIn", "caught", "gotAway", "primeSuspect", "bestDetective", "bestDressed", "bestLiar"];
+export type InsultKind = "jailed" | "kept" | "released" | "lastLockIn" | "caught" | "gotAway" | "primeSuspect" | "bestDetective" | "bestDressed";
+/** The lines recorded only when needed (jailed and released are the verdicts, recorded at Start). Oct 18: no Best Liar. */
+export const LATER_KINDS: InsultKind[] = ["kept", "lastLockIn", "caught", "gotAway", "primeSuspect", "bestDetective", "bestDressed"];
+export const INSULT_KINDS: InsultKind[] = ["jailed", "kept", "released", "lastLockIn", "caught", "gotAway", "primeSuspect", "bestDetective", "bestDressed"];
 
+/** Oct 18 (Heston: "Only simple insults delivered deadpan, aimed at players real names"): every moment line, deadpan. */
 export const INSULTS: Record<InsultKind, Record<Tone, string[]>> = {
   jailed: {
     classic: [
-      "{real} is going to jail. Don't worry, {real}. You weren't finding anything out here either.",
-      "Into the cell, {real}. Think of it as a time-out with bars.",
-      "{real} is locked up. The jail asked us to say it's nothing personal. It's a little personal.",
-      "Police blotter: {real}, booked on one count of looking shifty and one count of being a wet blanket.",
-      "{real} goes to jail. The rest of the room just let out a breath they've been holding since Round 1.",
-      "Telegram to {real}: Sorry about the jail. Stop. Not that sorry. Stop.",
+      "{real} is going to jail. Honestly, it's an improvement.",
+      "Into the cell, {real}. The furniture in there is smarter, so you'll learn something.",
+      "{real} is locked up. Nobody is going to visit.",
+      "{real} goes to jail. The room feels lighter already.",
+      "{real}, in you go. Try not to bore the bars.",
+      "{real} is behind bars, where the rest of us can't hear them.",
     ],
     adult: [
-      "{real} is going up the river. Pack light, {real}. Nobody's baking you a cake.",
-      "Police blotter: {real}, booked for loitering with intent and being a general pill. Bail set at nobody cares.",
-      "Into the can, {real}. You weren't finding anything out here either, you sap.",
-      "{real} is behind bars. 'Applesauce,' says {real}. 'Tell it to Sweeney,' says everybody else.",
-      "{real} is locked up. The jail didn't want you, {real}. It's taking you as a favor.",
-      "The Sing Sing welcome committee would like {real} to know: no tipping, no talking, and no damn whining.",
+      "{real} is going to jail. Nobody's baking you a cake, {real}.",
+      "Into the can, {real}. You weren't finding anything out here anyway, you sap.",
+      "{real} is locked up. The jail didn't want you either. It's doing us a favor.",
+      "{real} is behind bars. Best look you've had all night.",
+      "{real} is going up the river. Don't write.",
+      "{real} is in jail, and the average brain in this room just went up. Damn, that's nice.",
     ],
     sailor: [
-      "[roaring] {real}! In the cell! [dead serious] You had one job, {real}. Don't look guilty. [shouting] And you looked guilty as SHIT!",
-      "[seething] {real} is going to jail. [shouting] Good! Rot in there, you shifty son of a bitch!",
-      "[through gritted teeth] Get in the cage, {real}. [roaring] The cage, goddamnit! It's not a suggestion!",
-      "[dead serious] {real}, you're in jail. [short pause] [growling] Best thing you've done all night, you useless bastard.",
-      "[growling] Lock the door on {real}. [screaming] Throw away the key! Throw away the fucking DOOR!",
-      "[seething] {real} is going to jail. [shouting] Horsefeathers, says {real}! [dead serious] Tell it to the bars, jackass.",
+      "[dead serious] {real} is going to jail. [growling] Good. Rot in there, you shifty son of a bitch.",
+      "[flat] Get in the cell, {real}. [short pause] It's not a suggestion, goddamnit.",
+      "[dead serious] {real}, you're in jail. Best thing you've done all night, you useless bastard.",
+      "[growling] Lock {real} up. [short pause] Throw away the key. Throw away the fucking door.",
+      "[seething] {real} goes to jail. [dead serious] Nobody's visiting, jackass.",
+      "[through gritted teeth] {real} is behind bars, where the stink belongs. Shit.",
     ],
   },
   kept: {
     classic: [
-      "{real} stays in jail. The vote was clear, and so is the view through the bars.",
-      "Sorry, {real}. Parole denied. The board found you a little too comfortable in there.",
-      "{real} isn't going anywhere. Make yourself at home, {real}. You already have.",
-      "Release denied. Go fly a kite, {real}. Oh, wait. You can't. You're in jail.",
+      "{real} stays in jail. Nobody's surprised. Least of all {real}.",
+      "Parole denied, {real}. The board found you too comfortable.",
+      "{real} isn't going anywhere. Make yourself at home. You already have.",
+      "Release denied. {real} stays put, and the room stays quiet. Everybody wins.",
     ],
     adult: [
-      "{real} stays in the can. The parole board has spoken, and the parole board is three gins deep.",
-      "Release denied. Get comfy, {real}. The cell's warmed up to you. Nobody else has.",
-      "{real} stays put. You cried, you pleaded, you bribed. Horsefeathers, all of it.",
-      "Still in jail, {real}? Tough shit. The key fell in the punch bowl, and nobody's fishing.",
+      "{real} stays in the can. The parole board is three gins deep and still said no.",
+      "Release denied. Get comfy, {real}. The cell likes you. Nobody else does.",
+      "{real} stays put. You begged, {real}. It was embarrassing. Still no.",
+      "Still in jail, {real}. Tough luck. The key fell in the punch bowl, and nobody's fishing.",
     ],
     sailor: [
-      "[dead serious] {real} stays in jail. [roaring] HA! Sit down, you sorry son of a bitch!",
-      "[seething] Release denied. {real}, stop rattling the bars. [shouting] There are no bars! It's a fucking corner!",
-      "[growling] {real} stays in. [dead serious] I'd say I'm sorry, {real}. [roaring] I'm not, you twitchy bastard!",
-      "[through gritted teeth] Nobody wants {real} out. Nobody. [screaming] Not even the goddamn parrot!",
+      "[dead serious] {real} stays in jail. [growling] Sit down, you sorry son of a bitch.",
+      "[flat] Release denied. {real}, stop rattling the bars. There are no bars. It's a fucking corner.",
+      "[dead serious] {real} stays in. I'd say I'm sorry, {real}. I'm not, you twitchy bastard.",
+      "[through gritted teeth] Nobody wants {real} out. Nobody. Not even the goddamn parrot.",
     ],
   },
   released: {
     classic: [
-      "{real} is free. Try to look a little less guilty out here, {real}.",
-      "{real} walks. The cell would like it on record that it won't miss you.",
-      "Out you go, {real}. Don't make us regret this. You've got about ten minutes.",
-      "{real} is released, on the condition that {real} stops being such a wet blanket.",
+      "{real} is free. Try to look less guilty out here.",
+      "{real} walks. The cell asked us to say it won't miss you.",
+      "Out you go, {real}. Don't make us regret this. We already do.",
+      "{real} is released. The bar for good behavior was very low.",
     ],
     adult: [
-      "{real} is out. The judge took the envelope and said, 'What a chump.' He meant you, {real}.",
-      "{real} walks free. Get a wiggle on, {real}. The cops are already changing their minds.",
-      "{real} is out on bail. Bail was paid in poker chips. Most of them were yours, sap.",
-      "{real} is out. The cell is relieved. It says you snored, {real}, and it's a damn cell.",
+      "{real} is out. The judge took the bribe and called you a chump. He was right, {real}.",
+      "{real} walks free. Get a wiggle on, {real}, before we change our damn minds.",
+      "{real} is out on bail. Nobody paid it. They just wanted the cell back.",
+      "{real} is out. The cell is relieved. You snored, {real}.",
     ],
     sailor: [
-      "[growling] {real} is out. [dead serious] Don't thank me. [roaring] I voted to keep your ass in there!",
-      "[seething] {real} is free. [through gritted teeth] Congratulations. [roaring] Now get out of my sight before I lock you up myself, shit-heel!",
-      "[dead serious] {real}, you're released. [short pause] [screaming] Wipe that smile off, you smug son of a bitch!",
-      "[through gritted teeth] They let {real} out. [roaring] Who voted for this?! Which one of you soft-hearted fuckers?!",
+      "[dead serious] {real} is out. [growling] Don't thank me. I voted to keep your ass in there.",
+      "[flat] {real} is free. [seething] Now get out of my sight before I lock you up myself, shit-heel.",
+      "[dead serious] {real}, you're released. Wipe that smile off, you smug son of a bitch.",
+      "[through gritted teeth] They let {real} out. [roaring] Which one of you soft-hearted fuckers voted for this?",
     ],
   },
   lastLockIn: {
     classic: [
       "Everyone's locked in except {real}. No pressure, {real}. Just everyone, staring.",
-      "{real}, get a wiggle on. The Don has been dead for less time than you've been deciding.",
-      "We're all waiting on {real}. The band has started a second song about it.",
-      "Bulletin: {real} is still thinking. Experts say it could be any day now.",
-      "{real}, it's three taps. Who, what, where. The rest of us managed.",
-      "Last call for {real}. Everyone else has locked in, gone home and come back.",
+      "{real}, get a wiggle on. It's three taps.",
+      "We're all waiting on {real}. As usual.",
+      "{real} is still thinking. First time for everything.",
+      "{real}: who, what, where. Three taps. The rest of us managed.",
+      "Last call for {real}. The rest of us have aged.",
     ],
     adult: [
       "{real}, get a wiggle on. It's three taps, not the Treaty of Versailles.",
-      "Everybody's locked in but {real}. For crying out loud, {real}, guess. You've been wrong all night; why stop now?",
-      "Still waiting on {real}. The Don died faster than this, and he took his time.",
-      "{real}, lock it in. Babe Ruth hit sixty home runs in less time than you're taking.",
-      "Attention, {real}: everyone else has locked in, sobered up and started drinking again. Get a damn wiggle on.",
-      "{real} is still deciding. Pick a name, {real}. Any name. Throw a dart, you flat tire.",
+      "Everybody's locked in but {real}. For crying out loud, {real}, guess.",
+      "Still waiting on {real}. The Don died faster than this.",
+      "{real}, lock it in. You've been wrong all night. Why stop now?",
+      "{real} is still deciding. Pick a name, {real}. Any name. Throw a damn dart.",
+      "{real}, everyone else has locked in and sobered up. Hurry the hell up.",
     ],
     sailor: [
-      "[dead serious] Everybody's locked in. Everybody except {real}. [roaring] LOCK IT IN, {real}, YOU DITHERING SON OF A BITCH!",
-      "[seething] {real}. Three taps. Who, what, where. [screaming] My grandmother did it faster, and she's been dead since 1911, goddamnit!",
-      "[through gritted teeth] We are all waiting on {real}. [growling] All of us. The dead guy's waiting, {real}. Shit.",
-      "[growling] {real}, you've had all night. [shouting] Pick a goddamn name! Any name! Mine! I don't care!",
-      "[barely holding it together] {real} is still thinking. [roaring] Thinking?! You haven't thought all night, you gin-soaked bastard!",
-      "[dead serious] Every one of you has locked in. Except one. [short pause] [screaming] {real}! For fuck's sake, {real}!",
+      "[dead serious] Everybody's locked in except {real}. [roaring] Lock it in, you dithering son of a bitch.",
+      "[seething] {real}. Three taps. Who, what, where. My dead grandmother is faster, goddamnit.",
+      "[through gritted teeth] We are all waiting on {real}. All of us. Shit.",
+      "[growling] {real}, pick a goddamn name. Any name. Mine. I don't care.",
+      "[dead serious] {real} is still thinking. [flat] {real} hasn't thought all night, the gin-soaked bastard.",
+      "[dead serious] Every one of you has locked in. Except {real}. [short pause] For fuck's sake, {real}.",
     ],
   },
   caught: {
     classic: [
-      "{real}, caught red-handed. Next time, try looking a little less pleased with yourself.",
+      "{real}, caught red-handed. Try to look less pleased with yourself.",
       "Case closed. {real} did it, and {real} was the last to know we knew.",
-      "{real} is the killer, and a lousy liar. Horsefeathers, every word of it.",
-      "Police report: suspect {real}. Motive: plenty. Alibi: applesauce. Status: caught.",
+      "{real} is the killer, and a lousy liar.",
       "{real}, the jig is up. Hand over the gin and come quietly.",
-      "Nice try, {real}. You fooled nobody, but you fooled them with real confidence.",
+      "Nice try, {real}. You fooled nobody, with real confidence.",
+      "{real} did it. Not well. But {real} did it.",
     ],
     adult: [
       "Caught, {real}. Your alibi was horsefeathers, and your poker face was a white flag.",
-      "{real}, you did it, and you did it badly. Half of Tammany Hall is embarrassed for you.",
-      "Got you, {real}. Tell it to Sweeney. Better yet, tell it to the judge. He doesn't believe you either.",
-      "Wanted poster, updated: {real}. Crime: murder. Skill level: chump. Reward: none. We've already got the sap.",
+      "{real}, you did it, and you did it badly.",
+      "Got you, {real}. Tell it to the judge. He doesn't believe you either.",
       "{real}, caught by this crowd. This crowd, {real}. That's like getting outrun by a parked Packard.",
-      "Congratulations, {real}. You killed a man and got caught by people who've been drinking since six. Damn.",
+      "{real} killed a man and got caught by people who've been drinking since six. Damn.",
+      "{real} is the killer. A dumb one, but still.",
     ],
     sailor: [
-      "[roaring] {real}! WE GOT YOU, YOU MURDERING SON OF A BITCH!",
-      "[dead serious] {real}. Caught. [short pause] [seething] By these idiots. [shouting] You got caught by THESE idiots, you dumb bastard!",
-      "[growling] {real} did it. [roaring] In my club! Under my roof! [dead serious] Get out of my sight, you rat-faced prick.",
-      "[through gritted teeth] Your lying was shit, {real}. Your alibi was shit. [screaming] Your whole fucking act was SHIT!",
-      "[seething] {real}, you killed the Don and couldn't even get away with it. [roaring] Amateur! Goddamn amateur hour!",
-      "[barely holding it together] {real}. I liked you, {real}. [short pause] [roaring] I LIKED you, you treacherous bastard!",
+      "[dead serious] {real}. We got you, you murdering son of a bitch.",
+      "[flat] {real}. Caught. By these idiots. You got caught by these idiots, you dumb bastard.",
+      "[growling] {real} did it. In my club. Get out of my sight, you rat-faced prick.",
+      "[through gritted teeth] Your lying was shit, {real}. Your alibi was shit. The whole act was shit.",
+      "[seething] {real} killed the Don and couldn't even get away with it. Goddamn amateur.",
+      "[dead serious] I liked you, {real}. [short pause] I don't anymore, you treacherous bastard.",
     ],
   },
   gotAway: {
     classic: [
-      "{real} did it, and {real} got away with it. The rest of you, take notes. Or a nap.",
-      "{real} walks free. Somewhere, a detective just threw his hat on the floor.",
-      "Well played, {real}. You lied to every face in this room, and they thanked you for it.",
+      "{real} did it, and {real} got away with it. The rest of you, take notes.",
+      "{real} walks free. The detectives in this room should be embarrassed.",
+      "Well played, {real}. You lied to every face in here, and they thanked you.",
       "{real} got away with it. The rest of you couldn't catch a cold.",
       "Hats off to {real}, the only person here who did their job tonight.",
-      "{real}: killer, liar, winner. The detectives: wet blankets, every one.",
+      "{real}: killer, liar, winner. Everyone else: wet blankets.",
     ],
     adult: [
-      "{real} did it and walked. You had the evidence, and you got played like a room full of saps.",
-      "{real} got away with murder in a room full of detectives. Some detectives. Applesauce.",
-      "{real} is free, smug and buying the next round. The rest of you are chumps. Drink up.",
-      "Police statement: we had {real} cornered. Then we went for a sandwich. Sorry, everybody.",
-      "{real} walks. Somewhere in Chicago, Al Capone just felt a little jealous.",
-      "{real} lied to your faces all night, and you bought every word like a chump at Coney Island.",
+      "{real} did it and walked. You had the evidence, and you got played like saps.",
+      "{real} got away with murder in a room full of detectives. Some detectives.",
+      "{real} is free, smug and buying the next round. The rest of you are chumps.",
+      "{real} walks. Somewhere in Chicago, Al Capone feels a little jealous.",
+      "{real} lied to your faces all night, and you bought every word.",
+      "{real} got away with it. The rest of you couldn't find your own ass with both hands.",
     ],
     sailor: [
-      "[seething] {real} did it. [roaring] And walked! Right past every one of you blind sons of bitches!",
-      "[dead serious] {real} got away with it. [short pause] [screaming] {real} got away with it, and you jackasses HELPED, goddamnit!",
-      "[growling] Congratulations, {real}. [through gritted teeth] You're a goddamn genius, or they're all fucking idiots. [shouting] Both! It's both!",
-      "[barely holding it together] {real} walks out of my club a free killer. [roaring] And I'm holding the door, you smug bastard!",
-      "[dead serious] Look at {real}. Smiling. [roaring] Wipe that shit-eating grin off your face, you lucky son of a bitch!",
-      "[seething] {real} fooled every one of you. [shouting] Every one! I've seen sharper detectives at the fucking fish market!",
+      "[seething] {real} did it and walked, right past every one of you blind sons of bitches.",
+      "[dead serious] {real} got away with it, and you jackasses helped. Goddamnit.",
+      "[growling] Congratulations, {real}. Either you're a genius, or they're all fucking idiots. It's both.",
+      "[flat] {real} walks out of my club a free killer. I'm holding the door, you smug bastard.",
+      "[dead serious] Look at {real}. Smiling. Wipe that grin off your face, you lucky son of a bitch.",
+      "[seething] {real} fooled every one of you. I've seen sharper detectives at the fucking fish market.",
     ],
   },
   primeSuspect: {
     classic: [
-      "{real}, innocent all along. The rest of you owe {real} an apology, and a drink.",
+      "{real}, innocent all along. The rest of you owe {real} an apology.",
       "Prime Suspect: {real}. Didn't do it. Just has that kind of face.",
-      "{real} was accused more than anyone and didn't do a thing. Looked like it all night, though.",
-      "Most wanted, least guilty: {real}. Somebody get {real} a lawyer and a mirror.",
-      "{real} is innocent. Shocking, given how guilty {real} looked all night.",
-      "Police note: {real} was not the killer. Police also note: {real} was not much help.",
+      "{real} was accused more than anyone and didn't do a thing. Looked like it, though.",
+      "{real} is innocent. Shocking, given that face.",
+      "Most wanted, least guilty: {real}.",
+      "{real} didn't do it. {real} also didn't help.",
     ],
     adult: [
-      "Prime Suspect: {real}. Innocent, it turns out. Guilty of looking shifty in the first degree.",
-      "{real} didn't do it. You all piled on {real} anyway, like Tammany on a ballot box. Classy.",
-      "{real}, innocent as a lamb, and you still look like you robbed the Bank of United States. Damn.",
-      "The most accused person tonight, {real}, did absolutely nothing all night. Investigators confirm: as usual.",
+      "Prime Suspect: {real}. Innocent. Guilty of looking shifty in the first degree.",
+      "{real} didn't do it. You all piled on anyway. Classy.",
+      "{real} is innocent and still looks like they robbed a bank. Damn.",
+      "The most accused person tonight, {real}, did absolutely nothing. As usual.",
       "{real} is innocent. Most of you said otherwise. Most of you are saps.",
-      "Prime Suspect {real}: wrongly accused, rightly mocked. Sorry, {real}. You do have a guilty face, you pill.",
+      "Sorry, {real}. You didn't do it. You just have a guilty face, you pill.",
     ],
     sailor: [
-      "[dead serious] {real} didn't do it. [roaring] You blind jackasses pinned it on {real} anyway! Shit!",
-      "[seething] {real}. Innocent. [shouting] But you look guilty as hell, {real}! Fix your goddamn face!",
-      "[through gritted teeth] Prime Suspect goes to {real}, who did nothing. [roaring] Nothing! All night! Not even detective work, you lazy bastard!",
-      "[growling] Every finger in this room pointed at {real}. [screaming] And {real} was innocent! You're all shit at this!",
-      "[dead serious] {real}, they all thought it was you. [short pause] [seething] I did too. [shouting] Act less fucking shifty!",
-      "[barely holding it together] Innocent. {real} is innocent. [roaring] Then why the hell do you look like that, {real}?!",
+      "[dead serious] {real} didn't do it. You blind jackasses pinned it on {real} anyway. Shit.",
+      "[seething] {real}. Innocent. But you look guilty as hell, {real}. Fix your goddamn face.",
+      "[flat] Prime Suspect goes to {real}, who did nothing all night. Not even detective work, you lazy bastard.",
+      "[growling] Every finger in this room pointed at {real}. And {real} was innocent. You're all shit at this.",
+      "[dead serious] {real}, they all thought it was you. So did I. Act less fucking shifty.",
+      "[through gritted teeth] Innocent. {real} is innocent. Then why the hell do you look like that, {real}?",
     ],
   },
   bestDetective: {
     classic: [
-      "Best Detective: {real}. Sharp eyes, sharp mind, and a very smug face right now.",
-      "{real} cracked the case. The rest of you were, at best, furniture.",
-      "{real}, Best Detective. The police would hire you, but you're overqualified.",
+      "Best Detective: {real}. Sharp eyes, sharp mind, very smug face.",
+      "{real} cracked the case. The rest of you were furniture.",
+      "{real}, Best Detective. Please don't make it your whole personality.",
       "Best Detective goes to {real}, who did all the work while the rest of you ate the snacks.",
     ],
     adult: [
       "{real}, Best Detective. You'll be an insufferable pill about this until Christmas.",
-      "{real} cracked it while the rest of you chumps were licking the cheese plate.",
-      "Best Detective, {real}. The Pinkertons called. They said no, but they said it nicely.",
+      "{real} cracked it while the rest of you chumps licked the cheese plate.",
+      "Best Detective, {real}. Don't let it go to your head. There's not much room up there.",
       "{real} solved the murder, which in this crowd is like being the tallest jockey at Belmont.",
     ],
     sailor: [
-      "[growling] Best Detective, {real}. [dead serious] Congratulations. [roaring] You smug, sharp-eyed son of a bitch!",
-      "[seething] {real} solved it. [shouting] {real}! While the rest of you sat on your asses!",
-      "[through gritted teeth] {real}. Best Detective. I hate it. [roaring] I fucking hate how good you are!",
-      "[dead serious] Best Detective goes to {real}. [short pause] [growling] Don't smile. Don't you goddamn smile.",
+      "[dead serious] Best Detective, {real}. Congratulations, you smug, sharp-eyed son of a bitch.",
+      "[seething] {real} solved it, while the rest of you sat on your asses.",
+      "[through gritted teeth] {real}. Best Detective. I hate how good you are. I fucking hate it.",
+      "[dead serious] Best Detective goes to {real}. Don't smile. Don't you goddamn smile.",
     ],
   },
   bestDressed: {
     classic: [
-      "Best Dressed: {real}. Finally, someone here who looks like they own the place.",
+      "Best Dressed: {real}. Finally, someone who looks like they own the place.",
       "{real} wins Best Dressed. The rest of you dressed like you lost a bet.",
-      "Best Dressed, {real}. Word is the outfit has a better alibi than {real} does.",
-      "{real}, Best Dressed. Sharp suit, sharp shoes, and a brain still at the tailor's.",
+      "Best Dressed, {real}. The outfit has a better alibi than {real} does.",
+      "{real}, Best Dressed. Sharp outfit, dull brain.",
     ],
     adult: [
       "Best Dressed: {real}. Looks like a million bucks. Investigates like a flat tire.",
-      "{real} wins Best Dressed. Gorgeous, {real}. Shame about the detective work.",
-      "{real}, Best Dressed. The outfit is a ten. The alibi is horsefeathers.",
+      "{real} wins Best Dressed. Looks great, {real}. Shame about the detective work.",
+      "{real}, Best Dressed. The outfit's a ten. The alibi is horsefeathers.",
       "Best Dressed, {real}, who looks like a Ziegfeld headliner and thinks like a coat rack.",
     ],
     sailor: [
-      "[growling] Best Dressed, {real}. [dead serious] You look good. [roaring] You look too goddamn good for this dump!",
-      "[seething] {real} wins Best Dressed. [shouting] All that tailoring and still a dumbass!",
-      "[through gritted teeth] {real}. Best Dressed. [roaring] I wore a TIE, {real}! A tie! Shit!",
-      "[dead serious] Best Dressed goes to {real}. [short pause] [roaring] All that money on clothes, and not one dime on a clue, you fancy bastard!",
-    ],
-  },
-  bestLiar: {
-    classic: [
-      "Best Liar: {real}. Innocent of murder, guilty of everything else.",
-      "{real} wins Best Liar, and is now denying it. Of course.",
-      "Best Liar, {real}. Not a killer. Just very, very good at applesauce.",
-      "{real}, Best Liar. Didn't do the murder, but lied about that secret like a pro.",
-    ],
-    adult: [
-      "Best Liar: {real}, who didn't even kill anybody and still lied all night. Horsefeathers, start to finish.",
-      "{real} wins Best Liar. Innocent, and still a lying pill. Strictly a hobbyist.",
-      "{real}, Best Liar. Tell it to Sweeney, {real}. Actually, don't. Sweeney fell for it too.",
-      "Best Liar goes to {real}, who looked you all in the eye and fed you baloney all night.",
-    ],
-    sailor: [
-      "[growling] Best Liar, {real}. [dead serious] You didn't even do it. [roaring] You lied for FUN, you sick son of a bitch!",
-      "[seething] {real} wins Best Liar. [shouting] I believed you! I believed every goddamn word!",
-      "[through gritted teeth] {real}. Best Liar. Innocent. [roaring] Innocent, and still full of shit!",
-      "[dead serious] Best Liar goes to {real}. [short pause] [screaming] Horsefeathers! Baloney! Lies! You lying bastard!",
+      "[dead serious] Best Dressed, {real}. You look too goddamn good for this dump.",
+      "[flat] {real} wins Best Dressed. All that tailoring and still a dumbass.",
+      "[through gritted teeth] {real}. Best Dressed. I wore a tie, {real}. A tie. Shit.",
+      "[dead serious] Best Dressed goes to {real}. All that money on clothes, and not one dime on a clue, you fancy bastard.",
     ],
   },
 };
@@ -1643,7 +1624,26 @@ const ROLL_INTROS: Record<GameTone, string[]> = {
  * nickname is in).
  */
 export const CAST_INTROS: Record<Tone, string[]> = {
-  classic: ["Introducing {real}{aka}.", "Next, {real}{aka}.", "Say hello to {real}{aka}."],
+  // Oct 18 (Heston: "need more roll call jokes, enough for each person to have a unique joke made. maybe 16 total
+  // jokes, assigned at random per person every game"): 16 a script, dealt so nobody in a game shares one.
+  classic: [
+    "Introducing {real}{aka}. Here on a dare, staying for the free gin.",
+    "Next, {real}{aka}, who has already lost their coat-check ticket.",
+    "Say hello to {real}{aka}, who was told this was a church social.",
+    "Please welcome {real}{aka}. The doorman checked twice and let them in anyway.",
+    "Late, as always: {real}{aka}.",
+    "Here is {real}{aka}, who pays the tab in buttons.",
+    "Ladies and gentlemen, {real}{aka}. Try not to make any sudden moves.",
+    "From the cheap seats: {real}{aka}.",
+    "Fresh off the trolley and still lost: {real}{aka}.",
+    "Wanted for questioning in three counties: {real}{aka}.",
+    "Here is {real}{aka}. The band has agreed to keep playing anyway.",
+    "Next up, {real}{aka}, who owes everyone in this room a nickel.",
+    "Somebody's mother made them come: {real}{aka}.",
+    "The pride of Hoboken, apparently: {real}{aka}.",
+    "Keep one eye on your wallet. Here's {real}{aka}.",
+    "Dressed for the occasion, roughly: {real}{aka}.",
+  ],
   adult: [
     "Oh, for crying out loud. It's {real}{aka}.",
     "Guilty until proven otherwise: {real}{aka}.",
@@ -1655,6 +1655,12 @@ export const CAST_INTROS: Record<Tone, string[]> = {
     "Mugshot number four hundred and twelve: {real}{aka}.",
     "Lock up the silverware: {real}{aka}.",
     "Trouble, party of one: {real}{aka}.",
+    "The flat tire of the evening: {real}{aka}.",
+    "Banned from two speakeasies and a bowling alley: {real}{aka}.",
+    "Nobody invited them, and yet, here we are: {real}{aka}.",
+    "Smells like bathtub gin and bad decisions: {real}{aka}.",
+    "The biggest sap in Manhattan, and that's a hell of a competition: {real}{aka}.",
+    "{real}{aka}. Looks innocent. That's what worries the hell out of me.",
   ],
   sailor: [
     "{real}{aka}. [growling] God help us all. Shit. Bastard. Hell.",
@@ -1663,14 +1669,24 @@ export const CAST_INTROS: Record<Tone, string[]> = {
     "[seething] From the files of the New York Police Department, the big fucking file: {real}{aka}.",
     "{real}{aka}. [through gritted teeth] Who the hell let this one in?",
     "[growling] Hide the goddamn silverware: {real}{aka}.",
+    "[dead serious] {real}{aka}. [roaring] I owe this one money! Shit!",
+    "[growling] Oh, hell no. Not this one. [sighs] {real}{aka}.",
+    "[shouting] Who invited {real}{aka}?! [dead serious] I'm firing the doorman. Goddamnit.",
+    "[seething] {real}{aka}. Banned from my club in 1926. [roaring] And yet, here you fucking are!",
+    "[through gritted teeth] Smile for the mugshot, {real}{aka}. Bastard.",
+    "[growling] {real}{aka}. [dead serious] I've seen better faces on a fish. A dead fish. Shit.",
+    "[roaring] Everybody hide your gin! It's {real}{aka}! Damnit!",
+    "[dead serious] {real}{aka}. [short pause] No. [shouting] Absolutely fucking not.",
+    "[seething] Here's {real}{aka}, dressed for a goddamn funeral.",
+    "[growling] Keep your hands where I can see them, {real}{aka}, you shifty son of a bitch.",
   ],
 };
 
 /** "Introducing Josh Lee, a.k.a. Two-Tone." Varied per guest (and, given a game's seed, per game) so it doesn't drone. */
-export function rollIntro(tone: Tone, char: string, real: string, seed = "", cast = false, nickname = ""): string {
+export function rollIntro(tone: Tone, char: string, real: string, seed = "", cast = false, nickname = "", pick?: number): string {
   const real1 = real.trim() || "a mystery guest";
-  // Picked by the real name, so the caption and the recording (which may spell the name the guest's way) match.
-  const h = hashOf(`${seed}${real1}`);
+  // Oct 18: the game deals each guest their own joke (pick); older callers pick by the name.
+  const h = pick ?? hashOf(`${seed}${real1}`);
   if (cast) {
     const list = CAST_INTROS[tone].length ? CAST_INTROS[tone] : CAST_INTROS.adult;
     return list[h % list.length].replace("{real}", real1).replace("{aka}", nickname.trim() ? `, a.k.a. ${nickname.trim()}` : "");
@@ -1679,12 +1695,16 @@ export function rollIntro(tone: Tone, char: string, real: string, seed = "", cas
   return list[h % list.length].replace("{char}", char).replace("{real}", real1);
 }
 
-/** What the roll call says about one guest: who they are, and (cast) their nickname. */
-export type RollParts = { name: string; real: string; nickname?: string; seed?: string; cast?: boolean };
+/** What the roll call says about one guest: who they are, and (cast) their nickname; Oct 18: their joke and motive. */
+export type RollParts = { name: string; real: string; nickname?: string; seed?: string; cast?: boolean; pick?: number; motive?: string };
 
-/** One guest's roll-call line: just the introduction (about 3 to 4 seconds). */
+/**
+ * One guest's roll-call line: the introduction (their own joke), then their motive (Oct 18, Heston: "at the roll call
+ * each persons motive is read aloud for everyone to hear").
+ */
 export function rollNarration(tone: Tone, p: RollParts) {
-  return { text: rollIntro(tone, p.name, p.real, p.seed, p.cast, p.nickname) };
+  const intro = rollIntro(tone, p.name, p.real, p.seed, p.cast, p.nickname, p.pick);
+  return { text: p.motive ? `${intro} Motive: ${p.motive}` : intro };
 }
 
 const NOISES: Record<Tone, string[]> = {

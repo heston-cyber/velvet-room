@@ -119,7 +119,8 @@ export default function ProfileForm(props: {
   const requiredFor = (s: StepId): TextKey[] => {
     switch (s) {
       case "you":
-        return castPick ? (castPick.mystery ? ["firstName", "lastName"] : ["lastName"]) : [];
+        // Oct 18: everyone types their real first name (the narrator's insults use it).
+        return castPick ? ["firstName", "lastName"] : [];
       default:
         return [];
     }
@@ -303,7 +304,11 @@ export default function ProfileForm(props: {
           </div>
           {castPick && (
             <>
-              {mystery && field("firstName", "Your first name", { ph: "e.g. Ruth" })}
+              {/* Oct 18 (Heston: "at sign up people will input their real name (this is only used for the mid game insults)"). */}
+              {field("firstName", mystery ? "Your first name" : "Your real first name", {
+                ph: "e.g. Ruth",
+                help: mystery ? undefined : "The narrator uses it now and then, mostly to insult you.",
+              })}
               {field("lastName", "Your last name", { ph: "e.g. Hill" })}
               {field("nickname", "Your 1920s nickname · optional", {
                 ph: "e.g. Two-Tone, The Knife, Lucky",
@@ -322,7 +327,7 @@ export default function ProfileForm(props: {
           {progress}
           <h2>Last look</h2>
           <MemberCard charName={fullName || values.charName} figure={values.figure || null} />
-          <p className="help">The house writes your motive and your secret. Your role arrives on your phone right after the roll call.</p>
+          <p className="help">The house writes your motive, and the narrator reads it out at the roll call. Your role arrives on your phone right after.</p>
           <label className="optin" htmlFor="f-killer">
             <input type="checkbox" id="f-killer" checked={!values.killerOk} onChange={(e) => set("killerOk", !e.target.checked)} />
             <span>
