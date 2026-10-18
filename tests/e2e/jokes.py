@@ -96,8 +96,10 @@ with sync_playwright() as p:
     ok(len(multi) >= 40, f"each game picks a version of every line ({len(multi)})")
     ok(all(h2["lines"][k] != h1["lines"][k] for k in multi), "game 2 hears a different version of every line than game 1")
     ok(all(len({h1["lines"][k], h2["lines"][k], h3["lines"][k]}) == 3 for k in multi), "game 3 hears the third one")
-    ok(not any(":gag:" in i for i in h1["heckles"] + h2["heckles"]), "no running gag in games 1 and 2")
-    ok(sum(":gag:" in i for i in h3["heckles"]) >= 6, "game 3 has the running gag")
+    # Oct 18: the gag night (every third game) sends every insult to one guest.
+    ok(not h1["gag"] and not h2["gag"], "no gag night in games 1 and 2")
+    ok(h3["gag"], "game 3 is the gag night")
+    ok(all(":insult:" in i for i in h1["heckles"] + h2["heckles"] + h3["heckles"]), "every heckle is an insult (no jokes or asides)")
     ok(not set(h2["heckles"]) & set(h1["heckles"]), "game 2's heckles are all new")
     stored = host.evaluate("() => JSON.parse(localStorage.getItem('velvet-room:heard'))")
     ok(stored and len(stored["games"]) == 3, "the laptop remembers three games")

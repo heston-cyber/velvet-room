@@ -103,6 +103,7 @@ with sync_playwright() as p:
     ok(w.get_by_role("button", name="Step inside").count() == 0, "no welcome screen for a walk-in")
     shot(w, "01b-walkin-door.png")
     w.locator(".figure-grid button:not([disabled])").first.click()
+    w.fill("#f-firstName", "Walt")  # Oct 18: everyone types their real first name
     w.fill("#f-lastName", "Inman")
     # Oct 16: no "about you" page and no weapon pick; straight to the last look.
     w.get_by_role("button", name="Next: last look").click()

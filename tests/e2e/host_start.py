@@ -61,6 +61,7 @@ def sign_up(pg, last):
     if pg.get_by_role("button", name="Step inside").count():
         pg.get_by_role("button", name="Step inside").click()
     pg.locator(".figure-grid button:not([disabled])").first.click()
+    pg.fill("#f-firstName", "Pat")  # Oct 18: everyone types their real first name
     pg.fill("#f-lastName", last)
     pg.get_by_role("button", name="Next: last look").click()
     pg.get_by_role("button", name="Put me on the list").click()

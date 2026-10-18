@@ -78,7 +78,8 @@ with sync_playwright() as p:
     shot(pg, "01-signup-cast.png")
     pg.get_by_role("radio", name="Josh", exact=True).click()
     pg.get_by_role("button", name="Next: last look").click()
-    ok(wait_for(lambda: pg.get_by_text("Fill this in to continue.").count() == 1, 5), "the last name is required")
+    ok(wait_for(lambda: pg.get_by_text("Fill this in to continue.").count() == 2, 5), "the real first name and the last name are required (Oct 18)")
+    pg.fill("#f-firstName", "Josh")
     pg.fill("#f-lastName", "Lee")
     # Oct 16: a typed "aka" is dropped (the narrator says a.k.a. itself).
     pg.fill("#f-nickname", "aka Two-Tone")

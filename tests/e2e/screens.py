@@ -208,14 +208,9 @@ with sync_playwright() as p:
     for at, label in ((6, "reveal-line"), (16, "reveal-name"), (21, "reveal-how"), (30, "reveal-verdict"), (40, "reveal-votes")):
         host.wait_for_timeout(max(0, int((rt + at - time.time()) * 1000)))
         audit(label, 0)
-    # Oct 17: award votes, so the awards card shows several (Best Liar is innocents only: a vote for the killer is refused).
+    # Oct 17: award votes, so the awards card shows several (Oct 18: Best Dressed only).
     for i, gst in enumerate(guests):
-        for liar in (guests[(i + 1) % len(guests)]["id"], guests[(i + 2) % len(guests)]["id"]):
-            try:
-                mut("game:vote", {"token": gst["token"], "dressed": guests[(i + 1) % len(guests)]["id"], "liar": liar})
-                break
-            except Exception:
-                pass
+        mut("game:vote", {"token": gst["token"], "dressed": guests[(i + 1) % len(guests)]["id"]})
     mut("game:finish", {"slug": SLUG, "hostKey": KEY})
     audit("awards", 9000)
     audit("awards-names", 12000)

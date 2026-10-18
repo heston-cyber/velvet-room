@@ -102,7 +102,7 @@ export const roster = query({
         narrator: narratorOf(game),
         levels: levelsOf(game),
         // What this game picked at Start, so the laptop can steer clear of it next game (Oct 16).
-        heard: game.lines ? { script: scriptOf(game), lines: game.lines.picks, heckles: (await heckleWanted(ctx, game)).map((h) => h.line.id) } : null,
+        heard: game.lines ? { script: scriptOf(game), lines: game.lines.picks, heckles: (await heckleWanted(ctx, game)).map((h) => h.line.id), gag: !!game.lines.gag } : null,
         rulesAt: game.rulesAt ?? null,
         rollCallAt: game.rollCallAt ?? null,
         doorsAt: game.doorsAt ?? null,
