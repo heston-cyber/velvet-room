@@ -109,8 +109,8 @@ export const CUES = {
   // Phase 6 (Oct 21): new.
   howChips: {
     when: "How to play, chips",
-    classic: "Chips buy drinks and pay debts. Someone may try to buy your vote or your silence. [short pause] You can stay quiet. You can never lie.",
-    adult: "Chips buy drinks and pay debts. Somebody may try to buy your vote, or your silence. Take the money or don't. [short pause] Stay quiet if you like. But you can never lie. Not even for chips. Especially not for chips.",
+    classic: "Chips buy drinks, pay debts and place bets. Someone may try to buy your vote or your silence. [short pause] You can stay quiet. You can never lie.",
+    adult: "Chips buy drinks, pay debts and place bets. Somebody may try to buy your vote, or your silence. Take the money or don't. [short pause] Stay quiet if you like. But you can never lie. Not even for chips. Especially not for chips.",
     wild: ["[counting money, way too excited]", ""],
   },
   howRound: {
@@ -450,7 +450,7 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
   verdictKiller: ["Close, but no. The most votes missed the killer, the weapon or the room. The killer calls an Uber and sticks you with the surge pricing. What a bunch of NPCs."],
   howStory: ["Everyone's phone says where they were when the lights went out, with one detail you can check. The killer's is a lie dressed up as the truth, like every dating profile in Brooklyn. [short pause] Never show your phone. Ask around, and check the stories against the cards."],
   howTips: ["End of Round 2: two late tips hit this screen. One of them might be the killer's handiwork. Trust nothing. Especially the juicy one."],
-  howChips: ["Chips are money: drinks, debts, and the occasional bribe. Somebody may pay you for your vote or your silence. [short pause] Keeping quiet is allowed. Lying is not. Rules are rules, even in this city."],
+  howChips: ["Chips are money: drinks, debts, bets, and the occasional bribe. Somebody may pay you for your vote or your silence. [short pause] Keeping quiet is allowed. Lying is not. Rules are rules, even in this city."],
   askAround: ["Where was everybody when the lights went out? Ask. One of them is lying through their veneers."],
   lateTips: ["Late tips, hot off the group chat. One might be planted. Trust nobody, especially about yourself."],
   runoffWho: ["It's a tie, you indecisive jackasses. Last words first: thirty seconds each. Beg, cry, or throw somebody under the bus."],

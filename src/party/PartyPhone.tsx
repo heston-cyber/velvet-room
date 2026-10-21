@@ -1208,7 +1208,7 @@ function Rulebook({ data, onClose }: { data: Phone; onClose: () => void }) {
         </S>
       )}
       <S h="Chips">
-        <p>Chips buy drinks and pay debts. Someone may try to buy your vote or your silence; that's allowed. You can stay quiet. You can never lie, chips or no chips.</p>
+        <p>Chips buy drinks, pay debts and place bets (the Betting tab has the details). Someone may try to buy your vote or your silence; that's allowed. You can stay quiet. You can never lie, chips or no chips.</p>
       </S>
       <S h="Locking in">
         <p>After Round 3, everyone locks in on their phone: who did it, with which weapon, and in which room. Everyone locks in, the jailbird and the killer too. Once you lock in, it's final.</p>
