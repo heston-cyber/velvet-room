@@ -25,7 +25,9 @@ try: convex("admin:deleteTestGame", {"slug": SLUG})
 except Exception: pass
 hk = convex("admin:createGame", {"slug": SLUG, "title": "Fixes test", "isTest": True, "makeActive": False, "registrationClosesAt": int((time.time()+86400)*1000), "deadlineLabel": "x"})["hostKey"]
 convex("game:seedFakeCast", {"slug": SLUG, "guests": 5, "markers": 6, "seed": 5, "checkIn": True})
-# v2: the doors open, the game starts, and the show is skipped so the roles go out (as on party night).
+# v2: the doors open, the game starts, and the show is skipped so the roles go out (as on party night). Every room
+# open, so marker 1 can be scanned in Round 1.
+convex("host:updateSettings", {"slug": SLUG, "hostKey": hk, "search": "all"})
 convex("game:openDoors", {"slug": SLUG, "hostKey": hk})
 convex("game:startGame", {"slug": SLUG, "hostKey": hk})
 convex("game:skipIntro", {"slug": SLUG, "hostKey": hk})
@@ -63,10 +65,10 @@ with sync_playwright() as p:
     check("case file opens after the first hold", True)
     pg.get_by_role("button", name="Open my case file").click()
     pg.get_by_role("button", name="Scan", exact=True).click()
-    pg.get_by_role("button", name="Scan a marker").click()
+    pg.get_by_role("button", name="Scan a card").click()
     try:
         expect(pg.locator(".clue")).to_be_visible(timeout=20000)
-        ok = f"marker {marker['number']}" in pg.locator(".screen .eyebrow").first.inner_text().lower()
+        ok = f"card {marker['number']}" in pg.locator(".screen .eyebrow").first.inner_text().lower()
         check("camera reads a printed marker QR and shows its clue", ok)
     except AssertionError:
         pg.screenshot(path=f"{OUT}/camera-fail.png"); check("camera reads a printed marker QR and shows its clue", False, " | ".join(logs[-4:]))
