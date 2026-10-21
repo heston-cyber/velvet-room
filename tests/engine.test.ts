@@ -338,7 +338,8 @@ describe("the engine", () => {
         games++;
         if (cf.clues.some((c) => c.kind === "witness")) witness++;
         if (cf.clues.some((c) => c.kind === "coroner")) coroner++;
-        clues += cf.clues.filter((c) => !["flavor", "herring"].includes(c.kind)).length;
+        // (Phase 3: story cards and the stash rule nothing out, so they don't count.)
+        clues += cf.clues.filter((c) => !["flavor", "herring", "story", "stash"].includes(c.kind)).length;
         wrong += input.suspects.length - 1 + input.exhibits.length - 1 + input.rooms.length - 1;
         const a = open(input, cf, 1);
         const b = open(input, cf, 2);
@@ -440,13 +441,12 @@ describe("the engine", () => {
       }
   });
 
-  // v4 (Oct 16, Heston): "it should not narrow down to exactly the answer at the end of the game. It's should still be
-  // ambiguous, but close", "narrows down the room and weapons but leaves the person more unknown", and "vary slightly
-  // across player size, evidence, and rooms ... vary slightly from game to game".
-  test("v4: the evidence leaves a few suspects standing (more in bigger games, varying game to game), usually one weapon and one room", () => {
-    const stats = new Map<number, { s: number[]; w: number[]; r: number[] }>();
-    for (const guests of [4, 6, 8, 10, 12, 15]) {
-      const st = { s: [] as number[], w: [] as number[], r: [] as number[] };
+  // v4 (Oct 16): "narrows down the room and weapons but leaves the person more unknown". Phase 3 (Oct 20, Heston: "yes
+  // still 3 suspects"): the evidence leaves exactly 3 standing (2 in games of 3 or 4), and the stories decide between them.
+  test("Phase 3: the evidence leaves exactly 3 suspects standing (2 in games of 3 or 4), usually one weapon and one room", () => {
+    const stats = new Map<number, { w: number[]; r: number[] }>();
+    for (const guests of [3, 4, 6, 8, 10, 12, 15]) {
+      const st = { w: [] as number[], r: [] as number[] };
       for (let seed = 1; seed <= 80; seed++) {
         const rng = seeded(seed * 613 + guests);
         const setup = setupFor(guests);
@@ -454,23 +454,15 @@ describe("the engine", () => {
         const cf = buildCase(input, rng);
         const fin = candidates(input, cf.clues, 3);
         expect(fin.s).toContain(cf.solution.killerId);
-        expect(fin.s.length).toBeGreaterThanOrEqual(2);
-        expect(fin.s.length).toBeLessThanOrEqual(5);
+        expect(fin.s.length).toBe(guests <= 4 ? 2 : 3);
         expect(fin.e.length).toBeLessThanOrEqual(2);
         expect(fin.r.length).toBeLessThanOrEqual(2);
-        st.s.push(fin.s.length);
         st.w.push(fin.e.length);
         st.r.push(fin.r.length);
       }
       stats.set(guests, st);
     }
-    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
-    // more open in bigger games
-    expect(mean(stats.get(15)!.s)).toBeGreaterThan(mean(stats.get(8)!.s));
-    expect(mean(stats.get(8)!.s)).toBeGreaterThan(mean(stats.get(4)!.s) - 0.01);
-    for (const [guests, st] of stats) {
-      // the same size varies from game to game (tiny games are always 2)
-      if (guests >= 6) expect(new Set(st.s).size).toBeGreaterThan(1);
+    for (const [, st] of stats) {
       // weapon and room: usually pinned
       expect(st.w.filter((x) => x === 1).length / st.w.length).toBeGreaterThan(0.65);
       expect(st.r.filter((x) => x === 1).length / st.r.length).toBeGreaterThan(0.7);
@@ -479,14 +471,13 @@ describe("the engine", () => {
     expect(Math.max(...stats.get(12)!.w, ...stats.get(15)!.w)).toBe(2);
   });
 
-  test("v4: openEnding scales with the party and stays in range", () => {
+  test("Phase 3: openEnding is 3 suspects (2 in games of 3 or 4) and one or two weapons and rooms", () => {
     for (const guests of [3, 4, 5, 8, 12, 20, 24]) {
       for (let seed = 1; seed <= 200; seed++) {
         const rng = seeded(seed + guests * 1000);
         const input = { ...fakeCast({ rng, guests: Math.min(guests, 15), rooms: ROOMS_6, markers: 10 }), suspects: Array.from({ length: guests }, (_, i) => ({ id: `p${i}`, name: `P${i}`, signature: "", who: "", killerOk: true })) };
         const o = openEnding(input, rng);
-        expect(o.suspects).toBeGreaterThanOrEqual(2);
-        expect(o.suspects).toBeLessThanOrEqual(Math.min(5, guests - 1, Math.max(2, Math.ceil(guests / 2))));
+        expect(o.suspects).toBe(guests <= 4 ? 2 : 3);
         expect([1, 2]).toContain(o.exhibits);
         expect([1, 2]).toContain(o.rooms);
       }

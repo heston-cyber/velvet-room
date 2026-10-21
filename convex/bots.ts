@@ -14,7 +14,9 @@ import type { MutationCtx } from "./_generated/server";
 import { insertSelfServeGame } from "./hosting";
 import {
   ballotsOf,
+  cardText,
   caseInput,
+  claimStash,
   closeVote,
   dealLetter,
   fakeGuestsFor,
@@ -132,7 +134,8 @@ async function scannedBy(ctx: MutationCtx, playerId: Id<"players">) {
   return new Set(rows.map((s) => s.markerNumber));
 }
 
-async function act(ctx: MutationCtx, game: Doc<"games">, chance: number) {
+async function act(ctx: MutationCtx, gameAtStart: Doc<"games">, chance: number) {
+  let game = gameAtStart;
   const rng = secure();
   const now = Date.now();
   const players = await playersOf(ctx, game._id);
@@ -193,6 +196,8 @@ async function act(ctx: MutationCtx, game: Doc<"games">, chance: number) {
       if (left.length && openCards.length - left.length < scanQuota(openCards.length)) {
         const m = left[Math.floor(rng() * left.length)];
         await ctx.db.insert("scans", { gameId: game._id, playerId: b._id, markerNumber: m.number, at: now });
+        // Phase 3: a bot can find the Don's stash first, the same as a guest.
+        game = await claimStash(ctx, game, cf?.clues.find((c) => c.channel === "marker" && c.markerNumber === m.number), b._id);
       } else {
         await ctx.db.patch(b._id, { readyRound: round });
         readied = true;
@@ -236,6 +241,8 @@ export const askBot = query({
     if (!bot || bot.gameId !== game._id || !bot.bot) throw new ConvexError("That's not one of the bots.");
     const cf = before(game) ? null : await caseFor(ctx, game);
     if (!cf) return { name: bot.charName, story: null as string | null, found: [] as { number: number; room: string; text: string }[] };
+    // Phase 3: "Where were you?" The bot tells its story (the killer bot, its cover).
+    const story = cf.stories?.find((s) => s.playerId === bot._id)?.told ?? null;
     const scans = await ctx.db
       .query("scans")
       .withIndex("by_player", (q) => q.eq("playerId", bot._id))
@@ -251,9 +258,9 @@ export const askBot = query({
         return {
           number: s.markerNumber,
           room: game.rooms.find((r) => r.key === m?.roomKey)?.label ?? "",
-          text: cf.clues.find((c) => c.channel === "marker" && c.markerNumber === s.markerNumber)?.text ?? "Nothing useful here.",
+          text: cardText(game, cf.clues.find((c) => c.channel === "marker" && c.markerNumber === s.markerNumber), bot._id),
         };
       });
-    return { name: bot.charName, story: null as string | null, found };
+    return { name: bot.charName, story, found };
   },
 });

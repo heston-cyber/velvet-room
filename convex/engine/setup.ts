@@ -16,12 +16,14 @@ export const LEGACY_SETUP: Setup = { rooms: 5, markers: 15 };
 
 /** The ledger: for each size of party, the rooms and evidence cards that play best. */
 // Weapons (Oct 16): the game draws them now that guests don't pick one; 6 like Clue, more for bigger parties.
+// Phase 3 (Oct 20): fewer cards (8 for 3-6 guests, 10 for 7-9, 12 for 10-12, 14 for 13-16). Spare cards are story
+// cards now, so every card says something.
 export const RECOMMENDED: { guests: [number, number]; rooms: number; markers: number; weapons: number }[] = [
   { guests: [3, 6], rooms: 4, markers: 8, weapons: 6 },
   { guests: [7, 9], rooms: 5, markers: 10, weapons: 6 },
-  { guests: [10, 12], rooms: 5, markers: 15, weapons: 8 },
-  { guests: [13, 16], rooms: 6, markers: 18, weapons: 8 },
-  { guests: [17, 24], rooms: 7, markers: 21, weapons: 10 },
+  { guests: [10, 12], rooms: 5, markers: 12, weapons: 8 },
+  { guests: [13, 16], rooms: 6, markers: 14, weapons: 8 },
+  { guests: [17, 24], rooms: 7, markers: 16, weapons: 10 },
 ];
 
 export function setupFor(guests: number): Setup {

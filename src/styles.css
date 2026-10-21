@@ -403,3 +403,7 @@ img { max-width: 100%; }
 .ask-bots .ab-list button { background: var(--well); border: 1px solid var(--rule); color: var(--paper); padding: 8px 12px; min-height: 44px; cursor: pointer; }
 .ask-bots .ab-list button[aria-pressed="true"] { border-color: var(--brass); color: var(--brass); }
 .bot-answer p { margin: 4px 0 8px; }
+
+/* Phase 3: the case file's "Where you were". */
+.story-file { display: grid; gap: 8px; }
+.story-file .story-text { margin: 0; font-size: 17px; line-height: 1.5; color: var(--paper); }

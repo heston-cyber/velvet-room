@@ -785,6 +785,14 @@ function CaseFile({ token, data }: { token: string; data: Phone }) {
           </>
         )}
       </div>
+      {/* Phase 3: where you were when the lights went out. Everyone's reads the same way, the killer's cover too. */}
+      {data.story && (
+        <div className="file story-file">
+          <span className="eyebrow">Where you were</span>
+          <p className="story-text">{data.story}</p>
+          <span className="help">Everyone has one. Ask around, and check stories against the cards.</span>
+        </div>
+      )}
       <Pacing token={token} data={data} />
     </div>
   );

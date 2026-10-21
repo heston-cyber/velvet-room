@@ -138,6 +138,8 @@ export default defineSchema({
     // Oct 20 (Heston: "I like the host setting for this"): who a gag night's insults can land on. "random" (the default):
     // every third game on the laptop, on a guest the game picks; "none": never; a guest's id: tonight, on them.
     roast: v.optional(v.union(v.literal("random"), v.literal("none"), v.id("players"))),
+    /** Phase 3: who scanned the Don's stash first ($200 in chips), and when. */
+    stash: v.optional(v.object({ playerId: v.id("players"), at: v.number() })),
     levels: v.optional(v.object({ voice: v.number(), music: v.number(), sfx: v.number() })),
     // Play again: game 2 is a fresh game with the same house setup. The old game points at it.
     gameNumber: v.optional(v.number()),

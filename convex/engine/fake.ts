@@ -15,6 +15,11 @@ export const FAKE_GUESTS: { name: string; sex: "m" | "f"; who: string; signature
   { name: "Officer Doyle", sex: "m", who: "Beat cop on the take.", signature: "Tin badge", weapon: "Nightstick", weaponDesc: "Black wood, leather strap.", kind: "blunt", rumor: "Arrests people, then sells them their own alibi." },
   { name: "Bunny LaRue", sex: "f", who: "Chorus girl who wants out of Hell's Kitchen.", signature: "Rabbit-fur stole", weapon: "Champagne bottle", weaponDesc: "Empty, green glass.", kind: "blunt", rumor: "Can cry on cue, and does it at every card table." },
   { name: "Doc Halloran", sex: "m", who: "A doctor who lost his license and found a bar.", signature: "Black medical bag", weapon: "Stethoscope", weaponDesc: "Rubber tubing, steel bell.", kind: "cord", rumor: "Still writes prescriptions. For gin." },
+  // Phase 3: enough for the simulations at 16 guests.
+  { name: "Rosie Maguire", sex: "f", who: "Hat-check girl who never forgets a face.", signature: "Ticket stubs", weapon: "Hat box", weaponDesc: "Round, striped, heavy.", kind: "blunt" },
+  { name: "Gus Pappas", sex: "m", who: "Runs the diner across the street, and the numbers.", signature: "Greasy apron", weapon: "Meat cleaver", weaponDesc: "Square blade, chipped.", kind: "blade" },
+  { name: "Lillian Shaw", sex: "f", who: "Heiress slumming it for the evening.", signature: "Pearl choker", weapon: "Letter opener", weaponDesc: "Silver, monogrammed.", kind: "blade" },
+  { name: "Ike Feeney", sex: "m", who: "Bootlegger with a truck and a temper.", signature: "Flat cap", weapon: "Crowbar", weaponDesc: "Iron, bent at one end.", kind: "blunt" },
 ];
 
 export const ROOMS_5: Room[] = [

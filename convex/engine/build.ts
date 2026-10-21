@@ -2,6 +2,7 @@ import { pick, shuffle } from "./rng";
 import { CLASSIC, deckPicker, type Line, type Say, type Script } from "./text";
 import { ADULT } from "./textAdult";
 import { hasJailVote } from "../shared";
+import { SPOTS, STASH, alibiText, dealSpots, drawDebts, drawTips, pairUp, spotsFor, storyWords, type Story, type Unit } from "./stories";
 import type {
   Briefing,
   CaseFile,
@@ -34,6 +35,8 @@ type Draft = {
   pointsAt?: string;
   /** The last round this clue may come out in (a cover clear, before the big clue that would make it old news). */
   by?: Round;
+  /** Phase 3: an alibi in the stories' words carries where it says each guest was. */
+  facts?: ClueFacts;
 };
 
 
@@ -234,6 +237,8 @@ export function validateCase(input: CaseInput, cf: CaseFile): Validation {
 
   // Oct 18: nothing contradicts anything else (where people were, which rooms were sealed, where he died and was found).
   problems.push(...worldProblems(input, cf));
+  // Phase 3: the stories, the story cards, the debts and the late tips.
+  problems.push(...storyProblems(input, cf));
 
   // Every guest has a briefing, and exactly one of them is the killer (and, with an accomplice, one the accomplice).
   if (cf.briefings.length !== input.suspects.length) problems.push("Not every guest has a briefing.");
@@ -270,6 +275,11 @@ const PLACE_WORDS: Record<Place, RegExp | null> = {
   kitchen: /kitchen|pantry/i,
   bath: /bath|powder|wash|restroom|lavatory/i,
   out: null,
+  // Phase 3: the stories' spots.
+  cellar: /cellar|basement/i,
+  stairs: /stair/i,
+  roof: /roof|terrace/i,
+  garage: /garage|carriage/i,
 };
 
 /** The room of the house a place is, if any (by the room's name: "The Bar" is the bar). */
@@ -311,6 +321,116 @@ export function worldProblems(input: CaseInput, cf: CaseFile): string[] {
   for (const c of cf.clues) {
     // Nothing says where it was found, or that it was found by the body (the cards sit all over the house).
     if (c.kind !== "witness" && /\b(next to|near|by|beside) the body\b|\bin here\b|\bthis room\b/i.test(c.text)) out.push(`Clue ${c.id} says where it was found.`);
+  }
+  return out;
+}
+
+/**
+ * Phase 3 (Oct 20): every story rule, checked from the case file alone.
+ * - Everyone has one story, in a spot that's none of the game's rooms; nobody shares a spot except a pair.
+ * - Pairs only among guests the evidence clears; the ones left standing, and the killer, are alone; at least 2 cleared
+ *   guests are alone (1 in games of 6 or fewer).
+ * - Every alibi says the same spot as the cleared guests' stories, and clears a pair together.
+ * - The deciding card breaks the killer's detail and nothing else, never in Round 1; no card backs up the killer.
+ * - Exactly one innocent left standing is backed up by a card; the other by none, and not by any other guest.
+ * - Story cards never name a guest, and break no innocent's story.
+ * - Two late tips about two different guests still standing after Round 2; two or three true debts.
+ */
+export function storyProblems(input: CaseInput, cf: CaseFile): string[] {
+  const out: string[] = [];
+  const stories = cf.stories ?? [];
+  const ids = input.suspects.map((x) => x.id);
+  const sol = cf.solution;
+  if (stories.length !== ids.length || new Set(stories.map((x) => x.playerId)).size !== ids.length || !ids.every((id) => stories.some((x) => x.playerId === id))) {
+    out.push("Not every guest has one story.");
+    return out;
+  }
+  const by = new Map(stories.map((x) => [x.playerId, x]));
+  const spots = new Map(SPOTS.map((x) => [x.key, x]));
+  const details = new Map(SPOTS.flatMap((x) => x.details.map((d) => [d.id, d] as const)));
+  const ruledOut = new Set(cf.clues.flatMap((c) => c.elim.suspects));
+  const standing = ids.filter((id) => !ruledOut.has(id));
+  const innocentsStanding = standing.filter((id) => id !== sol.killerId);
+  const names = input.suspects.map((x) => x.name).filter(Boolean);
+  // Spots: real, not a room in play, one unit each.
+  const atSpot = new Map<string, string[]>();
+  for (const st of stories) {
+    const sp = spots.get(st.spot);
+    if (!sp) out.push(`${st.playerId}'s story is in a spot that doesn't exist.`);
+    else if (roomOfPlace(input.rooms, sp.place)) out.push(`${st.playerId}'s story is in one of the game's rooms.`);
+    if (!sp?.details.some((d) => d.id === st.detail)) out.push(`${st.playerId}'s detail isn't one of the spot's.`);
+    atSpot.set(st.spot, [...(atSpot.get(st.spot) ?? []), st.playerId]);
+  }
+  for (const [spot, who] of atSpot) {
+    if (who.length > 2) out.push(`Three or more guests share ${spot}.`);
+    if (who.length === 2) {
+      const [a, b] = who.map((id) => by.get(id)!);
+      if (a.withId !== b.playerId || b.withId !== a.playerId) out.push(`Two guests at ${spot} who aren't together.`);
+      if (a.detail !== b.detail) out.push(`A pair at ${spot} with different details.`);
+    }
+  }
+  const topics = stories.map((x) => details.get(x.detail)?.topic).filter(Boolean);
+  if (new Set(topics).size !== new Set(stories.filter((x) => details.get(x.detail)?.topic).map((x) => x.spot)).size) out.push("Two stories on one topic.");
+  // Who's alone.
+  for (const st of stories) {
+    if (st.withId && (!by.has(st.withId) || by.get(st.withId)!.withId !== st.playerId)) out.push(`${st.playerId}'s partner doesn't say so.`);
+    if (st.withId && (!ruledOut.has(st.playerId) || !ruledOut.has(st.withId))) out.push("A pair with someone the evidence never clears.");
+  }
+  if (by.get(sol.killerId)!.withId) out.push("The killer isn't alone.");
+  for (const id of standing) if (by.get(id)!.withId) out.push("Someone left standing isn't alone.");
+  const clearedAlone = stories.filter((x) => ruledOut.has(x.playerId) && !x.withId).length;
+  const clearedCount = ids.filter((id) => ruledOut.has(id)).length;
+  if (clearedAlone < Math.min(clearedCount, ids.length <= 6 ? 1 : 2)) out.push("Too few cleared guests are alone: being alone would give the standing away.");
+  // The words: only a pair names a guest, and only their partner.
+  for (const st of stories) {
+    const partner = st.withId ? input.suspects.find((x) => x.id === st.withId)?.name : undefined;
+    const tail = partner ? st.text.replace(partner, "") : st.text;
+    if (names.some((n) => tail.includes(n))) out.push(`${st.playerId}'s story names a guest.`);
+  }
+  // Alibis agree with the stories, and a pair is cleared by one clue.
+  for (const c of cf.clues.filter((x) => x.facts?.spots)) {
+    for (const [pid, spot] of Object.entries(c.facts!.spots!)) {
+      if (by.get(pid)?.spot !== spot) out.push(`Clue ${c.id} says ${pid} was somewhere their story doesn't.`);
+      const partner = by.get(pid)?.withId;
+      if (partner && !c.elim.suspects.includes(partner)) out.push(`Clue ${c.id} clears half of a pair.`);
+    }
+  }
+  // Story cards.
+  const cards = cf.clues.filter((c) => c.kind === "story");
+  const killerDetail = by.get(sol.killerId)!.detail;
+  const breaking = cards.filter((c) => c.facts?.breaks);
+  if (breaking.length !== 1) out.push(`${breaking.length} deciding cards.`);
+  for (const c of breaking) {
+    if (c.facts?.detail !== killerDetail) out.push("The deciding card breaks an innocent's story.");
+    if (c.round < 2) out.push("The deciding card is in Round 1.");
+  }
+  for (const c of cards.filter((x) => !x.facts?.breaks)) {
+    const owners = stories.filter((x) => x.detail === c.facts?.detail);
+    if (!owners.length) out.push(`Story card ${c.id} backs up nobody's story.`);
+    if (owners.some((x) => x.playerId === sol.killerId)) out.push(`Story card ${c.id} backs up the killer.`);
+  }
+  for (const c of cards) if (names.some((n) => c.text.includes(n))) out.push(`Story card ${c.id} names a guest.`);
+  const backedUp = (id: string) => cards.filter((c) => !c.facts?.breaks && c.facts?.detail === by.get(id)!.detail).length;
+  if (innocentsStanding.length) {
+    const backed = innocentsStanding.filter((id) => backedUp(id) > 0);
+    if (backed.length !== 1) out.push(`${backed.length} of the innocents left standing are backed up by a card (want exactly 1).`);
+    if (backed.some((id) => backedUp(id) > 1)) out.push("The innocent left standing is backed up twice.");
+  }
+  // Late tips and debts.
+  const tips = cf.lateTips ?? [];
+  const afterR2 = remainingAfter(input, cf.clues, 2).suspects;
+  if (tips.length !== Math.min(2, afterR2.size)) out.push("Not two late tips.");
+  if (new Set(tips.map((t) => t.aboutId)).size !== tips.length) out.push("Both late tips name the same guest.");
+  for (const t of tips) if (!afterR2.has(t.aboutId)) out.push("A late tip names a guest already cleared.");
+  const debts = cf.debts ?? [];
+  if (debts.length < 2 || debts.length > 3) out.push("Not two or three debts.");
+  const pairs = new Set<string>();
+  for (const d of debts) {
+    if (d.fromId === d.toId || !ids.includes(d.fromId) || !ids.includes(d.toId)) out.push("A debt between the wrong guests.");
+    if (![100, 200, 300].includes(d.amount)) out.push("A debt that isn't $100 to $300.");
+    const k = [d.fromId, d.toId].sort().join("|");
+    if (pairs.has(k)) out.push("Two debts between the same two guests.");
+    pairs.add(k);
   }
   return out;
 }
@@ -358,6 +478,8 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
   let standing: Suspect[] = shuffle(rng, innocents).slice(0, plan.suspects - 1);
   let needAlibi = innocents.filter((s) => !standing.includes(s));
   let camoSus: Suspect[] = [];
+  // Phase 3: guests the witness clears and no alibi does (their own group for who stands with whom).
+  let witnessOnly: Suspect[] = [];
   // The witness: the killer is a man, or a woman. Needs every guest's drawing, and at least two innocents of each sex.
   // Not every game has one (about one in five goes without), so the ones left standing aren't always all one sex.
   if (killer.sex && input.suspects.every((s) => s.sex) && rng() < 0.8) {
@@ -370,6 +492,7 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
       standing = shuffle(rng, same).slice(0, plan.suspects - 1);
       // Some of the other sex get alibis too, before the witness talks, so the early alibis don't give the sex away.
       camoSus = shuffle(rng, other).slice(0, Math.round(other.length * (0.3 + rng() * 0.2)));
+      witnessOnly = other.filter((s) => !camoSus.includes(s));
       needAlibi = same.filter((s) => !standing.includes(s));
     }
   }
@@ -403,8 +526,48 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
   // A cover clear has to come out before its big clue: once the witness or the coroner has spoken, it's old news.
   const before = (k: ClueKind) => ((bigRound.get(k) ?? 4) - 1) as Round;
 
-  // 2. Alibis and weapon clears for the rest, one, two or (in bigger games) three to a clue.
+  // Phase 3: where everyone was when the lights went out. The killer and the innocents left standing are alone; the
+  // cleared pair up within the way they're cleared (so one alibi clears a pair), except a few who stay alone.
+  const N = input.suspects.length;
+  // Two groups: the ones alibis clear, and the ones the witness clears (with or without an earlier alibi). A pair in
+  // the second group with one alibi between them gets it together: its partner joins the early alibis.
+  const groups = [needAlibi, [...camoSus, ...witnessOnly]].map((g) => g.map((x) => x.id));
+  const together = pairUp(rng, groups, N <= 6 ? 1 : 2);
+  for (const t of together) {
+    if (t.length === 2 && t.some((id) => camoSus.some((x) => x.id === id))) {
+      for (const id of t) if (!camoSus.some((x) => x.id === id)) camoSus.push(witnessOnly.find((x) => x.id === id)!);
+    }
+  }
+  witnessOnly = witnessOnly.filter((x) => !camoSus.includes(x));
+  const units: Unit[] = dealSpots(rng, spotsFor(input.rooms, roomOfPlace), [[killer.id], ...standing.map((x) => [x.id]), ...together]) ?? [];
+  const unitOf = new Map(units.flatMap((u) => u.ids.map((id) => [id, u] as const)));
+  const sayN = (key: string, n: number) => say(`story-${key}-${n}`, Array.from({ length: n }, (_, i) => i));
+  const tone = input.tone === "adult" ? "adult" : "classic";
+
+  // 2. Alibis and weapon clears for the rest, one, two or (in bigger games) three to a clue. Phase 3: alibis say
+  // where people were in their stories' words, and a pair is always cleared together.
   const trios = input.suspects.length >= 9;
+  const storyAlibis = (who: Suspect[], by?: Round): Draft[] => {
+    const out: Draft[] = [];
+    const us = shuffle(rng, [...new Set(who.map((x) => unitOf.get(x.id)).filter((u): u is Unit => !!u))]);
+    while (us.length) {
+      const take = [us.pop()!];
+      const r = rng();
+      const size = () => take.reduce((n, u) => n + u.ids.length, 0);
+      if (us.length && size() + us[us.length - 1].ids.length <= (trios ? 3 : 2) && r < 0.45) take.push(us.pop()!);
+      const ids = take.flatMap((u) => u.ids);
+      const kind: ClueKind = ids.length === 1 ? "suspect" : ids.length === 2 ? "suspectPair" : "suspectTrio";
+      out.push({
+        kind,
+        text: alibiText(sayN, tone, take, name),
+        elim: { ...NONE, suspects: ids },
+        by,
+        facts: { spots: Object.fromEntries(take.flatMap((u) => u.ids.map((id) => [id, u.spot.key]))) },
+      });
+    }
+    return out;
+  };
+  // Older builds (no stories: the spots ran out): the alibi decks.
   const alibis = (who: Suspect[], by?: Round): Draft[] => {
     const out: Draft[] = [];
     const sus = shuffle(rng, who);
@@ -441,9 +604,10 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
     }
     return out;
   };
-  const suspectDrafts = alibis(needAlibi);
+  const withStories = units.length > 0;
+  const suspectDrafts = withStories ? storyAlibis(needAlibi) : alibis(needAlibi);
   const exhibitDrafts = clears(needClear);
-  const cover = [...alibis(camoSus, before("witness")), ...clears(camoEx, before("coroner"))];
+  const cover = [...(withStories ? storyAlibis(camoSus, before("witness")) : alibis(camoSus, before("witness"))), ...clears(camoEx, before("coroner"))];
 
   // 3. Rooms. The twist always carries the last word on the room.
   let twist: Draft;
@@ -501,12 +665,41 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
   // Oct 18: a clue's words are picked last (render, below), once every clue knows its round.
   const later = new Map<string, Draft>();
   const put = (c: PlacedClue, d: Draft) => {
-    placed.push({ ...c, text: d.text ?? "" });
+    placed.push({ ...c, text: d.text ?? "", ...(d.facts ? { facts: d.facts } : {}) });
     if (!d.text) later.set(c.id, d);
   };
   let n = 0;
   const id = () => `c${++n}`;
   const freeMarkers = shuffle(rng, input.markers);
+  // Phase 3: the story cards that matter are dealt first. The deciding card breaks the killer's detail: in a room that
+  // opens in Round 2 about 1 game in 3, Round 3 otherwise, never Round 1. One innocent left standing gets a card
+  // backing them up, in Round 2 or 3; the other gets none. Then every round from 2 on gets at least one story card,
+  // so where a story card turns up says nothing about which one it is.
+  const killerUnit = unitOf.get(killer.id);
+  const backed = standing[0] ? unitOf.get(standing[0].id) : undefined;
+  const takeMarker = (round: Round) => {
+    const i = freeMarkers.findIndex((m) => roundOf(m) === round);
+    return i < 0 ? undefined : freeMarkers.splice(i, 1)[0];
+  };
+  const hasIn = (round: Round) => freeMarkers.some((m) => roundOf(m) === round);
+  const storyCards: { round: Round; marker?: { number: number; roomKey: string }; detail: string; breaks?: true; text: string }[] = [];
+  if (withStories && killerUnit) {
+    const decRound: Round = hasIn(2) && (!hasIn(3) || rng() < 1 / 3) ? 2 : 3;
+    storyCards.push({ round: decRound, marker: takeMarker(decRound), detail: killerUnit.detail.id, breaks: true, text: killerUnit.detail.breaks });
+    if (backed) {
+      const options = ([2, 3] as Round[]).filter(hasIn);
+      const r = options.length ? pick(rng, options) : (pick(rng, [2, 3]) as Round);
+      storyCards.push({ round: r, marker: takeMarker(r), detail: backed.detail.id, text: backed.detail.confirm[0] });
+    }
+  }
+  // Cleared guests' details, for the other story cards: each backed up once, then (if there are cards to spare) twice.
+  const clearedUnits = shuffle(rng, units.filter((u) => u !== killerUnit && u !== backed && !u.ids.some((id) => standing.some((x) => x.id === id))));
+  const confirms: { detail: string; text: string }[] = [...clearedUnits.map((u) => ({ detail: u.detail.id, text: u.detail.confirm[0] })), ...clearedUnits.map((u) => ({ detail: u.detail.id, text: u.detail.confirm[1] }))];
+  for (const round of [2, 3] as Round[]) {
+    if (withStories && confirms.length && hasIn(round) && !storyCards.some((c) => c.round === round)) storyCards.push({ round, marker: takeMarker(round), ...confirms.shift()! });
+  }
+  // The Don's stash: one card, in any room, when there are cards enough to spare one.
+  const stashMarker = withStories && input.markers.length >= 6 && freeMarkers.length > 0 ? freeMarkers.splice(Math.floor(rng() * freeMarkers.length), 1)[0] : undefined;
   const markerFor = (round: Round, d: Draft) => {
     const i = freeMarkers.findIndex((m) => roundOf(m) === round && m.roomKey !== d.roomKey);
     return i < 0 ? undefined : freeMarkers.splice(i, 1)[0];
@@ -535,10 +728,25 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
       put({ id: id(), kind: "herring", text: "", elim: NONE, round: 2, channel: "tv", pointsAt: h.id }, d);
     }
   }
+  // Phase 3: the story cards (on their cards, or on the TV when the house has no card for them), the stash, at most
+  // one comedy card, and every card left over backs up a cleared guest's story.
+  for (const c of storyCards) {
+    const facts: ClueFacts = { detail: c.detail, ...(c.breaks ? { breaks: true } : {}) };
+    if (c.marker) placed.push({ id: id(), kind: "story", text: c.text, elim: NONE, round: c.round, channel: "marker", markerNumber: c.marker.number, facts });
+    else placed.push({ id: id(), kind: "story", text: c.text, elim: NONE, round: c.round, channel: "tv", facts });
+  }
+  if (stashMarker) placed.push({ id: id(), kind: "stash", text: STASH.found, elim: NONE, round: roundOf(stashMarker), channel: "marker", markerNumber: stashMarker.number });
   const flavor = shuffle(rng, S.flavor);
   let f = 0;
+  let comedy = 0;
   while (freeMarkers.length) {
     const m = freeMarkers.shift()!;
+    if (withStories && (comedy >= 1 || rng() < 0.5) && confirms.length) {
+      const c = confirms.shift()!;
+      placed.push({ id: id(), kind: "story", text: c.text, elim: NONE, round: roundOf(m), channel: "marker", markerNumber: m.number, facts: { detail: c.detail } });
+      continue;
+    }
+    comedy++;
     placed.push({ id: id(), kind: "flavor", text: flavor[f++ % flavor.length], elim: NONE, round: roundOf(m), channel: "marker", markerNumber: m.number });
   }
   // The twist reads last on the final drop.
@@ -596,7 +804,18 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
   });
 
   const open: Open = { suspects: standing.length + 1, exhibits: weaponsStanding.length + 1, rooms: roomsStanding.length + 1 };
-  return { solution: sol, bodyRoomKey: body.key, roomOrder: order, clues: placed, tips: [], briefings, attempts: 1, open };
+  // 9. Phase 3: everyone's story, the debts, and the two late tips (about guests still standing after Round 2).
+  const stories: Story[] = withStories
+    ? input.suspects.map((s) => {
+        const u = unitOf.get(s.id)!;
+        const other = u.ids.find((x) => x !== s.id);
+        return { playerId: s.id, spot: u.spot.key, ...(other ? { withId: other } : {}), detail: u.detail.id, ...storyWords(u, s.id, name) };
+      })
+    : [];
+  const left = remainingAfter(input, placed, 2).suspects;
+  const lateTips = withStories ? drawTips(rng, tone, input.suspects.filter((s) => left.has(s.id))) : [];
+  const debts = withStories ? drawDebts(rng, input.suspects.map((s) => s.id)) : [];
+  return { solution: sol, bodyRoomKey: body.key, roomOrder: order, clues: placed, tips: [], briefings, attempts: 1, open, stories, debts, lateTips };
 }
 
 /**
@@ -612,11 +831,9 @@ export function openEnding(input: CaseInput, rng: Rng): Open {
   const N = input.suspects.length;
   const W = input.exhibits.length;
   const R = input.rooms.length;
-  const base = N <= 4 ? 2 : N <= 7 ? 2.5 : N <= 10 ? 3 : N <= 14 ? 3.5 : N <= 18 ? 4 : 4.5;
-  let suspects = Math.floor(base + rng());
-  const j = rng();
-  suspects += j < 0.2 ? -1 : j >= 0.8 ? 1 : 0;
-  suspects = Math.max(Math.min(2, N - 1), Math.min(suspects, Math.max(2, Math.ceil(N / 2)), N - 1, 5));
+  // Phase 3 (Oct 20, Heston: "yes still 3 suspects"): exactly 3 standing, the killer and two innocents (2 in games of
+  // 3 or 4). The stories decide between them.
+  const suspects = N <= 4 ? 2 : 3;
   const exhibits = W >= 8 ? (rng() < 0.2 ? 2 : 1) : W >= 6 ? (rng() < 0.1 ? 2 : 1) : 1;
   const rooms = R >= 6 ? (rng() < 0.2 ? 2 : 1) : R >= 5 ? (rng() < 0.1 ? 2 : 1) : 1;
   return { suspects, exhibits, rooms };
@@ -635,7 +852,8 @@ export function buildCase(input: CaseInput, rng: Rng, solution?: Solution): Case
   let last: Validation | null = null;
   for (let attempt = 1; attempt <= 200; attempt++) {
     // A plan that won't build after a while gets a little narrower.
-    if (attempt === 80 || attempt === 140) plan = { suspects: Math.max(1, plan.suspects - 1), exhibits: 1, rooms: 1 };
+    // (Phase 3: the suspects stay at 3; only the weapons and rooms narrow.)
+    if (attempt === 80 || attempt === 140) plan = { suspects: plan.suspects, exhibits: 1, rooms: 1 };
     const cf = tryBuild(full, rng, sol, plan);
     const v = validateCase(full, cf);
     if (v.ok) return { ...cf, attempts: attempt, validation: v };

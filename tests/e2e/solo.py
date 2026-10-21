@@ -125,6 +125,11 @@ with sync_playwright() as p:
     phone.wait_for_timeout(700)
     phone.get_by_label("Press and hold to see your role").dispatch_event("pointerup")
     phone.get_by_role("button", name="Open my case file").click(timeout=10000)
+    # Phase 3: the case file says where you were when the lights went out.
+    ok(wait_for(lambda: phone.locator(".story-file").count() == 1, 10), "the case file has Where you were")
+    ok(phone.locator(".story-file .story-text").inner_text().startswith("When the lights went out, you were"), "with the guest's story")
+    phone.locator(".story-file").scroll_into_view_if_needed()
+    shot(phone, "03c-where-you-were.png")
 
     # Find a card without scanning it.
     phone.get_by_role("button", name="Scan", exact=True).click()
@@ -144,6 +149,7 @@ with sync_playwright() as p:
     ok(wait_for(lambda: phone.locator(".ask-bots").count() == 1, 10), "the Notebook has Ask the bots")
     phone.locator(".ask-bots .ab-list button").first.click()
     ok(wait_for(lambda: phone.get_by_text("What did you find?").count() == 1, 10), "a bot answers")
+    ok("I was " in phone.locator(".bot-answer").inner_text() and "story yet" not in phone.locator(".bot-answer").inner_text(), "and tells where it was (Phase 3)")
     phone.locator(".bot-answer").scroll_into_view_if_needed()
     shot(phone, "06-ask-a-bot.png")
 

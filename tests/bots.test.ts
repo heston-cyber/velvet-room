@@ -159,11 +159,14 @@ describe("a test game with bots", () => {
     // Finding a card by number works like scanning it.
     const found = await t.mutation(api.game.scanTestCard, { token: human, number: open[0].number });
     expect(found.number).toBe(open[0].number);
-    // Asking a bot gives the cards it found.
+    // Asking a bot gives its story (Phase 3: the killer bot tells its cover) and the cards it found.
     const aBot = phone.board!.suspects.find((s) => s.bot)!;
     const answer = await t.query(api.bots.askBot, { token: human, botId: aBot.id as never });
     expect(answer.name).toBeTruthy();
+    expect(answer.story).toMatch(/^I was .+, (alone|with .+)\. .+/);
     expect(Array.isArray(answer.found)).toBe(true);
+    // Phase 3: the human's own phone says where they were.
+    expect(phone.story).toMatch(/^When the lights went out, you were .+, (alone|with .+)\. .+/);
     // The bots are ready, and the round waits for the human (Oct 20: untimed rounds wait for everyone).
     const readyBots = await t.run(async (ctx) => (await ctx.db.query("players").collect()).filter((p) => p.bot && p.readyRound === 1).length);
     expect(readyBots).toBeGreaterThan(0);
@@ -203,5 +206,43 @@ describe("a test game with bots", () => {
     const todo = await t.mutation(internal.voice.claim, { gameId: g._id, scope: "start" });
     expect(todo.length).toBeGreaterThan(0);
     for (const w of todo) for (const id of botIds) expect(w.purpose).not.toContain(id);
+  });
+});
+
+describe("the Don's stash (Phase 3)", () => {
+  test("the first phone to scan the stash card gets $200; everyone after finds an empty envelope", async () => {
+    const t = convexTest(schema, modules);
+    const { slug, hostKey } = await t.mutation(api.bots.createBotGame, { bots: 5, speed: "fast" });
+    for (const [token, first, letter] of [["h1", "Ann", "Y"], ["h2", "Bea", "Z"]]) {
+      const g = await gameOf(t, slug);
+      const now = Date.now();
+      await t.run((ctx) =>
+        ctx.db.insert("players", {
+          gameId: g._id, token, realName: `${first} Hill`, firstName: first, charName: `Mystery ${first}`, charKey: `mystery ${first.toLowerCase()}`,
+          who: "", signature: "", killerOk: true, checkedIn: true, weaponIn: true, exhibitLetter: letter, claimedAt: now, figure: "mystery-f", createdAt: now, updatedAt: now,
+        }),
+      );
+    }
+    await t.mutation(api.game.openDoors, { slug, hostKey });
+    await t.mutation(api.game.startGame, { slug, hostKey, cards: "hidden" });
+    await t.run(async (ctx) => {
+      const g = (await ctx.db.query("games").withIndex("by_slug", (q) => q.eq("slug", slug)).unique())!;
+      await ctx.db.patch(g._id, { rolesOut: true, introEndsAt: Date.now() - 1000, round: 3 });
+    });
+    const cf = await t.run(async (ctx) => {
+      const { caseFor } = await import("../convex/caseFile");
+      const g = (await ctx.db.query("games").withIndex("by_slug", (q) => q.eq("slug", slug)).unique())!;
+      return caseFor(ctx, g);
+    });
+    const stash = cf!.clues.find((c) => c.kind === "stash");
+    expect(stash).toBeTruthy();
+    const first = await t.mutation(api.game.scanTestCard, { token: "h1", number: stash!.markerNumber! });
+    expect(first.text).toMatch(/\$200 in chips/);
+    const second = await t.mutation(api.game.scanTestCard, { token: "h2", number: stash!.markerNumber! });
+    expect(second.text).toMatch(/empty envelope/);
+    // Each phone keeps what it found.
+    expect((await t.query(api.game.phone, { token: "h1" }))!.scans.find((s) => s.number === stash!.markerNumber)!.text).toMatch(/\$200/);
+    expect((await t.query(api.game.phone, { token: "h2" }))!.scans.find((s) => s.number === stash!.markerNumber)!.text).toMatch(/empty/);
+    expect((await gameOf(t, slug)).stash?.playerId).toBeTruthy();
   });
 });

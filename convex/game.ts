@@ -7,7 +7,8 @@ import { ACCOMPLICE_ON, buildCase, checkInput, MIN_ACCOMPLICE, openRound, openRo
 import { secure, seeded, shuffle } from "./engine/rng";
 import { cardPlan } from "./engine/setup";
 import { FAKE_GUESTS, LETTERS } from "./engine/fake";
-import type { CaseFile, CaseInput } from "./engine/types";
+import type { CaseFile, CaseInput, PlacedClue } from "./engine/types";
+import { STASH } from "./engine/stories";
 import { charKeyOf, randomCode, registrationIsOpen, requireHost, requireTv } from "./lib";
 import { seal } from "./seal";
 import { caseFor } from "./caseFile";
@@ -576,6 +577,24 @@ export const scanTestCard = mutation({
 });
 
 /** Records a guest's scan of a card (once) and returns what it says, if they may read it now. */
+/**
+ * What a card says to this guest. Phase 3: the Don's stash pays the first phone to scan it; everyone after finds an
+ * empty envelope.
+ */
+export function cardText(game: Doc<"games">, clue: PlacedClue | undefined, playerId: string): string {
+  if (!clue) return "Nothing useful here.";
+  if (clue.kind === "stash") return !game.stash || game.stash.playerId === playerId ? STASH.found : STASH.empty;
+  return clue.text;
+}
+
+/** Phase 3: the first guest (or bot) to scan the stash card claims it. */
+export async function claimStash(ctx: MutationCtx, game: Doc<"games">, clue: PlacedClue | undefined, playerId: Id<"players">) {
+  if (clue?.kind !== "stash" || game.stash) return game;
+  const stash = { playerId, at: Date.now() };
+  await ctx.db.patch(game._id, { stash });
+  return { ...game, stash };
+}
+
 export async function scanFor(ctx: MutationCtx, game: Doc<"games">, player: Doc<"players">, marker: Doc<"markers">) {
   if (!marker.roomKey) throw new ConvexError(`Card ${marker.number} isn't in play tonight. Keep looking.`);
   if (game.status === "registration" || game.status === "lobby") throw new ConvexError("Nothing here yet. The cards come alive when the game starts.");
@@ -595,8 +614,9 @@ export async function scanFor(ctx: MutationCtx, game: Doc<"games">, player: Doc<
   if (!seen.some((s) => s.markerNumber === marker.number)) {
     await ctx.db.insert("scans", { gameId: game._id, playerId: player._id, markerNumber: marker.number, at: Date.now() });
   }
+  const now = await claimStash(ctx, game, clue, player._id);
   const room = game.rooms.find((r) => r.key === marker.roomKey);
-  return { number: marker.number, room: room?.label ?? "", text: clue?.text ?? "Nothing useful here." };
+  return { number: marker.number, room: room?.label ?? "", text: cardText(now, clue, player._id) };
 }
 
 export const saveNotebook = mutation({
@@ -790,6 +810,8 @@ export const phone = query({
               card: brief.role === "killer" ? await killerCard(ctx, game, cf, all) : null,
             }
           : null,
+      // Phase 3: where you were when the lights went out (the killer's cover reads exactly the same). Once the roles are out.
+      story: brief && cf && rolesOut ? cf.stories?.find((s) => s.playerId === player._id)?.text ?? null : null,
       scans: cf
         ? scans
             .sort((a, b) => a.at - b.at)
@@ -798,7 +820,7 @@ export const phone = query({
               return {
                 number: s.markerNumber,
                 room: game.rooms.find((r) => r.key === m?.roomKey)?.label ?? "",
-                text: cf.clues.find((c) => c.channel === "marker" && c.markerNumber === s.markerNumber)?.text ?? "",
+                text: cardText(game, cf.clues.find((c) => c.channel === "marker" && c.markerNumber === s.markerNumber), player._id),
               };
             })
         : [],
@@ -873,7 +895,7 @@ export const readMarker = query({
     if (isPlaying(game) && (game.round ?? 1) < opens) return { error: `${room?.label ?? "This room"} is sealed until Round ${opens}. Come back then.` };
     const cf = await caseFor(ctx, game);
     const clue = cf?.clues.find((c) => c.channel === "marker" && c.markerNumber === marker.number);
-    return { number: marker.number, room: room?.label ?? "", text: clue?.text ?? "Nothing useful here." };
+    return { number: marker.number, room: room?.label ?? "", text: cardText(game, clue, player._id) };
   },
 });
 

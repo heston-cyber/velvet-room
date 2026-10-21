@@ -208,7 +208,9 @@ describe("Phase 4: drawn body room, waves, Wi-Fi, the TV", () => {
     expect(await t.run((ctx) => ctx.db.query("markers").collect())).toHaveLength(0);
     const cf = await t.run(async (ctx) => (await caseFor(ctx, (await ctx.db.query("games").first())!))!);
     expect(cf.clues.every((c) => c.channel === "tv")).toBe(true);
-    expect(cf.clues.some((c) => !c.elim.suspects.length && !c.elim.exhibits.length && !c.elim.rooms.length && c.kind !== "twist" && c.kind !== "herring" && c.kind !== "flavor")).toBe(false);
+    // (Phase 3: the story cards that matter come out on the TV too; they rule nothing out on their own.)
+    expect(cf.clues.some((c) => !c.elim.suspects.length && !c.elim.exhibits.length && !c.elim.rooms.length && !["twist", "herring", "flavor", "story"].includes(c.kind))).toBe(false);
+    expect(cf.clues.filter((c) => c.kind === "story" && c.facts?.breaks)).toHaveLength(1);
   });
 
   // Oct 16: a host who sets no cards gets the recommended ones (the ledger in the menu) at Play.

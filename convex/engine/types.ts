@@ -1,3 +1,5 @@
+import type { Debt, LateTip, Story } from "./stories";
+
 // Pure game-engine types. Nothing in convex/engine touches the database,
 // so the whole engine can be tested offline against thousands of fake games.
 
@@ -32,10 +34,19 @@ export type Room = { key: string; label: string };
  * Oct 18: a place a clue says someone (or a watched weapon) was while the Don was killed. Each matches a room of the
  * house by its name ("The Bar" is the bar); "out" (the alley, the street, out back) is never a room.
  */
-export type Place = "bar" | "office" | "lounge" | "cards" | "front" | "kitchen" | "bath" | "out";
+export type Place = "bar" | "office" | "lounge" | "cards" | "front" | "kitchen" | "bath" | "out" | "cellar" | "stairs" | "roof" | "garage";
 
 /** What a placed clue claims about the night (Oct 18), checked against everything else before a game starts. */
-export type ClueFacts = { at?: Place[]; seal?: boolean; crowd?: boolean };
+export type ClueFacts = {
+  at?: Place[];
+  seal?: boolean;
+  crowd?: boolean;
+  /** Phase 3: an alibi in the stories' words, where it says each guest was (guest id to spot key). */
+  spots?: Record<string, string>;
+  /** Phase 3: a story card, the detail it backs up, or (the deciding card) breaks. */
+  detail?: string;
+  breaks?: boolean;
+};
 
 export type Marker = { number: number; roomKey: string };
 
@@ -79,7 +90,11 @@ export type ClueKind =
   | "room"
   | "twist"
   | "herring"
-  | "flavor";
+  | "flavor"
+  /** Phase 3: a card that backs up a story's detail, or (the deciding card) breaks the killer's. They read alike. */
+  | "story"
+  /** Phase 3: the Don's stash, $200 in chips for the first phone to scan it. */
+  | "stash";
 
 export type Round = 1 | 2 | 3;
 
@@ -133,6 +148,12 @@ export type CaseFile = {
    * answer is always among them). Older case files narrowed to exactly one of each.
    */
   open?: Open;
+  /** Phase 3 (Oct 20): where everyone was when the lights went out. Older case files have none. */
+  stories?: Story[];
+  /** Phase 3: who owes whom, always true. */
+  debts?: Debt[];
+  /** Phase 3: two real late tips for the jail vote (the killer's plant may replace one). */
+  lateTips?: LateTip[];
 };
 
 /** What the evidence leaves standing at the end (v4): a few suspects, usually one weapon and one room. */
