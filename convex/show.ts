@@ -43,19 +43,20 @@ export function cueSecs(voice: string, tone: Tone, host: HostKey, cue: CueKey, v
 export type HowArt = string;
 
 /**
- * How to play, v3 (Oct 16, Heston: "Use visuals to help explain the rules, and condense the rules if possible"): five
- * cards, each with a picture of the rule; a killer + accomplice game adds the accomplice card after the first.
+ * How to play, v4 (Phase 6, Oct 21; the rebuild plan's six cards): one of you did it; your story; search (how a round
+ * ends folded in, for this game's pacing and search); the late tips and the jail vote (the late tips alone in a game
+ * too small for a jail vote); chips; locking in. Each card has a picture of the rule. The weapons card is gone (the
+ * weapons stay across the top of the TV). A killer + accomplice game adds the accomplice card after the first.
  */
 export function howCues(g: { search: "all" | "waves"; pacing: { mode: "ready" | "timer" }; accomplice?: boolean; jailVote?: boolean }): [CueKey, HowArt][] {
   return [
     ["howCase", "suspects"],
     ...(g.accomplice ? [["howAccomplice", "pair"] as [CueKey, HowArt]] : []),
-    ["howWeapons", "weapons"],
-    ["howSearch", "search"],
-    // W14 (Oct 17): how a round ends, for this game's pacing and search.
-    [roundCue(g), "round"],
-    // Oct 17 (D5): games with fewer than 5 guests have no jail vote, so no jail card.
-    ...(g.jailVote === false ? [] : [["howJail2", "jail"] as [CueKey, HowArt]]),
+    ["howStory", "story"],
+    [roundCue(g), "search"],
+    // Oct 17 (D5): games with fewer than 5 guests have no jail vote; the late tips still land.
+    g.jailVote === false ? ["howTips", "tips"] : ["howJail2", "jail"],
+    ["howChips", "chips"],
     ["howWin2", "win"],
   ];
 }
@@ -71,13 +72,14 @@ export function roundCue(g: { search: "all" | "waves"; pacing: { mode: "ready" |
 export const HOW_TITLE: Partial<Record<CueKey, string>> = {
   howCase: "One of you did it",
   howAccomplice: "The accomplice",
-  howWeapons: "The weapons",
-  howSearch: "Search and scan",
-  howRound: "How a round ends",
-  howRoundTimer: "How a round ends",
-  howRoundAll: "How a round ends",
-  howRoundTimerAll: "How a round ends",
-  howJail2: "The jail vote",
+  howStory: "Where you were",
+  howRound: "Search and scan",
+  howRoundTimer: "Search and scan",
+  howRoundAll: "Search and scan",
+  howRoundTimerAll: "Search and scan",
+  howJail2: "Late tips and jail",
+  howTips: "Late tips",
+  howChips: "Chips",
   howWin2: "Lock it in",
 };
 
@@ -177,12 +179,14 @@ export function revealLayout(
   base: { card: number; line: number; name: number; how: number; accomplice: number | null; verdict: number },
   secs: (c: CueKey) => number,
   clips: { killer?: number | null; exhibit?: number | null; room?: number | null; accomplice?: number | null },
+  /** Phase 6: the plant line after the weapon and room ("One of tonight's late tips was planted…", or no plant). */
+  plant: CueKey | null = null,
 ) {
   const gap = 0.8 * S;
   const line = base.line;
   const name = Math.max(base.name, line + secs("reveal1") * S + gap);
   const how = Math.max(base.how, name + 0.3 * S + (clips.killer ?? 3.5) * S + gap);
-  const howEnd = how + 0.3 * S + ((clips.exhibit ?? 2.5) + 0.1 + (clips.room ?? 2.5)) * S;
+  const howEnd = how + 0.3 * S + ((clips.exhibit ?? 2.5) + 0.1 + (clips.room ?? 2.5)) * S + (plant ? 0.4 * S + secs(plant) * S : 0);
   if (base.accomplice === null) return { ...base, line, name, how, accomplice: null, verdict: Math.max(base.verdict, howEnd + gap) };
   const accomplice = Math.max(base.accomplice, howEnd + gap);
   const accEnd = accomplice + 0.4 * S + secs("revealAccomplice") * S + 0.2 * S + (clips.accomplice ?? 3.5) * S;

@@ -446,3 +446,16 @@ img { max-width: 100%; }
 .pick .opts button.hot { border-color: #e8743b; }
 .pick .opts button .flame { width: 15px; height: 15px; margin: 0 5px -2px 0; fill: #e8743b; }
 .pick .opts button[aria-pressed="true"] .flame { fill: var(--ink); }
+
+/* Phase 6 (Oct 21): the "? How to play" rulebook. */
+.rules-q { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 10px; background: none; border: 1px solid var(--brass-dim); color: var(--paper); font-family: var(--label); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; }
+.rules-q b { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--brass); color: var(--brass); font-family: var(--display); font-size: 14px; }
+.rules-q[aria-expanded="true"] { background: var(--brass); color: var(--ink); }
+.rules-q[aria-expanded="true"] b { color: var(--ink); border-color: var(--ink); }
+.rulebook { display: grid; gap: 14px; }
+.rb-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.rb-sec { display: grid; gap: 6px; }
+.rb-sec h3 { margin: 4px 0 0; font-family: var(--label); font-size: 12px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--brass); }
+.rb-sec p { margin: 0; font-size: 16px; line-height: 1.5; color: var(--paper); }
+.topline-sub { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.topline-sub .todo { flex: 1; min-width: 0; }

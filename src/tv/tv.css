@@ -466,3 +466,25 @@
 .tv-ev.tip { border-color: #e8743b; }
 .tv-ev.tip small { color: #e8743b; }
 .tv-heat .tv-av.sm { width: 3cqw; height: 3cqw; font-size: 1.1cqw; }
+
+/* Phase 6 (Oct 21): How to play pictures for your story, the late tips and chips. */
+.tv-how-story { position: relative; width: 26cqw; height: 22cqw; }
+.tv-how-story .card { position: absolute; inset: 0 3cqw 3cqw 0; background: var(--panel, #2a0a13); border: .2cqw solid var(--brass); border-radius: 1cqw; padding: 1.6cqw; display: grid; align-content: start; gap: 1cqw; box-shadow: 0 1cqw 2cqw rgba(0, 0, 0, .5); }
+.tv-how-story .card.back { inset: 3cqw 0 0 3cqw; opacity: .55; z-index: -1; }
+.tv-how-story .lab, .tv-how-tips .lab { font-family: var(--label); font-size: 1.3cqw; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--brass); }
+.tv-how-story i, .tv-how-tips i { display: block; height: 1cqw; border-radius: .5cqw; background: rgba(245, 233, 210, .5); }
+.tv-how-story i.short, .tv-how-tips i.short { width: 60%; }
+.tv-how-story .q { margin-top: .6cqw; font-family: var(--display); font-size: 2cqw; color: var(--paper); }
+.tv-how-tips { display: grid; gap: 1.4cqw; width: 28cqw; }
+.tv-how-tips .tip { position: relative; background: #e8d6a8; border-left: .5cqw solid #e8743b; padding: 1.4cqw 1.6cqw; display: grid; gap: .8cqw; animation: fadein .5s ease both; }
+.tv-how-tips .tip i { background: rgba(42, 10, 19, .35); }
+.tv-how-tips .tip .lab { color: #b4521f; }
+.tv-how-tips .stamp { position: absolute; right: 1.4cqw; top: 50%; transform: translateY(-50%) rotate(-10deg); font-family: var(--label); font-size: 1.5cqw; letter-spacing: .14em; text-transform: uppercase; color: #b4521f; border: .2cqw solid #b4521f; padding: .3cqw .8cqw; }
+.tv-how-chips { display: grid; justify-items: center; gap: 1.2cqw; }
+.tv-how-chips svg { width: 18cqw; height: 18cqw; overflow: visible; }
+.tv-how-chips .chip ellipse { fill: #5e1020; stroke: var(--brass); stroke-width: 2; }
+.tv-how-chips .chip path { fill: #4a0c19; stroke: var(--brass); stroke-width: 2; }
+.tv-how-chips .lab { font-family: var(--label); font-size: 1.5cqw; letter-spacing: .14em; text-transform: uppercase; color: var(--paper); }
+/* Phase 6 look-over: clear the room-code chip in the bottom corner. */
+.tv-caption.above-foot { bottom: 3.6cqw; }
+.tv-stage.with-strip .tv-caption.above-foot { bottom: 9.8cqw; }

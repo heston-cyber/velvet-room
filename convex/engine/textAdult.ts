@@ -129,16 +129,16 @@ export const ADULT: Script = {
     ...(f.herringName ? [`One clue points at ${f.herringName}. Throw them under the bus.`] : []),
     f.accompliceName ? `You can lie about anything tonight, and so can ${f.accompliceName}. Everyone else has to tell the truth, the suckers.` : "You can lie about anything tonight. Everyone else has to tell the truth, the suckers.",
     ...(f.accompliceName ? [`If the cops get close, pin it on ${f.accompliceName}. That's what accomplices are for. It's in the brochure.`] : []),
-    "Stay out of jail: jailbirds can't lock in. Getting some other sucker jailed is fair game.",
+    "Stay out of jail: the jailbird sits out Round 3. Getting some other sucker jailed is fair game.",
     f.accompliceName
-      ? "You and your accomplice win unless more than half of these clowns get you, the weapon and the room."
-      : "You win unless more than half of these clowns get you, the weapon and the room.",
+      ? "You and your accomplice win unless the most votes from these clowns land on you, the weapon and the room."
+      : "You win unless the most votes from these clowns land on you, the weapon and the room.",
   ],
   innocentLines: [
     "You're innocent. You didn't kill the Don, for once in your life.",
     "Tell the truth. Only the killer gets to lie tonight.",
     "Find the evidence cards, compare notes, and figure out who did it, with what, and where.",
-    "After Round 2 you can vote somebody into jail, if most of you agree; after Round 3, a vote to let them out. Jailbirds can't search, vote or lock in.",
+    "After Round 2 you can vote somebody into jail, if more than half of you agree. The jailbird sits out Round 3 and is back for the lock-in.",
   ],
   // Accomplice games (v2), with Heston's comedy notes: deadpan, specific, the swearing rationed.
   accompliceLines: (f) => [
@@ -160,6 +160,6 @@ export const ADULT: Script = {
     "Tonight the killer brought a friend: an accomplice who didn't do it, knows who did, and will lie through their teeth about it.",
     "Tell the truth. Only the killer and the accomplice get to lie tonight.",
     "Find the evidence cards, compare notes, and figure out who did it, with what, and where. When you lock in, take a guess at the accomplice too.",
-    "After every round, vote somebody into jail if most of you agree. Jailbirds can't search, vote or lock in.",
+    "After Round 2, vote somebody into jail if more than half of you agree. The jailbird sits out Round 3 and is back for the lock-in.",
   ],
 };

@@ -77,12 +77,6 @@ export const CUES = {
     adult: "The killer posted a job listing. Help wanted: one accomplice. Didn't do it, knows who did, lies for them. Unpaid internship. Must be a two-faced rat. NPCs need not apply. [short pause] Guess who got the job when you lock in.",
     wild: ["[conspiratorial whisper, way too close to the mic]", "[giggles]"],
   },
-  howWeapons: {
-    when: "How to play v2, card 3 (the weapons)",
-    classic: "Nobody brought a weapon tonight. The house picked them, and here they are. [short pause] One of them is about to do the deed.",
-    adult: "Nobody brought a weapon tonight. The house supplied them, like the little shampoos at a hotel, and you'll steal them like the little shampoos. [short pause] One of them is about to do the job.",
-    wild: ["[deadly serious]", "[giggles nervously]"],
-  },
   // ---- How to play, v3 (Oct 16, Heston: "the rules need to be simplified", "use visuals to help explain the rules,
   // and condense the rules if possible"): five cards (six with an accomplice), each with a picture that shows the
   // rule. Same rules as v2, fewer words. Drafts for Heston's review. ----
@@ -92,46 +86,61 @@ export const CUES = {
     adult: "[warm, conspiratorial] Here's the deal. Any minute, Don Ray Sanders drops dead, and one of you will have done it. Your phone will tell you if it was you. If it says you're innocent, try to look less disappointed. [short pause] Only the guilty may lie. Everyone else tells the truth, and only the truth. Your age, your Venmo history and your screen time are, sadly, under oath.",
     wild: ["[clapping hands, way over the top]", "[cackles]"],
   },
-  howSearch: {
-    when: "How to play v3, searching",
-    classic: "Three rounds. Each round, search the house for evidence cards and scan them with your phone. [short pause] What a card says stays on your phone; the map up here just ticks it off. So compare notes.",
-    adult: "Three rounds. Raid the house like the FBI at a crypto bro's penthouse: every drawer, every damn fake bookcase. Scan the evidence cards with your phone. [short pause] The dirt stays on your phone; up here, the map just ticks the card off. So compare notes.",
-    wild: ["[shouting like a carnival barker]", ""],
+  // Phase 6 (Oct 21): new.
+  howStory: {
+    when: "How to play, your story (where you were)",
+    classic: "Your phone also says where you were when the lights went out, with one detail anyone can check. The killer gets one too: a made-up cover that looks exactly like the real thing. [short pause] So never show your phone. Ask where everyone was, and check their stories against the cards.",
+    adult: "Your phone also says where you were when the lights went out, plus one detail anyone can check. The killer gets one too: a fake, and it looks exactly like yours. [short pause] So keep your phone to yourself, and make everyone talk. Whose story falls apart?",
+    wild: ["[conspiratorial whisper]", "[giggles]"],
   },
   howJail2: {
     when: "How to play v3, the jail vote",
-    classic: "After Round 2, you can vote one guest into jail. You don't have to: if you're not sure, vote nobody. It takes more than half of you. [short pause] The jailbird can't search, vote or lock in. After Round 3, you can vote them back out.",
-    adult: "After Round 2, the court of public opinion is in session. You can vote one guest into jail. You don't have to; you can vote nobody. That's not cowardice, it's caution. It's also cowardice. More than half of you must agree. [short pause] The jailbird can't search, vote or lock in. After Round 3, you can vote them back out.",
+    classic: "When Round 2 ends, two late tips land up here. One of them might be planted: the killer gets to frame someone, once. Then the jail vote. More than half of you must agree, or nobody goes, and nobody is always a choice. [short pause] The jailbird sits out Round 3, and is back for the lock-in.",
+    adult: "When Round 2 ends, two late tips come in. One might be a plant: the killer gets one shot at framing somebody. Then the jail vote. More than half of you have to agree, or nobody goes. [short pause] The jailbird sits out Round 3 and stews, then comes back for the lock-in.",
     wild: ["[banging on the bars, shouting]", "[evil laugh]"],
+  },
+  // Phase 6 (Oct 21): new.
+  howTips: {
+    when: "How to play, the late tips (games without a jail vote)",
+    classic: "When Round 2 ends, two late tips land up here. One of them might be planted: the killer gets to frame someone, once.",
+    adult: "When Round 2 ends, two late tips come in. One might be a plant: the killer gets one shot at framing somebody. Choose your enemies wisely.",
+    wild: ["[conspiratorial whisper]", "[evil laugh]"],
+  },
+  // Phase 6 (Oct 21): new.
+  howChips: {
+    when: "How to play, chips",
+    classic: "Chips buy drinks and pay debts. Someone may try to buy your vote or your silence. [short pause] You can stay quiet. You can never lie.",
+    adult: "Chips buy drinks and pay debts. Somebody may try to buy your vote, or your silence. Take the money or don't. [short pause] Stay quiet if you like. But you can never lie. Not even for chips. Especially not for chips.",
+    wild: ["[counting money, way too excited]", ""],
   },
   howRound: {
     when: "How to play v3, how a round ends (Ready pacing; rooms open in waves)",
-    classic: "Each round, tap Ready on your phone when you're done searching. The round ends when most of you are ready.",
-    adult: "When you're done snooping, tap Ready on your phone. The round ends when most of you are ready, so don't be the wet blanket holding everybody up.",
+    classic: "Three rounds. Rooms open a few at a time. Search them for evidence cards and scan each one. A card's words stay on your phone, so compare notes. Tap Ready when you're done; the round ends when everyone's ready.",
+    adult: "Three rounds. Rooms open a few at a time, so stay out of the sealed ones. Find the evidence cards and scan them. What a card says stays on your phone, so talk. Tap Ready when you're done. The round waits for everybody, so don't be that guy.",
     wild: ["[impatient, tapping a watch]", ""],
   },
   howRoundTimer: {
     when: "How to play v3, how a round ends (timer; rooms open in waves)",
-    classic: "Each round runs on the clock. When the clock runs out, the round ends, ready or not.",
-    adult: "Each round runs on the clock. When the clock runs out, the round ends, whether you've found anything or not. Most of you won't have.",
+    classic: "Three rounds, each on the clock. Rooms open a few at a time. Search them for evidence cards and scan each one. A card's words stay on your phone, so compare notes. When the clock runs out, the round ends.",
+    adult: "Three rounds, each on the clock. Rooms open a few at a time, so stay out of the sealed ones. Find the evidence cards and scan them. What a card says stays on your phone, so talk. When the clock hits zero, the round's over, ready or not.",
     wild: ["[impatient, tapping a watch]", ""],
   },
   howRoundAll: {
     when: "How to play v3, how a round ends (Ready pacing; every room open from Round 1)",
-    classic: "Every card is out from Round 1, so search anywhere. Tap Ready on your phone when you're done; the round ends when most of you are ready. Rounds 2 and 3 bring new evidence on the TV.",
-    adult: "Every card is out from Round 1, so the whole house is fair game. Tap Ready when you're done searching; the round ends when most of you are ready. Rounds 2 and 3 bring fresh dirt to the TV.",
+    classic: "Three rounds. Every room is open from the start. Search for evidence cards and scan each one. A card's words stay on your phone, so compare notes. Tap Ready when you're done; the round ends when everyone's ready.",
+    adult: "Three rounds, and the whole house is open from the start. Find the evidence cards and scan them. What a card says stays on your phone, so talk. Tap Ready when you're done. The round waits for everybody, so don't be that guy.",
     wild: ["[impatient, tapping a watch]", ""],
   },
   howRoundTimerAll: {
     when: "How to play v3, how a round ends (timer; every room open from Round 1)",
-    classic: "Every card is out from Round 1, so search anywhere. Each round ends when the clock runs out. Rounds 2 and 3 bring new evidence on the TV.",
-    adult: "Every card is out from Round 1, so the whole house is fair game. The round ends when the clock runs out, ready or not. Rounds 2 and 3 bring fresh dirt to this screen.",
+    classic: "Three rounds, each on the clock. Every room is open from the start. Search for evidence cards and scan each one. A card's words stay on your phone, so compare notes. When the clock runs out, the round ends.",
+    adult: "Three rounds, each on the clock, and the whole house is open from the start. Find the evidence cards and scan them. What a card says stays on your phone, so talk. When the clock hits zero, the round's over, ready or not.",
     wild: ["[impatient, tapping a watch]", ""],
   },
   howWin2: {
     when: "How to play v3, locking in and winning",
-    classic: "After round three, lock in who did it, with what, and where. The killer locks in too. [short pause] You win only if more than half of the lock-ins get the killer, more than half get the weapon, and more than half get the room. If not, the killer walks.",
-    adult: "After round three, lock in your bets: who, with what, and where. The killer locks in too. [short pause] You need more than half the lock-ins on the killer, more than half on the weapon, and more than half on the room. Miss one, and the killer walks, and you lose your shirt like a dumbass on a sports-betting app.",
+    classic: "After Round 3, everyone locks in who did it, with what, and where. The killer locks in too. [short pause] The most votes wins each one. Get all three right and you win; miss one, and the killer walks. A tie goes to a runoff.",
+    adult: "After Round 3, everybody locks in: who, with what, and where. The killer locks in too. [short pause] Most votes wins each one. Nail all three and you win. Miss one, and the killer walks out laughing. A tie? Runoff.",
     wild: ["[maniacal laughter]", "[cackles]"],
   },
   // ---- roll call, v2: after How to play ----
@@ -255,6 +264,20 @@ export const CUES = {
     adult: "Final evidence, and a twist that'll hit you like a crypto crash, right in the bollocks.",
     wild: ["[ominous, way too slow]", "[evil laugh]"],
   },
+  // Phase 6 (Oct 21): new.
+  askAround: {
+    when: "Each round, after its opening line: the story reminder",
+    classic: "Ask where everyone was when the lights went out.",
+    adult: "Ask everybody where they were when the lights went out. Somebody's lying, and they've had time to practice.",
+    wild: ["[conspiratorial whisper]", ""],
+  },
+  // Phase 6 (Oct 21): new.
+  lateTips: {
+    when: "End of Round 2: the two late tips land on the TV",
+    classic: "Two late tips just came in. One of them might be a plant.",
+    adult: "Two late tips just came in. One of them might be a plant, and the killer's no gardener.",
+    wild: ["[gasps theatrically]", ""],
+  },
   twist: {
     when: "Right before the twist card",
     classic: "[building] And now, the twist.",
@@ -264,8 +287,8 @@ export const CUES = {
   // ---- accusations ----
   accuse: {
     when: "Accusations open",
-    classic: "The time for talk is over. Make your accusations.",
-    adult: "Court's in session. You're the jury, God help us all. Lock it in.",
+    classic: "The time for talk is over. Whose story didn't hold up? Make your accusations.",
+    adult: "Court's in session. Whose story fell apart? You're the jury, God help us all. Lock it in.",
     wild: ["[pounding the table, shouting]", ""],
   },
   accuseLastCall: {
@@ -273,6 +296,27 @@ export const CUES = {
     classic: "Thirty seconds. Lock in your accusation.",
     adult: "Thirty seconds. Move it, or I pick. I've had nine bloody espresso martinis.",
     wild: ["[panicked shriek]", ""],
+  },
+  // Phase 6 (Oct 21): new.
+  runoffWho: {
+    when: "The lock-in tied on who: last words first",
+    classic: "It's a tie. Before you vote again, last words. Thirty seconds each.",
+    adult: "A tie. Of course it's a tie. Before you vote again, the accused get last words. Thirty seconds each. Make it count.",
+    wild: ["[gasps]", ""],
+  },
+  // Phase 6 (Oct 21): new.
+  runoffThings: {
+    when: "The lock-in tied on the weapon or the room only",
+    classic: "It's a tie. Vote again, on your phones, on just what's tied.",
+    adult: "A tie. Vote again on your phones, on just what's tied, and this time, pick a side.",
+    wild: ["[gasps]", ""],
+  },
+  // Phase 6 (Oct 21): new.
+  runoffVote: {
+    when: "After the last words: the runoff vote opens",
+    classic: "Time's up. Vote again, on your phones.",
+    adult: "Time's up. Vote again on your phones, and this time, mean it.",
+    wild: ["[banging a gavel, way too hard]", ""],
   },
   // ---- reveal ----
   reveal1: {
@@ -299,6 +343,20 @@ export const CUES = {
     adult: "And the one who held the coats and asked no questions is…",
     wild: ["[whispering, scandalized]", ""],
   },
+  // Phase 6 (Oct 21): new.
+  plantReveal: {
+    when: "Reveal: one of the late tips was the killer's plant",
+    classic: "One more thing. One of tonight's late tips was planted by the killer.",
+    adult: "One more thing. One of those late tips was a plant. The killer framed somebody, and some of you bought it.",
+    wild: ["[whispers, scandalized]", ""],
+  },
+  // Phase 6 (Oct 21): new.
+  noPlant: {
+    when: "Reveal: no plant tonight (both late tips were true)",
+    classic: "No plant tonight. Both late tips were true.",
+    adult: "No plant tonight. Both tips were true. The killer didn't even try. Lazy.",
+    wild: ["[surprised]", ""],
+  },
   verdictDetectives: {
     when: "Verdict: the detectives win (more than half on the killer, more than half on the weapon, more than half on the room)",
     classic: "The detectives got their killer. [short pause] Confess, you rat.",
@@ -307,8 +365,8 @@ export const CUES = {
   },
   verdictKiller: {
     when: "Verdict: the killer walks (not more than half on the killer, the weapon or the room)",
-    classic: "Not enough of you got the killer, the weapon and the room. [short pause] The killer walks free tonight.",
-    adult: "Not enough of you got the killer, the weapon and the room. The killer walks. The NYPD would like to offer you all jobs.",
+    classic: "The most votes missed the killer, the weapon or the room. [short pause] The killer walks free tonight.",
+    adult: "The most votes missed. Killer, weapon or room, you whiffed one. The killer walks. The NYPD would like to offer you all jobs.",
     wild: ["[sobbing uncontrollably]", ""],
   },
   // ---- awards and goodnight ----
@@ -382,6 +440,24 @@ export const CUE_KEYS = Object.keys(CUES) as CueKey[];
  * The noisy takes are a separate bank (NOISY below), played only now and then.
  */
 export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
+  // Phase 6 (Oct 21): new and rewritten lines, one more Adult version each.
+  howRound: ["Three rounds. Rooms open a few at a time. Raid them, scan every evidence card, and compare notes, because the cards only talk to the phone that scanned them. Tap Ready when you're done. Nobody moves on till everybody's ready. No cap."],
+  howRoundTimer: ["Three rounds, and the clock doesn't care about your feelings. Rooms open a few at a time. Scan every evidence card you find and compare notes; the cards only talk to the phone that scanned them. Clock runs out, round's over."],
+  howRoundAll: ["Three rounds. Every room's open, so tear the place apart. Scan every evidence card and compare notes, because the cards only talk to the phone that scanned them. Tap Ready when you're done. Nobody moves on till everybody's ready."],
+  howRoundTimerAll: ["Three rounds, and the clock doesn't care about your feelings. Every room's open. Scan every evidence card you find and compare notes; the cards only talk to the phone that scanned them. Clock runs out, round's over."],
+  howJail2: ["End of Round 2: two late tips hit this screen, and one of them might be the killer's handiwork. Then you vote somebody into jail, or nobody. It takes more than half of you, which in this crowd is a miracle. [short pause] The jailbird misses Round 3 and is back for the lock-in."],
+  howWin2: ["After Round 3, lock it in: who, with what, and where. Yes, the killer votes too. Very on brand for this city. [short pause] Most votes wins each one. All three right, you win; one wrong, the killer walks. Ties go to a runoff, with last words."],
+  verdictKiller: ["Close, but no. The most votes missed the killer, the weapon or the room. The killer calls an Uber and sticks you with the surge pricing. What a bunch of NPCs."],
+  howStory: ["Everyone's phone says where they were when the lights went out, with one detail you can check. The killer's is a lie dressed up as the truth, like every dating profile in Brooklyn. [short pause] Never show your phone. Ask around, and check the stories against the cards."],
+  howTips: ["End of Round 2: two late tips hit this screen. One of them might be the killer's handiwork. Trust nothing. Especially the juicy one."],
+  howChips: ["Chips are money: drinks, debts, and the occasional bribe. Somebody may pay you for your vote or your silence. [short pause] Keeping quiet is allowed. Lying is not. Rules are rules, even in this city."],
+  askAround: ["Where was everybody when the lights went out? Ask. One of them is lying through their veneers."],
+  lateTips: ["Late tips, hot off the group chat. One might be planted. Trust nobody, especially about yourself."],
+  runoffWho: ["It's a tie, you indecisive jackasses. Last words first: thirty seconds each. Beg, cry, or throw somebody under the bus."],
+  runoffThings: ["Tied. Again. Vote on your phones, on just what's tied. Use your brains this time. Both of them."],
+  runoffVote: ["Last words are over. Vote again. If it ties again, the killer walks, so no pressure."],
+  plantReveal: ["And that juicy late tip? Planted. The killer framed somebody. Caught in 4K, eventually."],
+  noPlant: ["Both late tips were true. No plant. The killer kept it simple, and honestly, respect."],
   doors: [
     "[warm, smoky voice] Welcome to the Velvet Room. I'm {host}. The espresso martinis were mixed today in a bathtub in Bushwick. Somebody's uncle was still in the tub. He says they slap, no cap, and he'd know.",
     "[warm, smoky voice] Welcome to the Velvet Room. I'm {host}. The lights are low, the drinks are strong, and the coat check guy will hold anything you hand him. [short pause] He's handled bigger.",
@@ -393,10 +469,6 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
   howAccomplice: [
     "There's an accomplice tonight. They didn't do it. They just know who did and lie about it, which in this city makes them a civil servant with a pension. [short pause] Guess them when you lock in.",
     "Tonight the killer brought a plus-one: someone who didn't do it, knows who did, and will lie to your face with a mouthful of your shrimp, the rat. [short pause] Guess them when you lock in.",
-  ],
-  howWeapons: [
-    "From the Don's insurers, Lloyd's of London: tonight's weapons were drawn by the house. No guest brought one, and no guest owns one. [short pause] One of them is about to do the job. Lloyd's would like it known that none of you are covered anyway.",
-    "Tonight's weapons came from the house, not from you, so calm the hell down. [short pause] One of them is about to be used on the Don. In New York, the weapon never talks. The judge, for a fee, will.",
   ],
   voteJail: [
     "Jail vote. Find the face you trust least. Vote on your phone, or pick nobody, chickenshit.",
@@ -429,18 +501,6 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
   howCase: [
     "[warm, conspiratorial] House rules. Any minute now, Don Ray Sanders is going to die, and one of you will have done it. Your phone will tell you if it was you. That's how half of City Hall found out. [short pause] Only the guilty may lie. The rest of you tell the truth. It's still bloody New York, but rules are rules.",
     "[warm, conspiratorial] Everybody, raise your right hand. Any minute now, Don Ray Sanders becomes a corpse, and one of you will have made him one. Your phone will tell you if it was you. [short pause] Do you swear that only the guilty will lie, and everyone else will tell the truth? Lovely. Nobody meant it.",
-  ],
-  howSearch: [
-    "Three rounds. Search for evidence cards and scan them with your phone. What a card says stays on your phone; the map up here just ticks it off, so talk. [short pause] Anything else in a nightstand, put it back.",
-    "Three rounds. Search the house for evidence cards and scan them. The dirt lands on your phone, not up here; the map just ticks the card off. [short pause] So compare notes. Be nosy. Be unhinged about it.",
-  ],
-  howJail2: [
-    "After Round 2, you can vote one of these lovely people into jail. You don't have to; nobody is always an option. It takes more than half of you to agree. [short pause] The jailbird can't search, vote or lock in. They just sit there and stew. After Round 3, you can vote them back out, or leave the poor NPC in there till Christmas.",
-    "After Round 2, there's a jail vote. Lock one guest up, or pick nobody. Either way, more than half of you have to agree, which, in this crowd, is a bloody miracle. [short pause] The jailbird can't search, vote or lock in. After Round 3, you can vote them back out. Bake them a cake with a file in it.",
-  ],
-  howWin2: [
-    "After round three, lock in who, with what, and where. The killer locks in too. [short pause] More than half the lock-ins must get the killer, more than half the weapon, and more than half the room. If not, the killer walks free and opens a nightclub. That's how this shithole started.",
-    "After round three, lock in: who, with what, and where. Yes, the killer locks in too. Very on brand for this city. [short pause] More than half the lock-ins on the killer, more than half on the weapon, more than half on the room, or the killer strolls out waving like a celebrity leaving court, the smug rat.",
   ],
   rollLocked: [
     "[low, grave] The doors are locked until we know who did it. Nobody leaves. Not for a vape, not for air, not for that sick aunt in Yonkers you pulled out of your ass. [short pause] Let's meet the suspects.",
@@ -522,10 +582,6 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
     "Justice, for once in this city. [short pause] Confess, killer. Blame the gin.",
     "Case closed. [short pause] Confess, killer. You were sloppy as hell.",
   ],
-  verdictKiller: [
-    "Killer, weapon, room: you needed more than half on every one, and you didn't get there. The killer walks, and you investigated like a sack of drunk-ass ferrets.",
-    "Not enough of you got the killer, the weapon and the room. The killer calls an Uber and sticks you with the surge pricing. What a bunch of NPCs.",
-  ],
   awards: [
     "Now, the awards. Every trophy here was stolen. Act surprised. You're good at that.",
     "Awards. Hold your applause, your drinks and each other, in that order.",
@@ -563,22 +619,6 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
     "Sound check. If you can hear this, so can the feds. Hello, boys. Kiss my ass.",
     "Sound check. If you can hear this, the TV works. Smartest guest here.",
   ],
-  howRound: [
-    "Done searching? Tap Ready on your phone. Once most of you are ready, the round ends. Majority rules, like at City Council, except your votes count.",
-    "Tap Ready on your phone when you're done searching. The round ends when most of you are ready. Move it. It's giving DMV line.",
-  ],
-  howRoundTimer: [
-    "Every round is timed, like a parking meter on Fifth Avenue. When the clock runs out, the round's over. No appeals.",
-    "The round ends when the clock runs out. The clock doesn't care if you're done. Neither do I. Move it.",
-  ],
-  howRoundAll: [
-    "All the cards are out from Round 1, so tear the place apart. Tap Ready on your phone when you're done; the round ends when most of you are. Rounds 2 and 3 bring new evidence up here.",
-    "Every card is out from Round 1. Find them, then tap Ready; the round ends when most of you are ready. Rounds 2 and 3 bring new evidence on this screen. Don't be mid about it.",
-  ],
-  howRoundTimerAll: [
-    "All the cards are out from Round 1, so tear the place apart. Each round ends when the clock runs out. Rounds 2 and 3 bring new evidence up here. Move it.",
-    "Every card is out from Round 1. The clock ends each round, and it doesn't care about your feelings. Rounds 2 and 3 bring new evidence on this screen.",
-  ],
 };
 
 /** FNV-1a with a final mix, so small differences in a game's seed spread across the versions. */
@@ -604,7 +644,6 @@ const hashOf = (s: string) => {
 export const NOISY: Record<Tone, Partial<Record<CueKey, string>>> = {
   classic: {
     doors: "[warm, smoky voice] Welcome to the Velvet Room. I'm {host}, your host tonight. [hiccups] Drinks are on the house. [short pause] Mostly.",
-    howWeapons: "Nobody brought a weapon tonight. The house picked them, [hiccups] and here they are. [short pause] One of them is about to do the deed.",
     rollLocked: "[low, grave] The doors are locked until we figure out who did it. [hiccups] [short pause] Now, let's meet the suspects.",
     rollCallClose: "That's everyone. [short pause] Remember these faces. [hiccups]",
     intro4: "Check your phone. [coughs] Press and hold your card, and keep it to yourself.",
@@ -624,7 +663,6 @@ export const NOISY: Record<Tone, Partial<Record<CueKey, string>>> = {
   adult: {
     doors: "[warm, smoky voice] Welcome to the Velvet Room. I'm {host}. The tequila came from the bodega this afternoon, [hiccups] and the bodega did its best.",
     doorsReminder: "If you haven't opened your link yet, do it now. [burps] The bouncer has been told you're a narc.",
-    howWeapons: "The house picked tonight's weapons, and one of them is about to do the job. [hiccups] [short pause] None of you brought it, so quit looking so damn nervous.",
     rollLocked: "[low, grave] The doors are locked until we figure out which one of you did it. [hiccups] [short pause] Let's meet the suspects.",
     rollCallClose: "And that's the lineup. [short pause] Take a good look. The police sketch artist is drunk. [hiccups]",
     intro3: "[whispers] One of you did it. [short pause] And frankly, we're all a little impressed. [hiccups]",
@@ -659,10 +697,6 @@ export const ADULT_D: Partial<Record<CueKey, string>> = {
   doorsReminder: "Check in on your phone, dumbasses, or so help me [burps] [short pause] I'll do that again. Closer.",
   howCase: "[warm, conspiratorial] Here's how this goes. Any minute now, Don Ray Sanders is going to drop dead, and one of you shifty little rats will have done it. Your phone will tell you if it was you. [short pause] Only the guilty may lie. Everybody else tells the truth. For example: [farts] [short pause] That was me, damnit. See? Honest.",
   howAccomplice: "Tonight the killer has an accomplice: didn't do it, knows who did, will lie for them. Watch for a wink, a nod, a cough. [coughs] [short pause] No, that's just me. Bloody vape. Guess them when you lock in.",
-  howWeapons: "The house drew tonight's weapons, so none of you brought one. One of them is about to do the job. [short pause] And nobody here owns the m- m- [hiccups] [short pause] murder weapon. Shit. I almost said something else.",
-  howSearch: "Three rounds. Search the house for evidence cards, under every [sneezes] [short pause] bloody hell, nobody's dusted since the pandemic. Scan them with your phone. What they say stays on your phone, so compare notes. The map up here just ticks them off.",
-  howJail2: "[clears throat] Order. Hear ye. After Round 2, you may vote one guest into jail. You don't have to: voting nobody is a perfectly good verdict. More than half of you must agree. [short pause] The jailbird can't search, vote or lock in. After Round 3, you can vote them back out. [burps] [short pause] This court is adjourned, and shit-faced.",
-  howWin2: "After round three, lock in: who, with what, and where. The killer locks in too. [short pause] You need more than half the lock-ins on the killer, more than half on the weapon, and more than half on the room. Miss one, and the killer walks out laughing, like this: [snorts] [short pause] Smug little wanker.",
   rollLocked: "[low, grave] The doors are locked until we figure out which one of you did it. Nobody gets in. Nobody gets out. [farts] [short pause] Oh, hell. That's locked in here with us now, too. Let's meet the suspects.",
   rollCallClose: "That's the lineup. [hiccups] All forty of you. Shit, I'm seeing double.",
   intro1: "[low, gravelly voice] New York City. [burps] [short pause] Damnit. [short pause] New York City. October 31st, 2026. [long pause]",
@@ -689,7 +723,7 @@ export const ADULT_D: Partial<Record<CueKey, string>> = {
   reveal3: "With this weapon, in this room. [gulps] [short pause] Oh, crap. I passed out in there.",
   revealAccomplice: "And the two-faced little jackass who helped them, [clears throat] allegedly, is…",
   verdictDetectives: "Case closed, detectives. [burps] [short pause] Pardon the court. Confess, you damn dirty rat.",
-  verdictKiller: "Not enough of you got the killer, the weapon and the room. The killer walks. Let's hear it for the detectives. [farts] [short pause] That's all you get, dumbasses.",
+  verdictKiller: "The most votes missed. The killer walks. Let's hear it for the detectives. [farts] [short pause] That's all you get, dumbasses.",
   awards: "The awards. I'd like to thank the Academy, [hiccups] and my liver, which has been through hell.",
   awardDetective: "Best Detective. Sharp eyes, sharp mind, sha- [sneezes] [short pause] shit. Sharp everything. It goes to…",
   awardDressed: "Best Dressed, [burps] [short pause] not me, damnit, goes to…",
@@ -700,10 +734,6 @@ export const ADULT_D: Partial<Record<CueKey, string>> = {
   paused: "Everybody shut the hell up. [burps] [short pause] Including me, apparently.",
   resumed: "Carry on. [sneezes] [short pause] Nobody? Bless me, then. Wankers.",
   soundCheck: "Sound check. One, two. [burps loudly] [short pause] That's the bass. If your drink rippled, the TV works. Hell yes.",
-  howRound: "Done searching? Tap Ready on your phone. The round ends when most of you are r- r- [hiccups] [short pause] ready. Damn hiccups.",
-  howRoundTimer: "Each round runs on the clock. When it runs out, [burps] [short pause] the round ends. So does my dignity, apparently. Hell.",
-  howRoundAll: "Every card is out from Round 1. Tap Ready when you're done; the round ends when most of you are ready. Rounds 2 and 3 bring new evidence on the [sneezes] [short pause] damn TV.",
-  howRoundTimerAll: "Every card is out from Round 1. The round ends when the clock runs out. [hiccups] Rounds 2 and 3 bring new evidence on the TV. [hiccups] Oh, hell.",
 };
 export const D_PCT = 10;
 
@@ -724,22 +754,6 @@ export const SAILOR: Partial<Record<CueKey, string[]>> = {
   howAccomplice: [
     "[furious] Oh, and the killer brought an accomplice, because of course the shit-bird couldn't do it alone. The accomplice didn't do it, but they'll lie to your face for the one who did. [short pause] [growling] Guess them when you lock in. Bollocks.",
     "[through gritted teeth] The killer has an accomplice. Didn't do it, knows who did, lies for them anyway. You know what we call that in Hell's Kitchen? [roaring] A goddamn Tuesday! [short pause] [dead serious] Guess them when you lock in.",
-  ],
-  howWeapons: [
-    "[seething] Tonight's weapons were picked by the house. The house! Not you! [short pause] One of them is about to do the job. [dead serious] Nobody brought one. [shouting] And if I find one in your coat, you're a weird son of a bitch who brings a weapon to a fucking party!",
-    "[growling] The house drew tonight's weapons, because I wouldn't trust you bastards to bring a spoon. [short pause] One of them is about to do the job. [roaring] None of them are yours, so keep your goddamn hands off! Shit!",
-  ],
-  howSearch: [
-    "[seething] Three rounds. Find the evidence cards, scan them with your phone. [short pause] The dirt stays on YOUR phone. This screen just ticks the card off the map. So talk to each other, for fuck's sake. [roaring] And put the shit-fucking drawers back! I'm not your mother, you bastards!",
-    "[growling] Three rounds. Evidence cards are hidden all over this house. Find them. Scan them with your phone. [short pause] [roaring] What they say stays ON YOUR PHONE, MOTHERFUCKER! [suddenly calm] Sorry. On your phone. The map up here just ticks them off. Compare notes.",
-  ],
-  howJail2: [
-    "[growling] After Round 2, there's a jail vote. You can vote one person in, or you can vote nobody. Nobody's on the ballot, nobody's making you, nobody gives a shit. More than half of you have to agree. [short pause] [furious] The jailbird can't search. Can't vote. Can't lock in. Can't do fuck-all. [dead serious] After Round 3, you can vote them back out. That's justice. It's a bitch. Damnit.",
-    "[dead serious] After Round 2, you can vote one guest into jail. You don't have to. Nobody is on the ballot, and frankly, Nobody is my favorite person here. More than half of you have to agree. [short pause] [seething] The jailbird can't search, vote or lock in. [roaring] After Round 3, you can vote them back out, you soft-hearted sons of bitches! [growling] Hell's Kitchen would eat you alive. Shit.",
-  ],
-  howWin2: [
-    "[dead serious] After round three, you lock in. Who. With what. Where. The killer locks in too. [short pause] More than half of the lock-ins on the killer. More than half on the weapon. More than half on the room. [roaring] Miss one, and the killer walks out that door laughing, and I have to hold it open for the son of a bitch!",
-    "[growling] After round three, you lock in who, with what, and where. The killer locks in too, the lying bastard. No take-backs, no fuckery. [short pause] More than half the lock-ins have to get the killer, more than half the weapon, more than half the room. [dead serious] Otherwise the killer walks, and I lose a forty-dollar parlay. Bastards.",
   ],
   rollLocked: [
     "[low, grave, seething] The doors are locked. [shouting] LOCKED! Nobody leaves until we know which one of you sick bastards did it. [dead serious] Bathroom breaks will be supervised by the Don's parrot. [short pause] Let's meet the suspects.",
@@ -849,10 +863,6 @@ export const SAILOR: Partial<Record<CueKey, string[]>> = {
     "[dead serious] The detectives nailed you. [whispers, furious] Confess. [screaming] CONFESS, YOU SHIT-WEASEL!",
     "[ice cold] The detectives got the killer. [short pause] I'm as shocked as you are. [growling] Confess, you rat bastard.",
   ],
-  verdictKiller: [
-    "[seething] Not enough of you got the killer, the weapon and the room. [short pause] The killer walks. [roaring] You had the evidence! You had the cards! You had the fucking MAP!",
-    "[dead serious] Killer, weapon, room. You needed more than half on every one, and you blew it. The killer walks free. [growling] Aaron Judge hit sixty-two home runs. You lot couldn't hit three. Useless pricks.",
-  ],
   awards: [
     "[seething] The awards. I paid for the trophies, so clap, bastards.",
     "[strained, polite] Now for the freaking awards. [roaring] Freaking! I'm being polite!",
@@ -888,22 +898,6 @@ export const SAILOR: Partial<Record<CueKey, string[]>> = {
   soundCheck: [
     "[growling] Sound check. One, two. [shouting] One, two, goddamnit! [dead serious] If you can hear this, the TV is ready.",
     "[dead serious] Sound check. [shouting] Shit! Fuck! Bastard! Bollocks! [calmly] If you heard all that, the TV works. [short pause] Sorry, Ma.",
-  ],
-  howRound: [
-    "[dead serious] When you're done searching, tap Ready on your phone. [short pause] When most of you are ready, the round ends. [roaring] So move your goddamn asses!",
-    "[growling] Tap Ready on your phone when you're done searching. The round ends when most of you are ready. [shouting] Most! Not all! I'm not waiting on every slow bastard in this room!",
-  ],
-  howRoundTimer: [
-    "[dead serious] Each round runs on the clock. [short pause] When it runs out, the round is over. [roaring] Over! I don't care what you're holding, you dawdling sons of bitches!",
-    "[through gritted teeth] Every round is timed. When the clock hits zero, the round ends. [shouting] Ready or not, you slow-ass bastards!",
-  ],
-  howRoundAll: [
-    "[dead serious] Every card is out from Round 1. Every damn one. Tap Ready when you're done searching; the round ends when most of you are ready. [roaring] Rounds 2 and 3, new evidence on the TV! Watch the goddamn TV!",
-    "[growling] All the cards are out from Round 1, so search the whole house, you bastards. Tap Ready when you're done. When most of you are ready, the round ends. [shouting] Rounds 2 and 3, new evidence right here on the TV!",
-  ],
-  howRoundTimerAll: [
-    "[dead serious] Every card is out from Round 1. [short pause] The round ends when the clock runs out. [roaring] Not when you're done! When the CLOCK says, goddamnit! [dead serious] Rounds 2 and 3, new evidence on the TV.",
-    "[growling] All the cards are out from Round 1. Search everything. The clock ends the round, [shouting] not you, you slow bastards! [dead serious] Rounds 2 and 3, fresh evidence on this screen.",
   ],
 };
 

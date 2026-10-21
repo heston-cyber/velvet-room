@@ -152,12 +152,18 @@ async function revealPlanFor(ctx: QueryCtx, game: Doc<"games">) {
     .collect();
   const secsOf = (purpose: string) => rows.find((r) => r.purpose === purpose && r.seconds)?.seconds ?? null;
   const sol = cf.solution;
-  return revealLayout(base, showSecs(game), {
-    killer: secsOf(`killer:${sol.killerId}`),
-    exhibit: secsOf(`exhibit:${sol.exhibitId}`),
-    room: secsOf(`room:${sol.roomKey}`),
-    accomplice: sol.accompliceId ? secsOf(`accomplice:${sol.accompliceId}`) : null,
-  });
+  return revealLayout(
+    base,
+    showSecs(game),
+    {
+      killer: secsOf(`killer:${sol.killerId}`),
+      exhibit: secsOf(`exhibit:${sol.exhibitId}`),
+      room: secsOf(`room:${sol.roomKey}`),
+      accomplice: sol.accompliceId ? secsOf(`accomplice:${sol.accompliceId}`) : null,
+    },
+    // Phase 6: the plant line, in games that had late tips.
+    game.lateTipsAt ? ((game.lateTips ?? []).some((t) => t.plant) ? "plantReveal" : "noPlant") : null,
+  );
 }
 
 /** Round 1 -> 2 -> 3 -> the lock-in -> the reveal. */

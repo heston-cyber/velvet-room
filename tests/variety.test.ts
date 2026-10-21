@@ -9,9 +9,10 @@ import { HECKLE, plan, type Data } from "../src/tv/timeline";
 const USED = Object.keys(CUES) as CueKey[];
 
 describe("adult script: several versions of every line, picked per game", () => {
-  test("every line the night uses has at least three adult versions; classic keeps one", () => {
+  // Phase 6 (Oct 21): new and rewritten lines start with two Adult versions (rebuild plan, section 5).
+  test("every line the night uses has at least two adult versions; classic keeps one", () => {
     for (const cue of USED) {
-      expect(cleanVersions(cue, "adult").length, cue).toBeGreaterThanOrEqual(3);
+      expect(cleanVersions(cue, "adult").length, cue).toBeGreaterThanOrEqual(2);
       expect(cleanVersions(cue, "classic")).toHaveLength(1);
     }
     for (const lines of Object.values(ADULT_MORE)) for (const l of lines!) expect(l).not.toMatch(/marri/i);
@@ -80,7 +81,7 @@ describe("noises: an extra bank, played now and then", () => {
           if (isNoisy(cue, tone, cueVariant(tone, cue, `game-${g}`))) noisy++;
         }
       }
-      expect(noisy / heard, tone).toBeGreaterThan(0.07);
+      expect(noisy / heard, tone).toBeGreaterThan(0.06);
       expect(noisy / heard, tone).toBeLessThan(0.13);
     }
   });

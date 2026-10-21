@@ -16,7 +16,10 @@ const guests = ["Sam", "Emily", "Josh", "Madison", "Reily", "Sophia"].map((real,
 
 describe("the new adult script", () => {
   test("every line the game plays has A, B and C, and an Adult D with a noise and a swear", () => {
-    expect(ACTIVE.length).toBeGreaterThanOrEqual(44);
+    // Phase 6 (Oct 21): the rewritten rule lines (how a round ends, jail, locking in, the killer-walks verdict) and the
+    // new ones get one Classic and two Adult versions for now (rebuild plan, section 5), and Sailor versions when Joel
+    // is recorded, so they're not in this set.
+    expect(ACTIVE.length).toBeGreaterThanOrEqual(38);
     for (const cue of ACTIVE) {
       expect(cleanVersions(cue, "adult"), cue).toHaveLength(3);
       const d = ADULT_D[cue];
@@ -41,8 +44,12 @@ describe("the new adult script", () => {
     }
   });
 
-  test("How to play still uses the v3 cards", () => {
-    for (const [cue] of howCues({ search: "waves", pacing: { mode: "ready" }, accomplice: true })) expect(ACTIVE).toContain(cue);
+  test("How to play: every card has a Classic line and at least two Adult versions", () => {
+    for (const jailVote of [true, false])
+      for (const [cue] of howCues({ search: "waves", pacing: { mode: "ready" }, accomplice: true, jailVote })) {
+        expect(cleanVersions(cue, "classic"), cue).toHaveLength(1);
+        expect(cleanVersions(cue, "adult").length, cue).toBeGreaterThanOrEqual(2);
+      }
   });
 });
 
@@ -90,9 +97,9 @@ describe("no repeats on a laptop, and the running gag every third game", () => {
     const heard = Object.fromEntries(Object.entries(first).map(([k, v]) => [k, [v]]));
     const second = pickLines("adult", "game-2", heard);
     for (const k of Object.keys(first)) expect(second[k], k).not.toBe(first[k]);
-    // after hearing A and B, it's C
+    // after hearing A and B, it's C (lines with two versions go back to the one heard longest ago)
     const third = pickLines("adult", "game-3", Object.fromEntries(Object.keys(first).map((k) => [k, [first[k], second[k]]])));
-    for (const k of Object.keys(first)) expect(new Set([first[k], second[k], third[k]]).size, k).toBe(3);
+    for (const k of Object.keys(first)) expect(new Set([first[k], second[k], third[k]]).size, k).toBe(Math.min(3, cleanVersions(k as CueKey, "adult").length));
   });
 
   test("the TV and the server agree on the picked version; a line that repeats moves on each time", () => {

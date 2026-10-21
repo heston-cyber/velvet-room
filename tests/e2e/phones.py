@@ -152,6 +152,10 @@ with sync_playwright() as p:
         pg.get_by_label("Press and hold to see your role").dispatch_event("pointerup")
         pg.get_by_role("button", name="Open my case file").click(timeout=10000)
     look(pages, "10-r1-case")
+    # Phase 6 (Oct 21): the "? How to play" rulebook, from the top of the phone.
+    look(pages, "10b-rulebook", lambda pg: pg.get_by_role("button", name="How to play").click(timeout=5000))
+    for _, pg in pages:
+        pg.get_by_role("button", name="Back to the game").first.click(timeout=5000)
     look(pages, "11-r1-scan", tab("Scan"))
     first.locator(".test-cards .tc-grid button").first.click()
     wait_for(lambda: first.get_by_text("Evidence card no.", exact=False).count() == 1, 10)

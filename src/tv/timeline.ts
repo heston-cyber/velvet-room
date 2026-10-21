@@ -13,6 +13,9 @@ import { CAST_KEYS } from "../../convex/figures";
 import type { MusicKey, SfxKey } from "./sound";
 
 export type Data = FunctionReturnType<typeof api.game.tv>;
+
+/** Phase 4: how long the late tips hold the TV on their own before the jail vote shows. */
+export const LATE_TIPS_MS = 20_000;
 export type Clip = { url: string; caption: string; seconds: number } | null;
 type RollItem = NonNullable<Data["voice"]["rollCall"]>["items"][number];
 
@@ -289,7 +292,10 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
       // The Jail Vote / The Release Vote title card (a gavel, or the keys), then the narrator.
       out.holdUntil = card(vt.kind === "jail" ? "jailvote" : "release", t);
       fx(`${id}:card`, vt.kind === "jail" ? "gavel" : "keys", t + 0.15 * S);
-      vo(`${id}:open`, vt.kind === "jail" ? "voteJail" : "voteRelease", t + 4.3 * S, false, `${round}`);
+      // Phase 6: the late tips land first (the TV shows them on their own for LATE_TIPS_MS), then the vote's line.
+      const tips = vt.kind === "jail" && (d.lateTips ?? []).length > 0 && !!d.lateTipsAt;
+      const tipsEnd = tips ? vo(`${id}:tips`, "lateTips", t + 4.3 * S) : t;
+      vo(`${id}:open`, vt.kind === "jail" ? "voteJail" : "voteRelease", tips ? Math.max(tipsEnd + 0.6 * S, d.lateTipsAt! + LATE_TIPS_MS) : t + 4.3 * S, false, `${round}`);
       // Heckles while the votes come in, then the last call.
       heckle(`${id}:0`, 23 + round * 3 + (vt.kind === "jail" ? 0 : 2), t + HECKLE.voteOpenFirst, "vote");
       heckle(`${id}:1`, 24 + round * 3 + (vt.kind === "jail" ? 0 : 2), t + HECKLE.voteOpenFirst + HECKLE.voteOpenEvery, "vote");
@@ -330,6 +336,9 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
       let e = vo(`r${round}:${t}`, round === 1 ? (waves ? "round1Waves" : "round1") : round === 2 ? "round2" : "round3", t + 4.3 * S);
       if (waves && round > 1) e = vo(`r${round}:${t}:open`, "roomsOpen", e + 0.5 * S);
       if (waves) e = clip(`r${round}:${t}:rooms`, d.voice.rooms[round] ?? undefined, e + 0.3 * S);
+      // Phase 6 (Oct 21): the story reminder each round; without a jail vote, the late tips land with Round 3.
+      e = vo(`r${round}:${t}:ask`, "askAround", e + 0.5 * S, false, `${round}`);
+      if (round === 3 && !g.jailVote && (d.lateTips ?? []).length) e = vo(`r3:${t}:tips`, "lateTips", e + 0.5 * S);
       if (round >= 2) {
         const cardsIn = d.evidence.filter((c) => c.round === round && !c.twist);
         cardsIn.forEach((_, i) => fx(`r${round}:${t}:ev${i}`, "telegraph", t + CARD_MS.round2 + i * 0.35 * S));
@@ -378,7 +387,10 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
     if (ro && !ro.closedAt) {
       out.loop = "accuse";
       fx(`ro:${ro.at}:sting`, "brassSting", ro.at + 0.2 * S);
+      // Phase 6: "It's a tie": last words first (a tie on who), or straight to the vote on what's tied.
+      vo(`ro:${ro.at}:tie`, ro.who ? "runoffWho" : "runoffThings", ro.at + 0.6 * S);
       ro.words.forEach((_, i) => fx(`ro:${ro.at}:w${i}`, "stamp", ro.at + RUNOFF_INTRO_MS + i * LAST_WORDS_MS));
+      if (ro.who && ro.words.length) vo(`ro:${ro.at}:vote`, "runoffVote", ro.voteAt + 0.3 * S);
       return out;
     }
     // Accusations.
@@ -433,10 +445,13 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
     if (r?.killer) clip(`rev:${t}:killer`, r.killer, t + REVEAL.name + 0.3 * S);
     else vo(`rev:${t}:2`, "reveal2", t + REVEAL.name + 0.3 * S);
     fx(`rev:${t}:sting`, "brassSting", t + REVEAL.how);
+    let howEnd: number;
     if (r?.exhibit && r.room) {
       const e = clip(`rev:${t}:exhibit`, r.exhibit, t + REVEAL.how + 0.3 * S);
-      clip(`rev:${t}:room`, r.room, e + 0.1 * S);
-    } else vo(`rev:${t}:3`, "reveal3", t + REVEAL.how + 0.3 * S);
+      howEnd = clip(`rev:${t}:room`, r.room, e + 0.1 * S);
+    } else howEnd = vo(`rev:${t}:3`, "reveal3", t + REVEAL.how + 0.3 * S);
+    // Phase 6: the planted tip, or no plant tonight.
+    if (d.results?.plant) vo(`rev:${t}:plant`, d.results.plant.planted ? "plantReveal" : "noPlant", howEnd + 0.4 * S);
     // The accomplice: "And the accomplice who helped them is…", their name, and their drawing steps in.
     if (REVEAL.accomplice !== null) {
       const at = t + REVEAL.accomplice;

@@ -12,7 +12,7 @@ import { weaponUrl } from "../lib/weapon";
 import { ALL_FIGURE_KEYS, FACES_RIGHT } from "../../convex/figures";
 import { CARD_MS, cardUrl, loopUrl, useMediaBank, type LoopKey } from "./media";
 import { SoundEngine } from "./sound";
-import { cameosNow, cardNow, dress, due, plan, type Cameo, type CharKey, type Data, type Plan } from "./timeline";
+import { LATE_TIPS_MS, cameosNow, cardNow, dress, due, plan, type Cameo, type CharKey, type Data, type Plan } from "./timeline";
 import type { MapData } from "./HouseMap";
 import "./tv.css";
 
@@ -241,6 +241,8 @@ function TvInner({ slug, tvKey, onNext, overlay, bare }: { slug: string; tvKey: 
   // Oct 16 (Heston: "keep the players on screen at the bottom"): the guests stay in a strip along the bottom while
   // the house is searched, Rounds 1 to 3.
   const strip = !bare && !held && !card && !g.paused && !g.tvShowAll && /^r[123]$/.test(scene.key);
+  // The room code in the bottom corner; the caption sits a little higher while it shows (Phase 6, the look-over).
+  const footRoom = !!g.roomCode && !card && scene.key !== "doors" && (g.status === "lobby" || (g.status === "playing" && !(g.introEndsAt && now < g.introEndsAt)));
 
   return (
     <div className={`tv-page ${chrome ? "" : "hide-cursor"}`}>
@@ -266,14 +268,14 @@ function TvInner({ slug, tvKey, onNext, overlay, bare }: { slug: string; tvKey: 
             {g.tvShowAll && g.status === "playing" && <AllEvidence data={data} />}
             {strip && <GuestStrip guests={data.guests} ready={g.pacing.mode === "ready"} />}
             {say && (
-              <div className="tv-caption" key={say}>
+              <div className={`tv-caption${footRoom ? " above-foot" : ""}`} key={say}>
                 <span className="who">{who}</span>
                 <span className="line">{say}</span>
               </div>
             )}
             <div className="tv-foot">
               {g.isTest && <span className="tv-test">Test game</span>}
-              {g.roomCode && !card && scene.key !== "doors" && (g.status === "lobby" || (g.status === "playing" && !(g.introEndsAt && now < g.introEndsAt))) && (
+              {footRoom && (
                 <span className="tv-room">
                   Room code <b>{g.roomCode}</b> · {window.location.host}/join
                 </span>
@@ -654,7 +656,8 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
         node: (
           <div className="tv-scene">
             {/* Oct 21: shrinks to fit between the host's buttons and the caption, however many awards and winners. */}
-            <Fit className="scene" watch={list.map((a) => a.winners.length).join()}>
+            {/* Phase 6 look-over: refit as each award's names come in (a shared award grows its card). */}
+            <Fit className="scene" watch={`${list.map((a) => a.winners.length).join()}:${p.awardsAt.filter((x) => now >= x).length}`}>
             <span className="tv-kick">The Velvet Room awards</span>
             <h2 className="tv-h2" style={{ fontSize: "5cqw" }}>To the winners</h2>
             <div className={`tv-awards${list.length > 3 ? " many" : ""}`} style={{ "--n": list.length } as CSSProperties}>
@@ -873,6 +876,12 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
                 <HowWin face={stand[0]} weapon={d.weapons[0] ?? { key: "candlestick", name: "Candlestick" }} room={d.map.rooms[0]?.label ?? "The Lounge"} />
               ) : step.art === "round" ? (
                 <HowRound faces={stand.slice(0, 5)} timer={g.pacing.mode === "timer"} />
+              ) : step.art === "story" ? (
+                <HowStory />
+              ) : step.art === "tips" ? (
+                <HowTips />
+              ) : step.art === "chips" ? (
+                <HowChips />
               ) : step.art === "pair" ? (
                 // The accomplice: the masked killer, with someone at their shoulder.
                 <div className="tv-how-pair">
@@ -886,7 +895,7 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
             <div className="tv-how-text">
               <span className="tv-kick fade">How to play · {i + 1} of {n}</span>
               {HOW_TITLE[step.cue] && <h2 className="tv-how-title fade">{HOW_TITLE[step.cue]}</h2>}
-              <HowRule text={captionText(step.cue, g.script ?? g.tone, g.narrator.host, step.v)} />
+              <HowRule text={captionText(step.cue, g.script ?? g.tone, g.narrator.host, step.v)} wide={wide} />
             </div>
           </div>
         </div>
@@ -927,9 +936,6 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
 type Vote = NonNullable<Data["vote"]>;
 
 /** The jail and release votes: the candidates while it's open, then who voted for whom, then the verdict. */
-/** How long the late tips hold the screen before the jail vote shows (Phase 4). */
-const LATE_TIPS_MS = 20_000;
-
 function voteScene(d: Data, vt: Vote, now: number): Scene {
   const jail = vt.kind === "jail";
   if (vt.auto && vt.target) {
@@ -1205,6 +1211,56 @@ function VoteDots() {
         ))}
       </span>
       <span className="lab">More than half</span>
+    </div>
+  );
+}
+
+/** Phase 6 (Oct 21), How to play: your story. A phone's "Where you were" card, and a second one just like it. */
+function HowStory() {
+  return (
+    <div className="tv-how-story enter" aria-hidden="true">
+      {[0, 1].map((k) => (
+        <div key={k} className={`card ${k ? "back" : ""}`}>
+          <span className="lab">Where you were</span>
+          <i />
+          <i />
+          <i className="short" />
+          {k === 0 && <span className="q">Real, or a cover?</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Phase 6, How to play: the late tips. Two tips land; one might be a plant. */
+function HowTips() {
+  return (
+    <div className="tv-how-tips enter" aria-hidden="true">
+      {[0, 1].map((k) => (
+        <div key={k} className="tip" style={{ animationDelay: `${0.3 + k * 0.5}s` }}>
+          <span className="lab">Late tip</span>
+          <i />
+          <i className="short" />
+          {k === 1 && <b className="stamp">Planted?</b>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Phase 6, How to play: chips. A stack of chips, and the rule: quiet is allowed, a lie never. */
+function HowChips() {
+  return (
+    <div className="tv-how-chips enter" aria-hidden="true">
+      <svg viewBox="0 0 120 120">
+        {[0, 1, 2, 3, 4].map((k) => (
+          <g key={k} transform={`translate(0 ${-k * 11})`} style={{ animationDelay: `${0.2 + k * 0.15}s` }} className="chip">
+            <ellipse cx="60" cy="96" rx="34" ry="11" />
+            <path d="M26 96v8c0 6 15 11 34 11s34-5 34-11v-8" />
+          </g>
+        ))}
+      </svg>
+      <span className="lab">Votes and silence: yes. Lies: never.</span>
     </div>
   );
 }
@@ -1485,10 +1541,11 @@ function AllEvidence({ data }: { data: Data }) {
  * Oct 17: a How to play card's words, sized to fit. The longer rules lines (up to about 400 characters in Sailor mode)
  * pushed the card's "How to play · 6 of 6" off the top of the screen at the usual size.
  */
-const howRuleSize = (len: number) => Math.min(2.5, Math.sqrt(1300 / Math.max(1, len)));
-function HowRule({ text }: { text: string }) {
+// Phase 6 (Oct 21): a wide card (the map beside it) has a narrower text column, so its words run smaller.
+const howRuleSize = (len: number, wide = false) => Math.min(2.5, Math.sqrt((wide ? 750 : 1300) / Math.max(1, len)));
+function HowRule({ text, wide = false }: { text: string; wide?: boolean }) {
   return (
-    <div className="tv-rule fade" style={{ fontSize: `${howRuleSize(text.length).toFixed(2)}cqw` }}>
+    <div className="tv-rule fade" style={{ fontSize: `${howRuleSize(text.length, wide).toFixed(2)}cqw` }}>
       {text}
     </div>
   );

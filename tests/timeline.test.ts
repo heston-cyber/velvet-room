@@ -26,6 +26,9 @@ function data(over: { game?: Record<string, unknown>; counts?: Record<string, nu
     exhibits: [],
     evidence: over.evidence ?? [],
     results: over.results ?? null,
+    heat: [],
+    lateTips: [],
+    lateTipsAt: null,
     reveal: REVEAL,
     standIns: STAND,
     voice: { voice: "ivy", rollCall: null, body: null, rooms: {}, reveal: null, winners: null, ...over.voice },
@@ -90,8 +93,10 @@ describe("TV timeline", () => {
     expect(p.loop).toBe("rollcall");
     // v3 (Oct 16): a card per rule, each with a picture; Oct 17 adds how a round ends (this fixture's window ends
     // before the last card)
-    const cards = ["howCase", "howWeapons", "howSearch", "howRoundTimer", "howJail2", "howWin2"];
-    const arts = ["suspects", "weapons", "search", "round", "jail", "win"];
+    // Phase 6 (Oct 21): six cards: one of you did it, your story, search (how a round ends folded in), the late tips and
+    // jail, chips, locking in.
+    const cards = ["howCase", "howStory", "howRoundTimer", "howJail2", "howChips", "howWin2"];
+    const arts = ["suspects", "story", "search", "jail", "chips", "win"];
     const n = p.rules!.steps.length;
     expect(n).toBeGreaterThanOrEqual(5);
     expect(p.rules!.steps.map((s) => s.cue)).toEqual(cards.slice(0, n));

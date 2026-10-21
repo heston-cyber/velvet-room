@@ -135,6 +135,10 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
     if (!pickOpen) setPickAgain(false);
   }, [pickOpen]);
 
+  // Phase 6 (Oct 21): the "? How to play" rulebook, from the top of the phone.
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const rulesShown = rulesOpen && me.checkedIn && game.status !== "registration";
+
   let body: JSX.Element;
   let showNav = false;
   if (game.status === "lobby" && !me.checkedIn) body = <Arrive token={token} name={me.charName} />;
@@ -193,10 +197,14 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
         <Notebook token={token} data={data} />
       );
   } else body = <Reveal token={token} data={data} />;
+  if (rulesShown) {
+    body = <Rulebook data={data} onClose={() => setRulesOpen(false)} />;
+    showNav = false;
+  }
 
   return (
     <div className="phone-app">
-      <TopLine data={data} />
+      <TopLine data={data} rules={me.checkedIn && game.status !== "registration" ? { open: rulesShown, toggle: () => setRulesOpen(!rulesOpen) } : null} />
       <main className="phone-body">
         {game.isTest && <div className="testflag">Test game · not the real party</div>}
         {body}
@@ -226,7 +234,7 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
   );
 }
 
-function TopLine({ data }: { data: Phone }) {
+function TopLine({ data, rules }: { data: Phone; rules: { open: boolean; toggle: () => void } | null }) {
   const { game, counts } = data;
   // Oct 20: only timed games have clocks.
   const timed = game.pacing.mode === "timer" && !!game.roundEndsAt;
@@ -269,7 +277,14 @@ function TopLine({ data }: { data: Phone }) {
         <span className="chip">{chip}</span>
         <span className="timer">{right}</span>
       </div>
-      <p className="todo">{todoOf(data, intro)}</p>
+      <div className="topline-sub">
+        <p className="todo">{todoOf(data, intro)}</p>
+        {rules && (
+          <button type="button" className="rules-q" aria-expanded={rules.open} onClick={rules.toggle} aria-label="How to play">
+            <b>?</b> How to play
+          </button>
+        )}
+      </div>
     </header>
   );
 }
@@ -1124,6 +1139,94 @@ function Evidence({ token, data }: { token: string; data: Phone }) {
         )}
       </section>
       {data.game.round <= 3 && <Pacing token={token} data={data} />}
+    </div>
+  );
+}
+
+/**
+ * Phase 6 (Oct 21, Heston, Oct 20: "the exhaustive, in-depth version of every rule, in plain language, for settling
+ * arguments over technicalities"): the full rulebook, from "? How to play" at the top of the phone. It never gives away
+ * how the evidence is built, how many are left standing, or how the late tips work beyond the killer planting one.
+ * Worded for this game's settings (a jail vote or not, timed or not, rooms opening in waves or all at once).
+ */
+function RbSec({ h, children }: { h: string; children: ReactNode }) {
+  return (
+    <section className="rb-sec">
+      <h3>{h}</h3>
+      {children}
+    </section>
+  );
+}
+
+function Rulebook({ data, onClose }: { data: Phone; onClose: () => void }) {
+  const g = data.game;
+  const timed = g.pacing.mode === "timer";
+  const waves = g.search === "waves";
+  const S = RbSec;
+  return (
+    <div className="screen rulebook">
+      <div className="rb-head">
+        <h1 className="title-lg">How to play</h1>
+        <button type="button" className="ghost-btn" onClick={onClose}>
+          Back to the game
+        </button>
+      </div>
+      <p className="help">Every rule, in full. Settle your arguments here.</p>
+      <S h="The night">
+        <p>Don Ray Sanders dies at the start of the night, and one of you did it. Work out who did it, with which weapon, and in which room. The killer's job is to keep you from it.</p>
+      </S>
+      <S h="Your role">
+        <p>Your phone tells you if you're the killer or innocent. Press and hold your case file to read it; let go and it hides again. Keep it to yourself.</p>
+        <p>Only the killer may lie, about anything. Everyone else tells the truth. You don't have to answer every question, but you can't lie.</p>
+      </S>
+      <S h="Where you were">
+        <p>Everyone's phone says where they were when the lights went out, with one detail someone can check. Innocents' stories are true. The killer's is a made-up cover that looks exactly the same, so showing your phone proves nothing. Never show your phone.</p>
+        <p>Some phones also list debts, like "You owe Josh $200." Debts are always true, the killer's too.</p>
+      </S>
+      <S h="Searching">
+        <p>
+          The night has three rounds. {waves ? "Rooms open a few at a time; stay out of a room until the TV map shows it open." : "Every room is open from the start."} Evidence cards are hidden around the house. Scan each one you find with your phone. A card's words show only on the phone that scanned it, so compare notes. The TV map ticks off each card once someone finds it.
+        </p>
+        <p>New evidence also lands on the TV in Rounds 2 and 3. Your Evidence tab keeps everything you've seen.</p>
+        <p>{timed ? "Each round runs on the clock. When it runs out, the round ends." : "Tap Ready when you're done searching. The round ends when everyone's ready, or when the host moves it on."}</p>
+      </S>
+      <S h="The heat">
+        <p>You can tag one guest you suspect, in your Notebook. When three or more guests tag the same person, the TV puts the heat on them. Tags are anonymous. Move or drop yours any time. If the evidence on the TV clears someone, tags on them fall off. The heat changes nothing by itself, and it goes away at the lock-in.</p>
+      </S>
+      <S h="Round 2 and the late tips">
+        <p>In Round 2, every phone asks everyone to pick one guest at the same moment. For innocents, the pick moves your heat tag. You can skip.</p>
+        <p>When Round 2 ends, two late tips land on the TV. The killer may plant evidence once, so one of them might not be true.</p>
+      </S>
+      {g.jailVote ? (
+        <S h="The jail vote">
+          <p>After the late tips, everyone who's free votes on their phone: who goes to jail? You can vote for nobody. It takes more than half of the voters on one guest, or nobody goes. The TV shows who voted for whom.</p>
+          <p>The jailbird sits out Round 3: no searching, voting or betting. They can still talk, bribe and tag. They're back for the lock-in.</p>
+        </S>
+      ) : (
+        <S h="The jail vote">
+          <p>Tonight's game is too small for a jail vote (it takes 5 guests).</p>
+        </S>
+      )}
+      <S h="Chips">
+        <p>Chips buy drinks and pay debts. Someone may try to buy your vote or your silence; that's allowed. You can stay quiet. You can never lie, chips or no chips.</p>
+      </S>
+      <S h="Locking in">
+        <p>After Round 3, everyone locks in on their phone: who did it, with which weapon, and in which room. Everyone locks in, the jailbird and the killer too. Once you lock in, it's final.</p>
+        <p>The most votes wins on each of the three. If the most votes are on the killer, the weapon and the room, everyone innocent wins. Miss any one, and the killer wins.</p>
+      </S>
+      <S h="Ties">
+        <p>A tie for the most votes goes to a runoff. A tie on who did it: everyone tied gets 30 seconds of last words, then everyone votes again, on who only. A tie on the weapon or the room: just that part is voted again. If the runoff ties too, the killer walks.</p>
+      </S>
+      <S h="Betting">
+        <p>Betting is optional and has its own rules in the Betting tab (tap its "?").</p>
+      </S>
+      <S h="The end">
+        <p>The reveal shows the killer, the weapon, the room, and whether a late tip was planted. Then the awards: Best Detective, Prime Suspect, Best Dressed (voted in the lobby) and Got Away With It.</p>
+        <p>The host can pause the night or move any step on, for a dead phone or someone stuck outside.</p>
+      </S>
+      <button type="button" className="ghost-btn full" onClick={onClose}>
+        Back to the game
+      </button>
     </div>
   );
 }

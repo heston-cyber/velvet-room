@@ -236,10 +236,10 @@ with sync_playwright() as p:
         # Oct 17: LONG_HOW=<text>: the longest rules line any script has (pass it in) still fits this card's layout.
         if os.environ.get("LONG_HOW"):
             host.evaluate("""(t) => { const r = document.querySelector('.tv-how .tv-rule'); if (!r) return;
-              r.textContent = t; r.style.fontSize = Math.min(2.5, Math.sqrt(1300 / t.length)).toFixed(2) + 'cqw'; }""", os.environ["LONG_HOW"])
+              r.textContent = t; const k = document.querySelector('.tv-how.wide') ? 750 : 1300; r.style.fontSize = Math.min(2.5, Math.sqrt(k / t.length)).toFixed(2) + 'cqw'; }""", os.environ["LONG_HOW"])
             audit(f"how-{i}-longest", 300)
     text = lambda: host.evaluate("() => document.body.textContent")
-    for label, words in (("intro-1", "New York City · October 31, 1929"), ("intro-2", "The Don is dead."), ("intro-3", "One of you did it.")):
+    for label, words in (("intro-1", "New York City · October 31, 2026"), ("intro-2", "The Don is dead."), ("intro-3", "One of you did it.")):
         wait_for(lambda: words in text(), 45)
         audit(label, 1500)
     wait_for(lambda: host.locator(".tv-roll h2").count() == 1, 60)

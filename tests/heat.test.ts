@@ -128,14 +128,18 @@ describe("a night with the heat and a frame", () => {
 
   test("a tag on a guest the TV evidence cleared drops", async () => {
     const { t, cf, innocents } = await round2();
-    const cleared = [...publiclyCleared(cf, 2)];
-    expect(cleared.length).toBeGreaterThan(0);
-    const target = innocents.find((p) => p._id === cleared[0]) ?? innocents[0];
+    // Whatever the evidence clears by Round 3 on the TV; if this case clears nobody there, a TV clue is added that does.
+    let cleared = [...publiclyCleared(cf, 3)];
+    const target = innocents.find((p) => cleared.includes(p._id)) ?? innocents[0];
+    const fakeCf = cleared.length ? cf : { ...cf, clues: [...cf.clues, { id: "x", kind: "suspect", text: "", round: 1, channel: "tv", elim: { suspects: [target._id], exhibits: [], rooms: [] } }] } as typeof cf;
+    cleared = [...publiclyCleared(fakeCf, 3)];
     const tagger = innocents.find((p) => p._id !== target._id)!;
     await t.mutation(api.heat.tag, { token: tagger.token, targetId: target._id as Id<"players"> });
-    const g = await game(t);
+    const g = { ...(await game(t)), round: 3 };
     const me = (await fresh(t)).find((p) => p._id === tagger._id)!;
-    expect(myTag(g, me, cf)).toEqual(cleared.includes(target._id) ? { tag: null, dropped: true } : { tag: target._id, dropped: false });
+    expect(myTag(g, me, fakeCf)).toEqual({ tag: null, dropped: true });
+    // And it no longer counts toward the heat.
+    expect(liveTags([{ from: tagger._id, to: target._id }], new Set([tagger._id, target._id]), new Set(cleared))).toEqual([]);
   });
 
   test("the killer frames, changes their mind, and the plant lands at the jail vote about the last pick", async () => {
