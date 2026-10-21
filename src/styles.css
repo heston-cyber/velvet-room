@@ -418,3 +418,18 @@ img { max-width: 100%; }
 .last-words li.now .st { color: var(--brass); }
 .last-words li.done { opacity: .55; }
 .you-speak { border-color: var(--brass); }
+
+/* The book (Oct 21): the Betting tab. */
+.book-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.book-q { width: 44px; height: 44px; flex: none; border-radius: 50%; border: 1px solid var(--brass); background: none; color: var(--brass); font-family: var(--display); font-size: 22px; cursor: pointer; }
+.book-q[aria-expanded="true"] { background: var(--brass); color: var(--ink); }
+.odds-badge { justify-self: start; font-family: var(--label); font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink); background: var(--brass); padding: 5px 10px 4px; }
+.book-rules p { margin: 0; font-size: 15px; line-height: 1.45; color: var(--paper); }
+.book .pot { margin: 0; font-size: 17px; color: var(--paper); }
+.book .pot b { font-family: var(--display); font-size: 22px; color: var(--brass); }
+.my-bet p, .book-result p { margin: 0; font-size: 17px; line-height: 1.45; color: var(--paper); }
+.pick .opts.amounts button { min-width: 64px; min-height: 44px; font-family: var(--label); font-weight: 700; letter-spacing: .04em; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* Five tabs (Oct 21): smaller, tighter labels so NOTEBOOK and EVIDENCE fit a small phone's fifth of the width. */
+.tabbar button { letter-spacing: .02em; min-width: 0; font-size: 11px; padding-left: 2px; padding-right: 2px; }
+@media (min-width: 420px) { .tabbar button { font-size: 12px; letter-spacing: .05em; } }

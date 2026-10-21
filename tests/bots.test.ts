@@ -175,6 +175,12 @@ describe("a test game with bots", () => {
     await t.mutation(api.game.setReady, { token: human, ready: true });
     await beats(t, slug, 40);
     expect((await gameOf(t, slug)).round).toBe(2); // everyone ready: Round 2
+    // The book (Oct 21): bots bet now and then; every bet is $100 to $500, never on themselves.
+    const bets = await t.run((ctx) => ctx.db.query("bets").collect());
+    for (const b of bets) {
+      expect([100, 200, 300, 400, 500]).toContain(b.amount);
+      expect(b.suspectId).not.toBe(b.playerId);
+    }
     // On to Round 2's jail vote: the bots vote.
     if (!(await gameOf(t, slug)).vote) await t.mutation(api.game.advanceRound, { slug, hostKey }); // Round 2 ends: the jail vote opens
     expect((await gameOf(t, slug)).vote?.kind).toBe("jail");

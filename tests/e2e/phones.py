@@ -157,6 +157,17 @@ with sync_playwright() as p:
     wait_for(lambda: first.get_by_text("Evidence card no.", exact=False).count() == 1, 10)
     look([("se", first)], "12-r1-found")
     look(pages, "13-r1-evidence", tab("Evidence"))
+    # The book (Oct 21): the Betting tab, its "?", and a bet placed.
+    look(pages, "13b-r1-book", tab("Betting"))
+    first.locator(".book-q").click()
+    look([("se", first)], "13c-r1-book-rules")
+    first.locator(".book-q").click()
+    first.locator(".pick .opts button.who-opt").first.click()
+    first.locator(".pick .opts.amounts button").nth(1).click()
+    first.get_by_role("button", name="Place the bet").click()
+    first.locator("button.primary.armed").click()
+    first.wait_for_selector(".my-bet", timeout=10000)
+    look([("se", first)], "13d-r1-book-placed")
 
     def ask(pg):
         tab("Notebook")(pg)

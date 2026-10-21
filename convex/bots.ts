@@ -14,6 +14,9 @@ import type { MutationCtx } from "./_generated/server";
 import { insertSelfServeGame } from "./hosting";
 import {
   ballotsOf,
+  betFor,
+  betsOf,
+  bookOdds,
   cardText,
   caseInput,
   castRunoffVote,
@@ -30,6 +33,7 @@ import {
   voteOf,
 } from "./game";
 import { caseFor } from "./caseFile";
+import { BET_AMOUNTS } from "./book";
 import { charKeyOf, randomCode, requireHost } from "./lib";
 import { takenFigures } from "./figures";
 import { secure } from "./engine/rng";
@@ -191,6 +195,17 @@ async function act(ctx: MutationCtx, gameAtStart: Doc<"games">, chance: number) 
     const open = new Set(openRoomsIn(round, game.roomOrder ?? game.rooms.map((r) => r.key), game.search));
     const openCards = markers.filter((m) => m.roomKey && open.has(m.roomKey));
     let readied = false;
+    // The book (Oct 21): about 6 bots in 10 place one bet at some point before the lock-in, on someone their cards
+    // haven't cleared (the killer bot bets as cover).
+    if (bookOdds(game) !== null) {
+      const bets = await betsOf(ctx, game._id);
+      const ids = (await caseInput(ctx, game)).suspects.map((x) => x.id);
+      for (const b of bots) {
+        if (b.jailed || bets.some((x) => x.playerId === b._id) || !betsAtAll(b._id) || rng() >= chance * 0.25) continue;
+        const target = chooseSuspect(rng, who(b), ids, knownElims(cf, round, await scannedBy(ctx, b._id)));
+        if (target) await betFor(ctx, game, b, target, BET_AMOUNTS[Math.floor(rng() * BET_AMOUNTS.length)]);
+      }
+    }
     for (const b of bots) {
       if (b.jailed || b.readyRound === round || rng() >= chance) continue;
       const mine = await scannedBy(ctx, b._id);
@@ -287,3 +302,10 @@ export const askBot = query({
     return { name: bot.charName, story, found };
   },
 });
+
+/** Whether a bot bets at all this game: about 6 in 10, the same answer every time for the same bot. */
+function betsAtAll(id: string) {
+  let h = 0;
+  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return h % 10 < 6;
+}

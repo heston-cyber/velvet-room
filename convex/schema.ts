@@ -258,6 +258,19 @@ export default defineSchema({
   })
     .index("by_game", ["gameId"])
     .index("by_player", ["playerId"]),
+  // The book (Oct 21): one optional bet per guest on who the killer is, placed before the lock-in. The chips go on the
+  // TV stand; the odds are the round's when it was placed.
+  bets: defineTable({
+    gameId: v.id("games"),
+    playerId: v.id("players"),
+    suspectId: v.string(),
+    amount: v.number(),
+    round: v.number(),
+    odds: v.number(),
+    at: v.number(),
+  })
+    .index("by_game", ["gameId"])
+    .index("by_player", ["playerId"]),
   // The runoff (Oct 21): one vote per guest on the parts the lock-in tied on. Final once cast, like the lock-in.
   runoffVotes: defineTable({
     gameId: v.id("games"),

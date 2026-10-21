@@ -13,7 +13,7 @@ import { weaponUrl } from "../lib/weapon";
 import { LAST_WORDS_MS, RUNOFF_INTRO_MS, speakingNow } from "../../convex/lockin";
 
 type Phone = NonNullable<FunctionReturnType<typeof api.game.phone>>;
-type Tab = "case" | "scan" | "evidence" | "notebook";
+type Tab = "case" | "scan" | "evidence" | "notebook" | "book";
 
 const firstName = (n: string) =>
   n.replace(/[“"][^”"]*[”"]/g, "").trim().split(/\s+/)[0] || n;
@@ -81,6 +81,14 @@ const ICON: Record<Tab | "accuse", JSX.Element> = {
       <path d="M9 8l2 2 4-4M9 15h6" />
     </svg>
   ),
+  // The book (Oct 21): a poker chip.
+  book: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 4v3M12 17v3M4 12h3M17 12h3" />
+    </svg>
+  ),
 };
 
 export default function PartyPhone({ token, data }: { token: string; data: Phone }) {
@@ -131,6 +139,8 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
         <Evidence token={token} data={data} />
       ) : seen && tab === "notebook" ? (
         <Notebook token={token} data={data} />
+      ) : seen && tab === "book" ? (
+        <Book token={token} data={data} />
       ) : (
         <VoteScreen token={token} data={data} now={now} />
       );
@@ -155,6 +165,8 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
         <Scan token={token} data={data} onNotebook={() => setTab("notebook")} />
       ) : tab === "evidence" ? (
         <Evidence token={token} data={data} />
+      ) : tab === "book" ? (
+        <Book token={token} data={data} />
       ) : (
         <Notebook token={token} data={data} />
       );
@@ -175,9 +187,10 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
               ...(voting ? [] : [["scan", "Scan"]]),
               ["evidence", "Evidence"],
               ["notebook", "Notebook"],
+              ["book", "Betting"],
             ] as [Tab, string][]
           ).map(([k, label]) => {
-            const on = voting ? (k === "case" ? tab !== "evidence" && tab !== "notebook" : tab === k) : tab === k;
+            const on = voting ? (k === "case" ? tab !== "evidence" && tab !== "notebook" && tab !== "book" : tab === k) : tab === k;
             return (
               <button key={k} type="button" aria-current={on ? "page" : undefined} onClick={() => setTab(k)}>
                 {k === "case" && (game.round >= 4 || voting) ? ICON.accuse : ICON[k]}
@@ -1150,6 +1163,133 @@ function Accuse({ token, data }: { token: string; data: Phone }) {
  * or room; 30 seconds of last words for everyone in a runoff on who). First the last words, then one vote on what's
  * tied, final once cast.
  */
+/**
+ * The Betting tab (Oct 21): one optional bet on who the killer is, $100 to $500, any time before the lock-in. The
+ * earlier, the better it pays. The chips go on the TV stand; wrong bets go to the killer. It explains itself (its own
+ * "?"); How to play doesn't mention it.
+ */
+function Book({ token, data }: { token: string; data: Phone }) {
+  const book = data.book;
+  const place = useMutation(api.game.placeBet);
+  const [who, setWho] = useState("");
+  const [amount, setAmount] = useState(0);
+  const [armed, setArmed] = useState(false);
+  const [rules, setRules] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (!book || !data.board) return null;
+  const me = data.me.id;
+  const odds = book.odds;
+  async function bet() {
+    if (!armed) return setArmed(true);
+    setError(null);
+    try {
+      await place({ token, suspectId: who, amount });
+    } catch (e) {
+      setError(friendlyError(e));
+      setArmed(false);
+    }
+  }
+  return (
+    <div className="screen book">
+      <div className="book-head">
+        <h1 className="title-lg">The book</h1>
+        <button type="button" className="book-q" aria-expanded={rules} onClick={() => setRules(!rules)}>
+          ?<span className="sr-only"> How betting works</span>
+        </button>
+      </div>
+      {odds !== null && <span className="odds-badge">Round {data.game.round} pays {odds} to 1</span>}
+      {rules && (
+        <div className="file book-rules">
+          <p>One bet a game, on who the killer is: $100 to $500. It's separate from your lock-in.</p>
+          <p>When you bet, set your chips on the TV stand.</p>
+          <p>The earlier you bet, the better it pays: Round 1 pays 4 to 1, Round 2 (the jail vote too) 3 to 1, Round 3 2 to 1.</p>
+          <p>Right: your chips back, plus your winnings from the bank. Wrong: your chips go to the killer.</p>
+          <p>Betting closes when the lock-in starts. Jailbirds can't bet. Results show here after the reveal.</p>
+        </div>
+      )}
+      <p className="pot">
+        On the stand: <b>${book.pot.toLocaleString()}</b>
+        <span className="help"> · {book.bets} {book.bets === 1 ? "bet" : "bets"}</span>
+      </p>
+      {book.mine ? (
+        <div className="file my-bet">
+          <span className="eyebrow">Your bet</span>
+          <p>
+            ${book.mine.amount} on <b>{book.mine.name}</b> at {book.mine.odds} to 1.
+          </p>
+          <span className="help">
+            If {splitFirst(book.mine.name)} did it: ${book.mine.amount * book.mine.odds} from the bank, plus your ${book.mine.amount} back. If not, your chips go to the killer.
+          </span>
+        </div>
+      ) : data.me.jailed ? (
+        <p className="lede">Jailbirds can't bet.</p>
+      ) : odds === null ? (
+        <p className="lede">The book is closed.</p>
+      ) : (
+        <>
+          <div className="pick">
+            <span className="eyebrow">Who did it?</span>
+            <div className="opts">
+              {data.board.suspects
+                .filter((s) => s.id !== me)
+                .map((s) => (
+                  <button key={s.id} type="button" className="who-opt" aria-pressed={who === s.id} onClick={() => (setWho(s.id), setArmed(false))}>
+                    {s.figure && <img src={faceUrl(s.figure)} alt="" />}
+                    <span>{s.name}</span>
+                  </button>
+                ))}
+            </div>
+          </div>
+          <div className="pick">
+            <span className="eyebrow">How much</span>
+            <div className="opts amounts">
+              {[100, 200, 300, 400, 500].map((n) => (
+                <button key={n} type="button" aria-pressed={amount === n} onClick={() => (setAmount(n), setArmed(false))}>
+                  ${n}
+                </button>
+              ))}
+            </div>
+          </div>
+          {who && amount > 0 && <p className="help">Pays ${amount * odds} plus your ${amount} back if you're right.</p>}
+          {error && <div className="errbox">{error}</div>}
+          <button type="button" className={`primary ${armed ? "armed" : ""}`} disabled={!who || !amount} onClick={bet}>
+            <Swap show={armed ? 1 : 0}>
+              <span>Place the bet</span>
+              <span>Tap again: set ${amount || 100} on the TV stand</span>
+            </Swap>
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+const splitFirst = (name: string) => name.replace(/[“"].*?[”"]\s*/, "").split(" ")[0] || name;
+
+/** After the reveal (Oct 21): what this guest's bet came to, on the results screen. */
+function BookResult({ data }: { data: Phone }) {
+  const b = data.book;
+  if (!b || (!b.result && b.take === null)) return null;
+  const r = b.result;
+  return (
+    <div className="file book-result">
+      <span className="eyebrow">The book</span>
+      {r?.kind === "won" && (
+        <p>
+          You called it. Take your ${r.amount} back from the stand, plus <b>${r.winnings}</b> from the bank.
+        </p>
+      )}
+      {r?.kind === "lost" && <p>Wrong pick. Your ${r.amount} on the stand goes to the killer.</p>}
+      {r?.kind === "void" && <p>Your bet was cover. Take your ${r.amount} back.</p>}
+      {b.take !== null && b.take > 0 && (
+        <p>
+          The wrong bets are yours: take <b>${b.take}</b> from the stand.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function Runoff({ token, data }: { token: string; data: Phone }) {
   const ro = data.runoff!;
   const vote = useMutation(api.game.runoffVote);
@@ -1399,6 +1539,7 @@ function RevealVotes({ data }: { token: string; data: Phone }) {
         <Deco />
         <h1 className="title-lg">{next ? "A new mystery is starting." : "Awards are on the TV."}</h1>
         <p className="lede">{next ? "Make a new character for the next game. Same house, new killer." : "The bar is open again. Settle your debts in chips."}</p>
+        {!next && <BookResult data={data} />}
         {next && (
           <div className="actions wide">
             <button type="button" className="primary" onClick={() => navigate(`/?game=${encodeURIComponent(next)}`)}>
@@ -1444,6 +1585,7 @@ function RevealVotes({ data }: { token: string; data: Phone }) {
       {r?.accomplice && mine && data.myAccusation?.accompliceId && !r.iWasKiller && !r.iWasAccomplice && (
         <p className="help">{mine.gotAccomplice ? "And you spotted the accomplice." : "Your accomplice guess missed."}</p>
       )}
+      <BookResult data={data} />
       <p className="help">The awards are next on the TV.</p>
     </div>
   );

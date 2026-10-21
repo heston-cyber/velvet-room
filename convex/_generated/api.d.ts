@@ -9,6 +9,7 @@
  */
 
 import type * as admin from "../admin.js";
+import type * as book from "../book.js";
 import type * as botBrain from "../botBrain.js";
 import type * as bots from "../bots.js";
 import type * as cards from "../cards.js";
@@ -50,6 +51,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
+  book: typeof book;
   botBrain: typeof botBrain;
   bots: typeof bots;
   cards: typeof cards;

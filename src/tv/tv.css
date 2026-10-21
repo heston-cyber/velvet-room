@@ -453,3 +453,4 @@
 .tv-runoff-faces .tv-av { width: 11cqw; height: 11cqw; font-size: 4cqw; }
 .tv-runoff-faces .tv-av img { width: 100%; height: 100%; object-fit: cover; }
 .tv-runoff-faces .nm { font-family: var(--display); font-size: 2.4cqw; color: var(--paper); }
+.tv-sub.book-note { color: var(--brass); opacity: .85; }

@@ -466,6 +466,8 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
                   <h2 className="tv-h2" style={{ fontSize: "5cqw", marginTop: "1cqw" }}>Find the evidence cards.</h2>
                   <p className="tv-sub">Scan them with your phone. Question everyone.</p>
                   <p className="tv-sub small">The body was found in {mid(g.bodyRoom)}.</p>
+                  {/* Oct 21 (Heston: "I like ... the small text caption"): the Betting tab, mentioned once, at Round 1. */}
+                  <p className="tv-sub small book-note">The book is open on your phones.</p>
                   {/* Oct 16: the weapons in play sit along the top of the screen through every round. */}
                   {d.weapons.length === 0 && <Exhibits letters={d.exhibits} caption="Exhibits on the evidence table" />}
                 </div>

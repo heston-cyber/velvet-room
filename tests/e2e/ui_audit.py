@@ -37,7 +37,7 @@ AUDIT = r"""(where) => {
     if (!seen(el) || el.closest('[aria-hidden=true]')) continue;
     const cs = getComputedStyle(el);
     const hides = /(hidden|clip)/.test(cs.overflow + cs.overflowY + cs.overflowX);
-    if (hides && el.innerText && el.innerText.trim() && (el.scrollWidth > el.clientWidth + 3 || el.scrollHeight > el.clientHeight + 3) && !['HTML', 'BODY'].includes(el.tagName) && cs.textOverflow !== 'ellipsis' && !el.matches('.scroll, [data-scroll]')) {
+    if (hides && el.innerText && el.innerText.trim() && (el.scrollWidth > el.clientWidth + 3 || el.scrollHeight > el.clientHeight + 3) && !['HTML', 'BODY'].includes(el.tagName) && cs.textOverflow !== 'ellipsis' && !el.matches('.scroll, [data-scroll], .sr-only')) {
       out.push(`cut off: ${label(el)} (${el.scrollWidth}x${el.scrollHeight} in ${el.clientWidth}x${el.clientHeight})`);
     }
   }

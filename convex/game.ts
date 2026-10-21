@@ -18,6 +18,7 @@ import { SHOW, cueSecs, howCues, howLayout, introLayout, revealLayout, rollLayou
 import { inOrder, rollGuests, slotsFor } from "./rollCall";
 import { heckleWanted } from "./heckles";
 import { finalAnswer, finalParts, hasTie, RUNOFF_VOTE_MS, runoffVoteAt, tiedParts, type Tied } from "./lockin";
+import { BET_AMOUNTS, killerTake, oddsFor, pot, settleBet } from "./book";
 import { customCounts, pickLines, type CueKey } from "./narration";
 import { scheduleRecording } from "./voice";
 import { ensureRoomCode } from "./join";
@@ -304,6 +305,64 @@ async function runoffPublic(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players
     room: ro.room ? ro.room.map((key) => ({ key, label: game.rooms.find((r) => r.key === key)?.label ?? "" })) : null,
     voted: votes.length,
     of: freeOf(all).length,
+  };
+}
+
+// ---------- the book (Oct 21) ----------
+
+export const betsOf = (ctx: QueryCtx, gameId: Id<"games">) =>
+  ctx.db
+    .query("bets")
+    .withIndex("by_game", (q) => q.eq("gameId", gameId))
+    .collect();
+
+/** The round's odds while the book is open: from the roles going out until the lock-in, never from jail. */
+export function bookOdds(game: Doc<"games">) {
+  if (!isPlaying(game) || !game.rolesOut) return null;
+  return oddsFor(game.round ?? 1);
+}
+
+/** One bet, on who the killer is, $100 to $500. Locked once placed; the chips go on the TV stand. */
+export const placeBet = mutation({
+  args: { token: v.string(), suspectId: v.string(), amount: v.number() },
+  handler: async (ctx, { token, suspectId, amount }) => {
+    const { player, game } = await requirePlayer(ctx, token);
+    await betFor(ctx, game, player, suspectId, amount);
+    return { ok: true };
+  },
+});
+
+export async function betFor(ctx: MutationCtx, game: Doc<"games">, player: Doc<"players">, suspectId: string, amount: number) {
+  const odds = bookOdds(game);
+  if (odds === null) throw new ConvexError((game.round ?? 0) >= 4 ? "The book closed when the lock-in started." : "The book opens once the roles are out.");
+  if (!player.inGame) throw new ConvexError("Only guests in the game can bet.");
+  if (player.jailed) throw new ConvexError("Jailbirds can't bet.");
+  if (!(BET_AMOUNTS as readonly number[]).includes(amount)) throw new ConvexError("Bet $100 to $500.");
+  if (suspectId === player._id) throw new ConvexError("You can't bet on yourself. Pick someone else.");
+  const input = await caseInput(ctx, game);
+  if (!input.suspects.some((s) => s.id === suspectId)) throw new ConvexError("Bet on someone in the game.");
+  const mine = await ctx.db
+    .query("bets")
+    .withIndex("by_player", (q) => q.eq("playerId", player._id))
+    .unique();
+  if (mine) throw new ConvexError("One bet a game, and yours is down.");
+  await ctx.db.insert("bets", { gameId: game._id, playerId: player._id, suspectId, amount, round: game.round ?? 1, odds, at: Date.now() });
+}
+
+/** The Betting tab: the odds now, the chips on the stand, this guest's bet, and after the reveal what it came to. */
+async function bookFor(ctx: QueryCtx, game: Doc<"games">, player: Doc<"players">, all: Doc<"players">[], cf: CaseFile | null) {
+  const bets = await betsOf(ctx, game._id);
+  const mine = bets.find((b) => b.playerId === player._id);
+  const name = (id: string) => all.find((p) => p._id === id)?.charName ?? "";
+  const revealed = (game.status === "reveal" || game.status === "done") && !!cf;
+  return {
+    odds: bookOdds(game),
+    pot: pot(bets),
+    bets: bets.length,
+    mine: mine ? { suspectId: mine.suspectId, name: name(mine.suspectId), amount: mine.amount, odds: mine.odds, round: mine.round } : null,
+    // After the reveal: what this guest's bet came to, and (the killer's phone) the wrong bets they take.
+    result: revealed && mine ? settleBet(mine, cf!.solution.killerId) : null,
+    take: revealed && cf!.solution.killerId === player._id ? killerTake(bets, cf!.solution.killerId) : null,
   };
 }
 
@@ -993,6 +1052,8 @@ export const phone = query({
           }
         : null,
       myAccusation: myAcc ? { suspectId: myAcc.suspectId, exhibitId: myAcc.exhibitId, roomKey: myAcc.roomKey, accompliceId: myAcc.accompliceId ?? null } : null,
+      // The book (Oct 21).
+      book: started ? await bookFor(ctx, game, player, all, cf) : null,
       // The runoff (Oct 21): what's tied, and this guest's runoff vote once cast.
       runoff: started && game.runoff ? await runoffPublic(ctx, game, all, input) : null,
       myRunoff: started && game.runoff
