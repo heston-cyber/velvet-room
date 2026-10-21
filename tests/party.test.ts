@@ -2,7 +2,7 @@ import { convexTest } from "convex-test";
 import { beforeAll, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
-import { nextRound } from "./steps";
+import { nextRound, settleRunoff } from "./steps";
 import { VOTE } from "../convex/shared";
 
 const modules = import.meta.glob("../convex/**/*.ts");
@@ -188,7 +188,9 @@ describe("party night", () => {
         });
       }
       await expect(t.mutation(api.game.accuse, { token: order[0], suspectId: killerId, exhibitId: exhibit.id, roomKey: room.key })).rejects.toThrow();
-      return { res: (await t.query(api.game.results, { slug: SLUG }))!, t, first: order[0] };
+      // Oct 21: a tie goes to a runoff; everyone votes as they locked in, so it ties again.
+      const ranoff = await settleRunoff(t, SLUG);
+      return { res: (await t.query(api.game.results, { slug: SLUG }))!, t, first: order[0], ranoff };
     };
     // 5 lock-ins: 3 get everything (more than half on each), so the group wins.
     let r = await run(5, (i) => ({ person: i < 3, weapon: i < 3, room: i < 3 }));
@@ -196,8 +198,9 @@ describe("party night", () => {
     expect(r.res.named).toBe(3);
     expect(r.res.aces).toHaveLength(3);
     expect((await r.t.query(api.game.phone, { token: r.first }))!.results!.mine!.score).toBe(3);
-    // 4 lock-ins: exactly half on the killer is not enough, even with the weapon and room right.
+    // 4 lock-ins: exactly half on the killer is a tie, so a runoff; tied again, the killer walks.
     r = await run(4, (i) => ({ person: i < 2, weapon: true, room: true }));
+    expect(r.ranoff).toBe(true);
     expect(r.res.killerWins).toBe(true);
     // Most name the killer and the room, but not the weapon: the killer still wins.
     r = await run(5, (i) => ({ person: i < 4, weapon: i < 2, room: true }));

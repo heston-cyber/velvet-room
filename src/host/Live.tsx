@@ -72,6 +72,18 @@ export function useNextStep(data: Roster, slug: string, hostKey: string, now: nu
               : "On to the lock-in. Anyone in jail is let out for it.",
         run: () => advance(args),
       };
+    // The runoff (Oct 21): the host can cut the last words short, then close the vote.
+    const ro = g.runoff;
+    if (ro && !ro.closedAt) {
+      if (now < ro.voteAt) return { label: "Skip to the runoff vote", help: "Cuts the last words short.", run: () => advance(args) };
+      const everyone = ro.voted >= ro.of;
+      return {
+        label: `Start the reveal (${ro.voted} of ${ro.of} in)`,
+        confirm: everyone ? undefined : `Tap again: only ${ro.voted} of ${ro.of} have voted in the runoff`,
+        help: "Starts on its own once everyone's voted in the runoff.",
+        run: () => advance(args),
+      };
+    }
     const allIn = c.accused >= c.inGame;
     return {
       // F12 (Oct 17): on screen during the lock-in, with the count, so one dead phone can't hold up the reveal.

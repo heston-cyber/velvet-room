@@ -2,6 +2,7 @@
 // the sound effects and the music do, worked out from the game's state and the time.
 // Pure: same game and same clock, same answer. The TV fires each event once, while it's fresh,
 // so a TV opened mid-scene doesn't replay what already happened.
+import { LAST_WORDS_MS, RUNOFF_INTRO_MS } from "../../convex/lockin";
 import type { FunctionReturnType } from "convex/server";
 import type { api } from "../../convex/_generated/api";
 import { cueVariant, type CueKey } from "../../convex/narration";
@@ -367,6 +368,15 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
       return out;
     }
 
+    // The runoff (Oct 21): a sting when it's a tie, a stamp as each guest's last words begin, and nothing talking over
+    // them (no heckles, no narration until the scripts are recorded).
+    const ro = d.runoff;
+    if (ro && !ro.closedAt) {
+      out.loop = "accuse";
+      fx(`ro:${ro.at}:sting`, "brassSting", ro.at + 0.2 * S);
+      ro.words.forEach((_, i) => fx(`ro:${ro.at}:w${i}`, "stamp", ro.at + RUNOFF_INTRO_MS + i * LAST_WORDS_MS));
+      return out;
+    }
     // Accusations.
     const t = g.roundStartedAt ?? 0;
     out.loop = "accuse";

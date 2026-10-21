@@ -158,11 +158,18 @@ with sync_playwright() as p:
             cx("game:accuse", {"token": tok[i], "suspectId": other, "exhibitId": board["exhibits"][0]["id"], "roomKey": board["rooms"][0]["key"]})
         except RuntimeError as e:
             print("skip", i, str(e)[-80:])
+    # Oct 21: a tie goes to a runoff first (skip the last words, everyone votes the first option that isn't them).
+    if wait_for(lambda: roster()["game"].get("runoff") is not None, 3) and roster()["game"]["status"] != "reveal":
+        cx("game:advanceRound", {"slug": SLUG, "hostKey": KEY})
+        ro = cx("game:phone", {"token": tok[0]})["runoff"]
+        for i in range(5):
+            pick = {k: next((x.get("id") or x.get("key")) for x in ro[k] if (x.get("id") or x.get("key")) != gid[i]) for k in ("who", "weapon", "room") if ro.get(k)}
+            cx("game:runoffVote", {"token": tok[i], **pick})
     ok(wait_for(lambda: roster()["game"]["status"] == "reveal", 20), "everyone locked in: the reveal")
     ok(wait_for(lambda: host.locator(".tv-reveal-weapon").count() == 1, 25), "the reveal names the weapon with its card")
     host.wait_for_timeout(1200)
     shot(host, "09-tv-reveal-weapon.png")
-    ok(wait_for(lambda: host.get_by_text("named the killer").count() == 1, 15), "the verdict counts killer, weapon and room")
+    ok(wait_for(lambda: host.get_by_text("The most votes:", exact=False).count() == 1, 15), "the verdict gives the most votes on killer, weapon and room (Oct 21)")
     host.wait_for_timeout(800)
     shot(host, "10-tv-verdict.png")
     ok(not errors, f"no page errors {errors[:2]}")

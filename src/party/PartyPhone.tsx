@@ -10,6 +10,7 @@ import { Swap } from "../lib/Swap";
 import { navigate } from "../lib/router";
 import { avatarSrc, faceUrl } from "../lib/figure";
 import { weaponUrl } from "../lib/weapon";
+import { LAST_WORDS_MS, RUNOFF_INTRO_MS, speakingNow } from "../../convex/lockin";
 
 type Phone = NonNullable<FunctionReturnType<typeof api.game.phone>>;
 type Tab = "case" | "scan" | "evidence" | "notebook";
@@ -256,6 +257,8 @@ function todoOf(data: Phone, intro: boolean): string {
     return game.pacing.mode === "timer" ? "Search the house and scan every evidence card you find." : "Search the house and scan evidence cards. Tap Ready when you're done.";
   }
   if (game.status === "playing") {
+    const ro = data.runoff;
+    if (ro && !ro.closedAt) return data.myRunoff ? "Runoff vote in. Watch the TV." : Date.now() < ro.voteAt ? "It's a tie. Last words first." : "The runoff: vote on what's tied.";
     return data.myAccusation ? "You're locked in. Watch the TV." : "Lock in who did it, with what, and where. It's final.";
   }
   if (game.status === "reveal") return "Watch the TV.";
@@ -1137,6 +1140,138 @@ function BotAnswer({ token, botId }: { token: string; botId: Id<"players"> }) {
 }
 
 function Accuse({ token, data }: { token: string; data: Phone }) {
+  // The runoff (Oct 21): a tie at the lock-in takes over the phone until it's settled.
+  if (data.runoff && !data.runoff.closedAt) return <Runoff token={token} data={data} />;
+  return <LockIn token={token} data={data} />;
+}
+
+/**
+ * The runoff (Oct 21, Heston: the runoff is on who only when the person is tied; "revote the tied part" for a weapon
+ * or room; 30 seconds of last words for everyone in a runoff on who). First the last words, then one vote on what's
+ * tied, final once cast.
+ */
+function Runoff({ token, data }: { token: string; data: Phone }) {
+  const ro = data.runoff!;
+  const vote = useMutation(api.game.runoffVote);
+  const now = useNow(true);
+  const [pick, setPick] = useState<{ who?: string; weapon?: string; room?: string }>({});
+  const [armed, setArmed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const me = data.me.id;
+  const tied = [ro.who ? "who did it" : "", ro.weapon ? "the weapon" : "", ro.room ? "the room" : ""].filter(Boolean);
+  const what = tied.length > 1 ? `${tied.slice(0, -1).join(", ")} and ${tied[tied.length - 1]}` : tied[0];
+  if (data.myRunoff) {
+    return (
+      <div className="screen">
+        <span className="eyebrow">The runoff</span>
+        <h1 className="title-lg">Vote in.</h1>
+        <p className="lede">Watch the TV. The reveal starts once everyone's voted.</p>
+        <p className="help">{ro.voted} of {ro.of} in</p>
+      </div>
+    );
+  }
+  if (now < ro.voteAt) {
+    const i = speakingNow(ro.at, ro.words.length, now);
+    const speaker = i >= 0 ? ro.who?.find((x) => x.id === ro.words[i]) : undefined;
+    const left = i >= 0 ? ro.at + RUNOFF_INTRO_MS + (i + 1) * LAST_WORDS_MS - now : ro.voteAt - now;
+    return (
+      <div className="screen">
+        <span className="eyebrow">The runoff</span>
+        <h1 className="title-lg">It's a tie.</h1>
+        <p className="lede">A runoff on {what}.{ro.words.length ? " Last words first: 30 seconds each." : ""}</p>
+        {ro.words.length > 0 && (
+          <ol className="last-words">
+            {ro.words.map((id, k) => {
+              const p = ro.who?.find((x) => x.id === id);
+              const state = k === i ? "now" : i < 0 ? (now < ro.at + RUNOFF_INTRO_MS ? "next" : "done") : k < i ? "done" : "next";
+              return (
+                <li key={id} className={state}>
+                  {p?.figure ? <img src={faceUrl(p.figure)} alt="" /> : <span className="av">{initials(p?.name ?? "")}</span>}
+                  <span className="nm">{id === me ? "You" : p?.short || p?.name}</span>
+                  <span className="st">{state === "now" ? `speaking · ${clockOf(left)}` : state === "done" ? "done" : "up next"}</span>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+        {speaker?.id === me && <div className="file you-speak"><b>You're on.</b> 30 seconds of last words. Make them count.</div>}
+        <p className="help">The vote opens on your phone after the last words.</p>
+      </div>
+    );
+  }
+  const ready = (!ro.who || !!pick.who) && (!ro.weapon || !!pick.weapon) && (!ro.room || !!pick.room);
+  async function go() {
+    if (!armed) return setArmed(true);
+    setError(null);
+    try {
+      await vote({ token, ...pick });
+    } catch (e) {
+      setError(friendlyError(e));
+      setArmed(false);
+    }
+  }
+  const set = (k: "who" | "weapon" | "room", v: string) => {
+    setPick((p) => ({ ...p, [k]: v }));
+    setArmed(false);
+  };
+  return (
+    <div className="screen">
+      <span className="eyebrow">The runoff</span>
+      <h1 className="title-lg">Vote again</h1>
+      <p className="lede">On {what} only. The most votes wins. Another tie, and the killer walks.</p>
+      {ro.who && (
+        <div className="pick">
+          <span className="eyebrow">Who</span>
+          <div className="opts">
+            {ro.who.filter((x) => x.id !== me).map((x) => (
+              <button key={x.id} type="button" className="who-opt" aria-pressed={pick.who === x.id} onClick={() => set("who", x.id)}>
+                {x.figure && <img src={faceUrl(x.figure)} alt="" />}
+                <span>{x.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {ro.weapon && (
+        <div className="pick">
+          <span className="eyebrow">Which weapon</span>
+          <div className="opts weapons">
+            {ro.weapon.map((w) => (
+              <button key={w.id} type="button" aria-pressed={pick.weapon === w.id} onClick={() => set("weapon", w.id)}>
+                {w.key && <img src={weaponUrl(w.key)} alt="" />}
+                <span>{w.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {ro.room && (
+        <div className="pick">
+          <span className="eyebrow">Where</span>
+          <div className="opts">
+            {ro.room.map((r) => (
+              <button key={r.key} type="button" aria-pressed={pick.room === r.key} onClick={() => set("room", r.key)}>
+                <span>{r.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {error && <div className="errbox">{error}</div>}
+      <button type="button" className={`primary ${armed ? "armed" : ""}`} disabled={!ready} onClick={go}>
+        <Swap show={armed ? 1 : 0}>
+          <span>Vote</span>
+          <span>Tap again: this is final</span>
+        </Swap>
+      </button>
+      <span className="help">
+        {ro.voted} of {ro.of} in{ro.endsAt ? ` · ${clockOf(ro.endsAt - now)} left` : ""}
+      </span>
+    </div>
+  );
+}
+
+function LockIn({ token, data }: { token: string; data: Phone }) {
   const accuse = useMutation(api.game.accuse);
   const board = data.board!;
   const [pick, setPick] = useState({ s: "", e: "", r: "", a: "" });

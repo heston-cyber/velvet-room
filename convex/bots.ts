@@ -16,6 +16,7 @@ import {
   ballotsOf,
   cardText,
   caseInput,
+  castRunoffVote,
   claimStash,
   closeVote,
   dealLetter,
@@ -25,6 +26,7 @@ import {
   maybeRevealOnAccusations,
   playersOf,
   requirePlayer,
+  runoffVotesOf,
   voteOf,
 } from "./game";
 import { caseFor } from "./caseFile";
@@ -204,6 +206,27 @@ async function act(ctx: MutationCtx, gameAtStart: Doc<"games">, chance: number) 
       }
     }
     if (readied) await maybeAdvanceOnReady(ctx, (await ctx.db.get(game._id))!);
+    return;
+  }
+
+  // The runoff (Oct 21): once the last words are over, each bot votes on what's tied, never itself.
+  const ro = game.runoff;
+  if (ro) {
+    if (ro.closedAt || now < ro.voteAt) return;
+    const votes = await runoffVotesOf(ctx, game._id);
+    for (const b of bots) {
+      if (b.jailed || votes.some((x) => x.playerId === b._id) || rng() >= chance) continue;
+      const known = knownElims(cf, 3, await scannedBy(ctx, b._id));
+      const w = who(b);
+      const pick = {
+        who: ro.who ? chooseSuspect(rng, w, ro.who, known) ?? ro.who.find((id) => id !== b._id) : undefined,
+        weapon: ro.weapon ? chooseThing(rng, w, ro.weapon, known.exhibits, cf.solution.exhibitId) ?? ro.weapon[0] : undefined,
+        room: ro.room ? chooseThing(rng, w, ro.room, known.rooms, cf.solution.roomKey) ?? ro.room[0] : undefined,
+      };
+      const fresh = (await ctx.db.get(game._id))!;
+      if (!fresh.runoff || fresh.runoff.closedAt) return;
+      await castRunoffVote(ctx, fresh, b, { who: pick.who ?? undefined, weapon: pick.weapon ?? undefined, room: pick.room ?? undefined });
+    }
     return;
   }
 

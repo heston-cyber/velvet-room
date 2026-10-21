@@ -407,3 +407,14 @@ img { max-width: 100%; }
 /* Phase 3: the case file's "Where you were". */
 .story-file { display: grid; gap: 8px; }
 .story-file .story-text { margin: 0; font-size: 17px; line-height: 1.5; color: var(--paper); }
+
+/* The runoff (Oct 21): whose last words, in order. */
+.last-words { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 8px; }
+.last-words li { display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 12px; padding: 8px 12px 8px 8px; border: 1px solid var(--rule); background: var(--well); }
+.last-words li img, .last-words li .av { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--ink); }
+.last-words li .nm { font-size: 17px; color: var(--paper); min-width: 0; overflow-wrap: anywhere; }
+.last-words li .st { font-family: var(--label); font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.last-words li.now { border-color: var(--brass); }
+.last-words li.now .st { color: var(--brass); }
+.last-words li.done { opacity: .55; }
+.you-speak { border-color: var(--brass); }

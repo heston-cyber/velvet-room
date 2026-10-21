@@ -17,7 +17,7 @@ import { ACCUSE_MAX_MINUTES, LOCKED_UP_MS, MAX_CARDS, hasJailVote, revealTimes, 
 import { SHOW, cueSecs, howCues, howLayout, introLayout, revealLayout, rollLayout, showParts } from "./show";
 import { inOrder, rollGuests, slotsFor } from "./rollCall";
 import { heckleWanted } from "./heckles";
-import { partResult } from "./lockin";
+import { finalAnswer, finalParts, hasTie, RUNOFF_VOTE_MS, runoffVoteAt, tiedParts, type Tied } from "./lockin";
 import { customCounts, pickLines, type CueKey } from "./narration";
 import { scheduleRecording } from "./voice";
 import { ensureRoomCode } from "./join";
@@ -111,6 +111,15 @@ async function scheduleTimer(ctx: MutationCtx, gameId: Id<"games">, round: numbe
 async function advance(ctx: MutationCtx, game: Doc<"games">) {
   if (!isPlaying(game)) return;
   const round = game.round ?? 1;
+  // The runoff (Oct 21): the host's Next cuts the last words short and opens the vote; once it's open, closes it.
+  const ro = game.runoff;
+  if (round >= 4 && ro && !ro.closedAt && Date.now() < ro.voteAt) {
+    const voteAt = Date.now();
+    const endsAt = isTimed(game) ? voteAt + RUNOFF_VOTE_MS : undefined;
+    await ctx.db.patch(game._id, { runoff: { ...ro, voteAt, endsAt } });
+    if (endsAt) await ctx.scheduler.runAt(endsAt, internal.game.runoffTick, { gameId: game._id, at: ro.at });
+    return;
+  }
   if (round >= 4) return nextRound(ctx, game);
   const v = voteOf(game);
   if (!v) {
@@ -147,6 +156,17 @@ async function nextRound(ctx: MutationCtx, game: Doc<"games">) {
   if (!isPlaying(game)) return;
   const round = game.round ?? 1;
   if (round >= 4) {
+    // The runoff (Oct 21): a tie for the most votes on who, the weapon or the room goes to a runoff first.
+    if (!game.runoff) {
+      const accs = await ctx.db
+        .query("accusations")
+        .withIndex("by_game", (q) => q.eq("gameId", game._id))
+        .collect();
+      const tied = tiedParts(accs);
+      if (hasTie(tied)) return startRunoff(ctx, game, tied);
+    } else if (!game.runoff.closedAt) {
+      await ctx.db.patch(game._id, { runoff: { ...game.runoff, closedAt: Date.now() } });
+    }
     const revealAt = Date.now();
     const revealPlan = await revealPlanFor(ctx, game);
     // Oct 17: the winners' lines for Prime Suspect and Best Detective, known now (Best Dressed and Best Liar at the
@@ -178,6 +198,113 @@ async function nextRound(ctx: MutationCtx, game: Doc<"games">) {
     const cfk = await caseFor(ctx, game);
     if (cfk) await scheduleRecording(ctx, game._id, "later", [`caught:${cfk.solution.killerId}`, `gotAway:${cfk.solution.killerId}`]);
   }
+}
+
+// ---------- the runoff (Oct 21) ----------
+
+/** A tie at the lock-in: the TV says so, everyone tied on who gets last words (in a random order), then the vote. */
+async function startRunoff(ctx: MutationCtx, game: Doc<"games">, tied: Tied) {
+  const at = Date.now();
+  const words = tied.who ? shuffle(secure(), tied.who) : [];
+  const voteAt = runoffVoteAt(at, words.length);
+  const endsAt = isTimed(game) ? voteAt + RUNOFF_VOTE_MS : undefined;
+  await ctx.db.patch(game._id, { runoff: { at, ...tied, words, voteAt, endsAt }, roundEndsAt: undefined, paused: false });
+  if (endsAt) await ctx.scheduler.runAt(endsAt, internal.game.runoffTick, { gameId: game._id, at });
+}
+
+/** Everyone who can vote in the runoff has: on to the reveal. */
+export async function maybeRevealOnRunoff(ctx: MutationCtx, game: Doc<"games">) {
+  const ro = game.runoff;
+  if (!isPlaying(game) || !ro || ro.closedAt || game.paused) return;
+  const voters = freeOf(await playersOf(ctx, game._id));
+  const votes = await runoffVotesOf(ctx, game._id);
+  const done = new Set<string>(votes.map((v) => v.playerId));
+  if (voters.length && voters.every((p) => done.has(p._id))) await nextRound(ctx, game);
+}
+
+export const runoffVotesOf = (ctx: QueryCtx, gameId: Id<"games">) =>
+  ctx.db
+    .query("runoffVotes")
+    .withIndex("by_game", (q) => q.eq("gameId", gameId))
+    .collect();
+
+/** A guest's runoff vote: only the tied parts, only from what's tied, never yourself. Final once cast. */
+export const runoffVote = mutation({
+  args: { token: v.string(), who: v.optional(v.string()), weapon: v.optional(v.string()), room: v.optional(v.string()) },
+  handler: async (ctx, { token, who, weapon, room }) => {
+    const { player, game } = await requirePlayer(ctx, token);
+    await castRunoffVote(ctx, game, player, { who, weapon, room });
+    return { ok: true };
+  },
+});
+
+export async function castRunoffVote(ctx: MutationCtx, game: Doc<"games">, player: Doc<"players">, pick: { who?: string; weapon?: string; room?: string }) {
+  const ro = game.runoff;
+  if (!isPlaying(game) || !ro || ro.closedAt) throw new ConvexError("There's no runoff right now.");
+  if (Date.now() < ro.voteAt) throw new ConvexError("Last words first. The runoff vote opens after.");
+  if (!player.inGame || player.jailed) throw new ConvexError("Only guests in the game vote in the runoff.");
+  const mine = await ctx.db
+    .query("runoffVotes")
+    .withIndex("by_player", (q) => q.eq("playerId", player._id))
+    .unique();
+  if (mine) throw new ConvexError("You've already voted in the runoff.");
+  if (ro.who && (!pick.who || !ro.who.includes(pick.who))) throw new ConvexError("Pick one of the guests in the runoff.");
+  if (ro.who && pick.who === player._id) throw new ConvexError("You can't vote for yourself. Pick someone else in the runoff.");
+  if (ro.weapon && (!pick.weapon || !ro.weapon.includes(pick.weapon))) throw new ConvexError("Pick one of the weapons in the runoff.");
+  if (ro.room && (!pick.room || !ro.room.includes(pick.room))) throw new ConvexError("Pick one of the rooms in the runoff.");
+  await ctx.db.insert("runoffVotes", {
+    gameId: game._id,
+    playerId: player._id,
+    ...(ro.who ? { who: pick.who } : {}),
+    ...(ro.weapon ? { weapon: pick.weapon } : {}),
+    ...(ro.room ? { room: pick.room } : {}),
+    at: Date.now(),
+  });
+  await maybeRevealOnRunoff(ctx, (await ctx.db.get(game._id))!);
+}
+
+/** A timed game's runoff vote ran out: on to the reveal with the votes in. */
+export const runoffTick = internalMutation({
+  args: { gameId: v.id("games"), at: v.number() },
+  handler: async (ctx, { gameId, at }) => {
+    const game = await ctx.db.get(gameId);
+    if (!game || !isPlaying(game) || game.runoff?.at !== at || game.runoff.closedAt || game.paused) return;
+    if (!game.runoff.endsAt || game.runoff.endsAt > Date.now() + 500) return; // the host opened the vote early: rescheduled
+    await nextRound(ctx, game);
+  },
+});
+
+/** What the TV and the phones show of the runoff: who and what is tied, the last words' order, and how many are in. */
+async function runoffPublic(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[], input: CaseInput | null) {
+  const ro = game.runoff;
+  if (!ro || !input) return null;
+  const votes = await runoffVotesOf(ctx, game._id);
+  const keyOf = await weaponKeys(ctx, game);
+  const cf = game.isTest && game.bots ? await caseFor(ctx, game) : null;
+  const person = async (id: string) => {
+    const p = all.find((x) => x._id === id);
+    return {
+      id,
+      name: p?.charName ?? "",
+      short: p ? shortName(p) : "",
+      figure: p?.figure ?? null,
+      photoUrl: p?.photoId ? await ctx.storage.getUrl(p.photoId) : null,
+      // Solo test mode: a bot's last words are its story.
+      plea: p?.bot && cf ? cf.stories?.find((x) => x.playerId === id)?.told ?? null : null,
+    };
+  };
+  return {
+    at: ro.at,
+    voteAt: ro.voteAt,
+    endsAt: ro.endsAt ?? null,
+    closedAt: ro.closedAt ?? null,
+    words: ro.words,
+    who: ro.who ? await Promise.all(ro.who.map(person)) : null,
+    weapon: ro.weapon ? ro.weapon.map((id) => ({ id, name: input.exhibits.find((e) => e.id === id)?.name ?? "", key: keyOf.get(id) ?? null })) : null,
+    room: ro.room ? ro.room.map((key) => ({ key, label: game.rooms.find((r) => r.key === key)?.label ?? "" })) : null,
+    voted: votes.length,
+    of: freeOf(all).length,
+  };
 }
 
 // ---------- votes (v2): jail and release, after every round ----------
@@ -384,7 +511,8 @@ export const isTimed = (g: Doc<"games">) => g.pacing.mode === "timer";
 
 /** Accusations: once everyone in the game has accused, the reveal starts. */
 export async function maybeRevealOnAccusations(ctx: MutationCtx, game: Doc<"games">) {
-  if (!isPlaying(game) || (game.round ?? 0) < 4 || game.paused) return;
+  // (Once a runoff is on, its own votes move it on: maybeRevealOnRunoff.)
+  if (!isPlaying(game) || (game.round ?? 0) < 4 || game.paused || game.runoff) return;
   const inGame = freeOf(await playersOf(ctx, game._id));
   const acc = await ctx.db
     .query("accusations")
@@ -402,7 +530,11 @@ async function scoreGame(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile) {
     .withIndex("by_game", (q) => q.eq("gameId", game._id))
     .collect();
   const sol = cf.solution;
-  const scores = accs.map((a) => {
+  // The runoff (Oct 21): each guest's final answer is their runoff vote on the parts that tied.
+  const tied = game.runoff;
+  const rvotes = tied ? await runoffVotesOf(ctx, game._id) : [];
+  const finals = accs.map((x) => ({ ...x, ...finalAnswer(x, rvotes.find((r) => r.playerId === x.playerId), tied) }));
+  const scores = finals.map((a) => {
     const score = Number(a.suspectId === sol.killerId) + Number(a.exhibitId === sol.exhibitId) + Number(a.roomKey === sol.roomKey);
     const gotAccomplice = !!sol.accompliceId && a.accompliceId === sol.accompliceId;
     return { playerId: a.playerId, score, ace: score === 3, gotKiller: a.suspectId === sol.killerId, gotAccomplice, at: a.at };
@@ -410,17 +542,13 @@ async function scoreGame(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile) {
   // v2: every lock-in counts, the killer's too (their last sabotage).
   const n = scores.length;
   const named = scores.filter((s) => s.gotKiller).length;
-  const byId = new Map(accs.map((a) => [a.playerId as string, a]));
+  const byId = new Map(finals.map((a) => [a.playerId as string, a]));
   const rightWeapon = scores.filter((s) => byId.get(s.playerId)?.exhibitId === sol.exhibitId).length;
   const rightRoom = scores.filter((s) => byId.get(s.playerId)?.roomKey === sol.roomKey).length;
   // Oct 20 (Heston: "who what where each respectively gets the most votes each"): the group wins if the most-voted
   // killer, weapon and room are all right. A tie for the most is undecided (the runoff settles it; until then, or if it
   // ties again, the killer walks).
-  const parts = {
-    who: partResult(accs.map((a) => a.suspectId), sol.killerId),
-    weapon: partResult(accs.map((a) => a.exhibitId), sol.exhibitId),
-    room: partResult(accs.map((a) => a.roomKey), sol.roomKey),
-  };
+  const parts = finalParts(accs, rvotes, tied, sol);
   const groupWins = n > 0 && parts.who.won && parts.weapon.won && parts.room.won;
   const jailBallots = game.jailVoteAt ? await ballotsOf(ctx, game._id, game.jailVoteAt) : [];
   // Best Detective (Oct 17, D7: "most accurate guesses wins the award"): only guests who named the killer, never the
@@ -435,7 +563,7 @@ async function scoreGame(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile) {
   const pointAt = (id: string | null | undefined) => {
     if (id && id !== sol.killerId && id !== sol.accompliceId) blame.set(id, (blame.get(id) ?? 0) + 1);
   };
-  for (const a of accs) pointAt(a.suspectId);
+  for (const a of finals) pointAt(a.suspectId);
   for (const b of jailBallots) pointAt(b.targetId);
   const most = Math.max(0, ...blame.values());
   const name = (id: string) => players.find((p) => p._id === id)?.charName ?? "";
@@ -467,6 +595,16 @@ async function lockinTally(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players"
   const face = (id: string) => ({ id, name: p(id) ? shortName(p(id)!) : "", figure: p(id)?.figure ?? null });
   const by = new Map<string, string[]>();
   for (const a of accs.sort((x, y) => x.at - y.at)) by.set(a.suspectId, [...(by.get(a.suspectId) ?? []), a.playerId]);
+  return [...by.entries()].sort((a, b) => b[1].length - a[1].length).map(([id, ids]) => ({ suspect: face(id), by: ids.map(face) }));
+}
+
+/** The runoff on who (Oct 21): each guest in it, and the faces of who voted for them, most first. */
+async function runoffTally(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[]) {
+  const votes = await runoffVotesOf(ctx, game._id);
+  const p = (id: string) => all.find((x) => x._id === id);
+  const face = (id: string) => ({ id, name: p(id) ? shortName(p(id)!) : "", figure: p(id)?.figure ?? null });
+  const by = new Map<string, string[]>((game.runoff?.who ?? []).map((id) => [id, []]));
+  for (const v of votes.sort((x, y) => x.at - y.at)) if (v.who) by.set(v.who, [...(by.get(v.who) ?? []), v.playerId]);
   return [...by.entries()].sort((a, b) => b[1].length - a[1].length).map(([id, ids]) => ({ suspect: face(id), by: ids.map(face) }));
 }
 
@@ -855,6 +993,15 @@ export const phone = query({
           }
         : null,
       myAccusation: myAcc ? { suspectId: myAcc.suspectId, exhibitId: myAcc.exhibitId, roomKey: myAcc.roomKey, accompliceId: myAcc.accompliceId ?? null } : null,
+      // The runoff (Oct 21): what's tied, and this guest's runoff vote once cast.
+      runoff: started && game.runoff ? await runoffPublic(ctx, game, all, input) : null,
+      myRunoff: started && game.runoff
+        ? await ctx.db
+            .query("runoffVotes")
+            .withIndex("by_player", (q) => q.eq("playerId", player._id))
+            .unique()
+            .then((r) => (r ? { who: r.who ?? null, weapon: r.weapon ?? null, room: r.room ?? null } : null))
+        : null,
       results:
         scored && cf
           ? {
@@ -1574,9 +1721,18 @@ export const tv = query({
         rightWeapon: scored.rightWeapon,
         rightRoom: scored.rightRoom,
         accusers: scored.accusers,
+        // The most votes on each part (null: still tied), and which parts went to a runoff (Oct 21).
+        top: {
+          who: scored.parts.who.top.length === 1 ? name(scored.parts.who.top[0]) : null,
+          weapon: scored.parts.weapon.top.length === 1 ? input.exhibits.find((e) => e.id === scored.parts.weapon.top[0])?.name ?? null : null,
+          room: scored.parts.room.top.length === 1 ? label(scored.parts.room.top[0]) : null,
+          runoff: !!game.runoff,
+        },
         aces: scored.scores.filter((s) => s.ace).map((s) => name(s.playerId)),
         // I1 (Oct 17): who named whom at the lock-in, most named first (public once the reveal starts).
         lockins: await lockinTally(ctx, game, all),
+        // Oct 21: after a runoff on who, who named whom in the runoff.
+        runoffTally: game.runoff?.who ? await runoffTally(ctx, game, all) : null,
         awards,
       };
     }
@@ -1662,6 +1818,7 @@ export const tv = query({
             .map((c) => ({ round: c.round, text: c.text, twist: c.kind === "twist" }))
         : [],
       results,
+      runoff: started && game.runoff ? await runoffPublic(ctx, game, all, input) : null,
       reveal: game.revealPlan ?? revealTimes(started && !!game.hasAccomplice, game.tone ?? "classic"),
       voice: await tvVoice(ctx, game, all, input, cf),
       map: await tvMap(ctx, game),

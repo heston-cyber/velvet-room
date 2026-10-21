@@ -182,7 +182,15 @@ with sync_playwright() as p:
     else:
         board = me["board"]
         cx("game:accuse", {"token": token, "suspectId": next(s["id"] for s in board["suspects"] if s["id"] != me["me"]["id"]), "exhibitId": board["exhibits"][0]["id"], "roomKey": board["rooms"][0]["key"]})
-        ok(wait_for(lambda: roster()["game"]["status"] == "reveal", 20), "the host locks in last and the reveal starts")
+        # Oct 21: a tie goes to a runoff first. Skip the last words, let the bots vote, then the host votes.
+        ok(wait_for(lambda: roster()["game"]["status"] == "reveal" or roster()["game"].get("runoff"), 20), "the host locks in last: the reveal starts (or a runoff, on a tie)")
+        if roster()["game"]["status"] != "reveal":
+            print("(a runoff)", flush=True)
+            cx("game:advanceRound", {"slug": slug, "hostKey": key})
+            ro = cx("game:phone", {"token": token})["runoff"]
+            pick = {k: next((x["id"] if k != "room" else x["key"]) for x in ro[k] if (x.get("id") or x.get("key")) != me["me"]["id"]) for k in ("who", "weapon", "room") if ro.get(k)}
+            cx("game:runoffVote", {"token": token, **pick})
+            ok(wait_for(lambda: roster()["game"]["status"] == "reveal", 120), "the runoff settles it and the reveal starts")
     laptop.wait_for_timeout(4000)
     shot(laptop, "08-reveal.png")
     ok(not errors, f"no page errors {errors[:2]}")

@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { captionText, cueFile, cueVariant, narratorName, type CueKey } from "../../convex/narration";
 import { VOTE } from "../../convex/shared";
+import { LAST_WORDS_MS, RUNOFF_INTRO_MS, speakingNow } from "../../convex/lockin";
 import { HOW_TITLE, SHOW } from "../../convex/show";
 import { Qr, wifiQrText } from "../lib/qr";
 import HouseMap from "./HouseMap";
@@ -515,6 +516,8 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
         },
       };
     }
+    // The runoff (Oct 21): a tie at the lock-in, the last words, then the vote.
+    if (d.runoff && !d.runoff.closedAt) return { scene: runoffScene(d, now) };
     // Round 4: accusations
     return {
       scene: {
@@ -583,7 +586,8 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
         <Fit className="scene" watch={r.aces.length + r.lockins.length * 100}>
         <span className="tv-kick">The verdict</span>
         <span className="tv-verdict fade">
-          Of {r.accusers} locked in: {r.named} named the killer, {r.rightWeapon} the weapon, {r.rightRoom} the room.
+          {/* Oct 21: the most votes on each part (after any runoff); a tie that stayed tied is a tie. */}
+          {r.top ? <>The most votes: {r.top.who ? splitName(r.top.who).main : "a tie"}, {r.top.weapon ? `the ${r.top.weapon.toLowerCase()}` : "a tie on the weapon"}, {r.top.room ? mid(r.top.room) : "a tie on the room"}.</> : <>Of {r.accusers} locked in: {r.named} named the killer, {r.rightWeapon} the weapon, {r.rightRoom} the room.</>}
           <br />
           {r.killerWins ? (r.accomplice ? "The killer and the accomplice win." : "The killer wins.") : "The detectives win."}
         </span>
@@ -592,10 +596,10 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
             {r.guessers ? `${r.namedAccomplice} of ${r.guessers} who guessed spotted the accomplice.` : "Nobody guessed the accomplice."}
           </p>
         )}
-        {/* I1 (Oct 17): who named whom, the payoff for reading people. */}
-        {r.lockins.length > 0 && (
-          <div className={`tv-tally lockins fade${r.lockins.length > 5 ? " many" : ""}`}>
-            {r.lockins.slice(0, 7).map((col) => (
+        {/* I1 (Oct 17): who named whom, the payoff for reading people. Oct 21: after a runoff on who, the runoff's. */}
+        {(r.runoffTally ?? r.lockins).length > 0 && (
+          <div className={`tv-tally lockins fade${(r.runoffTally ?? r.lockins).length > 5 ? " many" : ""}`}>
+            {(r.runoffTally ?? r.lockins).slice(0, 7).map((col) => (
               <div key={col.suspect.id}>
                 <span className="who">{col.suspect.name}</span>
                 <span className="n">{col.by.length}</span>
@@ -656,6 +660,94 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
     };
   }
   return { scene: { key: "blank", node: <div className="tv-scene"><h2 className="tv-h2">The Velvet Room</h2></div> } };
+}
+
+/** The runoff on the TV (Oct 21): "It's a tie", each guest's last words with a 30-second clock, then the vote. */
+function runoffScene(d: Data, now: number): { key: string; node: ReactNode } {
+  const ro = d.runoff!;
+  const parts = [ro.who ? "who did it" : "", ro.weapon ? "the weapon" : "", ro.room ? "the room" : ""].filter(Boolean);
+  const what = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts[0];
+  const faces = (ids: { id: string; name: string; figure: string | null; photoUrl: string | null }[]) => (
+    <div className="tv-runoff-faces">
+      {ids.map((x) => (
+        <div key={x.id}>
+          <span className="tv-av">{avatarSrc(x.photoUrl, x.figure) ? <img src={avatarSrc(x.photoUrl, x.figure)!} alt="" /> : initials(x.name)}</span>
+          <span className="nm">{splitName(x.name).main}</span>
+        </div>
+      ))}
+    </div>
+  );
+  const things = (
+    <>
+      {ro.weapon && (
+        <div className="tv-wrow">
+          {ro.weapon.map((w) => (w.key ? <WeaponCard key={w.id} weapon={{ key: w.key, name: w.name }} /> : <span key={w.id} className="tv-h3">{w.name}</span>))}
+        </div>
+      )}
+      {ro.room && <p className="tv-h3">{ro.room.map((r) => r.label).join("  ·  ")}</p>}
+    </>
+  );
+  if (now < ro.at + RUNOFF_INTRO_MS) {
+    return {
+      key: "runoff-tie",
+      node: (
+        <div className="tv-scene">
+          <Fit className="scene" watch={`${ro.who?.length}:${ro.weapon?.length}:${ro.room?.length}`}>
+            <span className="tv-kick fade">The lock-in</span>
+            <h2 className="tv-h2 fade" style={{ fontSize: "7cqw" }}>It's a tie.</h2>
+            <p className="tv-sub fade">A runoff on {what}.{ro.words.length ? " Last words first." : ""}</p>
+            {ro.who && faces(ro.who)}
+            {things}
+          </Fit>
+        </div>
+      ),
+    };
+  }
+  const i = speakingNow(ro.at, ro.words.length, now);
+  if (i >= 0 && now < ro.voteAt) {
+    const p = ro.who!.find((x) => x.id === ro.words[i])!;
+    const left = ro.at + RUNOFF_INTRO_MS + (i + 1) * LAST_WORDS_MS - now;
+    const next = ro.words.slice(i + 1).map((id) => ro.who!.find((x) => x.id === id)!);
+    return {
+      key: `runoff-words-${i}`,
+      node: (
+        <div className="tv-scene">
+          <div className="tv-verdict-who">
+            {p.figure ? <img className="freed" src={figureUrl(p.figure)} alt="" /> : <span className="tv-av xl">{initials(p.name)}</span>}
+            <div>
+              <span className="tv-kick">Last words · {i + 1} of {ro.words.length}</span>
+              <BigName name={p.name} />
+              {p.plea ? <p className="tv-sub">“{p.plea}”</p> : <p className="tv-sub">Thirty seconds. Make them count.</p>}
+              <span className="tv-mini-clock big">{clock(left)}</span>
+              {next.length > 0 && <p className="tv-sub">Up next: {next.map((x) => splitName(x.name).main).join(", ")}</p>}
+            </div>
+          </div>
+        </div>
+      ),
+    };
+  }
+  return {
+    key: "runoff-vote",
+    node: (
+      <>
+        <div className="tv-scene">
+          <Fit className="scene" watch={`${ro.who?.length}:${ro.weapon?.length}:${ro.room?.length}`}>
+            <span className="tv-kick">The runoff</span>
+            <h2 className="tv-h2" style={{ fontSize: "5.4cqw" }}>Vote on your phone.</h2>
+            <p className="tv-sub">On {what} only. The most votes wins. Another tie, and the killer walks.</p>
+            {ro.who && faces(ro.who)}
+            {things}
+          </Fit>
+        </div>
+        <div className="tv-corner tr">
+          <span>
+            <b>{ro.voted}</b> of {ro.of} in
+          </span>
+          {ro.endsAt !== null && <span className="tv-mini-clock">{clock(ro.endsAt - now)}</span>}
+        </div>
+      </>
+    ),
+  };
 }
 
 /**

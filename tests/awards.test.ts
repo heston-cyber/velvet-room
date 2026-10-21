@@ -8,7 +8,7 @@ import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
 import type { Id } from "../convex/_generated/dataModel";
 import { caseFor } from "../convex/caseFile";
-import { nextRound } from "./steps";
+import { nextRound, settleRunoff } from "./steps";
 
 const modules = import.meta.glob("../convex/**/*.ts");
 const FUTURE = Date.now() + 7 * 864e5;
@@ -70,6 +70,9 @@ describe("awards (Oct 17)", () => {
     await lock(d, e._id, right);
     await lock(e, d._id, wrong);
     await lock(killer, e._id, wrong);
+    // Oct 21: the weapon tie goes to a runoff on the weapon; everyone votes as they locked in, so it ties again.
+    expect((await game(t)).runoff?.weapon).toBeTruthy();
+    await settleRunoff(t, SLUG);
     expect((await game(t)).status).toBe("reveal");
     // Best Dressed was voted in the lobby (Oct 20): five for c, c for a. A vote for a guest who didn't play doesn't count.
     const ghost = await t.run((ctx) => ctx.db.insert("players", { gameId: a.gameId, token: "ghost-token", realName: "Ghost", charName: "Ghost", charKey: "ghost", who: "", signature: "", killerOk: true, checkedIn: false, createdAt: 0, updatedAt: 0 }));

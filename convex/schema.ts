@@ -138,6 +138,22 @@ export default defineSchema({
     // Oct 20 (Heston: "I like the host setting for this"): who a gag night's insults can land on. "random" (the default):
     // every third game on the laptop, on a guest the game picks; "none": never; a guest's id: tonight, on them.
     roast: v.optional(v.union(v.literal("random"), v.literal("none"), v.id("players"))),
+    /**
+     * The runoff (Oct 21): what the lock-in tied on, whose last words come in what order, when the vote opens (after
+     * the last words), its clock in a timed game, and when it closed.
+     */
+    runoff: v.optional(
+      v.object({
+        at: v.number(),
+        who: v.optional(v.array(v.string())),
+        weapon: v.optional(v.array(v.string())),
+        room: v.optional(v.array(v.string())),
+        words: v.array(v.string()),
+        voteAt: v.number(),
+        endsAt: v.optional(v.number()),
+        closedAt: v.optional(v.number()),
+      }),
+    ),
     /** Phase 3: who scanned the Don's stash first ($200 in chips), and when. */
     stash: v.optional(v.object({ playerId: v.id("players"), at: v.number() })),
     levels: v.optional(v.object({ voice: v.number(), music: v.number(), sfx: v.number() })),
@@ -238,6 +254,17 @@ export default defineSchema({
     roomKey: v.string(),
     // v2: an optional guess at the accomplice (killer + accomplice games). It doesn't change who wins.
     accompliceId: v.optional(v.string()),
+    at: v.number(),
+  })
+    .index("by_game", ["gameId"])
+    .index("by_player", ["playerId"]),
+  // The runoff (Oct 21): one vote per guest on the parts the lock-in tied on. Final once cast, like the lock-in.
+  runoffVotes: defineTable({
+    gameId: v.id("games"),
+    playerId: v.id("players"),
+    who: v.optional(v.string()),
+    weapon: v.optional(v.string()),
+    room: v.optional(v.string()),
     at: v.number(),
   })
     .index("by_game", ["gameId"])

@@ -103,6 +103,15 @@ export const roster = query({
         narrator: narratorOf(game),
         // Oct 20: who a gag night can land on (Random, Nobody, or a guest).
         roast: game.roast ?? "random",
+        // The runoff (Oct 21): when its vote opens, and how many are in (the host's Next button).
+        runoff: game.runoff
+          ? {
+              voteAt: game.runoff.voteAt,
+              closedAt: game.runoff.closedAt ?? null,
+              voted: (await ctx.db.query("runoffVotes").withIndex("by_game", (q) => q.eq("gameId", game._id)).collect()).length,
+              of: rows.filter((p) => p.inGame && !p.jailed).length,
+            }
+          : null,
         levels: levelsOf(game),
         // What this game picked at Start, so the laptop can steer clear of it next game (Oct 16).
         heard: game.lines ? { script: scriptOf(game), lines: game.lines.picks, heckles: (await heckleWanted(ctx, game)).map((h) => h.line.id), gag: !!game.lines.gag } : null,

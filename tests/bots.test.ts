@@ -7,6 +7,7 @@ import { chooseJail, chooseSuspect, chooseThing, knownElims, scanQuota } from ".
 import { buildCase } from "../convex/engine/build";
 import { fakeCast, ROOMS_5 } from "../convex/engine/fake";
 import { seeded } from "../convex/engine/rng";
+import { settleRunoff } from "./steps";
 
 const modules = import.meta.glob("../convex/**/*.ts");
 
@@ -192,6 +193,7 @@ describe("a test game with bots", () => {
     const me = (await t.query(api.game.phone, { token: human }))!.me;
     if (!me.jailed) {
       await t.mutation(api.game.accuse, { token: human, suspectId: board.suspects.find((s) => s.id !== me.id)!.id, exhibitId: board.exhibits[0].id, roomKey: board.rooms[0].key });
+      await settleRunoff(t, slug); // Oct 21: a tie goes to a runoff first
       expect((await gameOf(t, slug)).status).toBe("reveal");
     }
   });
@@ -244,5 +246,31 @@ describe("the Don's stash (Phase 3)", () => {
     expect((await t.query(api.game.phone, { token: "h1" }))!.scans.find((s) => s.number === stash!.markerNumber)!.text).toMatch(/\$200/);
     expect((await t.query(api.game.phone, { token: "h2" }))!.scans.find((s) => s.number === stash!.markerNumber)!.text).toMatch(/empty/);
     expect((await gameOf(t, slug)).stash?.playerId).toBeTruthy();
+  });
+});
+
+describe("bots in a runoff (Oct 21)", () => {
+  test("after the last words, each bot votes on what's tied, never itself; the human's vote finishes it", async () => {
+    const { t, slug, hostKey } = await botGame(5);
+    await addHuman(t, slug);
+    await t.mutation(api.game.openDoors, { slug, hostKey });
+    await t.mutation(api.game.startGame, { slug, hostKey, cards: "hidden" });
+    const players = await t.run((ctx) => ctx.db.query("players").collect());
+    const [a, b] = players.filter((p) => p.bot).map((p) => p._id as string);
+    await t.run(async (ctx) => {
+      const g = (await ctx.db.query("games").withIndex("by_slug", (q) => q.eq("slug", slug)).unique())!;
+      await ctx.db.patch(g._id, { round: 4, rolesOut: true, introEndsAt: Date.now() - 1000, runoff: { at: Date.now() - 100_000, who: [a, b], words: [a, b], voteAt: Date.now() - 1 } });
+    });
+    await beats(t, slug, 30);
+    const votes = await t.run((ctx) => ctx.db.query("runoffVotes").collect());
+    const bots = players.filter((p) => p.bot);
+    expect(votes.length).toBe(bots.length);
+    for (const v of votes) {
+      expect([a, b]).toContain(v.who);
+      expect(v.who).not.toBe(v.playerId);
+    }
+    expect((await gameOf(t, slug)).status).toBe("playing");
+    await t.mutation(api.game.runoffVote, { token: "human-token", who: a });
+    expect((await gameOf(t, slug)).status).toBe("reveal");
   });
 });
