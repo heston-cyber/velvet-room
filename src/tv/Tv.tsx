@@ -542,7 +542,8 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
         node: (
           <>
             <div className="tv-scene">
-              <Fit className="scene" watch={d.guests.length}>
+              {/* Oct 21: with 8 or fewer guests the suspects line up along the bottom (timeline.ts): the grid stays above them. */}
+              <Fit className={`scene${d.guests.length <= 8 ? " with-line" : ""}`} watch={d.guests.length}>
               <span className="tv-kick">The lock-in</span>
               <h2 className="tv-h2" style={{ fontSize: "5.4cqw" }}>Who killed the Don?</h2>
               {/* Phase 4: the story reminder at the lock-in. */}
@@ -1380,7 +1381,9 @@ function Jailed({ figure, className = "" }: { figure: string; className?: string
 }
 
 function Guests({ guests, mark }: { guests: Data["guests"]; mark: "here" | "accused" }) {
-  const cols = guests.length <= 12 ? 6 : 8;
+  // Oct 21 (Phase 8 look-over): up to 8 guests in one row; more in two even rows (10: 5 and 5), at most 8 across.
+  const n = guests.length;
+  const cols = n <= 8 ? Math.max(1, n) : Math.min(8, Math.ceil(n / 2));
   return (
     <div className="tv-guests" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
       {guests.map((x) => (

@@ -387,6 +387,8 @@
 .tv-fit { min-width: 0; min-height: 0; overflow: hidden; width: 100%; }
 /* Oct 20: the bottom clears a two-line caption. */
 .tv-fit.scene { position: absolute; inset: 4cqw 5cqw 11cqw; width: auto; display: grid; align-content: center; justify-items: center; }
+/* Oct 21: the lock-in with the suspects lined up along the bottom (8 or fewer guests): the scene ends above their heads. */
+.tv-fit.scene.with-line { bottom: 17.5cqw; }
 .tv-fit.scene > .tv-fit-in { width: 100%; display: grid; align-content: center; justify-items: center; gap: 1.5cqw; }
 .tv-fit.split { height: 36cqw; }
 .tv-fit.split > .tv-fit-in { width: 100%; }
