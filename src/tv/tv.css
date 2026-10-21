@@ -46,7 +46,8 @@
 
 .tv-roundbar { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 2cqw; }
 .tv-roundbar .chip { font-size: 1.4cqw; padding: .6cqw 1.2cqw .4cqw; }
-.tv-clock { font-family: var(--display); font-size: 5cqw; color: var(--paper); font-variant-numeric: tabular-nums; line-height: 1; }
+/* Oct 21: line-height under 1 so the clock's box stays clear of the host's Menu button above it (digits have no descenders). */
+.tv-clock { font-family: var(--display); font-size: 5cqw; color: var(--paper); font-variant-numeric: tabular-nums; line-height: .8; }
 .tv-ready { font-family: var(--label); font-size: 1.6cqw; font-weight: 700; letter-spacing: .1em; color: var(--paper); }
 .tv-meter { width: 100%; height: .8cqw; border: 1px solid var(--rule); background: var(--well); }
 .tv-meter i { display: block; height: 100%; background: var(--brass); transition: width .4s; }
