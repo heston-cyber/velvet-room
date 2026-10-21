@@ -363,10 +363,12 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
       }
       // Heckles while everyone searches: the first after a minute and a bit, then every two and a half minutes,
       // clear of the one-minute warning.
+      // Oct 21: each round has its own 8 of the night's 24 (it was 5 apart, so a long untimed round ran into the
+      // next round's lines and the same insult played twice in one night).
       for (let k = 0; k < 8; k++) {
         const at = out.holdUntil + HECKLE.roundFirst + k * HECKLE.roundEvery;
         if (timed && at > g.roundEndsAt! - 75 * S) break;
-        heckle(`r${round}:${t}:${k}`, (round - 1) * 5 + k, at, `r${round}`);
+        heckle(`r${round}:${t}:${k}`, (round - 1) * 8 + k, at, `r${round}`);
       }
       if (timed) {
         vo(`r${round}:${t}:1min`, "oneMinute", g.roundEndsAt! - 60 * S, false, String(round));

@@ -95,12 +95,18 @@ with sync_playwright() as p:
     multi = [k for k in h1["lines"] if not k.startswith("custom:")]
     ok(len(multi) >= 40, f"each game picks a version of every line ({len(multi)})")
     ok(all(h2["lines"][k] != h1["lines"][k] for k in multi), "game 2 hears a different version of every line than game 1")
-    ok(all(len({h1["lines"][k], h2["lines"][k], h3["lines"][k]}) == 3 for k in multi), "game 3 hears the third one")
+    # Phase 6 (Oct 21): new lines have 2 Adult versions, so game 3 hears the third version where there is one, and
+    # otherwise the one heard longest ago (game 1's).
+    counts = json.loads(subprocess.run(["npx", "tsx", "-e", "import { CUE_KEYS, cleanVersions } from './convex/narration'; console.log(JSON.stringify(Object.fromEntries(CUE_KEYS.map((c) => [c, cleanVersions(c, 'adult').length]))))"], cwd=ROOT, capture_output=True, text=True).stdout.strip().splitlines()[-1])
+    ok(all(len({h1["lines"][k], h2["lines"][k], h3["lines"][k]}) == min(3, counts.get(k, 3)) for k in multi), "game 3 hears the third one, where a line has three")
+    ok(all(h3["lines"][k] != h2["lines"][k] for k in multi), "and never game 2's again")
     # Oct 18: the gag night (every third game) sends every insult to one guest.
     ok(not h1["gag"] and not h2["gag"], "no gag night in games 1 and 2")
     ok(h3["gag"], "game 3 is the gag night")
     ok(all(":insult:" in i for i in h1["heckles"] + h2["heckles"] + h3["heckles"]), "every heckle is an insult (no jokes or asides)")
-    ok(not set(h2["heckles"]) & set(h1["heckles"]), "game 2's heckles are all new")
+    # 30 insults a script and 24 dealt a night: game 2 gets the 6 game 1 didn't deal first, then the rest.
+    fresh = [x for x in h2["heckles"] if x not in h1["heckles"]]
+    ok(len(fresh) >= 6 and h2["heckles"][:len(fresh)] == fresh, f"game 2 deals the insults game 1 didn't first ({len(fresh)} new)")
     stored = host.evaluate("() => JSON.parse(localStorage.getItem('velvet-room:heard'))")
     ok(stored and len(stored["games"]) == 3, "the laptop remembers three games")
 
@@ -133,7 +139,9 @@ with sync_playwright() as p:
     ok("[" not in cap, "captions show no delivery directions")
     host.screenshot(path=os.path.join(OUT, "03-sailor-how.png"))
     clips = cx("voice:clipsOf", {"slug": slug})
-    ok(wait_for(lambda: all(c["status"] == "ready" for c in cx("voice:clipsOf", {"slug": slug}) if c["purpose"].startswith(("killer:", "heckle:"))), 400), "the per-game lines record in Duke's Sailor voice")
+    # The per-game lines are made by ElevenLabs on the backend: checked with VOICES=1 (dev has no key otherwise).
+    if os.environ.get("VOICES"):
+        ok(wait_for(lambda: all(c["status"] == "ready" for c in cx("voice:clipsOf", {"slug": slug}) if c["purpose"].startswith(("killer:", "heckle:"))), 400), "the per-game lines record in Duke's Sailor voice")
     clips = cx("voice:clipsOf", {"slug": slug})
     late = [(c["purpose"], c["status"], c["error"]) for c in clips if c["status"] != "ready"]
     if late:

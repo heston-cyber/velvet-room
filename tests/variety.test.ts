@@ -164,9 +164,10 @@ describe("heckles in the lulls", () => {
     expect(hs.every((e) => e.at + 4000 < minute.at)).toBe(true);
     // the roasted guest's drawing leans in while it plays
     expect(p.cameos.some((c) => c.id.startsWith("heckle:") && c.char === "flapper" && c.anim === "peek")).toBe(true);
-    // Round 2 picks up where Round 1 left off in the night's order.
+    // Round 2 starts on its own 8 of the night's order (Oct 21: 8 a round, so a long untimed round never runs into the
+    // next round's lines).
     const p2 = plan(data({ round: 2, roundStartedAt: T0, roundEndsAt: T0 + 600_000 }, hk), T0 + 1000, secs);
-    expect(p2.events.find((e) => e.id.startsWith("heckle:"))!.clip!.url).toBe("h5");
+    expect(p2.events.find((e) => e.id.startsWith("heckle:"))!.clip!.url).toBe("h8");
     // Nothing while paused, and nothing when no heckles are recorded.
     expect(plan(data({ paused: true, pausedAt: T0, roundEndsAt: -300_000 }, hk), T0 + 1000, secs).events.some((e) => e.id.startsWith("heckle:"))).toBe(false);
     expect(plan(data({ roundEndsAt: T0 + 600_000 }, []), T0 + 1000, secs).events.some((e) => e.id.startsWith("heckle:"))).toBe(false);
