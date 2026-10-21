@@ -47,8 +47,8 @@
 .hx-stepper button { background: none; border: 0; height: 100%; font-size: 20px; color: var(--brass); cursor: pointer; }
 .hx-stepper button:disabled { opacity: .35; cursor: default; }
 .hx-stepper b { text-align: center; font-family: var(--label); font-size: 14px; letter-spacing: .06em; font-variant-numeric: tabular-nums; }
-.hx-ctl-note { display: grid; place-items: center; border: 1px dashed var(--brass-dim); font-family: var(--label); font-size: 13px; letter-spacing: .06em; color: var(--muted); }
-.hx-est { display: grid; place-items: center; width: min(100%, 240px); height: 34px; font-family: var(--label); font-size: 13px; font-weight: 700; letter-spacing: .06em; color: var(--ink); background: var(--manila); padding-top: 2px; }
+.hx-ctl-note { display: grid; place-items: center; width: max-content; max-width: 100%; padding: 0 14px; border: 1px dashed var(--brass-dim); font-family: var(--label); font-size: 13px; letter-spacing: .06em; color: var(--muted); }
+.hx-est { display: grid; place-items: center; width: max-content; max-width: 100%; min-height: 34px; padding: 7px 14px 5px; text-align: center; font-family: var(--label); font-size: 13px; font-weight: 700; letter-spacing: .06em; color: var(--ink); background: var(--manila); }
 
 .btn { background: none; border: 1px solid var(--brass-dim); color: var(--paper); padding: 9px 13px 7px; font-family: var(--label); font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; }
 .btn:disabled { opacity: .35; cursor: default; }
@@ -135,3 +135,10 @@
 .hx-advanced { display: grid; gap: 10px; }
 .hx-advanced > summary { cursor: pointer; font-family: var(--label); font-size: 13px; letter-spacing: .05em; color: var(--muted); }
 .hx-advanced[open] > summary { margin-bottom: 6px; }
+/* Oct 20: the Gag night pick. */
+.hx-select { width: 100%; min-height: 44px; background: var(--felt, #1a0a10); border: 1px solid var(--brass-dim); color: var(--paper); font-family: var(--body); font-size: 15px; padding: 8px 10px; }
+
+/* Oct 20: the Bots section's count, styled like the rest of Options. */
+.hx-bots .row { display: flex; align-items: center; gap: 14px; }
+.hx-bots input[type="number"] { width: 84px; height: 40px; background: var(--felt, #1a0a10); border: 1px solid var(--brass-dim); color: var(--paper); font-family: var(--label); font-size: 16px; text-align: center; }
+.hx-bots input[type="number"]:focus-visible { outline: 2px solid var(--brass); outline-offset: 1px; }

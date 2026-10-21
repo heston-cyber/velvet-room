@@ -112,7 +112,7 @@ describe("Phase 4: drawn body room, waves, Wi-Fi, the TV", () => {
     for (const token of tokens) {
       const p = (await t.query(api.game.phone, { token }))!;
       expect(roster).not.toContain(p.briefing!.lines[0]);
-      expect(roster).not.toContain(p.briefing!.motive);
+      if (p.briefing!.motive) expect(roster).not.toContain(p.briefing!.motive);
     }
     expect(roster).not.toContain("token");
   });
@@ -286,7 +286,8 @@ describe("Phase 4: drawn body room, waves, Wi-Fi, the TV", () => {
     expect((await game(t)).tvShowAll).toBe(false); // the reveal takes the screen
     await expect(t.mutation(api.game.endNight, { slug: SLUG, hostKey })).rejects.toThrow(/awards first/);
     const players = await t.run((ctx) => ctx.db.query("players").collect());
-    await t.mutation(api.game.vote, { token: tokens[1], dressed: players[0]._id as Id<"players"> });
+    // Best Dressed was voted in the lobby (Oct 20).
+    await t.run((ctx) => ctx.db.insert("votes", { gameId: players[1].gameId, playerId: players[1]._id, dressed: players[0]._id }));
     await t.mutation(api.game.finish, { slug: SLUG, hostKey });
     const tv = await t.query(api.game.tv, { slug: SLUG, tvKey: await tvKey(t) });
     expect(tv.results!.awards!.find((a) => a.key === "dressed")!.winners.map((w) => w.name)).toEqual([players[0].charName]);

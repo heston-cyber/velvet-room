@@ -41,7 +41,8 @@
 .hs-menu-btn { position: absolute; top: 1.2cqw; right: 1.2cqw; z-index: 25; background: rgba(10, 3, 6, .6); border: 1px solid var(--brass-dim); color: var(--paper);
   font-family: var(--label); font-size: .95cqw; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; padding: .6cqw 1cqw .45cqw; cursor: pointer; opacity: .35; transition: opacity .3s; }
 .hs-menu-btn:hover, .hs-menu-btn:focus-visible { opacity: 1; }
-.hs-lobby { position: absolute; right: 3cqw; bottom: 9.5cqw; z-index: 22; display: grid; gap: .8cqw; justify-items: end; text-align: right; }
+/* Oct 20: above a two-line caption. */
+.hs-lobby { position: absolute; right: 3cqw; bottom: 12.5cqw; z-index: 22; display: grid; gap: .8cqw; justify-items: end; text-align: right; }
 .hs-count { font-family: var(--label); font-size: 1.3cqw; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 .hs-count b { font-family: var(--display); font-weight: 400; font-size: 2.4cqw; color: var(--brass); letter-spacing: 0; margin-right: .3cqw; }
 .hs-hint { font-size: 1.1cqw; font-style: italic; color: var(--muted); }
@@ -49,7 +50,9 @@
 .hs-ask { display: grid; gap: .8cqw; justify-items: end; background: rgba(18, 5, 10, .82); border: 1px solid var(--brass); padding: 1.2cqw 1.4cqw; }
 .hs-ask-q { font-family: var(--display); font-size: 1.9cqw; color: var(--paper); max-width: 34cqw; text-wrap: balance; }
 .hs-step { position: absolute; right: 3cqw; bottom: 9.5cqw; z-index: 22; display: flex; gap: .8cqw; }
-.hs-step.top { top: 5.6cqw; bottom: auto; }
+/* Oct 20: up in the corner beside Menu, above the verdict and the awards, not on them. */
+.hs-step.top { top: 1.2cqw; right: 9.6cqw; bottom: auto; }
+.hs-step.top .hs-btn { padding: .6cqw 1.4cqw .45cqw; font-size: 1cqw; }
 .hs-step .hs-btn { font-size: 1.1cqw; padding: .9cqw 1.6cqw .8cqw; }
 .hs-pause { position: absolute; top: 0; right: 0; bottom: 0; width: 30cqw; z-index: 30; display: grid; align-content: start; gap: 1cqw; padding: 2.4cqw 2cqw;
   background: rgba(14, 4, 8, .95); border-left: 1px solid var(--brass-dim); overflow-y: auto; animation: hs-slide .35s ease both; }
@@ -84,5 +87,6 @@
 .hs-bots { max-width: 520px; }
 .hs-bots[open] { text-align: left; justify-items: stretch; }
 .hs-bots .hs-sub { font-size: 15px; max-width: none; }
-.hs-bots-row { display: grid; grid-template-columns: auto 120px; align-items: center; gap: 12px; color: var(--paper); }
+.hs-bots-row { display: grid; grid-template-columns: max-content 96px; justify-content: start; align-items: center; gap: 14px; color: var(--paper); }
+.hs-bots-row .hs-input { text-align: center; height: 40px; padding: 4px 8px; }
 .hs-bots .help { color: var(--muted); font-size: 13px; }

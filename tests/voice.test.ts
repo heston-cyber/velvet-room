@@ -82,7 +82,7 @@ describe("roll call (v2)", () => {
     }
   });
 
-  test("recorded at Start in the chosen voice: one line per guest, with their motive (Oct 18)", async () => {
+  test("recorded at Start in the chosen voice: one line per guest (no motive since Oct 20)", async () => {
     const said = fakeElevenLabs();
     process.env.ELEVENLABS_API_KEY = "test-key";
     vi.useFakeTimers();
@@ -96,7 +96,7 @@ describe("roll call (v2)", () => {
     expect(sheet.counts).toMatchObject({ total: 4, ready: 4, failed: 0 });
     const roll = said.filter((s) => sheet.guests.some((g) => s.text.includes(g.line)));
     expect(roll).toHaveLength(4);
-    expect(roll.every((s) => s.text.length < 280 && s.text.includes("Motive: "))).toBe(true);
+    expect(roll.every((s) => s.text.length < 280 && !s.text.includes("Motive: "))).toBe(true);
     expect(new Set(said.map((s) => s.voice))).toEqual(new Set(["QzTKubutNn9TjrB7Xb2Q"])); // Duke
     const gameId = (await t.run(async (ctx) => (await ctx.db.query("games").first())!._id)) as Id<"games">;
     const before = said.length;

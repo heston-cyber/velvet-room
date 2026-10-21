@@ -170,17 +170,16 @@ describe("heckles in the lulls", () => {
     expect(plan(data({ roundEndsAt: T0 + 600_000 }, []), T0 + 1000, secs).events.some((e) => e.id.startsWith("heckle:"))).toBe(false);
   });
 
-  test("during the lock-in and the Best Dressed and Best Liar votes", () => {
+  test("during the lock-in, not the reveal", () => {
     const acc = plan(data({ round: 4, roundStartedAt: T0, roundEndsAt: T0 + 300_000 }, hk), T0 + 1000, secs);
     const a = acc.events.filter((e) => e.id.startsWith("heckle:"));
     expect(a.length).toBeGreaterThanOrEqual(3);
     // W22 (Oct 17): only general asides during the lock-in (no line about a guest).
     expect(a.every((e) => !hk.find((h) => h.clip.url === e.clip!.url)!.figure)).toBe(true);
+    // Oct 20: Best Dressed is voted in the lobby, so the reveal has no vote prompt and no heckles under it.
     const rev = plan(data({ status: "reveal", revealAt: T0 }, hk), T0 + 1000, secs);
-    const vote = rev.events.find((e) => e.cue === "votePrompt")!;
-    const r = rev.events.filter((e) => e.id.startsWith("heckle:"));
-    expect(r).toHaveLength(4);
-    expect(r[0].at).toBe(vote.at + 3000 + HECKLE.voteFirst);
+    expect(rev.events.some((e) => e.cue === "votePrompt")).toBe(false);
+    expect(rev.events.filter((e) => e.id.startsWith("heckle:"))).toHaveLength(0);
   });
 
   test("How to play in an adult game shows this game's version of each card", () => {

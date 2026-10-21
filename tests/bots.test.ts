@@ -164,16 +164,15 @@ describe("a test game with bots", () => {
     const answer = await t.query(api.bots.askBot, { token: human, botId: aBot.id as never });
     expect(answer.name).toBeTruthy();
     expect(Array.isArray(answer.found)).toBe(true);
-    // Most of the bots are ready, so the round's last call is running (today's rule: most guests ready).
-    const g1 = await gameOf(t, slug);
-    expect(g1.roundEndsAt).toBeTruthy();
+    // The bots are ready, and the round waits for the human (Oct 20: untimed rounds wait for everyone).
+    const readyBots = await t.run(async (ctx) => (await ctx.db.query("players").collect()).filter((p) => p.bot && p.readyRound === 1).length);
+    expect(readyBots).toBeGreaterThan(0);
+    expect((await gameOf(t, slug)).round).toBe(1);
+    await t.mutation(api.game.setReady, { token: human, ready: true });
+    await beats(t, slug, 40);
+    expect((await gameOf(t, slug)).round).toBe(2); // everyone ready: Round 2
     // On to Round 2's jail vote: the bots vote.
-    await t.mutation(api.game.advanceRound, { slug, hostKey }); // Round 1 -> 2
-    await t.run(async (ctx) => {
-      const g = (await ctx.db.query("games").withIndex("by_slug", (q) => q.eq("slug", slug)).unique())!;
-      await ctx.db.patch(g._id, { roundEndsAt: undefined });
-    });
-    await t.mutation(api.game.advanceRound, { slug, hostKey }); // Round 2 ends: the jail vote opens
+    if (!(await gameOf(t, slug)).vote) await t.mutation(api.game.advanceRound, { slug, hostKey }); // Round 2 ends: the jail vote opens
     expect((await gameOf(t, slug)).vote?.kind).toBe("jail");
     await beats(t, slug, 25);
     const ballots = await t.run((ctx) => ctx.db.query("ballots").collect());

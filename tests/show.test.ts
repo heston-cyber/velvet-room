@@ -69,12 +69,11 @@ describe("the show (Oct 16): Start → How to play → the Don dies → roll cal
       expect(it.cast).toBeTruthy();
       expect(it.line).toContain(it.cast!.real);
       expect(it.line).not.toMatch(/Weapon|Signature|played by/i);
-      // Oct 18: their motive, read out for everyone
-      expect(it.motive).toBeTruthy();
-      expect(it.line).toContain(`Motive: ${it.motive}`);
+      // Oct 20: no motives
+      expect(it.line).not.toContain("Motive:");
     }
     // Oct 18: every guest in a game gets their own joke
-    const jokes = rc.items.map((it) => it.line.replace(it.cast!.real, "X").replace(/ Motive: .*$/, ""));
+    const jokes = rc.items.map((it) => it.line.replace(it.cast!.real, "X"));
     expect(new Set(jokes).size).toBe(rc.items.length);
     expect(tv.weapons.length).toBe(6); // drawn by the game (Oct 16), not one per guest
   });
@@ -197,15 +196,15 @@ describe("roasts and the roll-call line", () => {
     }
   });
 
-  test("the roll-call line: name and nickname, their own joke, then their motive (Oct 18)", () => {
+  test("the roll-call line: name and nickname and their own joke; no motive since Oct 20", () => {
     for (const tone of ["classic", "adult", "sailor"] as const) {
-      const lines = CAST_INTROS[tone].map((_, pick) => rollNarration(tone, { name: "Josh “Two-Tone” Lee", real: "Josh Lee", nickname: "Two-Tone", cast: true, seed: "x", pick, motive: "The Don owed them money." }).text);
+      const lines = CAST_INTROS[tone].map((_, pick) => rollNarration(tone, { name: "Josh “Two-Tone” Lee", real: "Josh Lee", nickname: "Two-Tone", cast: true, seed: "x", pick }).text);
       expect(lines).toHaveLength(16);
       expect(new Set(lines).size).toBe(16);
       for (const line of lines) {
         expect(line).toContain("Josh Lee, a.k.a. Two-Tone");
-        expect(line.endsWith(" Motive: The Don owed them money.")).toBe(true);
-        expect(plain(line.replace(/ Motive: .*$/, "")).split(" ").length).toBeLessThan(26);
+        expect(line).not.toContain("Motive");
+        expect(plain(line).split(" ").length).toBeLessThan(26);
       }
     }
   });

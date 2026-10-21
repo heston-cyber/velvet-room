@@ -3,7 +3,7 @@ import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
 import type { Id } from "../convex/_generated/dataModel";
-import { LAST_CALL_MS, VOTE } from "../convex/shared";
+import { VOTE } from "../convex/shared";
 import { caseFor } from "../convex/caseFile";
 import { nextRound } from "./steps";
 
@@ -90,7 +90,7 @@ describe("the jail vote", () => {
     expect((await game(t)).round).toBe(3);
   });
 
-  test("half isn't enough; Round 3 ends in the release vote (no jail vote), then the lock-in", async () => {
+  test("half isn't enough; Round 3 ends with no vote (Oct 20: no release vote), and a jailbird rejoins for the lock-in", async () => {
     const { t, hostKey, token, id, players } = await started(6);
     await endRound(t, hostKey); // Round 1 → Round 2, no vote
     await endRound(t, hostKey); // Round 2 → the jail vote
@@ -100,46 +100,14 @@ describe("the jail vote", () => {
     expect((await game(t)).vote!.outcome).toBe("nobody");
     await endRound(t, hostKey); // skip the verdict: Round 3
     expect((await game(t)).round).toBe(3);
-    // jail a guest the evidence never clears, by hand, to test Round 3's release vote
+    // jail a guest by hand: Round 3 still ends with no vote
     const j = await unclearedIdx(t, players);
-    await t.run((ctx) => ctx.db.patch(id(j), { jailed: true, jailedAt: Date.now() }));
-    await endRound(t, hostKey); // Round 3 ends: they're in jail, so the release vote
-    let g = await game(t);
-    expect(g.vote).toMatchObject({ kind: "release", round: 3 });
-    expect(g.vote!.auto).toBeUndefined();
-    expect(g.vote!.voters).toHaveLength(5);
-    expect(g.vote!.candidates).toEqual([id(j)]);
-    const free = [0, 1, 2, 3, 4, 5].filter((i) => i !== j);
-    await t.mutation(api.game.castVote, { token: token(free[0]), targetId: id(j) });
-    await t.mutation(api.game.castVote, { token: token(free[1]), targetId: null });
-    await endRound(t, hostKey); // the host closes it: 1 of 5 isn't more than half
-    g = await game(t);
-    expect(g.vote!.outcome).toBe("nobody");
-    expect((await player(t, id(j))).jailed).toBe(true);
-    await endRound(t, hostKey); // skip the verdict: straight to the lock-in, no jail vote
-    g = await game(t);
-    expect(g.round).toBe(4);
-  });
-
-  test("Oct 17 (D10): a jailbird the evidence has cleared walks out at the end of Round 3, no vote", async () => {
-    const { t, hostKey, players, id, tvKey, token } = await started(6);
-    await nextRound(t, SLUG, hostKey); // → Round 2
-    await nextRound(t, SLUG, hostKey); // the jail vote (nobody votes) → Round 3
-    const { cleared } = await theCase(t);
-    const j = players.findIndex((p) => cleared.has(p._id));
-    expect(j).toBeGreaterThanOrEqual(0);
     await t.run((ctx) => ctx.db.patch(id(j), { jailed: true, jailedAt: Date.now() }));
     await endRound(t, hostKey);
     const g = await game(t);
-    expect(g.vote).toMatchObject({ kind: "release", round: 3, outcome: "released", targetId: id(j), auto: true, voters: [] });
-    expect(g.vote!.closedAt).toBeDefined();
-    expect((await player(t, id(j))).jailed).toBe(false);
-    const tv = await t.query(api.game.tv, { slug: SLUG, tvKey });
-    expect(tv.vote).toMatchObject({ auto: true, outcome: "released" });
-    const phone = (await t.query(api.game.phone, { token: token(j) }))!;
-    expect(phone.vote).toMatchObject({ auto: true });
-    await endRound(t, hostKey); // skip the verdict: the lock-in
-    expect((await game(t)).round).toBe(4);
+    expect(g.round).toBe(4);
+    expect(g.vote?.round).not.toBe(3);
+    expect((await player(t, id(j))).jailed).toBe(false); // back out for the lock-in
   });
 
   test("Oct 17 (D5): under 5 guests there's no jail vote, and How to play skips the jail card", async () => {
@@ -170,11 +138,10 @@ describe("the jail vote", () => {
     expect(g.vote?.round).not.toBe(3);
   });
 
-  test("jailed guests can talk and bribe, nothing else; the release vote frees them for the lock-in", async () => {
+  test("jailed guests (Oct 20) sit out Round 3: no searching, no Ready, no vote; the round waits only for the free guests; they rejoin for the lock-in", async () => {
     const { t, hostKey, token, id, players } = await started(5);
     await endRound(t, hostKey); // → Round 2
     await endRound(t, hostKey); // the jail vote
-    // jail a guest the evidence never clears, so Round 3 ends in a real release vote
     const j = await unclearedIdx(t, players);
     const free = [0, 1, 2, 3, 4].filter((i) => i !== j);
     for (const i of free.slice(0, 3)) await t.mutation(api.game.castVote, { token: token(i), targetId: id(j) });
@@ -188,24 +155,14 @@ describe("the jail vote", () => {
     const markers = await t.run((ctx) => ctx.db.query("markers").collect());
     await expect(t.mutation(api.game.scanMarker, { token: token(j), code: markers[0].code })).rejects.toThrow(/jail/);
     expect((await t.mutation(api.game.setReady, { token: token(j), ready: true })).ok).toBe(false);
-    // ready majority counts free guests only: 3 of 4 free; then the 30-second last call (I4)
-    vi.useFakeTimers();
+    // The round waits for the 4 free guests only.
     for (const i of free.slice(0, 3)) await t.mutation(api.game.setReady, { token: token(i), ready: true });
-    vi.advanceTimersByTime(LAST_CALL_MS + 1000);
-    await t.finishInProgressScheduledFunctions();
-    vi.useRealTimers();
-    let g = await game(t);
-    expect(g.vote).toMatchObject({ kind: "release", round: 3 });
-    await expect(t.mutation(api.game.castVote, { token: token(j), targetId: null })).rejects.toThrow(/jail/);
-    for (const i of free.slice(0, 3)) await t.mutation(api.game.castVote, { token: token(i), targetId: id(j) });
-    expect((await game(t)).vote!.closedAt).toBeUndefined(); // one guest still to vote
-    await endRound(t, hostKey); // the host closes it: 3 of 4 is more than half
-    expect((await game(t)).vote!.outcome).toBe("released");
+    expect((await game(t)).round).toBe(3);
+    await t.mutation(api.game.setReady, { token: token(free[3]), ready: true });
+    const g = await game(t);
+    expect(g.round).toBe(4); // no release vote: straight to the lock-in
     expect((await player(t, id(j))).jailed).toBe(false);
-    await endRound(t, hostKey); // skip the verdict: the lock-in
-    g = await game(t);
-    expect(g.round).toBe(4);
-    // the freed guest locks in; the reveal waits for everyone free
+    // Everyone locks in, the former jailbird too; the reveal waits for all five.
     const board = (await t.query(api.game.phone, { token: token(1) }))!.board!;
     for (const i of [0, 1, 2, 3, 4]) {
       await t.mutation(api.game.accuse, { token: token(i), suspectId: id(i === 1 ? 2 : 1), exhibitId: board.exhibits[0].id, roomKey: board.rooms[0].key });
@@ -213,9 +170,14 @@ describe("the jail vote", () => {
     expect((await game(t)).status).toBe("reveal");
   });
 
-  test("on the clock: an open vote closes when its time is up, and the verdict moves the night on", async () => {
+
+  test("timed games (Oct 20): an open vote closes when its time is up, and the verdict moves the night on", async () => {
     vi.useFakeTimers();
     const { t, hostKey, token, id } = await started(6);
+    await t.run(async (ctx) => {
+      const g = (await ctx.db.query("games").first())!;
+      await ctx.db.patch(g._id, { pacing: { mode: "timer", roundMinutes: 10 } });
+    });
     await endRound(t, hostKey); // → Round 2
     await endRound(t, hostKey); // the jail vote
     await t.mutation(api.game.castVote, { token: token(0), targetId: id(1) });

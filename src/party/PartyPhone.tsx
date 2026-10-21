@@ -119,7 +119,7 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
   let body: JSX.Element;
   let showNav = false;
   if (game.status === "lobby" && !me.checkedIn) body = <Arrive token={token} name={me.charName} />;
-  else if (game.status === "lobby") body = <Lobby data={data} />;
+  else if (game.status === "lobby") body = <Lobby data={data} token={token} />;
   else if (game.status === "playing" && !me.inGame) body = <Late data={data} />;
   else if (game.status === "playing" && !game.rolesOut) body = <ShowWait data={data} />;
   else if (voting) {
@@ -192,8 +192,8 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
 
 function TopLine({ data }: { data: Phone }) {
   const { game, counts } = data;
-  // F12 (Oct 17): the lock-in has a clock whatever the pacing.
-  const timed = game.pacing.mode === "timer" || game.round >= 4 || (!!game.roundEndsAt && game.roundEndsAt > 0);
+  // Oct 20: only timed games have clocks.
+  const timed = game.pacing.mode === "timer" && !!game.roundEndsAt;
   const now = useNow(game.status === "playing");
   let left = "";
   const intro = game.status === "playing" && game.round === 1 && !!game.introEndsAt && game.introEndsAt > now;
@@ -252,14 +252,13 @@ function todoOf(data: Phone, intro: boolean): string {
   }
   if (vt) return "Watch the TV for the verdict.";
   if (game.status === "playing" && game.round <= 3) {
-    if (me.jailed) return game.round === 3 ? "You're in jail. The release vote at the end of this round can let you out, or the evidence can." : "You're in jail: no searching or voting. Keep talking.";
+    if (me.jailed) return "You're in jail this round: no searching or voting. You're back for the lock-in.";
     return game.pacing.mode === "timer" ? "Search the house and scan every evidence card you find." : "Search the house and scan evidence cards. Tap Ready when you're done.";
   }
   if (game.status === "playing") {
-    if (me.jailed) return "Jailbirds sit out the lock-in. Watch the TV.";
     return data.myAccusation ? "You're locked in. Watch the TV." : "Lock in who did it, with what, and where. It's final.";
   }
-  if (game.status === "reveal") return "Watch the TV. Then vote Best Dressed here.";
+  if (game.status === "reveal") return "Watch the TV.";
   return "Thanks for playing.";
 }
 
@@ -319,13 +318,14 @@ function WifiCard({ data }: { data: Phone }) {
   );
 }
 
-function Lobby({ data }: { data: Phone }) {
+function Lobby({ data, token }: { data: Phone; token: string }) {
   const { me, lobby } = data;
   return (
     <div className="screen">
       <span className="eyebrow">You're in</span>
       <h1 className="title-lg">Mingle. Stay in costume.</h1>
       <p className="lede">When everyone's here, the lights drop and the show begins. Your role arrives on this phone after the roll call.</p>
+      <BestDressed token={token} data={data} />
       <ul className="guests">
         {lobby.map((p) => (
           <li key={p.id} className={p.checkedIn ? "" : "away"}>
@@ -336,6 +336,44 @@ function Lobby({ data }: { data: Phone }) {
       </ul>
       <p className="help">Faded guests aren't in yet. Anyone who arrives after the lights drop watches instead.</p>
       <WifiCard data={data} />
+    </div>
+  );
+}
+
+/**
+ * Best Dressed (Oct 20, Heston: "its a prompt in the lobby while people wait for the game to start"): a tap votes, a
+ * second tap takes it back, and it can change until the game starts. The award comes at the end of the night.
+ */
+function BestDressed({ token, data }: { token: string; data: Phone }) {
+  const vote = useMutation(api.game.vote);
+  const [mine, setMine] = useState<string | null>(data.me.dressed);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => setMine(data.me.dressed), [data.me.dressed]);
+  const others = data.lobby.filter((p) => p.checkedIn && p.id !== data.me.id);
+  if (!data.me.checkedIn || !others.length) return null;
+  async function pick(id: string) {
+    const next = mine === id ? null : id;
+    setMine(next);
+    setError(null);
+    try {
+      await vote({ token, dressed: (next ?? undefined) as Id<"players"> | undefined });
+    } catch (e) {
+      setError(friendlyError(e));
+    }
+  }
+  return (
+    <div className="pick best-dressed">
+      <span className="eyebrow">While we wait: vote Best Dressed</span>
+      <div className="opts">
+        {others.map((p) => (
+          <button key={p.id} type="button" className="who-opt" aria-pressed={mine === p.id} onClick={() => void pick(p.id)}>
+            {p.figure && <img src={faceUrl(p.figure)} alt="" />}
+            <span>{p.charName}</span>
+          </button>
+        ))}
+      </div>
+      <span className="help">{mine ? "Saved. You can change it until the game starts." : "Tap a name to vote. The award comes at the end of the night."}</span>
+      {error && <div className="errbox">{error}</div>}
     </div>
   );
 }
@@ -397,7 +435,7 @@ function useHold() {
 function JailBanner() {
   return (
     <div className="jail-banner" role="status">
-      <b>You're in jail.</b> You can talk, and bribe: offer chips to whoever votes you out. You can't search, vote or lock in.
+      <b>You're in jail this round.</b> You can talk, and bribe with chips. You can't search or vote. You're back for the lock-in.
     </div>
   );
 }
@@ -471,7 +509,7 @@ function VoteScreen({ token, data, now }: { token: string; data: Phone; now: num
         <h1 className="title-lg">{onBallot ? "Your fate is on the ballot." : "Sit tight."}</h1>
         <p className="lede">{data.me.jailed ? "You can't vote from a cell. Talk fast. Bribes (chips for votes) are welcome." : "This vote is for the others."}</p>
         <p className="help">
-          {vt.voted} of {vt.voters} voted · {clockOf(vt.left ?? vt.endsAt - now)} left
+          {vt.voted} of {vt.voters} voted{vt.endsAt > 0 ? ` · ${clockOf(vt.left ?? vt.endsAt - now)} left` : ""}
         </p>
       </div>
     );
@@ -496,7 +534,7 @@ function VoteScreen({ token, data, now }: { token: string; data: Phone; now: num
       {error && <div className="errbox">{error}</div>}
       <p className="help">
         {b.voted ? "Your vote is in. " : ""}
-        {vt.voted} of {vt.voters} voted · {clockOf(vt.left ?? vt.endsAt - now)} left
+        {vt.voted} of {vt.voters} voted{vt.endsAt > 0 ? ` · ${clockOf(vt.left ?? vt.endsAt - now)} left` : ""}
       </p>
     </div>
   );
@@ -573,10 +611,19 @@ function Pacing({ token, data }: { token: string; data: Phone }) {
         ? game.jailVote
           ? "the jail vote, then Round 3"
           : "Round 3 and its evidence"
-        : game.jailVote
-          ? "a release vote if anyone's in jail, then the lock-in"
-          : "the lock-in";
-  if (game.pacing.mode === "timer") return <p className="help">When the timer runs out: {next}.</p>;
+        : "the lock-in";
+  // Oct 20: a timed round ends on its clock (or once everyone's ready); an untimed one waits for everyone.
+  if (game.pacing.mode === "timer") return (
+    <div className="ready">
+      <button type="button" className="ghost-btn full" aria-pressed={me.ready} onClick={() => setReady({ token, ready: !me.ready })}>
+        <Swap show={me.ready ? 1 : 0}>
+          <span>{game.round === 3 ? "Ready for the lock-in" : "Ready to end the round"}</span>
+          <span>You're ready ✓</span>
+        </Swap>
+      </button>
+      <span className="help">When the clock runs out, or everyone's ready: {next}.</span>
+    </div>
+  );
   return (
     <div className="ready">
       <button
@@ -595,10 +642,8 @@ function Pacing({ token, data }: { token: string; data: Phone }) {
       </div>
       <span className="help">
         {counts.ready} of {counts.inGame} ready.{" "}
-        {/* Oct 16: Round 1 has no vote, Round 2 ends in the jail vote, Round 3 in the release vote (if anyone's in jail). */}
-        {game.roundEndsAt && game.roundEndsAt > 0
-          ? `Last call: 30 seconds, then ${next}.`
-          : `Once most of ${game.jailVote ? "the free guests" : "you"} are ready, a 30-second last call, then ${next}.`}
+        {/* Oct 20: Round 2 ends in the jail vote; no release vote. The round waits for everyone. */}
+        {`Once ${game.jailVote && counts.inGame < data.counts.registered ? "everyone who's free" : "everyone"} is ready: ${next}.`}
         {game.round === 2 && game.jailVote ? " Jailing anyone is optional." : ""}
       </span>
     </div>
@@ -705,7 +750,8 @@ function RoleCard({ role, card, jail }: { role: string; card: NonNullable<Phone[
       <p className="rc-win">
         <RoleIcon name="trophy" />
         {/* D1 (Oct 17): the one win rule, worded the same everywhere. */}
-        <span>{killer ? "You win unless more than half get you, more than half the weapon, and more than half the room." : "You all win if more than half get the killer, more than half the weapon, and more than half the room."}</span>
+        {/* Oct 20: the most votes wins each part of the lock-in. */}
+        <span>{killer ? "You win unless the most votes land on you, the weapon and the room." : "You all win if the most votes land on the killer, the weapon and the room."}</span>
       </p>
     </div>
   );
@@ -738,11 +784,6 @@ function CaseFile({ token, data }: { token: string; data: Phone }) {
             <span className="help">Let go and it hides again. Keep your screen to yourself.</span>
           </>
         )}
-      </div>
-      <div className="file private">
-        <span className="lab">Your motive</span>
-        <p>{b.motive}</p>
-        <span className="help">Everyone heard it at the roll call.</span>
       </div>
       <Pacing token={token} data={data} />
     </div>
@@ -1118,7 +1159,7 @@ function Accuse({ token, data }: { token: string; data: Phone }) {
         </p>
         {weapon?.key && <img className="locked-weapon" src={weaponUrl(weapon.key)} alt="" />}
         {data.game.hasAccomplice && <p className="help">Accomplice: {helper || "no guess"}.</p>}
-        <p className="help">No changes now. The reveal starts once everyone who's free has locked in.</p>
+        <p className="help">No changes now. The reveal starts once everyone has locked in.</p>
       </div>
     );
   }
@@ -1182,7 +1223,7 @@ function Accuse({ token, data }: { token: string; data: Phone }) {
           <span>Tap again: this is final</span>
         </Swap>
       </button>
-      <span className="help">The group wins if more than half of you get the killer, more than half the weapon, and more than half the room.</span>
+      <span className="help">The most votes wins each part: who, the weapon and the room. The group wins if all three are right. A tie for the most goes to a runoff.</span>
     </div>
   );
 }
@@ -1205,14 +1246,8 @@ function Reveal({ token, data }: { token: string; data: Phone }) {
   return <RevealVotes token={token} data={data} />;
 }
 
-function RevealVotes({ token, data }: { token: string; data: Phone }) {
-  const vote = useMutation(api.game.vote);
+function RevealVotes({ data }: { token: string; data: Phone }) {
   const r = data.results;
-  const others = useMemo(() => (data.board?.suspects ?? []).filter((s) => s.id !== data.me.id), [data.board, data.me.id]);
-  // Oct 18: Best Dressed is the only vote (Best Liar is gone).
-  const [votes, setVotes] = useState<{ dressed: string | null }>(() => ({ dressed: r?.myVote?.dressed ?? null }));
-  const [sent, setSent] = useState(!!r?.myVote);
-  const [error, setError] = useState<string | null>(null);
   if (data.game.status === "done") {
     const next = data.game.nextSlug;
     return (
@@ -1252,28 +1287,6 @@ function RevealVotes({ token, data }: { token: string; data: Phone }) {
       : data.me.satOut
         ? "You sat out the lock-in in jail."
         : "You didn't lock in.";
-  // S8: a tap saves the vote.
-  async function pick(k: "dressed", id: string) {
-    const next = { ...votes, [k]: votes[k] === id ? null : id };
-    setVotes(next);
-    setError(null);
-    setSent(false);
-    try {
-      await vote({
-        token,
-        dressed: (next.dressed ?? undefined) as Id<"players"> | undefined,
-      });
-      setSent(true);
-    } catch (e) {
-      setError(friendlyError(e));
-    }
-  }
-  const opt = (k: "dressed", s: { id: string; name: string; figure: string | null }) => (
-    <button key={s.id} type="button" className="who-opt" aria-pressed={votes[k] === s.id} onClick={() => void pick(k, s.id)}>
-      {s.figure && <img src={faceUrl(s.figure)} alt="" />}
-      <span>{s.name}</span>
-    </button>
-  );
   return (
     <div className="screen">
       <span className="eyebrow">Eyes on the TV</span>
@@ -1288,16 +1301,7 @@ function RevealVotes({ token, data }: { token: string; data: Phone }) {
       {r?.accomplice && mine && data.myAccusation?.accompliceId && !r.iWasKiller && !r.iWasAccomplice && (
         <p className="help">{mine.gotAccomplice ? "And you spotted the accomplice." : "Your accomplice guess missed."}</p>
       )}
-      <p className="help">Best Detective and Prime Suspect come from the lock-ins. Vote for Best Dressed:</p>
-      <div className="pick">
-        <span className="eyebrow">Best Dressed</span>
-        <div className="opts">{others.map((s) => opt("dressed", s))}</div>
-      </div>
-      <Swap show={sent ? 1 : 0}>
-        <div className="locked pending">Tap a name to vote. Tap it again to take it back.</div>
-        <div className="locked">Saved. You can change it until the awards start.</div>
-      </Swap>
-      {error && <div className="errbox">{error}</div>}
+      <p className="help">The awards are next on the TV.</p>
     </div>
   );
 }

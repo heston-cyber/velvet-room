@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
 import { nextRound } from "./steps";
-import { LAST_CALL_MS, VOTE } from "../convex/shared";
+import { VOTE } from "../convex/shared";
 
 const modules = import.meta.glob("../convex/**/*.ts");
 const FUTURE = Date.now() + 7 * 864e5;
@@ -47,7 +47,7 @@ describe("party night", () => {
       for (const [j, other] of phones.entries()) {
         if (i === j) continue;
         const b = other!.briefing!;
-        expect(mine).not.toContain(b.motive);
+        if (b.motive) expect(mine).not.toContain(b.motive);
         expect(mine).not.toContain(b.secret);
         if (b.tip) expect(mine.includes(b.tip) && !p!.briefing!.tip?.includes(b.tip)).toBe(false);
       }
@@ -56,35 +56,28 @@ describe("party night", () => {
     }
   });
 
-  test("ready votes: once most guests are ready, a 30-second last call, then the round ends; Round 1 has no vote, Round 2 ends in the jail vote (Oct 16)", async () => {
-    vi.useFakeTimers();
+  test("untimed (Oct 20): a round ends when everyone is ready, with no last call; Round 1 has no vote, Round 2 ends in the jail vote", async () => {
     const { t, hostKey, tokens } = await started({ guests: 6 });
     expect((await game(t)).round).toBe(1);
-    for (const token of tokens.slice(0, 3)) await t.mutation(api.game.setReady, { token, ready: true });
-    expect((await game(t)).round).toBe(1); // 3 of 6 is not most
-    await t.mutation(api.game.setReady, { token: tokens[3], ready: true });
+    for (const token of tokens.slice(0, 5)) await t.mutation(api.game.setReady, { token, ready: true });
     let g = await game(t);
-    // I4 (Oct 17): the last call
-    expect(g.round).toBe(1);
-    expect(g.roundEndsAt! - Date.now()).toBeGreaterThan(LAST_CALL_MS - 2000);
-    vi.advanceTimersByTime(LAST_CALL_MS + 1000);
-    await t.finishInProgressScheduledFunctions();
+    expect(g.round).toBe(1); // 5 of 6 isn't everyone
+    expect(g.roundEndsAt).toBeUndefined(); // and there's no clock
+    await t.mutation(api.game.setReady, { token: tokens[5], ready: true });
     g = await game(t);
-    expect(g.round).toBe(2); // no vote after Round 1
+    expect(g.round).toBe(2); // everyone: straight on, no vote after Round 1
     expect(g.vote).toBeUndefined();
     const phone = await t.query(api.game.phone, { token: tokens[0] });
-    expect(phone!.evidence.length).toBeGreaterThan(0);
+    // Round 2's TV evidence, if this case has any (a small game can save it all for Round 3).
     expect(phone!.evidence.every((e) => e.round === 2)).toBe(true);
     expect(phone!.me.ready).toBe(false); // a new round starts fresh
-    for (const token of tokens.slice(0, 4)) await t.mutation(api.game.setReady, { token, ready: true });
-    vi.advanceTimersByTime(LAST_CALL_MS + 1000);
-    await t.finishInProgressScheduledFunctions();
+    for (const token of tokens) await t.mutation(api.game.setReady, { token, ready: true });
     g = await game(t);
     expect(g.round).toBe(2);
-    expect(g.vote).toMatchObject({ kind: "jail", round: 2 });
+    // The jail vote has no clock in an untimed game.
+    expect(g.vote).toMatchObject({ kind: "jail", round: 2, endsAt: 0 });
     await nextRound(t, SLUG, hostKey);
     expect((await game(t)).round).toBe(3);
-    vi.useRealTimers();
   });
 
   test("timer pacing: rounds end on their own (then the vote runs its clock), pausing keeps the time left", async () => {
@@ -211,18 +204,40 @@ describe("party night", () => {
     expect(r.res.killerWins).toBe(true);
   });
 
-  test("votes and awards: no self-votes, awards appear when the host finishes", async () => {
-    const { t, hostKey, tokens, players } = await started({ guests: 4 });
+  test("Best Dressed (Oct 20) is voted in the lobby: no self-votes, changeable until Start, closed after; the award comes at the end", async () => {
+    const t = convexTest(schema, modules);
+    const { hostKey } = await t.mutation(internal.admin.createGame, {
+      slug: SLUG, title: "Party test", isTest: true, makeActive: false, registrationClosesAt: FUTURE, deadlineLabel: "Sat, Oct 24",
+    });
+    await t.mutation(internal.game.seedFakeCast, { slug: SLUG, guests: 4, markers: 8, seed: 8 });
+    const players = await t.run((ctx) => ctx.db.query("players").collect());
+    const tokens = players.map((p) => p.token);
+    await expect(t.mutation(api.game.vote, { token: tokens[1], dressed: players[0]._id })).rejects.toThrow(/doors open/);
+    await t.mutation(api.game.openDoors, { slug: SLUG, hostKey });
+    await expect(t.mutation(api.game.vote, { token: tokens[0], dressed: players[0]._id })).rejects.toThrow(/yourself/);
+    await t.mutation(api.game.vote, { token: tokens[1], dressed: players[2]._id });
+    await t.mutation(api.game.vote, { token: tokens[1], dressed: players[0]._id }); // changed their mind
+    for (const token of tokens.slice(2)) await t.mutation(api.game.vote, { token, dressed: players[0]._id });
+    expect((await t.query(api.game.phone, { token: tokens[1] }))!.me.dressed).toBe(players[0]._id);
+    await t.mutation(api.game.startGame, { slug: SLUG, hostKey });
+    await expect(t.mutation(api.game.vote, { token: tokens[0], dressed: players[1]._id })).rejects.toThrow(/closed/);
     for (let i = 0; i < 4; i++) await nextRound(t, SLUG, hostKey);
     expect((await game(t)).status).toBe("reveal");
-    await expect(t.mutation(api.game.vote, { token: tokens[0], dressed: players[0]._id })).rejects.toThrow(/yourself/);
-    for (const token of tokens.slice(1)) await t.mutation(api.game.vote, { token, dressed: players[0]._id });
     expect((await t.query(api.game.results, { slug: SLUG }))!.awards).toBeNull();
     await t.mutation(api.game.finish, { slug: SLUG, hostKey });
     const res = (await t.query(api.game.results, { slug: SLUG }))!;
     expect(res.awards!.find((a) => a.key === "dressed")!.names).toEqual([players[0].charName]);
-    // Nobody voted Best Liar, so it isn't shown (Oct 17).
     expect(res.awards!.some((a) => a.key === "liar")).toBe(false);
+  });
+
+  test("the lock-in (Oct 20): the most votes wins each part; a tie for the most leaves the killer walking", async () => {
+    const { countPicks, partResult, topPicks } = await import("../convex/lockin");
+    expect(countPicks(["a", "b", "a", "c", "a"])).toEqual([{ pick: "a", n: 3 }, { pick: "b", n: 1 }, { pick: "c", n: 1 }]);
+    expect(topPicks(["a", "b", "a", "b", "c"])).toEqual(["a", "b"]);
+    expect(topPicks([])).toEqual([]);
+    expect(partResult(["k", "x", "y"], "k")).toMatchObject({ won: false, tied: true }); // 1-1-1
+    expect(partResult(["k", "k", "x", "y", "z"], "k")).toMatchObject({ won: true, tied: false }); // 2 of 5 is the most
+    expect(partResult(["x", "x", "k"], "k")).toMatchObject({ won: false, tied: false });
   });
 
   test("the adult script reaches the phones when the game menu picks it", async () => {

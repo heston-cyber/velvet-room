@@ -291,7 +291,8 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
       heckle(`${id}:0`, 23 + round * 3 + (vt.kind === "jail" ? 0 : 2), t + HECKLE.voteOpenFirst, "vote");
       heckle(`${id}:1`, 24 + round * 3 + (vt.kind === "jail" ? 0 : 2), t + HECKLE.voteOpenFirst + HECKLE.voteOpenEvery, "vote");
       // A paused vote (F8) doesn't get its last call until it's running again.
-      if (vt.left === null || vt.left === undefined) vo(`${id}:last`, "voteLastCall", vt.endsAt - VOTE.lastCallMs, false, `${round}:${vt.kind}`);
+      // Oct 20: an untimed vote (endsAt 0) has no clock, so no last call.
+      if ((vt.left === null || vt.left === undefined) && vt.endsAt > 0) vo(`${id}:last`, "voteLastCall", vt.endsAt - VOTE.lastCallMs, false, `${round}:${vt.kind}`);
       if (vt.closedAt) {
         // Closed: who voted for whom, then the verdict. Whatever the open vote still had queued doesn't play.
         const c = vt.closedAt;
@@ -435,10 +436,8 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
     fx(`rev:${t}:verdict`, killerWins ? "sinisterBrass" : "fanfare", t + REVEAL.verdict);
     let e = vo(`rev:${t}:verdict:vo`, killerWins ? "verdictKiller" : "verdictDetectives", t + REVEAL.verdict + 0.8 * S);
     // Oct 17: caught: the killer gets their line (a killer who walks gets theirs at the awards).
-    if (!killerWins) e = clip(`rev:${t}:caught`, d.voice.caught ?? undefined, e + 0.6 * S);
-    const voted = vo(`rev:${t}:vote`, "votePrompt", e + 1 * S);
-    // Heckles while everyone votes for Best Dressed.
-    for (let k = 0; k < 4; k++) heckle(`rev:${t}:${k}`, 19 + k, voted + HECKLE.voteFirst + k * HECKLE.voteEvery, "reveal");
+    if (!killerWins) clip(`rev:${t}:caught`, d.voice.caught ?? undefined, e + 0.6 * S);
+    // Oct 20: Best Dressed is voted in the lobby, so no vote prompt here; the awards follow the verdict.
     return out;
   }
 

@@ -61,17 +61,15 @@ export function useNextStep(data: Roster, slug: string, hostKey: string, now: nu
     if (g.round <= 3)
       return {
         label: `End Round ${g.round}`,
-        // Oct 16: Round 1 has no vote, Round 2 ends in the jail vote, Round 3 in the release vote (if anyone's in jail).
+        // Oct 20: Round 1 has no vote, Round 2 ends in the jail vote, Round 3 goes straight to the lock-in (no release vote).
         help:
           g.round === 1
             ? "On to Round 2. No vote after Round 1."
-            : !g.jailVote
-              ? g.round === 2
-                ? "On to Round 3. Under 5 guests, there's no jail vote."
-                : "On to the lock-in."
-              : g.round === 2
+            : g.round === 2
+              ? g.jailVote
                 ? "Ends the round in the jail vote."
-                : "Ends the round in the release vote if anyone's in jail (no vote if the evidence already cleared them), then the lock-in.",
+                : "On to Round 3. Under 5 guests, there's no jail vote."
+              : "On to the lock-in. Anyone in jail is let out for it.",
         run: () => advance(args),
       };
     const allIn = c.accused >= c.inGame;
@@ -79,17 +77,16 @@ export function useNextStep(data: Roster, slug: string, hostKey: string, now: nu
       // F12 (Oct 17): on screen during the lock-in, with the count, so one dead phone can't hold up the reveal.
       label: `Start the reveal (${c.accused} of ${c.inGame} in)`,
       confirm: allIn ? undefined : `Tap again: only ${c.accused} of ${c.inGame} have locked in`,
-      help: "Starts on its own once everyone's in, or when the clock runs out.",
+      help: g.pacing.mode === "timer" ? "Starts on its own once everyone's in, or when the clock runs out." : "Starts on its own once everyone's in.",
       run: () => advance(args),
     };
   }
   if (g.status === "reveal") {
-    // F7 (Oct 17): not before the verdict (the phones show the ballot then), and a second tap with the count.
+    // F7 (Oct 17): not before the verdict. Oct 20: Best Dressed was voted in the lobby, so the awards follow on their own.
     const early = !!g.verdictAt && now < g.verdictAt;
     return {
       label: "Show the awards",
-      confirm: `Tap again: ${c.awardVotes} of ${c.inGameAll} have voted`,
-      help: early ? "After the verdict, once the votes are in." : "Closes the voting for Best Dressed. Only awards someone won are shown.",
+      help: early ? "After the verdict." : "They start on their own in a few seconds. Only awards someone won are shown.",
       disabled: early,
       run: () => finish(args),
     };

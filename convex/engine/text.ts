@@ -7,7 +7,6 @@
 // where the body turned up, which rooms were sealed or crowded) before a word is written. See build.ts, worldProblems.
 import { shuffle } from "./rng";
 import type { Place, Rng, WeaponKind } from "./types";
-import { MOTIVES_ADULT, MOTIVES_CLASSIC, type Motive } from "./motives";
 
 export const q = (s: string) => `“${s}”`;
 
@@ -109,11 +108,6 @@ export type Script = {
    */
   herring: Line<[string]>[];
   flavor: string[];
-  /** I8 (Oct 17): dead-end cards that leak a motive about a guest picked at random (the killer as likely as anyone).
-   *  They clear nobody and prove nothing: material for the final read. */
-  leaks: (n: string) => string[];
-  /** Oct 18: every guest's motive, on their phone ("you") and read out at the roll call ("they"). */
-  motives: Motive[];
   killerLines: (f: KillerFacts) => string[];
   innocentLines: string[];
   /** Killer + accomplice games (v2). */
@@ -241,17 +235,6 @@ export const CLASSIC: Script = {
     "A torn ticket stub for a picture show nobody here admits to seeing.",
     "A rhinestone off somebody's dress, rolled under a radiator. Pretty, and no help at all.",
   ],
-  leaks: (n) => [
-    `A crumpled IOU signed by ${n}: five hundred dollars, owed to the Don. It doesn't say who did it. It says who had a reason.`,
-    `A note in the Don's handwriting: "${n} knows too much. Deal with it Monday." Monday never came.`,
-    `A torn page from the Don's ledger with ${n}'s name circled twice. Circled by whom, and why?`,
-    `A telegram for ${n}, unopened: "THE DON KNOWS. LEAVE TOWN." It proves nothing either way.`,
-    `A photograph of ${n} shaking hands with the Don. Someone has scratched out the Don's face.`,
-    `The Don's appointment book: "${n}, about the money." The rest of the page is smudged.`,
-    `A pawn ticket in the Don's wallet for a ring that belongs to ${n}. He had something of theirs. Now he doesn't.`,
-    `A letter to the Don from ${n}'s landlord: "Three months behind. Do what you like." A reason, maybe. Not proof.`,
-  ],
-  motives: MOTIVES_CLASSIC,
   killerLines: (f) => [
     `You did it. You killed Don Ray Sanders with the ${f.weapon.toLowerCase()} in ${mid(f.room)}.`,
     // Only older games had weapons that belonged to a guest.

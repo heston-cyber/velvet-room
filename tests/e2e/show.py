@@ -140,7 +140,7 @@ with sync_playwright() as p:
     shot(host, "06-roll-guest.png")
     card = host.locator(".tv-roll.v2").inner_text().lower()
     ok("weapon" not in card and "signature" not in card and "played by" not in card, "the card is the guest's drawing and name (Oct 16)")
-    ok("motive" in card, "and their motive, read out at the roll call (Oct 18)")
+    ok("motive" not in card, "and no motive (Oct 20)")
     ok(host.locator(".tv-roast").count() == 0, "no roast on the roll call")
     ok(phone.get_by_text("Eyes on the TV").count() >= 1, "the phone still waits during the roll call")
     g = roster()["game"]

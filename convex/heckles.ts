@@ -131,7 +131,7 @@ export type HeckleGuest = { id: string; real: string; figure: string | null };
 export type HeckleLine = { purpose: string; text: string; target: string | null; figure: string | null; gag: boolean; /** Which line of which pool ("adult:insult:12"), so a laptop can avoid it next game. */ id: string };
 
 /** Options a game picked at Start: the gag night (every third game on a laptop), and lines that laptop heard lately go last. */
-export type HeckleOpts = { gag?: boolean; avoid?: string[] };
+export type HeckleOpts = { gag?: boolean; avoid?: string[]; /** Oct 20: the host's pick for tonight's gag (a guest id). */ gagOn?: string };
 
 /**
  * A night's insults, in order. The game's seed picks the guests' order, which lines and (on a gag night) who gets them
@@ -146,7 +146,7 @@ export function heckleLines(tone: Tone, seed: string, guests: HeckleGuest[], opt
   const mixed = shuffled(tagged, `${seed}|insult`);
   const dealt = [...mixed.filter((x) => !avoid.has(x.id)), ...mixed.filter((x) => avoid.has(x.id))].slice(0, HECKLES_A_NIGHT);
   return dealt.map((x, k) => {
-    const who = gagNight ? order[0] : order[k % order.length];
+    const who = gagNight ? order.find((g) => g.id === opts.gagOn) ?? order[0] : order[k % order.length];
     const text = x.t.replaceAll("{real}", firstOf(who.real) || "this one");
     return { purpose: `heckle:${k}`, text, target: who.id, figure: who.figure, gag: gagNight, id: x.id };
   });
@@ -163,7 +163,7 @@ export async function heckleWanted(ctx: QueryCtx, game: Doc<"games">): Promise<(
   const guests = players.sort((a, b) => a.createdAt - b.createdAt).map((p) => ({ id: p._id as string, real: guestNames(p).real, figure: p.figure ?? null }));
   const n = narratorOf(game);
   const tone = scriptOf(game);
-  return heckleLines(tone, game.slug, guests, { gag: game.lines?.gag, avoid: game.lines?.avoid }).map((line) => ({
+  return heckleLines(tone, game.slug, guests, { gag: game.lines?.gag, avoid: game.lines?.avoid, gagOn: game.lines?.gagOn }).map((line) => ({
     purpose: line.purpose,
     caption: plain(line.text),
     text: customRecordingText(sprinkle(line.text, tone, `${game.slug}|${line.purpose}`), n.unstable),

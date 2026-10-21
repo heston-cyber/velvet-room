@@ -36,22 +36,19 @@ export const MIN_JAIL_VOTE = 5;
 export const hasJailVote = (guests: number) => guests >= MIN_JAIL_VOTE;
 
 /**
- * Which vote ends a round (Heston, Oct 16: "jail vote only can happen on round 2, no votes to release. round 3 no
- * voting to put anyone in jail, but we can vote to release. (so its rnd 2 vote to lock up, rnd 3 vote to release)").
- * Round 1 ends with no vote; Round 3's release vote comes at its end, right before the lock-in, and only if someone is
- * in jail. Jailing is never required: nobody is always on the ballot. Games with fewer than MIN_JAIL_VOTE guests in
- * them have no votes at all (Oct 17).
+ * Which vote ends a round. Oct 20 (Heston: jail lasts one round, no release vote): Round 2 ends in the jail vote (games
+ * with MIN_JAIL_VOTE guests or more); the jailbird sits out Round 3 and rejoins for the lock-in. anyoneJailed is kept
+ * for older callers.
  */
-export function voteAfterRound(round: number, anyoneJailed: boolean, guests = Infinity): "jail" | "release" | null {
+export function voteAfterRound(round: number, _anyoneJailed: boolean, guests = Infinity): "jail" | "release" | null {
   if (round === 2) return hasJailVote(guests) ? "jail" : null;
-  if (round === 3 && anyoneJailed) return "release";
   return null;
 }
 
-/** I4 (Oct 17): when guests tap Ready, the round ends this long after most of them are ready. */
+/** Older games: the last call after most guests were Ready (Oct 17, I4). Since Oct 20 a round waits for everyone. */
 export const LAST_CALL_MS = 30_000;
 
-/** Accusations get a shorter clock than the evidence rounds. */
+/** Timed games: the lock-in gets a shorter clock than the evidence rounds. */
 export const ACCUSE_MAX_MINUTES = 5;
 
 /**
@@ -62,7 +59,7 @@ export const roundMinutesFor = (roundMinutes: number, round: number) => (round =
 
 /** Rough play time shown next to the round length: intro, three rounds, accusations, reveal and awards. */
 export function estimateMinutes(pacing: { mode: "ready" | "timer"; roundMinutes: number }): string {
-  if (pacing.mode === "ready") return "about 45 to 60 min of play";
+  if (pacing.mode === "ready") return "about 60 to 80 min of play, untimed";
   const rounds = [1, 2, 3].reduce((t, r) => t + roundMinutesFor(pacing.roundMinutes, r), 0);
   return `about ${16 + rounds} min of play`;
 }

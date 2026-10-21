@@ -1,7 +1,6 @@
 // The Adult script: same logic, same facts in every clue, filthier mouth.
 // Chosen per game in the game menu. Crude and profane, never hateful. Oct 17: mild words only.
 import { list, mid, theList, type Script } from "./text";
-import { MOTIVES_ADULT } from "./motives";
 
 export const ADULT: Script = {
   suspectClear: [
@@ -120,17 +119,6 @@ export const ADULT: Script = {
     "A torn ticket stub for a picture show nobody here will admit to seeing. Cowards.",
     "Somebody's dentures in a champagne glass. Not evidence. Just disgusting.",
   ],
-  leaks: (n) => [
-    `A crumpled IOU signed by ${n}: five hundred clams, owed to the Don. Doesn't prove murder. Proves motive, and lousy money sense.`,
-    `The Don's diary: "${n} is a pill. Cut them off Monday." Monday never came. Convenient.`,
-    `A page of the Don's ledger with ${n}'s name circled twice and DEADBEAT written in red. Harsh. Fair? You decide.`,
-    `A telegram for ${n}: "THE DON KNOWS. GET OUT OF TOWN." Unopened. Or very carefully resealed.`,
-    `A photo of ${n} shaking hands with the Don. Somebody drew horns on the Don. Childish. Also, motive.`,
-    `The Don's appointment book: "${n}, about the damn money." That's all it says. That's plenty.`,
-    `A pawn ticket in the Don's wallet for a ring that belongs to ${n}. He had their stuff. Now he's got nothing.`,
-    `A letter to the Don from ${n}'s landlord: "Three months behind. Break their legs, I don't care." A reason, sure. Not proof.`,
-  ],
-  motives: MOTIVES_ADULT,
   killerLines: (f) => [
     `You did it. You whacked Don Ray Sanders with the ${f.weapon.toLowerCase()} in ${mid(f.room)}.`,
     // Only older games had weapons that belonged to a guest.

@@ -21,7 +21,7 @@ export const scriptOf = (g: { tone?: GameTone; narrator?: Narrator }): Tone => (
 
 /** What a game picked at Start (Oct 16; older games have none): a version of each line, whether tonight has a running
  *  gag, and the heckles to keep for last. */
-export type GameLines = { picks: Record<string, number>; gag: boolean; avoid: string[] };
+export type GameLines = { picks: Record<string, number>; gag: boolean; avoid: string[]; gagOn?: string };
 
 /** This game's version of a line (see cueVariant): from its picks if it made them at Start. */
 export const variantOf = (g: { tone?: GameTone; narrator?: Narrator; slug: string; lines?: GameLines }, cue: CueKey, occurrence = "") =>
@@ -59,14 +59,13 @@ export type RollLine = {
   cast?: { real: string; nickname?: string; sayAs?: string } | null;
   /** The game's seed (its slug): picks this game's versions of the wording. */
   seed?: string;
-  /** Oct 18: which roll-call joke the game dealt this guest, and their motive (read out). */
+  /** Oct 18: which roll-call joke the game dealt this guest. */
   pick?: number;
-  motive?: string;
 };
 
-/** One guest's roll-call line: name, a.k.a. nickname, their own joke and (Oct 18) their motive. */
+/** One guest's roll-call line: name, a.k.a. nickname and their own joke (Oct 20: no motive). */
 export function rollWanted(tone: Tone, n: Narrator, p: RollLine): Wanted {
-  const extra = { seed: p.seed, pick: p.pick, motive: p.motive };
+  const extra = { seed: p.seed, pick: p.pick };
   if (p.cast) {
     const shown = rollNarration(tone, { name: p.charName, real: p.cast.real, nickname: p.cast.nickname, cast: true, ...extra });
     const said = rollNarration(tone, { name: p.charName, real: p.cast.sayAs?.trim() || p.cast.real, nickname: p.cast.nickname, cast: true, ...extra });

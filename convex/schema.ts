@@ -134,7 +134,10 @@ export default defineSchema({
     // Picked at Start from what the host laptop heard lately (Oct 16, Heston: "a better selection system for each
     // game that picks what lines will be used, so that jokes are not repeated"): a version of each line, whether
     // tonight has a running gag (every third game on that laptop), and the heckles to keep for last.
-    lines: v.optional(v.object({ picks: v.record(v.string(), v.number()), gag: v.boolean(), avoid: v.array(v.string()) })),
+    lines: v.optional(v.object({ picks: v.record(v.string(), v.number()), gag: v.boolean(), avoid: v.array(v.string()), gagOn: v.optional(v.string()) })),
+    // Oct 20 (Heston: "I like the host setting for this"): who a gag night's insults can land on. "random" (the default):
+    // every third game on the laptop, on a guest the game picks; "none": never; a guest's id: tonight, on them.
+    roast: v.optional(v.union(v.literal("random"), v.literal("none"), v.id("players"))),
     levels: v.optional(v.object({ voice: v.number(), music: v.number(), sfx: v.number() })),
     // Play again: game 2 is a fresh game with the same house setup. The old game points at it.
     gameNumber: v.optional(v.number()),

@@ -420,12 +420,15 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
         node: (
           <>
             <div className="tv-scene doors">
+              {/* Oct 20: between the Don on the left and the join code and Everyone is in on the right, shrinking to fit a big party. */}
+              <Fit className="scene" watch={d.guests.length}>
               <span className="tv-kick">The doors are open</span>
               <h2 className="tv-h2" style={{ fontSize: "5.4cqw" }}>The Velvet Room</h2>
               <p className="tv-sub">
                 {g.roomCode ? "Signed up? Open your link and you're in. New here? Scan the code to join." : "Open your personal link and you're in."} Mingle. Stay in costume.
               </p>
               <Guests guests={d.guests} mark="here" />
+              </Fit>
             </div>
             {g.wifi && <WifiCorner wifi={g.wifi} />}
             <div className="tv-corner tr">
@@ -522,7 +525,7 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
               <Fit className="scene" watch={d.guests.length}>
               <span className="tv-kick">The lock-in</span>
               <h2 className="tv-h2" style={{ fontSize: "5.4cqw" }}>Who killed the Don?</h2>
-              <p className="tv-sub">Lock in who, with which weapon, and where, on your phone. Jailbirds sit this one out.</p>
+              <p className="tv-sub">Lock in who, with which weapon, and where, on your phone. Everyone locks in, jailbirds too.</p>
               <Guests guests={d.guests} mark="accused" />
               </Fit>
             </div>
@@ -609,7 +612,7 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
         )}
         {r.aces.length > 0 && <p className="tv-sub fade">Ace detectives: {r.aces.join(", ")}</p>}
         <p className="tv-sub fade" style={{ color: "var(--paper)" }}>
-          {r.accomplice ? `${splitName(r.killer).main} and ${splitName(r.accomplice.name).main}, stand up and confess.` : `${splitName(r.killer).main}, stand up and confess.`} Everybody: vote Best Dressed on your phones.
+          {r.accomplice ? `${splitName(r.killer).main} and ${splitName(r.accomplice.name).main}, stand up and confess.` : `${splitName(r.killer).main}, stand up and confess.`}
         </p>
         </Fit>
       </div>,
@@ -655,6 +658,17 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
   return { scene: { key: "blank", node: <div className="tv-scene"><h2 className="tv-h2">The Velvet Room</h2></div> } };
 }
 
+/**
+ * Oct 20 (untimed games): how many are ready, and once most are, who the round is waiting on ("Waiting on Josh and
+ * Reily"), so the room can chase them.
+ */
+function waitingLine(d: Data): string {
+  const left = d.guests.filter((x) => x.here && !x.jailed && !x.ready).map((x) => splitName(x.short ?? x.charName).main);
+  if (!d.counts.playing || d.counts.ready * 2 < d.counts.playing || !left.length) return `${d.counts.ready} of ${d.counts.playing} ready`;
+  const names = left.length > 3 ? `${left.slice(0, 3).join(", ")} and ${left.length - 3} more` : left.length === 1 ? left[0] : `${left.slice(0, -1).join(", ")} and ${left[left.length - 1]}`;
+  return `Waiting on ${names}`;
+}
+
 function RoundBar({ d, now, label }: { d: Data; now: number; label: string }) {
   const g = d.game;
   // I4 (Oct 17): a Ready game shows the clock during its 30-second last call.
@@ -668,7 +682,7 @@ function RoundBar({ d, now, label }: { d: Data; now: number; label: string }) {
           Round {g.round} · {label}
         </span>
         {d.weapons.length > 0 && <TopWeapons weapons={d.weapons} />}
-        {timed ? <span className="tv-clock">{clock(left)}</span> : <span className="tv-ready">{d.counts.ready} of {d.counts.playing} ready</span>}
+        {timed ? <span className="tv-clock">{clock(left)}</span> : <span className="tv-ready">{waitingLine(d)}</span>}
       </div>
       <div className="tv-meter">{!timed && <i style={{ width: `${pct}%` }} />}</div>
     </>
@@ -833,7 +847,8 @@ function voteScene(d: Data, vt: Vote, now: number): Scene {
             <span>
               <b>{vt.voted}</b> of {vt.voters} voted
             </span>
-            <span className="tv-mini-clock">{clock(vt.left ?? vt.endsAt - now)}</span>
+            {/* Oct 20: untimed votes (endsAt 0) have no clock. */}
+            {vt.endsAt > 0 && <span className="tv-mini-clock">{clock(vt.left ?? vt.endsAt - now)}</span>}
           </div>
         </>
       ),
@@ -888,7 +903,7 @@ function voteScene(d: Data, vt: Vote, now: number): Scene {
               <span className="tv-kick fade">{vt.outcome === "jailed" ? "Locked up" : "Released"}</span>
               <h2 className="tv-h2 fade" style={{ fontSize: "5cqw" }}>{vt.outcome === "jailed" ? `${who.name} is going to jail.` : `${who.name} is free.`}</h2>
               <p className="tv-sub fade" style={{ animationDelay: ".6s" }}>
-                {vt.outcome === "jailed" ? "They can talk, and bribe with chips. No searching, no voting, no lock-in." : "Back in the game: they can lock in."}
+                {vt.outcome === "jailed" ? "They can talk, and bribe with chips. No searching or voting this round. They're back for the lock-in." : "Back in the game: they can lock in."}
               </p>
             </div>
           </div>
@@ -927,13 +942,6 @@ function RollCard({ step, index, count }: { step: RollStep; index: number; count
             </span>
           )}
           {!it.cast && <span className="tv-played fade" style={{ animationDelay: ".45s" }}>Played by {it.realName}</span>}
-          {/* Oct 18: their motive, read out for everyone. */}
-          {it.motive && (
-            <p className="tv-motive fade" style={{ animationDelay: "1.2s" }}>
-              <span>Motive</span>
-              {it.motive}
-            </p>
-          )}
         </div>
       </div>
     </div>
@@ -1210,7 +1218,9 @@ const CAST: CharKey[] = ["don", "killer", ...ALL_FIGURE_KEYS];
 const artUrl = (c: CharKey) => `/art/${c}.webp`;
 /** Which way each drawing faces, so walkers face where they're going. */
 const FACES_RIGHT_SET = new Set<CharKey>(FACES_RIGHT);
-const BACK = new Set<Cameo["anim"]>(["stand", "standRight", "lineup"]);
+// Oct 20 (Heston: "things arent covering up other elements"): the walkers and the heckle peeks pass behind the
+// guests, the caption and the cards too. Only the reveal's killer and the Don's fall play in front.
+const BACK = new Set<Cameo["anim"]>(["stand", "standRight", "lineup", "peek", "stroll", "strollBack", "creep", "creepBack"]);
 
 function CameoLayer({ list, layer }: { list: Cameo[]; layer: "back" | "front" | "over" }) {
   const shown = layer === "over" ? list : list.filter((c) => BACK.has(c.anim) === (layer === "back"));

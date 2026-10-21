@@ -254,18 +254,6 @@ export function scriptFor(input: CaseInput): Script {
   return input.tone === "adult" ? ADULT : CLASSIC;
 }
 
-/** Every guest's motive (Oct 18: read out at the roll call), dealt so nobody shares one while the list lasts. */
-function writeMotives(input: CaseInput, rng: Rng, S: Script): Map<string, { motive: string; motiveThey: string }> {
-  const motives = shuffle(rng, S.motives);
-  const out = new Map<string, { motive: string; motiveThey: string }>();
-  input.suspects.forEach((s, i) => {
-    const own = input.playerMotives?.[s.id]?.motive?.trim();
-    const m = motives[i % motives.length];
-    out.set(s.id, { motive: own || m.you, motiveThey: own ? "" : m.they });
-  });
-  return out;
-}
-
 /** The single, pair and trio clears and the room clears: the small clues (never the witness, the coroner or the twist). */
 const SMALL: ClueKind[] = ["suspect", "suspectPair", "suspectTrio", "exhibit", "exhibitPair", "room"];
 const isSmall = (k: ClueKind) => SMALL.includes(k);
@@ -574,8 +562,7 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
     Object.assign(c, render(say, d as Required<Pick<Draft, "lines" | "deck" | "args">>, (l) => placesFit(input.rooms, l.at, c.round, night)));
   }
 
-  // 8. Briefings for every phone.
-  const motives = writeMotives(input, rng, S);
+  // 8. Briefings for every phone. Oct 20: no motives (Heston: "Motives: cut them"); older screens read an empty one.
   const ex = input.exhibits.find((e) => e.id === sol.exhibitId)!;
   const room = input.rooms.find((r) => r.key === sol.roomKey)!;
   const herringClue = placed.find((c) => c.kind === "herring");
@@ -584,7 +571,6 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
   // Oct 17 (D5): a game too small for a jail vote doesn't mention jail.
   const noJail = (lines: string[]) => (hasJailVote(input.suspects.length) ? lines : lines.filter((l) => !/\bjail/i.test(l)));
   const briefings: Briefing[] = input.suspects.map((s) => {
-    const m = motives.get(s.id)!;
     if (s.id === sol.killerId) {
       const lines = S.killerLines({
         weapon: ex.name,
@@ -593,7 +579,7 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
         herringName: herringAt ? name.get(herringAt) : undefined,
         accompliceName,
       });
-      return { playerId: s.id, role: "killer", motive: m.motive, motiveThey: m.motiveThey, lines: noJail(lines) };
+      return { playerId: s.id, role: "killer", motive: "", lines: noJail(lines) };
     }
     if (s.id === sol.accompliceId) {
       const lines = S.accompliceLines({
@@ -604,9 +590,9 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
         herringName: herringAt && herringAt !== s.id && herringAt !== sol.killerId ? name.get(herringAt) : undefined,
         herringIsMe: herringAt === s.id,
       });
-      return { playerId: s.id, role: "accomplice", motive: m.motive, motiveThey: m.motiveThey, lines: noJail(lines) };
+      return { playerId: s.id, role: "accomplice", motive: "", lines: noJail(lines) };
     }
-    return { playerId: s.id, role: "innocent", motive: m.motive, motiveThey: m.motiveThey, lines: noJail(sol.accompliceId ? S.innocentLinesAcc : S.innocentLines) };
+    return { playerId: s.id, role: "innocent", motive: "", lines: noJail(sol.accompliceId ? S.innocentLinesAcc : S.innocentLines) };
   });
 
   const open: Open = { suspects: standing.length + 1, exhibits: weaponsStanding.length + 1, rooms: roomsStanding.length + 1 };
@@ -640,24 +626,6 @@ export function openEnding(input: CaseInput, rng: Rng): Open {
  * Draws the answer (unless given), where the body turns up and the order rooms open in,
  * then builds a case that passes every solvability rule.
  */
-/**
- * I8 (Oct 17): about half the dead-end cards leak a motive about a guest picked at random, blind to the answer (the
- * killer as likely as anyone). They clear nobody, so they're written in once the case has passed its checks.
- */
-function withLeaks(input: CaseInput, cf: CaseFile, rng: Rng): CaseFile {
-  const S = scriptFor(input);
-  const leaks = shuffle(rng, S.leaks("{n}"));
-  let k = 0;
-  let leak = rng() < 0.5;
-  const clues = cf.clues.map((c) => {
-    if (c.kind !== "flavor") return c;
-    const out = leak ? { ...c, text: leaks[k++ % leaks.length].replaceAll("{n}", pick(rng, input.suspects).name) } : c;
-    leak = !leak;
-    return out;
-  });
-  return { ...cf, clues };
-}
-
 export function buildCase(input: CaseInput, rng: Rng, solution?: Solution): CaseFile & { validation: Validation } {
   const problems = checkInput(input);
   if (problems.length) throw new Error(problems.join(" "));
@@ -670,7 +638,7 @@ export function buildCase(input: CaseInput, rng: Rng, solution?: Solution): Case
     if (attempt === 80 || attempt === 140) plan = { suspects: Math.max(1, plan.suspects - 1), exhibits: 1, rooms: 1 };
     const cf = tryBuild(full, rng, sol, plan);
     const v = validateCase(full, cf);
-    if (v.ok) return { ...withLeaks(full, cf, rng), attempts: attempt, validation: v };
+    if (v.ok) return { ...cf, attempts: attempt, validation: v };
     last = v;
   }
   throw new Error(`Couldn't build a solvable case: ${last?.problems.join(" ")}`);

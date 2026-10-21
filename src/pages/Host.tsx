@@ -475,7 +475,8 @@ function GameHud({ data, slug, hostKey, onMenu, onError }: { data: Roster; slug:
       </button>
       {g.status === "lobby" && <LobbyBar data={data} slug={slug} hostKey={hostKey} onError={onError} />}
       {(g.status === "reveal" || g.status === "done" || (g.status === "playing" && g.round >= 4)) && (
-        <HostStep data={data} slug={slug} hostKey={hostKey} onError={onError} top={g.status !== "playing"} />
+        // Oct 20: always up in the corner beside Menu, clear of the lock-in's lineup, the verdict and the awards.
+        <HostStep data={data} slug={slug} hostKey={hostKey} onError={onError} top />
       )}
     </>
   );

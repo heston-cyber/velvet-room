@@ -101,6 +101,8 @@ export const roster = query({
         search: game.search ?? "all",
         wifi: game.wifi ?? { name: "", password: "" },
         narrator: narratorOf(game),
+        // Oct 20: who a gag night can land on (Random, Nobody, or a guest).
+        roast: game.roast ?? "random",
         levels: levelsOf(game),
         // What this game picked at Start, so the laptop can steer clear of it next game (Oct 16).
         heard: game.lines ? { script: scriptOf(game), lines: game.lines.picks, heckles: (await heckleWanted(ctx, game)).map((h) => h.line.id), gag: !!game.lines.gag } : null,
@@ -180,6 +182,8 @@ export const updateSettings = mutation({
     wifi: v.optional(v.object({ name: v.string(), password: v.string() })),
     narrator: v.optional(v.object({ host: v.union(v.literal("ivy"), v.literal("duke")), unstable: v.boolean(), sailor: v.optional(v.boolean()) })),
     levels: v.optional(v.object({ voice: v.number(), music: v.number(), sfx: v.number() })),
+    // Oct 20: gag night: "random" (every third game), "none", or a guest's id.
+    roast: v.optional(v.union(v.literal("random"), v.literal("none"), v.id("players"))),
   },
   handler: async (ctx, { slug, hostKey, ...patch }) => {
     const game = await requireHost(ctx, slug, hostKey);
@@ -242,6 +246,13 @@ export const updateSettings = mutation({
         update.tone = game.toneBeforeSailor ?? game.tone;
         update.toneBeforeSailor = undefined;
       }
+    }
+    if (patch.roast !== undefined) {
+      if (patch.roast !== "random" && patch.roast !== "none") {
+        const p = await ctx.db.get(patch.roast);
+        if (!p || p.gameId !== game._id) throw new ConvexError("Pick one of tonight's guests.");
+      }
+      update.roast = patch.roast;
     }
     // Back to Classic turns Sailor mode off.
     if (patch.tone === "classic" && !patch.narrator && game.narrator?.sailor) update.narrator = { ...game.narrator, sailor: false };

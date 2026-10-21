@@ -1695,16 +1695,12 @@ export function rollIntro(tone: Tone, char: string, real: string, seed = "", cas
   return list[h % list.length].replace("{char}", char).replace("{real}", real1);
 }
 
-/** What the roll call says about one guest: who they are, and (cast) their nickname; Oct 18: their joke and motive. */
-export type RollParts = { name: string; real: string; nickname?: string; seed?: string; cast?: boolean; pick?: number; motive?: string };
+/** What the roll call says about one guest: who they are, and (cast) their nickname; Oct 18: their joke. */
+export type RollParts = { name: string; real: string; nickname?: string; seed?: string; cast?: boolean; pick?: number };
 
-/**
- * One guest's roll-call line: the introduction (their own joke), then their motive (Oct 18, Heston: "at the roll call
- * each persons motive is read aloud for everyone to hear").
- */
+/** One guest's roll-call line: the introduction, with their own joke. Oct 20: no motive (Heston: "Motives: cut them"). */
 export function rollNarration(tone: Tone, p: RollParts) {
-  const intro = rollIntro(tone, p.name, p.real, p.seed, p.cast, p.nickname, p.pick);
-  return { text: p.motive ? `${intro} Motive: ${p.motive}` : intro };
+  return { text: rollIntro(tone, p.name, p.real, p.seed, p.cast, p.nickname, p.pick) };
 }
 
 const NOISES: Record<Tone, string[]> = {

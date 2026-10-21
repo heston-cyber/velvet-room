@@ -291,18 +291,18 @@ describe("the engine", () => {
     for (const n of bodies.values()) expect(n).toBeGreaterThan(220); // ~300 each
   });
 
-  test("players' own motives are used when they wrote them", () => {
+  test("Oct 20: no motives and no motive-leak cards (Heston: \"Motives: cut them\")", () => {
     const rng = seeded(11);
-    const input = fakeCast({ rng, guests: 5 });
-    input.playerMotives = { p1: { motive: "He stole my parrot." } };
-    const cf = buildCase(input, rng);
-    const b = cf.briefings.find((x) => x.playerId === "p1")!;
-    expect(b.motive).toBe("He stole my parrot.");
-    expect(b.secret).toBeUndefined();
-    const others = cf.briefings.filter((x) => x.playerId !== "p1");
-    expect(new Set(others.map((x) => x.motive)).size).toBe(others.length); // game-written ones don't repeat
-    // Oct 18: each has a roll-call version too ("The Don owed them…")
-    for (const o of others) expect(o.motiveThey).toBeTruthy();
+    for (let i = 0; i < 30; i++) {
+      const input = fakeCast({ rng, guests: 8 });
+      const cf = buildCase(input, rng);
+      for (const b of cf.briefings) {
+        expect(b.motive).toBe("");
+        expect(b.motiveThey).toBeUndefined();
+        expect(b.secret).toBeUndefined();
+      }
+      for (const c of cf.clues) expect(c.text).not.toMatch(/\bmotive\b|\bIOU\b|\bledger\b|appointment book|pawn ticket/i);
+    }
   });
 
   test("the adult script is used when the game menu picks it, and keeps every fact", () => {

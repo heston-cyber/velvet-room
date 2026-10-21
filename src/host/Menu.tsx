@@ -75,11 +75,8 @@ export default function Menu(props: { data: Roster; slug: string; hostKey: strin
 
         <Sec title="The game">
           {/* S6 (Oct 17): the script is picked with the narrator (Narrator and script). */}
-          {/* Oct 17: the game writes every motive (D9); guests can opt out of being the killer at sign-up (D8). Oct 18: no secrets. */}
-          <span className="help">
-            One killer, drawn in secret from everyone checked in, except guests who ticked "I'd rather not be the killer" at sign-up. The game writes everyone's
-            motive, and the roll call reads them out.
-          </span>
+          {/* Oct 20: no motives (Heston: "Motives: cut them"); guests can opt out of being the killer at sign-up (D8). */}
+          <span className="help">One killer, drawn in secret from everyone checked in, except guests who ticked "I'd rather not be the killer" at sign-up.</span>
         </Sec>
 
         <Pacing game={game} locked={locked} save={save} timer={timer} />
@@ -112,11 +109,41 @@ export default function Menu(props: { data: Roster; slug: string; hostKey: strin
         </Sec>
 
         <NarratorSection game={game} locked={locked} save={save} />
+        <Roast data={data} locked={locked} save={save} />
 
         {/* S5 (Oct 17): one guest list, with each guest's roll-call line and voice. */}
         <Guests data={data} slug={slug} hostKey={hostKey} locked={locked} onError={onError} />
       </div>
     </div>
+  );
+}
+
+/**
+ * Gag night (Oct 20, Heston: "I like the host setting for this"): one guest gets the narrator's insults all night.
+ * Random: every third game on this laptop, on a guest the game picks. Or pick who's fair game tonight, or nobody.
+ */
+function Roast({ data, locked, save }: { data: Roster; locked: boolean; save: (p: SettingsPatch) => Promise<void> }) {
+  const value = data.game.roast;
+  const guests = data.players.filter((p) => !p.bot).sort((a, b) => a.charName.localeCompare(b.charName));
+  return (
+    <Sec title="Gag night">
+      <span className="help">On a gag night, the narrator's insults all land on one guest. Everyone else still gets the odd jab.</span>
+      <select
+        className="hx-select"
+        aria-label="Who gets roasted"
+        value={value}
+        disabled={locked}
+        onChange={(e) => void save({ roast: e.target.value as SettingsPatch["roast"] })}
+      >
+        <option value="random">Random: every third game, on anyone</option>
+        <option value="none">Nobody: no gag night</option>
+        {guests.map((p) => (
+          <option key={p.id} value={p.id}>
+            Tonight, on {p.charName}
+          </option>
+        ))}
+      </select>
+    </Sec>
   );
 }
 
@@ -193,7 +220,7 @@ function Pacing({ game, locked, save, timer }: { game: Roster["game"]; locked: b
       <Seg
         label="Pacing"
         value={game.pacing.mode}
-        options={[["timer", "Round timer"], ["ready", "Players tap ready"]]}
+        options={[["ready", "Untimed"], ["timer", "Timed"]]}
         disabled={locked}
         onPick={(mode) => save({ pacing: { mode, roundMinutes: minutes } })}
       />
@@ -209,7 +236,7 @@ function Pacing({ game, locked, save, timer }: { game: Roster["game"]; locked: b
               +
             </button>
           </span>
-          <span className="hx-ctl hx-ctl-note">Until most tap ready</span>
+          <span className="hx-ctl hx-ctl-note">Until everyone taps Ready</span>
         </Swap>
       </div>
       <div className="hx-kv">
@@ -217,8 +244,8 @@ function Pacing({ game, locked, save, timer }: { game: Roster["game"]; locked: b
         <span className="hx-est">{estimateMinutes({ mode: game.pacing.mode, roundMinutes: minutes })}</span>
       </div>
       <Swap show={timer ? 0 : 1}>
-        <span className="help">3 rounds (Round 3 is a little shorter: {roundMinutesFor(minutes, 3)} min), plus the intro, the lock-in, the reveal and the awards. The lock-in gets 5 minutes at most.</span>
-        <span className="help">Each round ends once most guests tap ready. The lock-in still has a 5-minute clock. You can always move on from the host menu.</span>
+        <span className="help">Everything runs on a clock: 3 rounds (Round 3 is a little shorter: {roundMinutesFor(minutes, 3)} min), a 90-second jail vote and a lock-in of 5 minutes at most. A round also ends early once everyone taps Ready.</span>
+        <span className="help">Untimed: each round waits until everyone taps Ready, votes wait for everyone, and the lock-in waits for everyone. You can always move on from the host menu.</span>
       </Swap>
     </Sec>
   );

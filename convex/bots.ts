@@ -3,7 +3,7 @@
 //
 // A test game with bot guests, started from /host. The host joins on their own phone like any guest (the room code,
 // then sign up at the door), and the bots play the rest of the table: they search and scan the cards in the open rooms
-// at a human pace, tap Ready, vote in the jail vote, lock in and vote for the awards. Sharp bots reason from the TV's
+// at a human pace, tap Ready, vote in the jail vote and lock in; in the lobby they vote Best Dressed. Sharp bots reason from the TV's
 // evidence and the cards they scanned themselves; careless ones guess; the killer bot points at someone else.
 // A test game is always its own game, so a real party never gets bots. What they decide lives in convex/botBrain.ts.
 import { ConvexError, v } from "convex/values";
@@ -30,7 +30,6 @@ import { charKeyOf, randomCode, requireHost } from "./lib";
 import { takenFigures } from "./figures";
 import { secure } from "./engine/rng";
 import { openRoomsIn } from "./engine/build";
-import { revealTimes } from "./shared";
 import { BOT_LIFETIME_MS, BOT_SPEEDS, MAX_BOTS, MIN_BOTS, chooseJail, chooseSuspect, chooseThing, knownElims, scanQuota, styleFor, type Who } from "./botBrain";
 
 const speedV = v.union(v.literal("party"), v.literal("fast"));
@@ -137,23 +136,16 @@ async function act(ctx: MutationCtx, game: Doc<"games">, chance: number) {
   const rng = secure();
   const now = Date.now();
   const players = await playersOf(ctx, game._id);
-  const bots = players.filter((p) => p.bot && p.inGame);
-  if (!bots.length) return;
-  const cf = await caseFor(ctx, game);
-  if (!cf) return;
-  const who = (b: Doc<"players">): Who => ({ self: b._id, killerId: cf.solution.killerId, style: b.bot!.style });
 
-  // The awards: Best Dressed, once the verdict is on the TV.
-  if (game.status === "reveal") {
-    const verdictAt = (game.revealAt ?? now) + (game.revealPlan ?? revealTimes(!!game.hasAccomplice, game.tone ?? "classic")).verdict;
-    if (now < verdictAt) return;
+  // The lobby: Best Dressed (Oct 20), for anyone else who's here.
+  if (game.status === "lobby") {
     const votes = await ctx.db
       .query("votes")
       .withIndex("by_game", (q) => q.eq("gameId", game._id))
       .collect();
-    for (const b of bots) {
+    for (const b of players.filter((p) => p.bot && p.checkedIn)) {
       if (votes.some((x) => x.playerId === b._id && x.dressed) || rng() >= chance) continue;
-      const others = players.filter((p) => p.inGame && p._id !== b._id);
+      const others = players.filter((p) => p.checkedIn && p._id !== b._id);
       const pick = others[Math.floor(rng() * others.length)];
       if (!pick) continue;
       const mine = votes.find((x) => x.playerId === b._id);
@@ -162,6 +154,12 @@ async function act(ctx: MutationCtx, game: Doc<"games">, chance: number) {
     }
     return;
   }
+
+  const bots = players.filter((p) => p.bot && p.inGame);
+  if (!bots.length) return;
+  const cf = await caseFor(ctx, game);
+  if (!cf) return;
+  const who = (b: Doc<"players">): Who => ({ self: b._id, killerId: cf.solution.killerId, style: b.bot!.style });
 
   if (!isPlaying(game) || !game.rolesOut || (game.introEndsAt ?? 0) > now) return;
   const round = game.round ?? 1;

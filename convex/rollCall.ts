@@ -1,7 +1,7 @@
 // The roll call: after How to play, the narrator introduces every guest in the game by name, nickname and who's
 // playing (Heston, Oct 16: "the roll call is way to long. We should simplify to only the characters name, their
 // nickname 'aka' and the real life name of the person playing that character"). Oct 18: each with their own joke
-// (dealt so nobody in a game shares one) and their motive, read out for everyone.
+// (dealt so nobody in a game shares one). Oct 20: no motives.
 import type { Doc, Id } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
 import type { CaseFile } from "./engine/types";
@@ -14,8 +14,6 @@ export type RollGuest = {
   player: Doc<"players">;
   /** The party cast member they play, if any. */
   cast: { real: string; nickname: string | null } | null;
-  /** Oct 18: their motive, as the roll call reads it ("The Don owed them…"). */
-  motive: string | null;
   wanted: Wanted;
 };
 
@@ -45,8 +43,6 @@ export async function rollGuests(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile
     const m = castMember(p.figure);
     const own = { nickname: p.nickname, lastName: p.lastName, firstName: p.firstName };
     const cast = m ? { real: castRealName(m, own), nickname: castNickname(m, own) || null } : null;
-    const b = cf?.briefings.find((x) => x.playerId === p._id);
-    const motive = b?.motiveThey || null;
     const wanted = rollWanted(tone, narratorOf(game), {
       id: p._id,
       charName: p.charName,
@@ -55,9 +51,8 @@ export async function rollGuests(ctx: QueryCtx, game: Doc<"games">, cf: CaseFile
       cast: m ? { real: castRealName(m, own), nickname: castNickname(m, own), sayAs: m.sayAs } : null,
       seed: game.slug,
       pick: deal[i % deal.length],
-      motive: motive ?? undefined,
     });
-    return { player: p, cast, motive, wanted };
+    return { player: p, cast, wanted };
   });
 }
 

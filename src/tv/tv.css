@@ -86,7 +86,7 @@
 .tv-award { border: 1px solid var(--brass); background: rgba(18, 5, 10, .5); padding: 2cqw 1.4cqw; display: grid; justify-items: center; gap: .8cqw; }
 .tv-award .tv-kick { font-size: 1.1cqw; }
 .tv-award .tv-av { width: 8cqw; height: 8cqw; font-size: 3cqw; }
-.tv-award .n { font-family: var(--display); font-size: 2.6cqw; line-height: 1.05; text-wrap: balance; }
+.tv-award .n { font-family: var(--display); font-size: 2.6cqw; line-height: 1.05; text-wrap: balance; max-width: 100%; overflow-wrap: anywhere; }
 .tv-award .sub { font-size: 1.3cqw; color: var(--muted); }
 
 .tv-overlay { position: absolute; inset: 0; background: rgba(7, 2, 3, .9); display: grid; align-content: center; justify-items: center; gap: 1.5cqw; padding: 4cqw 5cqw 9cqw; text-align: center; z-index: 3; }
@@ -95,7 +95,7 @@
 .tv-caption { position: absolute; left: 0; right: 0; margin-inline: auto; bottom: 2.4cqw; width: min(80cqw, 100%); background: rgba(10, 3, 6, .82); border: 1px solid var(--rule);
   padding: .9cqw 1.6cqw; display: grid; gap: .3cqw; text-align: left; z-index: 4; animation: fadein .6s ease both; }
 .tv-caption .who { font-family: var(--label); font-size: 1cqw; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--brass); }
-.tv-caption .line { font-size: 1.8cqw; font-style: italic; color: var(--paper); }
+.tv-caption .line { font-size: 1.8cqw; line-height: 1.35; font-style: italic; color: var(--paper); }
 .tv-test { position: absolute; bottom: 1cqw; left: 1.2cqw; font-family: var(--label); font-size: .9cqw; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--ink); background: var(--manila); padding: .3cqw .6cqw .2cqw; z-index: 5; }
 
 .fade { animation: fadein .8s ease both; }
@@ -253,6 +253,12 @@
 .tv-how-art.map .tv-map, .tv-split .tv-map { width: 100%; }
 /* the doors: room on the left for the Don */
 .tv-scene.doors { padding-left: 17cqw; padding-right: 7cqw; }
+/* Oct 20: clear of the join code (top right) and the host's Everyone is in (bottom right). */
+.tv-scene.doors .tv-fit.scene { left: 17cqw; right: 31cqw; }
+/* ...with the guests in centred rows that wrap, each face no wider than its column. */
+.tv-scene.doors .tv-guests { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.4cqw 1.2cqw; }
+.tv-scene.doors .tv-guests > div { width: 7.6cqw; }
+.tv-guests .tv-av { width: min(6.5cqw, 100%); height: auto; aspect-ratio: 1 / 1; }
 .cameo.don.stand { height: 30cqw; left: 0; }
 .cameo.lineup { opacity: .38; height: 17cqw; }
 @keyframes rise { from { transform: translateY(110%); opacity: 0; } to { transform: none; opacity: .38; } }
@@ -281,11 +287,12 @@
 .tv-wcard .nm { font-family: var(--label); font-size: .72cqw; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); line-height: 1.1; text-align: center; }
 .tv-wrow { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.1cqw; max-width: 86cqw; margin: .6cqw 0; }
 .tv-wfan { position: relative; width: 30cqw; height: 36cqw; }
-.tv-wfan .tv-wcard { position: absolute; left: 50%; bottom: 7cqw; width: 11cqw; transform-origin: 50% 100%; }
-.tv-wfan .tv-wcard .nm { font-size: 1cqw; }
-.tv-wfan .tv-wcard:nth-child(1) { transform: translateX(-128%) translateY(1.2cqw) rotate(-12deg); }
-.tv-wfan .tv-wcard:nth-child(2) { transform: translateX(-50%) translateY(-1.2cqw); z-index: 1; }
-.tv-wfan .tv-wcard:nth-child(3) { transform: translateX(28%) translateY(1.2cqw) rotate(12deg); z-index: 2; }
+/* Oct 20: the middle card on top and the outer two spread, so no card covers another card's name. */
+.tv-wfan .tv-wcard { position: absolute; left: 50%; bottom: 7cqw; width: 10.4cqw; transform-origin: 50% 100%; }
+.tv-wfan .tv-wcard .nm { font-size: .95cqw; }
+.tv-wfan .tv-wcard:nth-child(1) { transform: translateX(-142%) translateY(1.2cqw) rotate(-12deg); }
+.tv-wfan .tv-wcard:nth-child(2) { transform: translateX(-50%) translateY(-1.2cqw); z-index: 2; }
+.tv-wfan .tv-wcard:nth-child(3) { transform: translateX(42%) translateY(1.2cqw) rotate(12deg); z-index: 1; }
 .tv-wfan.enter, .tv-jailed.enter, .tv-roll-fig.enter { animation: howin .9s cubic-bezier(.2, .8, .2, 1) both; }
 
 /* Behind bars: the drawing sits 8.5% down the bars and 86% of their height, its face in the middle gap. */
@@ -378,7 +385,8 @@
 
 /* Fit (Oct 16): a scene that would run out of the frame is zoomed down to fit. */
 .tv-fit { min-width: 0; min-height: 0; overflow: hidden; width: 100%; }
-.tv-fit.scene { position: absolute; inset: 4cqw 5cqw 9cqw; width: auto; display: grid; align-content: center; justify-items: center; }
+/* Oct 20: the bottom clears a two-line caption. */
+.tv-fit.scene { position: absolute; inset: 4cqw 5cqw 11cqw; width: auto; display: grid; align-content: center; justify-items: center; }
 .tv-fit.scene > .tv-fit-in { width: 100%; display: grid; align-content: center; justify-items: center; gap: 1.5cqw; }
 .tv-fit.split { height: 36cqw; }
 .tv-fit.split > .tv-fit-in { width: 100%; }
@@ -434,5 +442,6 @@
 @keyframes tvReady { from { transform: scale(.85); opacity: .55; } to { transform: scale(1); opacity: 1; } }
 
 /* Oct 18: the roll call reads each guest's motive out; the card shows it too. */
-.tv-motive { margin: 1.4cqw 0 0; max-width: 40cqw; font-family: var(--body); font-style: italic; font-size: 2.2cqw; line-height: 1.25; color: var(--paper); text-wrap: balance; }
-.tv-motive span { display: block; font-family: var(--label); font-style: normal; font-size: 1.1cqw; letter-spacing: .3em; text-transform: uppercase; color: var(--brass); margin-bottom: .5cqw; }
+
+/* Oct 20 (Heston: "things arent covering up other elements"): the award cards sit between the two drawings standing at the sides. */
+.tv-stage[data-scene="awards"] .tv-scene { padding-inline: 15cqw; }

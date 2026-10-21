@@ -89,8 +89,81 @@ AUDIT = """() => {
   const names = [...st.querySelectorAll('.tv-topweapons .nm')].map((e) => e.getBoundingClientRect());
   for (let i = 1; i < names.length; i++) if (names[i].left < names[i - 1].right - 1 && names[i].top < names[i - 1].bottom && names[i - 1].top < names[i].bottom) { out.push('overlap: weapon names'); break; }
   for (const el of st.querySelectorAll('.tv-roundbar .chip, .tv-roundbar .tv-ready')) if (el.getBoundingClientRect().height > parseFloat(getComputedStyle(el).fontSize) * 2.6) out.push('wrapped: ' + el.className);
+  out.push(...covers(st));
   return [...new Set(out)].slice(0, 15);
 }"""
+
+# Oct 20 (Heston: "everything is proportioned good, things arent covering up other elements"): nothing on the TV covers
+# anything else. Text against text, the narrator's caption and the host's buttons against everything, and the standing
+# drawings (by their painted pixels, not their box) against text and cards. Walkers crossing the screen don't count.
+COVERS = """
+window.covers = (st) => {
+  const out = [];
+  const seen = (el) => el.checkVisibility ? el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }) : true;
+  const label = (el, t) => `${(el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\\s+/)[0] : el.tagName.toLowerCase())} "${(t || el.innerText || '').trim().slice(0, 28).replace(/\\n/g, ' ')}"`;
+  const cut = (a, b, m = 3) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > m && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > m;
+  const skip = '.tv-cameos, [aria-hidden=true], .tv-test';
+  // Every visible line of text, as the box its letters take (not its element's full width).
+  const texts = [];
+  const tw = document.createTreeWalker(st, NodeFilter.SHOW_TEXT);
+  for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+    const el = n.parentElement;
+    if (!n.textContent.trim() || !el || el.closest(skip) || !seen(el)) continue;
+    const range = document.createRange(); range.selectNodeContents(n);
+    for (const r of range.getClientRects()) if (r.width > 2 && r.height > 2) texts.push({ el, r, t: n.textContent });
+  }
+  const solids = [...st.querySelectorAll('button, .tv-award, .tv-tally > div, .tv-rule, .tv-av, img, .tv-strip, .wcard')]
+    .filter((el) => !el.closest(skip) && seen(el)).map((el) => ({ el, r: el.getBoundingClientRect() })).filter((x) => x.r.width > 2 && x.r.height > 2);
+  // Parts of one thing (a face and its ?, a weapon card's picture and name, a button's label) don't count.
+  const unit = (el) => el.closest('.tv-av, .tv-wcard, button, .tv-award, .tv-tally > div, .tv-jailed, .tv-frame, .tv-how-suspects .face');
+  // The host menu is a panel over the TV: it covers the screen on purpose, so only what's inside it is checked against itself.
+  const layer = (el) => el.closest('[role=dialog]');
+  const related = (a, b) => a === b || a.contains(b) || b.contains(a) || (!!unit(a) && unit(a) === unit(b)) || layer(a) !== layer(b);
+  for (let i = 0; i < texts.length; i++) for (let j = i + 1; j < texts.length; j++) {
+    const a = texts[i], b = texts[j];
+    if (!related(a.el, b.el) && cut(a.r, b.r)) out.push(`text over text: ${label(a.el, a.t)} / ${label(b.el, b.t)}`);
+  }
+  for (const s of solids) for (const t of texts) if (!related(s.el, t.el) && !s.el.closest('.tv-strip, .tv-caption') === !t.el.closest('.tv-strip, .tv-caption') && cut(s.r, t.r)) out.push(`box over text: ${label(s.el)} / ${label(t.el, t.t)}`);
+  const cap = st.querySelector('.tv-caption');
+  if (cap && seen(cap)) {
+    const c = cap.getBoundingClientRect();
+    for (const x of [...texts, ...solids]) if (!cap.contains(x.el) && !x.el.contains(cap) && !x.el.closest('.tv-strip') && layer(x.el) === layer(cap) && cut(c, x.r)) out.push(`caption covers ${label(x.el, x.t)}`);
+  }
+  // The drawings: which of their pixels are painted, on a coarse grid, cached per picture.
+  const masks = (window.__masks = window.__masks || {});
+  const maskOf = (img) => {
+    if (masks[img.currentSrc]) return masks[img.currentSrc];
+    if (!img.complete || !img.naturalWidth) return null;
+    const w = 60, h = Math.max(1, Math.round(60 * img.naturalHeight / img.naturalWidth));
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    const g = cv.getContext('2d'); g.drawImage(img, 0, 0, w, h);
+    const d = g.getImageData(0, 0, w, h).data; const m = new Uint8Array(w * h);
+    for (let k = 0; k < w * h; k++) m[k] = d[k * 4 + 3] > 60 ? 1 : 0;
+    return (masks[img.currentSrc] = { w, h, m });
+  };
+  const STILL = /\\b(stand|standRight|peek|unmasked|lineup|stroll|strollBack|creep|creepBack)\\b/;
+  for (const img of st.querySelectorAll('.tv-cameos .cameo img')) {
+    const fig = img.closest('.cameo');
+    if (!STILL.test(fig.className) || +getComputedStyle(fig).opacity < 0.6 || !seen(img)) continue;
+    const mk = maskOf(img); if (!mk) continue;
+    const R = img.getBoundingClientRect(); const flip = img.classList.contains('flip');
+    const painted = (r) => {
+      const x0 = Math.max(0, Math.floor((Math.max(r.left, R.left) - R.left) / R.width * mk.w)), x1 = Math.min(mk.w, Math.ceil((Math.min(r.right, R.right) - R.left) / R.width * mk.w));
+      const y0 = Math.max(0, Math.floor((Math.max(r.top, R.top) - R.top) / R.height * mk.h)), y1 = Math.min(mk.h, Math.ceil((Math.min(r.bottom, R.bottom) - R.top) / R.height * mk.h));
+      let n = 0;
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) n += mk.m[y * mk.w + (flip ? mk.w - 1 - x : x)];
+      return n;
+    };
+    const who = fig.className.split(/\\s+/).find((c) => STILL.test(c));
+    // Passing behind the content is fine for walkers and peeks (they're gone in seconds); not for drawings that stay.
+    // (The lock-in's waiting-on lineup is a backdrop along the bottom, behind the caption on purpose.)
+    if (fig.closest('.cameos-back') && !/^(stand|standRight)$/.test(who)) continue;
+    // A drawing behind the content (the back layer) only counts where it shows through a card or sits under text.
+    for (const x of [...texts, ...solids]) if (cut(R, x.r) && painted(x.r) > 2) out.push(`drawing (${who}) ${fig.closest('.cameos-back') ? 'behind' : 'over'} ${label(x.el, x.t)}`);
+  }
+  return out;
+};
+"""
 
 report = []
 try:
@@ -112,6 +185,7 @@ with sync_playwright() as p:
     browser = p.chromium.launch()
     errors = []
     host = browser.new_context(viewport={"width": W, "height": H}).new_page()
+    host.add_init_script(COVERS)
     host.on("pageerror", lambda e: errors.append(str(e)))
     n = [0]
 
@@ -141,7 +215,13 @@ with sync_playwright() as p:
     audit("title")
     host.get_by_role("button", name="Play").click()
     wait_for(lambda: host.locator(".hs-lobby").count() == 1)
-    audit("lobby", 2500)
+    audit("lobby", 7000)  # Oct 20: once the doors scene is up
+    # Oct 20: Best Dressed is voted in the lobby, so the awards card shows several.
+    for i, gst in enumerate(guests):
+        try:
+            mut("game:vote", {"token": gst["token"], "dressed": guests[(i + 1) % len(guests)]["id"]})
+        except Exception:
+            pass
     host.locator(".hs-lobby button").click()
     host.locator(".hs-lobby button").first.click()  # Oct 17: "Yes, begin" (the QR cards are hidden)
     wait_for(lambda: roster()["game"]["status"] == "playing", 20)
@@ -168,6 +248,13 @@ with sync_playwright() as p:
     audit("phones", 6500)  # the Check Your Phone card runs 4 s first (its video is blank in headless Chromium)
     cx("game:skipIntro", {"slug": SLUG, "hostKey": KEY})
     audit("round-1", 5500)
+    # Oct 20: the host menu over the round, and its rescue buttons.
+    host.locator(".hs-menu-btn").click()
+    audit("round-1-menu", 1200)
+    host.locator(".hs-pause button[aria-pressed]").click()
+    audit("round-1-menu-rescue", 800)
+    host.get_by_role("button", name="Resume").click()
+    host.wait_for_timeout(800)
 
     def vote_round(rnd, kind, target):
         wait_for(lambda: host.get_by_text("Who goes to jail?" if kind == "jail" else "Does anyone get out?").count() or "The evidence clears" in text(), 15)
@@ -182,7 +269,7 @@ with sync_playwright() as p:
         host.wait_for_timeout(9000)
         audit(f"r{rnd}-{kind}-verdict", 0)
 
-    # Round 1 ends with no vote; Round 2 in the jail vote; Round 3 in the release vote (Oct 16).
+    # Round 1 ends with no vote; Round 2 in the jail vote; Round 3 goes straight to the lock-in (Oct 20).
     mut("game:advanceRound", {"slug": SLUG, "hostKey": KEY})
     wait_for(lambda: roster()["game"]["round"] == 2, 25)
     audit("round-2", 6000)
@@ -192,7 +279,6 @@ with sync_playwright() as p:
     audit("round-3", 6000)
     audit("round-3-twist", 9000)
     mut("game:advanceRound", {"slug": SLUG, "hostKey": KEY})
-    vote_round(3, "release", None)
 
     wait_for(lambda: roster()["game"]["round"] == 4, 30)
     audit("lock-in", 6000)
@@ -208,10 +294,12 @@ with sync_playwright() as p:
     for at, label in ((6, "reveal-line"), (16, "reveal-name"), (21, "reveal-how"), (30, "reveal-verdict"), (40, "reveal-votes")):
         host.wait_for_timeout(max(0, int((rt + at - time.time()) * 1000)))
         audit(label, 0)
-    # Oct 17: award votes, so the awards card shows several (Oct 18: Best Dressed only).
-    for i, gst in enumerate(guests):
-        mut("game:vote", {"token": gst["token"], "dressed": guests[(i + 1) % len(guests)]["id"]})
-    mut("game:finish", {"slug": SLUG, "hostKey": KEY})
+    # Oct 20: the awards follow the verdict on their own; Finish only if they haven't yet.
+    if roster()["game"]["status"] == "reveal":
+        try:
+            mut("game:finish", {"slug": SLUG, "hostKey": KEY})
+        except Exception:
+            pass
     audit("awards", 9000)
     audit("awards-names", 12000)
     mut("game:endNight", {"slug": SLUG, "hostKey": KEY})

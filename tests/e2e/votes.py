@@ -1,6 +1,6 @@
-"""The votes end-to-end, against the dev backend (Oct 16 schedule: Round 1 no vote, Round 2 the jail vote, Round 3 the
-release vote when someone's in jail), phones vote, the TV shows who voted for whom and the verdict, the jailed guest's phone is
-locked down, then the final lock-in with weapon pictures and the reveal with the new win rule.
+"""The votes end-to-end, against the dev backend (Oct 20: Round 1 no vote, Round 2 the jail vote, no release vote: the
+jailbird sits out Round 3 and rejoins for the lock-in), phones vote, the TV shows who voted for whom and the verdict, the
+jailed guest's phone is locked down in Round 3, then the final lock-in with weapon pictures and the reveal.
   BASE=http://localhost:4174 [TONE=adult] python3 tests/e2e/votes.py
 Screenshots go to $OUT (default ./e2e-out/votes).
 """
@@ -129,26 +129,19 @@ with sync_playwright() as p:
     b.get_by_role("button", name="Scan").click()
     ok(b.get_by_text("No searching from a cell").count() == 1, "no scanning from jail")
 
-    # Round 3 ends: someone is in jail, so the release vote, and no jail vote after it.
+    # Round 3 ends: no release vote (Oct 20); the jailbird is let out for the lock-in.
     host_step("End Round 3")
-    ok(wait_for(lambda: host.get_by_text("Does anyone get out?").count() == 1, 10), "Round 3 ends in the release vote")
-    ok(host.locator(".tv-cands .tv-jailed").count() == 1, "the jailed guest is shown behind bars")
-    host.wait_for_timeout(1200)
-    shot(host, "06-tv-release.png")
-    ok(wait_for(lambda: "can't vote from a cell" in b.inner_text("body"), 10), "the jailed guest can't vote")
-    for i in [0] + OTHERS:
-        vote(i, None)
-    ok(wait_for(lambda: host.get_by_text("Nobody gets out.").count() == 1, 15), "nobody gets out")
-    host_step("On to the lock-in")
-    ok(wait_for(lambda: roster()["game"]["round"] == 4, 20), "then straight to the lock-in, no jail vote")
+    ok(wait_for(lambda: roster()["game"]["round"] == 4, 20), "Round 3 goes straight to the lock-in")
+    ok(roster()["game"].get("vote") is None or roster()["game"]["vote"]["kind"] == "jail", "no release vote")
+    ok(not any(p["jailed"] for p in roster()["players"]), "the jailbird is out for the lock-in")
 
-    # The lock-in: final, with weapon pictures. The jailed guest sits it out.
+    # The lock-in: final, with weapon pictures. The former jailbird locks in too.
     if a.get_by_role("button", name="Lock in").count():
         a.get_by_role("button", name="Lock in").click()
     ok(wait_for(lambda: a.get_by_text("Lock it in").count() >= 1, 10), "the phone shows the lock-in")
     ok(a.locator(".opts.weapons img").count() >= 4, "weapons with their pictures")
     shot(a, "07-phone-lockin.png")
-    ok(wait_for(lambda: "sit out the lock-in" in b.inner_text("body"), 10), "the jailed guest sits out the lock-in")
+    ok(wait_for(lambda: b.get_by_text("Lock it in").count() >= 1 or b.get_by_role("button", name="Lock in").count() >= 1, 10), "the former jailbird gets the lock-in too")
     a.locator(".pick").nth(0).locator("button").first.click()
     a.locator(".opts.weapons button").first.click()
     a.locator(".pick").nth(2).locator("button").first.click()
@@ -158,14 +151,14 @@ with sync_playwright() as p:
     ok(wait_for(lambda: a.get_by_text("Locked in").count() >= 1, 10), "locked in, final")
     shot(a, "08-phone-locked.png")
     board = cx("game:phone", {"token": tok[1]})["board"]
-    for i in OTHERS:
+    for i in OTHERS + [J]:
         me = gid[i]
         other = next(s["id"] for s in board["suspects"] if s["id"] != me)
         try:
             cx("game:accuse", {"token": tok[i], "suspectId": other, "exhibitId": board["exhibits"][0]["id"], "roomKey": board["rooms"][0]["key"]})
         except RuntimeError as e:
             print("skip", i, str(e)[-80:])
-    ok(wait_for(lambda: roster()["game"]["status"] == "reveal", 20), "everyone free locked in: the reveal")
+    ok(wait_for(lambda: roster()["game"]["status"] == "reveal", 20), "everyone locked in: the reveal")
     ok(wait_for(lambda: host.locator(".tv-reveal-weapon").count() == 1, 25), "the reveal names the weapon with its card")
     host.wait_for_timeout(1200)
     shot(host, "09-tv-reveal-weapon.png")

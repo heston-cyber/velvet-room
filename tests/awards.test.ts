@@ -63,7 +63,7 @@ describe("awards (Oct 17)", () => {
     expect((await game(t)).round).toBe(4);
     const lock = (p: { token: string }, suspectId: string, w: typeof right) => t.mutation(api.game.accuse, { token: p.token, suspectId, ...w });
     // a and b get all three, c the killer and nothing else; d and the killer blame e; e blames d.
-    // 3 of 6 named the killer: not more than half, so the killer walks.
+    // Oct 20: the killer gets the most votes (3), but the weapon ties 3-3, so the killer walks.
     await lock(a, killer._id, right);
     await lock(b, killer._id, right);
     await lock(c, killer._id, wrong);
@@ -71,11 +71,12 @@ describe("awards (Oct 17)", () => {
     await lock(e, d._id, wrong);
     await lock(killer, e._id, wrong);
     expect((await game(t)).status).toBe("reveal");
-    // Best Dressed only for guests who played (Oct 18: Best Liar is gone; an old page's liar vote is ignored).
+    // Best Dressed was voted in the lobby (Oct 20): five for c, c for a. A vote for a guest who didn't play doesn't count.
     const ghost = await t.run((ctx) => ctx.db.insert("players", { gameId: a.gameId, token: "ghost-token", realName: "Ghost", charName: "Ghost", charKey: "ghost", who: "", signature: "", killerOk: true, checkedIn: false, createdAt: 0, updatedAt: 0 }));
-    await expect(t.mutation(api.game.vote, { token: a.token, dressed: ghost })).rejects.toThrow(/played tonight/);
-    for (const p of [a, b, d, e, killer]) await t.mutation(api.game.vote, { token: p.token, dressed: c._id, liar: p._id === b._id ? d._id : b._id });
-    await t.mutation(api.game.vote, { token: c.token, dressed: a._id });
+    await t.run(async (ctx) => {
+      for (const p of [a, b, d, e, killer]) await ctx.db.insert("votes", { gameId: a.gameId, playerId: p._id, dressed: c._id });
+      await ctx.db.insert("votes", { gameId: a.gameId, playerId: c._id, dressed: ghost });
+    });
     const awards = await finish(t, hostKey);
     expect(awards.map((x) => x.key)).toEqual(["detective", "prime", "dressed", "gotAway"]);
     const of = (k: string) => awards.find((x) => x.key === k)!;

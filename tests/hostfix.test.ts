@@ -21,12 +21,12 @@ afterEach(() => vi.useRealTimers());
 type T = ReturnType<typeof convexTest>;
 const game = (t: T) => t.run(async (ctx) => (await ctx.db.query("games").first())!);
 
-async function made(o: { guests?: number; start?: boolean } = {}) {
+async function made(o: { guests?: number; start?: boolean; timed?: boolean } = {}) {
   const t = convexTest(schema, modules);
   const { hostKey } = await t.mutation(internal.admin.createGame, {
     slug: SLUG, title: "Fixes test", isTest: true, makeActive: false, registrationClosesAt: FUTURE, deadlineLabel: "Sat, Oct 24",
   });
-  await t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, pacing: { mode: "ready", roundMinutes: 10 } });
+  await t.mutation(api.host.updateSettings, { slug: SLUG, hostKey, pacing: { mode: o.timed ? "timer" : "ready", roundMinutes: 10 } });
   await t.mutation(internal.game.seedFakeCast, { slug: SLUG, guests: o.guests ?? 6, markers: 8, seed: 21 });
   if (o.start !== false) {
     await t.mutation(api.game.openDoors, { slug: SLUG, hostKey });
@@ -38,9 +38,9 @@ async function made(o: { guests?: number; start?: boolean } = {}) {
 }
 
 describe("host fixes (Oct 17)", () => {
-  test("F8: pausing holds an open vote's clock; votes wait; resuming gives the time back", async () => {
+  test("F8 (timed games): pausing holds an open vote's clock; votes wait; resuming gives the time back", async () => {
     vi.useFakeTimers();
-    const { t, hostKey, players } = await made();
+    const { t, hostKey, players } = await made({ timed: true });
     await nextRound(t, SLUG, hostKey); // → Round 2
     await t.mutation(api.game.advanceRound, { slug: SLUG, hostKey }); // the jail vote
     vi.advanceTimersByTime(30_000);
@@ -81,19 +81,29 @@ describe("host fixes (Oct 17)", () => {
     await expect(t.mutation(api.host.setHere, { slug: SLUG, hostKey, playerId: players[0]._id, here: true })).rejects.toThrow(/started/);
   });
 
-  test("F12: the lock-in has a clock even when guests tap Ready, and it starts the reveal", async () => {
+  test("the lock-in (Oct 20): timed games give it a clock that starts the reveal; untimed ones wait for everyone (or the host)", async () => {
     vi.useFakeTimers();
-    const { t, hostKey } = await made();
-    for (let i = 0; i < 3; i++) await nextRound(t, SLUG, hostKey);
-    const g = await game(t);
+    const timed = await made({ timed: true });
+    for (let i = 0; i < 3; i++) await nextRound(timed.t, SLUG, timed.hostKey);
+    let g = await game(timed.t);
     expect(g.round).toBe(4);
     expect(g.roundEndsAt! - Date.now()).toBeGreaterThan(ACCUSE_MAX_MINUTES * 60_000 - 2000);
     vi.advanceTimersByTime(ACCUSE_MAX_MINUTES * 60_000 + 1000);
-    await t.finishInProgressScheduledFunctions();
-    expect((await game(t)).status).toBe("reveal");
+    await timed.t.finishInProgressScheduledFunctions();
+    expect((await game(timed.t)).status).toBe("reveal");
     // F7: the host's roster knows when the verdict shows.
-    const roster = await t.query(api.host.roster, { slug: SLUG, hostKey });
-    expect(roster.game.verdictAt).toBeGreaterThan((await game(t)).revealAt!);
+    const roster = await timed.t.query(api.host.roster, { slug: SLUG, hostKey: timed.hostKey });
+    expect(roster.game.verdictAt).toBeGreaterThan((await game(timed.t)).revealAt!);
     expect(roster.counts).toMatchObject({ awardVotes: 0, inGameAll: 6 });
+    const untimed = await made();
+    for (let i = 0; i < 3; i++) await nextRound(untimed.t, SLUG, untimed.hostKey);
+    g = await game(untimed.t);
+    expect(g.round).toBe(4);
+    expect(g.roundEndsAt).toBeUndefined();
+    vi.advanceTimersByTime(ACCUSE_MAX_MINUTES * 60_000 * 3);
+    await untimed.t.finishInProgressScheduledFunctions();
+    expect((await game(untimed.t)).status).toBe("playing");
+    await untimed.t.mutation(api.game.advanceRound, { slug: SLUG, hostKey: untimed.hostKey });
+    expect((await game(untimed.t)).status).toBe("reveal");
   });
 });
