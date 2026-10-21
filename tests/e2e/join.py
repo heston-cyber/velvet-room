@@ -73,7 +73,8 @@ TVKEY = roster["game"]["tvKey"]
 VELMA = next(p for p in roster["players"] if p["charName"] not in before)
 NAME = VELMA["charName"]
 print("signed up as", NAME)
-TV = f"{BASE}/tv?game={SLUG}&key={TVKEY}"
+# v2: the host screen is the TV (the old /tv window is gone).
+TV = f"{BASE}/host?game={SLUG}&key={KEY}"
 HOST = f"{BASE}/host?game={SLUG}&key={KEY}"
 
 with sync_playwright() as p:
@@ -147,11 +148,7 @@ with sync_playwright() as p:
     ok(True, "the landing page offers the room code on party night")
     shot(land, "09-landing.png")
 
-    # ---------- the host sees the code; a rescue frees the name ----------
-    host = watch(b.new_page(viewport={"width": 1440, "height": 900}), "host")
-    host.goto(HOST)
-    ok(wait_for(lambda: has(host.inner_text("body"), "Room code " + CODE)), "the host's Live tab shows the room code")
-    shot(host, "10-host-live.png")
+    # ---------- a rescue frees the name ----------
     res = cx("host:rescuePhone", {"slug": SLUG, "hostKey": KEY, "playerId": VELMA["id"]})
     ok(res["token"] != me["token"], "a rescue makes Velma a new link")
     ok(wait_for(lambda: bph.get_by_role("button", name=f"Join as {NAME}").count() == 1), "after the rescue Velma's name is free again (live)")
@@ -161,13 +158,6 @@ with sync_playwright() as p:
     ok(bph.url.endswith("/p/" + res["token"]), "the guest rejoins on the new link")
     a.goto(f"{BASE}/p/{me['token']}")
     ok(wait_for(lambda: has(a.inner_text("body"), "doesn't match")), "the old link stops working")
-
-    # ---------- while the rules play over the lobby, a small room-code badge stays on the TV ----------
-    cx("voice:playRules", {"slug": SLUG, "hostKey": KEY})
-    ok(wait_for(lambda: tv.locator(".tv-room").count() == 1 and CODE in tv.inner_text(".tv-room"), 15), "the TV keeps a room-code badge up while the rules play")
-    tv.wait_for_timeout(1500)
-    shot(tv, "11-tv-rules-badge.png")
-    cx("voice:stopSegment", {"slug": SLUG, "hostKey": KEY})
 
     ok(not errors, "no page errors" + ("" if not errors else ": " + "; ".join(errors[:5])))
     b.close()
