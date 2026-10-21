@@ -34,6 +34,14 @@ async function clipRows(ctx: QueryCtx, gameId: Id<"games">) {
 
 /** Everything the game wants recorded right now, for one scope. */
 async function wantedFor(ctx: QueryCtx, game: Doc<"games">, scope: Scope): Promise<Wanted[]> {
+  // Solo test mode (Oct 20): lines that say a bot's name aren't recorded unless the host turns bot voices on, so a
+  // test night doesn't spend the party's credits. The TV runs fine without them.
+  const quiet = game.isTest && game.bots && !game.bots.voices ? (await playersOf(ctx, game._id)).filter((p) => p.bot).map((p) => p._id as string) : [];
+  const all = await wantedAll(ctx, game, scope, new Set(quiet));
+  return quiet.length ? all.filter((w) => !quiet.some((id) => w.purpose.includes(id))) : all;
+}
+
+async function wantedAll(ctx: QueryCtx, game: Doc<"games">, scope: Scope, quiet: Set<string>): Promise<Wanted[]> {
   const players = await playersOf(ctx, game._id);
   if (before(game)) return [];
   // Oct 17: the insults for later moments, recorded one by one when they're needed.
@@ -57,7 +65,7 @@ async function wantedFor(ctx: QueryCtx, game: Doc<"games">, scope: Scope): Promi
     picks: game.lines?.picks,
   });
   // The night's heckles (convex/heckles.ts) record with the names for the reveal.
-  return [...lines, ...(await heckleWanted(ctx, game)).map(({ line: _l, ...w }) => w)];
+  return [...lines, ...(await heckleWanted(ctx, game)).filter(({ line }) => !line.target || !quiet.has(line.target)).map(({ line: _l, ...w }) => w)];
 }
 
 type Scope = "roll" | "start" | "later";

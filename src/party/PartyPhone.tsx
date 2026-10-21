@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -902,6 +902,7 @@ function Scanner({ token, data, onNotebook }: { token: string; data: Phone; onNo
         </button>
       </form>
       {error && <div className="errbox">{error}</div>}
+      {data.game.isTest && data.testCards.length > 0 && <TestCards token={token} data={data} onClue={setClue} onError={setError} />}
       <p className="help">
         Cards you've found: {data.scans.length} of {data.game.markerCount}
       </p>
@@ -916,6 +917,42 @@ function Scanner({ token, data, onNotebook }: { token: string; data: Phone; onNo
           </span>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Solo test mode (Oct 20): in a test game, "find" a card by tapping it, so a test needs no printed cards. Only the
+ * rooms open now; the ones you've found are ticked.
+ */
+function TestCards(props: { token: string; data: Phone; onClue: (c: { number: number; room: string; text: string }) => void; onError: (m: string | null) => void }) {
+  const find = useMutation(api.game.scanTestCard);
+  const open = props.data.testCards.filter((c) => c.open);
+  if (!open.length) return null;
+  return (
+    <div className="file test-cards">
+      <span className="lab">Test game: find a card</span>
+      <span className="help">No printed cards needed. Tap one to find it.</span>
+      <div className="tc-grid">
+        {open.map((c) => (
+          <button
+            key={c.number}
+            type="button"
+            className={c.found ? "found" : ""}
+            onClick={async () => {
+              props.onError(null);
+              try {
+                props.onClue(await find({ token: props.token, number: c.number }));
+              } catch (e) {
+                props.onError(friendlyError(e));
+              }
+            }}
+          >
+            <b>{c.number}</b>
+            <small>{c.room}</small>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -993,6 +1030,59 @@ function Notebook({ token, data }: { token: string; data: Phone }) {
       <div className="nb-grid">{board.exhibits.map((e) => cell(`e:${e.id}`, e.name))}</div>
       <h3>Rooms</h3>
       <div className="nb-grid">{board.rooms.map((r) => cell(`r:${r.key}`, r.label))}</div>
+      {data.game.bots && <AskBots token={token} data={data} />}
+    </div>
+  );
+}
+
+/**
+ * Solo test mode (Oct 20): ask a bot what a guest would tell you at a party: where they were (once the stories are
+ * built) and the cards they've found.
+ */
+function AskBots({ token, data }: { token: string; data: Phone }) {
+  const [asking, setAsking] = useState<string | null>(null);
+  const bots = data.board!.suspects.filter((s) => s.bot && s.id !== data.me.id);
+  if (!bots.length) return null;
+  return (
+    <section className="ask-bots">
+      <h3>Ask the bots</h3>
+      <p className="help">Test game: what they'd tell you if you asked them.</p>
+      <div className="ab-list">
+        {bots.map((b) => (
+          <button key={b.id} type="button" aria-pressed={asking === b.id} onClick={() => setAsking(asking === b.id ? null : b.id)}>
+            {b.name}
+          </button>
+        ))}
+      </div>
+      {asking && <BotAnswer token={token} botId={asking as Id<"players">} />}
+    </section>
+  );
+}
+
+function BotAnswer({ token, botId }: { token: string; botId: Id<"players"> }) {
+  const a = useQuery(api.bots.askBot, { token, botId });
+  if (!a) return <p className="help">Asking…</p>;
+  return (
+    <div className="file bot-answer">
+      <span className="lab">{a.name}</span>
+      <p>
+        <b>Where were you?</b> {a.story ?? "\u201cI don't have a story yet.\u201d"}
+      </p>
+      <b>What did you find?</b>
+      {a.found.length ? (
+        <ul className="ev">
+          {a.found.map((f) => (
+            <li key={f.number}>
+              <small>
+                Card {f.number} · {f.room}
+              </small>
+              {f.text}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="help">Nothing yet.</p>
+      )}
     </div>
   );
 }

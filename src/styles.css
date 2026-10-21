@@ -388,3 +388,16 @@ img { max-width: 100%; }
 .figure-name { font-size: 12px; }
 .ev li small, .card-head, .stats span { font-size: 11px; }
 .tabbar { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 1fr; }
+
+/* Solo test mode (Oct 20): find a card without scanning it, and ask the bots. */
+.test-cards .tc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; margin-top: 6px; }
+.test-cards .tc-grid button { background: var(--well); border: 1px solid var(--rule); color: var(--paper); padding: 8px 6px; min-height: 48px; cursor: pointer; text-align: center; }
+.test-cards .tc-grid button b { display: block; font-size: 18px; }
+.test-cards .tc-grid button small { display: block; font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
+.test-cards .tc-grid button.found { border-color: var(--brass-dim); color: var(--hint); }
+.test-cards .tc-grid button.found b::after { content: " ✓"; color: var(--brass); }
+.ask-bots { display: grid; gap: 8px; margin-top: 8px; }
+.ask-bots .ab-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.ask-bots .ab-list button { background: var(--well); border: 1px solid var(--rule); color: var(--paper); padding: 8px 12px; min-height: 44px; cursor: pointer; }
+.ask-bots .ab-list button[aria-pressed="true"] { border-color: var(--brass); color: var(--brass); }
+.bot-answer p { margin: 4px 0 8px; }

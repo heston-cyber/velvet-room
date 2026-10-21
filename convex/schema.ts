@@ -139,6 +139,10 @@ export default defineSchema({
     // Play again: game 2 is a fresh game with the same house setup. The old game points at it.
     gameNumber: v.optional(v.number()),
     nextSlug: v.optional(v.string()),
+    // Solo test mode (Oct 20): a test game with bot guests (convex/bots.ts). speed: how fast they play; voices: record
+    // the narrator's lines for the bots' names too (off by default, to save credits); chain: the bots' running timer
+    // (a newer one stops an older one).
+    bots: v.optional(v.object({ speed: v.union(v.literal("party"), v.literal("fast")), voices: v.boolean(), chain: v.optional(v.string()) })),
   })
     .index("by_slug", ["slug"])
     .index("by_active", ["isActive"])
@@ -176,6 +180,8 @@ export default defineSchema({
     // v2 jail: voted in after a round, voted out at a release vote. Jailed guests can talk and bribe, nothing else.
     jailed: v.optional(v.boolean()),
     jailedAt: v.optional(v.number()),
+    // Solo test mode (Oct 20): a bot guest, and how it plays (sharp bots reason from what they've seen).
+    bot: v.optional(v.object({ style: v.union(v.literal("sharp"), v.literal("careless")) })),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

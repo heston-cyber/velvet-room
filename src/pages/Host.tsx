@@ -8,7 +8,8 @@ import { scriptOf } from "../../convex/voiceLines";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { friendlyError } from "../lib/errors";
-import Menu, { SoundCheck, type SettingsPatch } from "../host/Menu";
+import Menu, { Seg, SoundCheck, type SettingsPatch } from "../host/Menu";
+import { DEFAULT_BOTS, MAX_BOTS, MIN_BOTS } from "../../convex/botBrain";
 import { Rescue, useNextStep, useSideStep } from "../host/Live";
 import { useBusy, useConfirm, useNow, type Roster } from "../host/common";
 import { TvStage } from "../tv/Tv";
@@ -218,6 +219,7 @@ function Lobby({ keys, onOpen, auto }: { keys: Record<string, string>; onOpen: (
         <button type="button" className="hs-btn big" disabled={busy} onClick={() => run(start)}>
           Start a new game
         </button>
+        <BotStart onOpen={onOpen} />
         {mine.length > 0 && (
           <>
             <span className="hs-kick">Your games on this laptop</span>
@@ -248,6 +250,67 @@ function Lobby({ keys, onOpen, auto }: { keys: Record<string, string>; onOpen: (
         {err && <p className="hs-err">{err}</p>}
       </div>
     </div>
+  );
+}
+
+/**
+ * Solo test mode (Oct 20, Heston: "build it as a feature now in the setup menu. so i can play and test the game with
+ * fake Bot players who make choices in game as well so i can solo test the game for real."): a separate test game
+ * with bots. The host joins on their own phone like any guest.
+ */
+function BotStart({ onOpen }: { onOpen: (l: Link) => void }) {
+  const create = useMutation(api.bots.createBotGame);
+  const { busy, run } = useBusy();
+  const [bots, setBots] = useState(DEFAULT_BOTS);
+  const [speed, setSpeed] = useState<"party" | "fast">("party");
+  const [err, setErr] = useState<string | null>(null);
+  return (
+    <details className="hs-paste hs-bots">
+      <summary>Test it solo, with bots</summary>
+      <p className="hs-sub">
+        A separate test game. The bots play the other guests: they search, vote and lock in. Join on your phone with the room code and sign up at the door.
+      </p>
+      <label className="hs-bots-row">
+        <span>Bots</span>
+        <input
+          className="hs-input"
+          type="number"
+          min={MIN_BOTS}
+          max={MAX_BOTS}
+          value={bots}
+          onChange={(e) => setBots(Math.max(MIN_BOTS, Math.min(MAX_BOTS, Math.round(Number(e.target.value) || MIN_BOTS))))}
+          aria-label="How many bots"
+        />
+      </label>
+      <Seg
+        label="How fast the bots play"
+        value={speed}
+        options={[
+          ["party", "Party pace"],
+          ["fast", "Fast"],
+        ]}
+        onPick={setSpeed}
+      />
+      <span className="help">{speed === "party" ? "About a step a minute each, like real guests." : "Rounds of a couple of minutes, for quick checks."}</span>
+      <button
+        type="button"
+        className="hs-btn"
+        disabled={busy}
+        onClick={() =>
+          run(async () => {
+            setErr(null);
+            try {
+              onOpen(await create({ bots, speed }));
+            } catch (e) {
+              setErr(friendlyError(e));
+            }
+          })
+        }
+      >
+        Start a test game with {bots} bots
+      </button>
+      {err && <p className="hs-err">{err}</p>}
+    </details>
   );
 }
 

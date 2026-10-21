@@ -33,14 +33,14 @@ async function playerByToken(ctx: QueryCtx, token: string) {
     .unique();
 }
 
-async function requirePlayer(ctx: QueryCtx, token: string) {
+export async function requirePlayer(ctx: QueryCtx, token: string) {
   const player = await playerByToken(ctx, token);
   if (!player) throw new ConvexError("That link doesn't match a guest.");
   const game = (await ctx.db.get(player.gameId))!;
   return { player, game };
 }
 
-async function playersOf(ctx: QueryCtx, gameId: Id<"games">) {
+export async function playersOf(ctx: QueryCtx, gameId: Id<"games">) {
   return await ctx.db
     .query("players")
     .withIndex("by_game", (q) => q.eq("gameId", gameId))
@@ -48,7 +48,7 @@ async function playersOf(ctx: QueryCtx, gameId: Id<"games">) {
 }
 
 /** Builds the engine's input from who actually showed up. */
-async function caseInput(ctx: QueryCtx, game: Doc<"games">): Promise<CaseInput> {
+export async function caseInput(ctx: QueryCtx, game: Doc<"games">): Promise<CaseInput> {
   const before = game.status === "registration" || game.status === "lobby";
   // Before the draw: everyone checked in. After: exactly who was in the draw.
   const players = (await playersOf(ctx, game._id)).filter((p) => (before ? p.checkedIn : p.inGame));
@@ -86,13 +86,13 @@ export async function dealLetter(ctx: MutationCtx, game: Doc<"games">): Promise<
   return shuffle(secure(), pool)[0];
 }
 
-const isPlaying = (g: Doc<"games">) => g.status === "playing";
+export const isPlaying = (g: Doc<"games">) => g.status === "playing";
 
 /** Guests who are playing: everyone in the draw. */
-const playingOf = (players: Doc<"players">[]) => players.filter((p) => p.inGame);
+export const playingOf = (players: Doc<"players">[]) => players.filter((p) => p.inGame);
 
 /** A marker's room opens in this round (Round 1 unless searching in waves). */
-function markerOpensIn(game: Doc<"games">, roomKey: string) {
+export function markerOpensIn(game: Doc<"games">, roomKey: string) {
   return openRound(roomKey, game.roomOrder ?? game.rooms.map((r) => r.key), game.search ?? "all");
 }
 
@@ -184,12 +184,12 @@ async function nextRound(ctx: MutationCtx, game: Doc<"games">) {
 // ---------- votes (v2): jail and release, after every round ----------
 
 /** Guests in the game who aren't in jail: they search, vote and lock in. */
-const freeOf = (players: Doc<"players">[]) => playingOf(players).filter((p) => !p.jailed);
+export const freeOf = (players: Doc<"players">[]) => playingOf(players).filter((p) => !p.jailed);
 
 /** This round's vote, open or showing its verdict. */
-const voteOf = (game: Doc<"games">) => (game.vote && game.vote.round === game.round ? game.vote : null);
+export const voteOf = (game: Doc<"games">) => (game.vote && game.vote.round === game.round ? game.vote : null);
 
-async function ballotsOf(ctx: QueryCtx, gameId: Id<"games">, voteAt: number) {
+export async function ballotsOf(ctx: QueryCtx, gameId: Id<"games">, voteAt: number) {
   return await ctx.db
     .query("ballots")
     .withIndex("by_game_vote", (q) => q.eq("gameId", gameId).eq("voteAt", voteAt))
@@ -211,7 +211,7 @@ async function startVote(ctx: MutationCtx, game: Doc<"games">, kind: "jail" | "r
 }
 
 /** Counts the ballots. More than half of the voters on one guest jails (or frees) them; anything less is nobody. */
-async function closeVote(ctx: MutationCtx, game: Doc<"games">) {
+export async function closeVote(ctx: MutationCtx, game: Doc<"games">) {
   const v = game.vote;
   if (!v || v.closedAt) return;
   const counts = new Map<string, number>();
@@ -394,7 +394,7 @@ async function publicVote(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">
  * Ready votes: once most guests in the game are ready, the round ends after a 30-second last call (I4, Oct 17: nobody
  * gets cut off mid-search), on the round's clock.
  */
-async function maybeAdvanceOnReady(ctx: MutationCtx, game: Doc<"games">) {
+export async function maybeAdvanceOnReady(ctx: MutationCtx, game: Doc<"games">) {
   if (game.pacing.mode !== "ready" || game.paused || !game.round || game.round > 3 || voteOf(game)) return;
   if (game.roundEndsAt) return; // the last call is already running
   const inGame = freeOf(await playersOf(ctx, game._id));
@@ -406,7 +406,7 @@ async function maybeAdvanceOnReady(ctx: MutationCtx, game: Doc<"games">) {
 }
 
 /** Accusations: once everyone in the game has accused, the reveal starts. */
-async function maybeRevealOnAccusations(ctx: MutationCtx, game: Doc<"games">) {
+export async function maybeRevealOnAccusations(ctx: MutationCtx, game: Doc<"games">) {
   if (!isPlaying(game) || (game.round ?? 0) < 4 || game.paused) return;
   const inGame = freeOf(await playersOf(ctx, game._id));
   const acc = await ctx.db
@@ -570,28 +570,51 @@ export const scanMarker = mutation({
     const { marker, cardNumber } = await markerForCode(ctx, game._id, code);
     if (!marker && cardNumber !== null) throw new ConvexError(`Card ${cardNumber} isn't in play tonight. Keep looking.`);
     if (!marker) throw new ConvexError("That code isn't one of tonight's evidence cards. Check it and try again.");
-    if (!marker.roomKey) throw new ConvexError(`Card ${marker.number} isn't in play tonight. Keep looking.`);
-    if (game.status === "registration" || game.status === "lobby") throw new ConvexError("Nothing here yet. The cards come alive when the game starts.");
-    if (!player.inGame) throw new ConvexError("Only guests who were checked in before the game started can read the cards.");
-    if (player.jailed) throw new ConvexError("You're in jail. You can talk and bribe, but you can't search.");
-    const opens = markerOpensIn(game, marker.roomKey);
-    if (isPlaying(game) && (game.round ?? 1) < opens) {
-      const room = game.rooms.find((r) => r.key === marker.roomKey)?.label ?? "This room";
-      throw new ConvexError(`${room} is sealed until Round ${opens}. Come back then.`);
-    }
-    const cf = await caseFor(ctx, game);
-    const clue = cf?.clues.find((c) => c.channel === "marker" && c.markerNumber === marker.number);
-    const seen = await ctx.db
-      .query("scans")
-      .withIndex("by_player", (q) => q.eq("playerId", player._id))
-      .collect();
-    if (!seen.some((s) => s.markerNumber === marker.number)) {
-      await ctx.db.insert("scans", { gameId: game._id, playerId: player._id, markerNumber: marker.number, at: Date.now() });
-    }
-    const room = game.rooms.find((r) => r.key === marker.roomKey);
-    return { number: marker.number, room: room?.label ?? "", text: clue?.text ?? "Nothing useful here." };
+    return await scanFor(ctx, game, player, marker);
   },
 });
+
+/**
+ * Solo test mode (Oct 20): in a test game the phone can "find" a card by its number, so a test needs no printed cards.
+ * Exactly the same rules as scanning one.
+ */
+export const scanTestCard = mutation({
+  args: { token: v.string(), number: v.number() },
+  handler: async (ctx, { token, number }) => {
+    const { player, game } = await requirePlayer(ctx, token);
+    if (!game.isTest) throw new ConvexError("Only test games can find cards without scanning them.");
+    const marker = (await ctx.db
+      .query("markers")
+      .withIndex("by_game", (q) => q.eq("gameId", game._id))
+      .collect()).find((m) => m.number === number);
+    if (!marker) throw new ConvexError(`Card ${number} isn't in play tonight.`);
+    return await scanFor(ctx, game, player, marker);
+  },
+});
+
+/** Records a guest's scan of a card (once) and returns what it says, if they may read it now. */
+export async function scanFor(ctx: MutationCtx, game: Doc<"games">, player: Doc<"players">, marker: Doc<"markers">) {
+  if (!marker.roomKey) throw new ConvexError(`Card ${marker.number} isn't in play tonight. Keep looking.`);
+  if (game.status === "registration" || game.status === "lobby") throw new ConvexError("Nothing here yet. The cards come alive when the game starts.");
+  if (!player.inGame) throw new ConvexError("Only guests who were checked in before the game started can read the cards.");
+  if (player.jailed) throw new ConvexError("You're in jail. You can talk and bribe, but you can't search.");
+  const opens = markerOpensIn(game, marker.roomKey);
+  if (isPlaying(game) && (game.round ?? 1) < opens) {
+    const room = game.rooms.find((r) => r.key === marker.roomKey)?.label ?? "This room";
+    throw new ConvexError(`${room} is sealed until Round ${opens}. Come back then.`);
+  }
+  const cf = await caseFor(ctx, game);
+  const clue = cf?.clues.find((c) => c.channel === "marker" && c.markerNumber === marker.number);
+  const seen = await ctx.db
+    .query("scans")
+    .withIndex("by_player", (q) => q.eq("playerId", player._id))
+    .collect();
+  if (!seen.some((s) => s.markerNumber === marker.number)) {
+    await ctx.db.insert("scans", { gameId: game._id, playerId: player._id, markerNumber: marker.number, at: Date.now() });
+  }
+  const room = game.rooms.find((r) => r.key === marker.roomKey);
+  return { number: marker.number, room: room?.label ?? "", text: clue?.text ?? "Nothing useful here." };
+}
 
 export const saveNotebook = mutation({
   args: { token: v.string(), crossed: v.array(v.string()) },
@@ -746,6 +769,8 @@ export const phone = query({
         hasAccomplice: started && !!game.hasAccomplice,
         verdictMs: (game.revealPlan ?? revealTimes(started && !!game.hasAccomplice, game.tone ?? "classic")).verdict,
         nextSlug: game.nextSlug ?? null, // the host started another game: sign up for it
+        // Solo test mode (Oct 20): a test game with bots. The phone can find cards by number and ask the bots.
+        bots: game.isTest && !!game.bots,
       },
       me: {
         id: player._id,
@@ -802,6 +827,14 @@ export const phone = query({
               };
             })
         : [],
+      // Solo test mode (Oct 20): every card in play, by number and room, for finding one without scanning it.
+      testCards:
+        game.isTest && started
+          ? markers
+              .filter((m) => m.roomKey)
+              .sort((a, b) => a.number - b.number)
+              .map((m) => ({ number: m.number, room: roomLabel(m.roomKey), open: markerOpensIn(game, m.roomKey) <= round || round >= 4, found: scans.some((s) => s.markerNumber === m.number) }))
+          : [],
       evidence: cf
         ? cf.clues
             .filter((c) => c.channel === "tv" && c.round <= (game.round ?? 0))
@@ -810,7 +843,15 @@ export const phone = query({
       board: input
         ? {
             suspects: await Promise.all(
-              input.suspects.map(async (s) => ({ id: s.id, name: s.name, signature: s.signature, photoUrl: await photo(all.find((p) => p._id === s.id)!), figure: all.find((p) => p._id === s.id)?.figure ?? null })),
+              input.suspects.map(async (s) => ({
+                id: s.id,
+                name: s.name,
+                signature: s.signature,
+                photoUrl: await photo(all.find((p) => p._id === s.id)!),
+                figure: all.find((p) => p._id === s.id)?.figure ?? null,
+                // Solo test mode: the bots can be asked what they know.
+                bot: game.isTest && !!all.find((p) => p._id === s.id)?.bot,
+              })),
             ),
             exhibits: input.exhibits.map((e) => ({ id: e.id, letter: e.letter, name: e.name, key: keyOf.get(e.id) ?? null })),
             rooms: input.rooms,
@@ -986,6 +1027,7 @@ export const openDoors = mutation({
     await ensureWeapons(ctx, game, signedUp);
     await ctx.db.patch(game._id, { status: "lobby", doorsAt: Date.now() });
     await ensureRoomCode(ctx, game);
+    if (game.isTest && game.bots) await ctx.scheduler.runAfter(0, internal.bots.wake, { gameId: game._id });
     return { ok: true };
   },
 });
@@ -1080,6 +1122,7 @@ export const startGame = mutation({
     // The roll call's voices first (it plays in a couple of minutes), then the names for the intro, the waves
     // and the reveal: one clip for every guest, exhibit and room.
     await scheduleRecording(ctx, game._id, "roll", undefined, "start");
+    if (game.isTest && game.bots) await ctx.scheduler.runAfter(0, internal.bots.wake, { gameId: game._id });
     return {
       suspects: input.suspects.length,
       exhibits: input.exhibits.length,

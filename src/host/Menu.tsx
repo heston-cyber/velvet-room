@@ -12,6 +12,7 @@ import { downloadCardsPdf } from "./printCards";
 import { weaponUrl } from "../lib/weapon";
 import { faceUrl } from "../lib/figure";
 import { NarratorSection, VOICE_STATUS, hear } from "./Voice";
+import { MAX_BOTS, MIN_BOTS } from "../../convex/botBrain";
 
 export type SettingsPatch = Omit<FunctionArgs<typeof api.host.updateSettings>, "slug" | "hostKey">;
 
@@ -70,6 +71,8 @@ export default function Menu(props: { data: Roster; slug: string; hostKey: strin
           <span>The game is running, so the game settings are locked. Guest Wi-Fi can still be changed.</span>
         </Swap>
 
+        {game.bots && <Bots slug={slug} hostKey={hostKey} bots={game.bots} locked={locked} onError={onError} />}
+
         <Sec title="The game">
           {/* S6 (Oct 17): the script is picked with the narrator (Narrator and script). */}
           {/* Oct 17: the game writes every motive (D9); guests can opt out of being the killer at sign-up (D8). Oct 18: no secrets. */}
@@ -114,6 +117,55 @@ export default function Menu(props: { data: Roster; slug: string; hostKey: strin
         <Guests data={data} slug={slug} hostKey={hostKey} locked={locked} onError={onError} />
       </div>
     </div>
+  );
+}
+
+/** Solo test mode (Oct 20): a test game's bots. How many (before the game starts), how fast, and their voices. */
+function Bots(props: { slug: string; hostKey: string; bots: NonNullable<Roster["game"]["bots"]>; locked: boolean; onError: (m: string | null) => void }) {
+  const update = useMutation(api.bots.updateBots);
+  const [count, setCount] = useState(props.bots.count);
+  useEffect(() => setCount(props.bots.count), [props.bots.count]);
+  async function save(patch: { count?: number; speed?: "party" | "fast"; voices?: boolean }) {
+    props.onError(null);
+    try {
+      await update({ slug: props.slug, hostKey: props.hostKey, ...patch });
+    } catch (e) {
+      props.onError(friendlyError(e));
+    }
+  }
+  return (
+    <Sec title="Bots" className="hx-bots">
+      <span className="help">A test game: the bots play the other guests. Join on your phone with the room code and sign up at the door.</span>
+      <div className="row">
+        <label htmlFor="bot-count">How many</label>
+        <input
+          id="bot-count"
+          type="number"
+          min={MIN_BOTS}
+          max={MAX_BOTS}
+          value={count}
+          disabled={props.locked}
+          onChange={(e) => setCount(Math.round(Number(e.target.value) || MIN_BOTS))}
+          onBlur={() => count !== props.bots.count && void save({ count: Math.max(MIN_BOTS, Math.min(MAX_BOTS, count)) })}
+        />
+      </div>
+      <Seg
+        label="How fast the bots play"
+        value={props.bots.speed}
+        options={[
+          ["party", "Party pace"],
+          ["fast", "Fast"],
+        ]}
+        onPick={(speed) => void save({ speed })}
+      />
+      <Toggle
+        id="bot-voices"
+        checked={props.bots.voices}
+        onChange={(voices) => void save({ voices })}
+        label="Say the bots' names"
+        help="Off: the narrator skips lines with a bot's name, so a test doesn't use voice credits. Your own lines still record."
+      />
+    </Sec>
   );
 }
 

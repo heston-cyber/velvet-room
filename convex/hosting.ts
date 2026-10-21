@@ -6,7 +6,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
-import type { QueryCtx } from "./_generated/server";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { DEFAULT_ROOMS, randomCode } from "./lib";
 
 export const HOURLY_GAME_CAP = 30;
@@ -18,47 +18,57 @@ export const NEW_GAME_TITLE = "The Velvet Room";
 export const createGame = mutation({
   args: {},
   handler: async (ctx) => {
-    const now = Date.now();
-    const recent = await ctx.db
-      .query("games")
-      .withIndex("by_created", (q) => q.gt("createdAt", now - 60 * 60 * 1000))
-      .collect();
-    if (recent.filter((g) => g.selfServe).length >= HOURLY_GAME_CAP) {
-      throw new ConvexError("A lot of games are starting right now. Try again in a few minutes.");
-    }
-    let slug = "";
-    for (let i = 0; i < 20 && !slug; i++) {
-      const s = `party-${randomCode(6)}`;
-      const taken = await ctx.db
-        .query("games")
-        .withIndex("by_slug", (q) => q.eq("slug", s))
-        .first();
-      if (!taken) slug = s;
-    }
-    if (!slug) throw new ConvexError("Couldn't start a game. Try again.");
-    const hostKey = randomCode(16);
-    await ctx.db.insert("games", {
-      slug,
-      title: NEW_GAME_TITLE,
-      isTest: false,
-      isActive: false,
-      selfServe: true,
-      hostKey,
-      tvKey: randomCode(16),
-      status: "registration",
-      registrationOpen: true,
-      registrationClosesAt: now + SIGNUP_DAYS * 24 * 60 * 60 * 1000,
-      deadlineLabel: "the party",
-      motiveMode: "game",
-      killerOptIn: true,
-      rooms: DEFAULT_ROOMS,
-      pacing: { mode: "ready", roundMinutes: 12 },
-      search: "waves",
-      createdAt: now,
-    });
+    const { slug, hostKey } = await insertSelfServeGame(ctx, {});
     return { slug, hostKey };
   },
 });
+
+/**
+ * A new game started from /host (a real one, or a test game with bots: convex/bots.ts). Counts toward the hourly
+ * limit either way.
+ */
+export async function insertSelfServeGame(ctx: MutationCtx, opts: { isTest?: boolean; bots?: Doc<"games">["bots"] }) {
+  const now = Date.now();
+  const recent = await ctx.db
+    .query("games")
+    .withIndex("by_created", (q) => q.gt("createdAt", now - 60 * 60 * 1000))
+    .collect();
+  if (recent.filter((g) => g.selfServe).length >= HOURLY_GAME_CAP) {
+    throw new ConvexError("A lot of games are starting right now. Try again in a few minutes.");
+  }
+  let slug = "";
+  for (let i = 0; i < 20 && !slug; i++) {
+    const s = `party-${randomCode(6)}`;
+    const taken = await ctx.db
+      .query("games")
+      .withIndex("by_slug", (q) => q.eq("slug", s))
+      .first();
+    if (!taken) slug = s;
+  }
+  if (!slug) throw new ConvexError("Couldn't start a game. Try again.");
+  const hostKey = randomCode(16);
+  const gameId = await ctx.db.insert("games", {
+    slug,
+    title: NEW_GAME_TITLE,
+    isTest: !!opts.isTest,
+    isActive: false,
+    selfServe: true,
+    hostKey,
+    tvKey: randomCode(16),
+    status: "registration",
+    registrationOpen: true,
+    registrationClosesAt: now + SIGNUP_DAYS * 24 * 60 * 60 * 1000,
+    deadlineLabel: "the party",
+    motiveMode: "game",
+    killerOptIn: true,
+    rooms: DEFAULT_ROOMS,
+    pacing: { mode: "ready", roundMinutes: 12 },
+    search: "waves",
+    createdAt: now,
+    ...(opts.bots ? { bots: opts.bots } : {}),
+  });
+  return { slug, hostKey, gameId };
+}
 
 async function bySlug(ctx: QueryCtx, slug: string) {
   return await ctx.db

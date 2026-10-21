@@ -68,6 +68,7 @@ export const roster = query({
           accused: accused.has(p._id),
           claimed: !!p.claimedAt,
           registeredAt: p.createdAt,
+          bot: !!p.bot,
         })),
     );
     // v2: the free guests (not in jail) are the ones who ready up and lock in.
@@ -123,6 +124,8 @@ export const roster = query({
         nextSlug: game.nextSlug ?? null,
         gameNumber: game.gameNumber ?? 1,
         tvKey: game.tvKey ?? null,
+        // Solo test mode (Oct 20): a test game with bots, how many, how fast they play, and whether their names get voices.
+        bots: game.isTest && game.bots ? { speed: game.bots.speed, voices: game.bots.voices, count: players.filter((p) => p.bot).length } : null,
         // Public once the game starts: where the body was found, and which rooms are open now.
         bodyRoom: started(game) ? label(game.bodyRoomKey) : null,
         openRooms: started(game) && game.roomOrder ? openRoomsIn(round, game.roomOrder, game.search).map(label) : [],

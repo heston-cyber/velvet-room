@@ -80,3 +80,9 @@
 .hs-paste[open] { display: grid; gap: 10px; }
 .hs-switch { position: absolute; bottom: 2.4cqw; right: 2.4cqw; background: none; border: 0; color: var(--muted); font-family: var(--label); font-size: 1.05cqw; letter-spacing: .2em; text-transform: uppercase; cursor: pointer; padding: .6cqw; }
 .hs-switch:hover, .hs-switch:focus-visible { color: var(--brass); }
+/* Solo test mode (Oct 20): start a test game with bots. */
+.hs-bots { max-width: 520px; }
+.hs-bots[open] { text-align: left; justify-items: stretch; }
+.hs-bots .hs-sub { font-size: 15px; max-width: none; }
+.hs-bots-row { display: grid; grid-template-columns: auto 120px; align-items: center; gap: 12px; color: var(--paper); }
+.hs-bots .help { color: var(--muted); font-size: 13px; }

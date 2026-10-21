@@ -9,6 +9,8 @@
  */
 
 import type * as admin from "../admin.js";
+import type * as botBrain from "../botBrain.js";
+import type * as bots from "../bots.js";
 import type * as cards from "../cards.js";
 import type * as caseFile from "../caseFile.js";
 import type * as engine_build from "../engine/build.js";
@@ -47,6 +49,8 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
+  botBrain: typeof botBrain;
+  bots: typeof bots;
   cards: typeof cards;
   caseFile: typeof caseFile;
   "engine/build": typeof engine_build;
