@@ -27,7 +27,7 @@ export type ProfileValues = {
   sayAs: string;
   /** The drawing they picked as their avatar. */
   figure: string;
-  /** Party cast: their 1920s nickname and last name, typed here. */
+  /** Party cast: their gangster nickname and last name, typed here. */
   nickname: string;
   lastName: string;
   /** F6 (Oct 17): a mystery guest's own first name. */
@@ -230,7 +230,7 @@ export default function ProfileForm(props: {
     case "door":
       body = (
         <div className="door">
-          <span className="eyebrow">New York City · October 31, 1929</span>
+          <span className="eyebrow">New York City · October 31, 2026</span>
           <Deco />
           <h1 className="title-xl">The Velvet Room</h1>
           <p className="lede">
@@ -306,11 +306,11 @@ export default function ProfileForm(props: {
             <>
               {/* Oct 18 (Heston: "at sign up people will input their real name (this is only used for the mid game insults)"). */}
               {field("firstName", mystery ? "Your first name" : "Your real first name", {
-                ph: "e.g. Ruth",
+                ph: "e.g. Jordan",
                 help: mystery ? undefined : "The narrator uses it now and then, mostly to insult you.",
               })}
               {field("lastName", "Your last name", { ph: "e.g. Hill" })}
-              {field("nickname", "Your 1920s nickname · optional", {
+              {field("nickname", "Your gangster nickname · optional", {
                 ph: "e.g. Two-Tone, The Knife, Lucky",
                 help: "Just the nickname: Two-Tone, not “aka Two-Tone”. The narrator adds the a.k.a.",
                 publicHelp: true,

@@ -150,7 +150,8 @@ function TvInner({ slug, tvKey, onNext, overlay, bare }: { slug: string; tvKey: 
       if (!engine.unlocked) continue;
       if (e.sfx) void engine.sfx(e.sfx);
       else if (e.clip) void engine.voice(e.clip.url, 0.9);
-      else if (e.cue) void engine.voice(engine.narrationUrl(voice, tone, cueFile(e.cue, e.v)));
+      // Oct 21: only a recording that says the line's current words (in the manifest); otherwise the caption alone.
+      else if (e.cue && engine.narrationSecs(voice, tone, cueFile(e.cue, e.v)) !== null) void engine.voice(engine.narrationUrl(voice, tone, cueFile(e.cue, e.v)));
     }
   });
 
@@ -168,7 +169,8 @@ function TvInner({ slug, tvKey, onNext, overlay, bare }: { slug: string; tvKey: 
       lastCheck.current = checkAt;
       setCheckUntil(Date.now() + 7000);
       void engine.sfx("chime");
-      window.setTimeout(() => void engine.voice(engine.narrationUrl(voice, tone, cueFile("soundCheck", cueVariant(tone, "soundCheck", data.game.slug, String(checkAt), linePicks)))), 900);
+      const file = cueFile("soundCheck", cueVariant(tone, "soundCheck", data.game.slug, String(checkAt), linePicks));
+      if (engine.narrationSecs(voice, tone, file) !== null) window.setTimeout(() => void engine.voice(engine.narrationUrl(voice, tone, file)), 900);
     }
   }, [checkAt, !!data]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -398,7 +400,7 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
           node: (
             <>
               <div className="tv-scene">
-                <span className="tv-kick">New York City · October 31, 1929</span>
+                <span className="tv-kick">New York City · October 31, 2026</span>
                 <div className="tv-deco" />
                 <h2 className="tv-h2">The Velvet Room</h2>
                 <p className="tv-sub">{(g.gameNumber ?? 1) > 1 ? "A new mystery. Scan the code and make a new character." : "The doors open soon."}</p>
@@ -795,7 +797,7 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
     const beat = now >= beats[2] ? 2 : now >= beats[1] ? 1 : 0;
     const frames = [
       <div className="tv-scene dark" key="i0">
-        <span className="tv-kick fade">New York City · October 31, 1929</span>
+        <span className="tv-kick fade">New York City · October 31, 2026</span>
       </div>,
       <div className="tv-scene dark" key="i1">
         <h2 className="tv-h2 fade blood">The Don is dead.</h2>

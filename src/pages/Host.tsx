@@ -427,7 +427,7 @@ function TitleScreen({ title, isTest, onPlay, onOptions, onSwitch }: { title: st
   const { busy, run } = useBusy();
   return (
     <div className="hs-cover hs-title">
-      <span className="hs-kick">New York City · October 31, 1929</span>
+      <span className="hs-kick">New York City · October 31, 2026</span>
       <div className="hs-deco" aria-hidden="true" />
       <h1 className="hs-logo">{title.replace(/\s*\([^)]*\)/g, "")}</h1>
       {isTest && <span className="hs-test">Test game</span>}

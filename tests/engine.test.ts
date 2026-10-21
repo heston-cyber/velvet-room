@@ -48,11 +48,11 @@ function textMatchesLogic(input: CaseInput, c: PlacedClue, bodyRoomKey: string):
 const SAYS: [RegExp, RegExp][] = [
   // words in a clue → words in a room's name
   [/\bbar\b(?! tab)|bartender/i, /\bbar\b/i],
-  [/coat-check|coat check|hall telephone/i, /coat|cloak|foyer|entry|front|hall/i],
-  [/piano|bandleader|dance floor|bandstand|the band\b|Charleston/i, /lounge|ballroom|dance|music/i],
-  [/\bat cards\b|craps|card sharps/i, /\bcards?\b|gaming|casino|poker/i],
+  [/coat-check|coat check|hall telephone|\bin the hall\b/i, /coat|cloak|foyer|entry|front|hall/i],
+  [/piano|bandleader|dance floor|bandstand|the band\b|Charleston|\bDJ\b|TikTok dance/i, /lounge|ballroom|dance|music/i],
+  [/\bat cards\b|\bat poker\b|craps|card sharps|card sharks/i, /\bcards?\b|gaming|casino|poker/i],
   [/kitchen|\bcook\b|dishwasher/i, /kitchen/i],
-  [/powder room|\bthe can\b/i, /bath|powder|wash|restroom/i],
+  [/powder room|\bthe can\b|restroom/i, /bath|powder|wash|restroom/i],
 ];
 function contradictions(input: CaseInput, cf: CaseFile): string[] {
   const out: string[] = [];
@@ -60,8 +60,8 @@ function contradictions(input: CaseInput, cf: CaseFile): string[] {
   const crowded = new Map<string, number>();
   for (const c of cf.clues.filter((x) => x.kind === "room")) {
     const r = c.elim.rooms[0];
-    if (/locked|dust|ribbon|set foot/i.test(c.text)) sealed.add(r);
-    else if (/witnesses|card game|toast/i.test(c.text)) crowded.set(r, Math.min(crowded.get(r) ?? 9, c.round));
+    if (/locked|dust|ribbon|set foot|Do Not Enter/i.test(c.text)) sealed.add(r);
+    else if (/witnesses|card game|toast|birthday party/i.test(c.text)) crowded.set(r, Math.min(crowded.get(r) ?? 9, c.round));
     else out.push(`${c.id}: a room clear that says neither who was there nor that it was shut`);
   }
   for (const c of cf.clues.filter((x) => ["suspect", "suspectPair", "suspectTrio", "exhibit", "exhibitPair"].includes(x.kind))) {

@@ -23,8 +23,8 @@ const ROOM_WORDS: Record<string, RegExp> = {
   kitchen: /kitchen|pantry/i,
   cardTable: /\bcards?\b|gaming|casino|poker|craps/i,
   coatCheck: /coat|cloak|foyer|entry|entrance|front|hall/i,
-  hallPhone: /coat|cloak|foyer|entry|entrance|front|hall/i,
-  powderRoom: /bath|powder|wash|restroom|lavatory/i,
+  hallway: /coat|cloak|foyer|entry|entrance|front|hall/i,
+  restroom: /bath|powder|wash|restroom|lavatory/i,
   cellar: /cellar|basement/i,
   backStairs: /stair/i,
   roof: /roof|terrace/i,
@@ -33,9 +33,9 @@ const ROOM_WORDS: Record<string, RegExp> = {
 
 /** Details whose deciding card would contradict another detail's story (written apart from the engine's topics). */
 const CLASHES: [string, string][] = [
-  ["curb-cabs", "cab-meter"],
-  ["curb-cabs", "cab-radio"],
-  ["fire-pigeon", "cigar-parrot"],
+  ["curb-uber", "ride-fare"],
+  ["curb-uber", "ride-singing"],
+  ["ride-fare", "ride-singing"],
 ];
 
 type Read = { id: string; spotKey: string; partner: string | null; detail: string };

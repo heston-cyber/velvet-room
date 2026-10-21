@@ -30,7 +30,7 @@ describe("the new adult script", () => {
   test("nobody gets called the C-word anywhere in Adult, and lead-ins still lead into the name", () => {
     for (const cue of ACTIVE) for (const t of cueVersions(cue, "adult")) expect(t, cue).not.toMatch(/\bcunt/i);
     for (const cue of ["reveal1", "revealAccomplice"] as CueKey[]) for (const t of [...cueVersions(cue, "adult"), ...cleanVersions(cue, "sailor")]) expect(t.trim(), cue).toMatch(/is…$/);
-    for (const cue of ["awardDetective", "awardDressed", "awardLiar"] as CueKey[]) for (const t of [...cueVersions(cue, "adult"), ...cleanVersions(cue, "sailor")]) expect(t.trim(), cue).toMatch(/(to|is)…$/);
+    for (const cue of ["awardDetective", "awardDressed"] as CueKey[]) for (const t of [...cueVersions(cue, "adult"), ...cleanVersions(cue, "sailor")]) expect(t.trim(), cue).toMatch(/(to|is)…$/);
     // the rules still teach the rules
     for (const t of cueVersions("howCase", "adult")) expect(plain(t)).toMatch(/only the guilty/i);
     for (const t of [...cueVersions("howJail2", "adult"), ...cleanVersions("howJail2", "sailor")]) {

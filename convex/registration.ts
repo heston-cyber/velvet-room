@@ -36,7 +36,7 @@ const profileArgs = {
   rumor: v.optional(v.string()),
   sayAs: v.optional(v.string()),
   figure: v.optional(v.string()), // the drawing they picked as their avatar
-  nickname: v.optional(v.string()), // party cast: their 1920s nickname ("Two-Tone"), optional
+  nickname: v.optional(v.string()), // party cast: their gangster nickname ("Two-Tone"), optional
   lastName: v.optional(v.string()), // party cast: their last name, optional
   firstName: v.optional(v.string()), // F6: a mystery guest's own first name
 };

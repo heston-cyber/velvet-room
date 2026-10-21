@@ -1,6 +1,6 @@
 // The party cast: drawings of the real guests, and the only characters in the game (Heston, Oct 16: "All the
 // generic characters should all be gone, replaced by all the custom characters across the board"). At sign-up each
-// guest taps their own face and goes by their own name and a 1920s nickname ("Josh “Two-Tone” Lee") on screen and
+// guest taps their own face and goes by their own name and a gangster nickname ("Josh “Two-Tone” Lee") on screen and
 // in the narration. Each drawing belongs to one guest per game; whoever picks a character plays. Test guests are the
 // cast too. The drawings live in public/art/<key>.webp (faces in public/art/faces). The Don and the masked killer are
 // the story's own and never handed out (since Oct 16 the Don is Ray Sanders, drawn from his photo: "Don Ray Sanders"). (The old 16 drawings stay in public/art only so games from before still show.)

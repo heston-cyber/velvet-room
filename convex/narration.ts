@@ -65,131 +65,23 @@ export const CUES = {
   },
   doorsReminder: {
     when: "Every few minutes while guests arrive",
-    classic: "If you haven't checked in on your phone, now's the time.",
+    classic: "If you haven't checked in on your phone, now's the time. Don't leave us on read.",
     adult: "Not checked in on your phone? Until you do, you're legally a damn coat rack.",
     wild: ["[suddenly impatient, shouting]", "[mutters to self]"],
   },
   // ---- how to play (after the roll call; replaced the five house rules, Oct 14) ----
-  howTo1: {
-    when: "How to play, card 1 (the Don)",
-    classic: "[warm, conspiratorial] Before the lights go down, here's how tonight works.",
-    adult: "[warm, conspiratorial] Listen up, you degenerates. Here's how tonight works.",
-    wild: ["[clapping hands, way over the top]", ""],
-  },
-  howTo2: {
-    when: "How to play, card 2 (the masked killer)",
-    classic: "Tonight, the Don dies. [short pause] And one of you did it.",
-    adult: "Tonight, the Don gets whacked. [short pause] And one of you is holding the bag.",
-    wild: ["[deadly serious]", "[giggles nervously]"],
-  },
-  howTo3: {
-    when: "How to play, card 3 (your phone)",
-    classic: "Your phone holds your secret role. Press and hold to read it, and keep your screen to yourself.",
-    adult: "Your phone has your secret role. Press and hold to read it, and keep your nosy eyes off everyone else's.",
-    wild: ["[conspiratorial whisper]", "[giggles]"],
-  },
-  howTo4: {
-    when: "How to play, card 4 (searching; every room open)",
-    classic: "Then search the house. Evidence markers are hidden in every room on the map. Scan each one you find.",
-    adult: "Then tear the joint apart. Evidence markers are stashed in every room on the map. Scan every one you find.",
-    wild: ["[shouting like a carnival barker]", ""],
-  },
-  howTo4Waves: {
-    when: "How to play, card 4 (searching; rooms open in waves)",
-    classic: "Then search the house. Evidence markers are hidden in the rooms on the map. Sealed rooms open a few at a time, so stay out until they do.",
-    adult: "Then tear the joint apart. Markers are stashed in the rooms on the map. Sealed rooms open a few at a time. Stay out till they do.",
-    wild: ["[shouting like a carnival barker]", ""],
-  },
-  howTo5: {
-    when: "How to play, card 5 (the map)",
-    classic: "Every marker that's found gets stamped on the map, so everyone can see what's left.",
-    adult: "Every marker somebody finds gets stamped on the map. No hogging the good stuff.",
-    wild: ["[proudly, like a game show host]", ""],
-  },
-  howTo6: {
-    when: "How to play, card 6 (rounds; tap Ready)",
-    classic: "When you've searched enough, tap Ready. Fresh evidence lands on this screen every round, and the last round brings a twist.",
-    adult: "When you're done snooping, tap Ready. Fresh dirt lands on this screen every round, and the last round's got a nasty twist.",
-    wild: ["[urgent, fast]", "[gasps]"],
-  },
-  howTo6Timer: {
-    when: "How to play, card 6 (rounds on the clock)",
-    classic: "Each round runs on the clock. Fresh evidence lands on this screen every round, and the last round brings a twist.",
-    adult: "Each round runs on the clock, so move it. Fresh dirt lands on this screen every round, and the last one's got a nasty twist.",
-    wild: ["[urgent, fast]", "[gasps]"],
-  },
-  howTo7: {
-    when: "How to play, card 7 (lying)",
-    classic: "Talk to everyone. You may lie about your own secrets. [short pause] Only the guilty may lie about the murder.",
-    adult: "Talk to everybody. Lie about your own secrets all you want. [short pause] Only the guilty get to lie about the murder.",
-    wild: ["[deadly serious]", "[bursts out laughing]"],
-  },
-  howTo8: {
-    when: "How to play, card 8 (accusing)",
-    classic: "After the last round, accuse someone on your phone: who did it, with which exhibit, and where. Get all three and you're an Ace Detective.",
-    adult: "After the last round, point the finger on your phone: who, with what, and where. Nail all three and you're an Ace Detective.",
-    wild: ["[building to a frenzy]", ""],
-  },
-  howTo9: {
-    when: "How to play, card 9 (winning)",
-    classic: "You need more than half the lock-ins on the killer, more than half on the weapon and more than half on the room, or the killer wins. The killer locks in too. Then we vote for Best Dressed and Best Liar. [short pause] Good luck. You'll need it.",
-    adult: "More than half the lock-ins on the killer, more than half on the weapon, more than half on the room, and the killer locks in too. Screw up one, and the killer walks. Then we vote for Best Dressed and Best Liar. [short pause] Good luck. You're gonna need it.",
-    wild: ["[maniacal laughter]", "[cackles]"],
-  },
   // ---- How to play, v2 (Oct 15): after the murder, before the roll call. Drafts for Heston's review. ----
-  howKiller: {
-    when: "How to play v2, card 1 (the masked killer)",
-    classic: "[warm, conspiratorial] Here's how tonight works. One of you is the killer. [short pause] Everyone else has to prove it.",
-    adult: "[warm, conspiratorial] Here's how this goes. One of you is a killer. The rest of you are witnesses with a drinking problem. [short pause] Nail the killer anyway.",
-    wild: ["[clapping hands, way over the top]", "[cackles]"],
-  },
   howAccomplice: {
     when: "How to play v2, the accomplice (killer + accomplice games only)",
     classic: "Tonight the killer has an accomplice. They didn't do it, but they know who did, and they'll lie for them. [short pause] When you lock in, take a guess at the accomplice too.",
-    adult: "The killer placed an ad. Help wanted: one accomplice. Didn't do it, knows who did, lies for them. No pay. Must be a two-faced rat. Saps need not apply. [short pause] Guess who got the job when you lock in.",
+    adult: "The killer posted a job listing. Help wanted: one accomplice. Didn't do it, knows who did, lies for them. Unpaid internship. Must be a two-faced rat. NPCs need not apply. [short pause] Guess who got the job when you lock in.",
     wild: ["[conspiratorial whisper, way too close to the mic]", "[giggles]"],
-  },
-  howRoles: {
-    when: "How to play v2, card 2 (your phone)",
-    classic: "After the roll call, your phone shows your secret role. Press and hold to read it, and keep your screen to yourself.",
-    adult: "After the roll call, your phone shows your secret role. Press and hold to read it. Looking at somebody else's screen is a felony in this house.",
-    wild: ["[conspiratorial whisper]", "[giggles]"],
   },
   howWeapons: {
     when: "How to play v2, card 3 (the weapons)",
     classic: "Nobody brought a weapon tonight. The house picked them, and here they are. [short pause] One of them is about to do the deed.",
-    adult: "Nobody brought a weapon tonight. The house supplied them, like towels at the Waldorf, and you'll steal them like towels at the Waldorf. [short pause] One of them is about to do the job.",
+    adult: "Nobody brought a weapon tonight. The house supplied them, like the little shampoos at a hotel, and you'll steal them like the little shampoos. [short pause] One of them is about to do the job.",
     wild: ["[deadly serious]", "[giggles nervously]"],
-  },
-  howJail: {
-    when: "How to play v2, the jail vote",
-    classic: "After Round 2, you can vote one guest into jail. It takes more than half of you, or nobody goes. [short pause] The jailbird can talk and bribe, but can't search, vote or lock in.",
-    adult: "After Round 2, you can vote somebody into jail. It takes more than half of you, or nobody goes. [short pause] The jailbird can talk and bribe, but can't search, vote or lock in. This is called the justice system.",
-    wild: ["[banging on the bars, shouting]", "[evil laugh]"],
-  },
-  howRelease: {
-    when: "How to play v2, the release vote",
-    classic: "After Round 3, before the lock-in, you can vote the jailbird back out. Same rule: more than half of you.",
-    adult: "After Round 3, before the lock-in, you can spring the jailbird. Same rule, more than half of you. Bail, like everything else at Tammany Hall, is a popularity contest.",
-    wild: ["[jingling keys, way too excited]", ""],
-  },
-  howTo7Acc: {
-    when: "How to play v2, lying (killer + accomplice games)",
-    classic: "Talk to everyone. You may lie about your own secrets. [short pause] Only the killer and the accomplice may lie about the murder.",
-    adult: "Talk to everybody. Lie about your own secrets all you want. [short pause] Only the killer and the accomplice get to lie about the murder.",
-    wild: ["[deadly serious]", "[bursts out laughing]"],
-  },
-  howLockIn: {
-    when: "How to play v2, the lock-in",
-    classic: "After the last round, everyone who's free locks in on their phone: who did it, with which weapon, and in which room.",
-    adult: "After the last round, everybody who isn't behind bars locks in on their phone: who did it, with what, and where. Once you lock in, that's it. No appeals, no recounts, no crying.",
-    wild: ["[building to a frenzy]", ""],
-  },
-  howWin: {
-    when: "How to play v2, winning",
-    classic: "More than half the lock-ins need the right killer, more than half the right weapon, and more than half the right room. The killer locks in too. Exactly half won't do. [short pause] Miss one, and the killer walks. Then we vote for Best Dressed and Best Liar. Good luck.",
-    adult: "More than half the lock-ins need the right killer, more than half the right weapon, and more than half the right room, and the killer locks in too. Exactly half is a tie, and ties go to the killer. [short pause] Then we vote for Best Dressed and Best Liar.",
-    wild: ["[maniacal laughter]", "[cackles]"],
   },
   // ---- How to play, v3 (Oct 16, Heston: "the rules need to be simplified", "use visuals to help explain the rules,
   // and condense the rules if possible"): five cards (six with an accomplice), each with a picture that shows the
@@ -197,13 +89,13 @@ export const CUES = {
   howCase: {
     when: "How to play v3, card 1 (one of you did it; your phone; lying)",
     classic: "[warm, conspiratorial] Here's how tonight works. Any minute now, Don Ray Sanders is going to die, and one of you will have done it. Your phone will tell you if it was you. [short pause] Only the guilty may lie. Everyone else tells the truth, the whole truth, and nothing but.",
-    adult: "[warm, conspiratorial] Here's the deal. Any minute, Don Ray Sanders drops dead, and one of you will have done it. Your phone will tell you if it was you. If it says you're innocent, try to look less disappointed. [short pause] Only the guilty may lie. Everyone else tells the truth, and only the truth. Your age, your money and Atlantic City are, sadly, under oath.",
+    adult: "[warm, conspiratorial] Here's the deal. Any minute, Don Ray Sanders drops dead, and one of you will have done it. Your phone will tell you if it was you. If it says you're innocent, try to look less disappointed. [short pause] Only the guilty may lie. Everyone else tells the truth, and only the truth. Your age, your Venmo history and your screen time are, sadly, under oath.",
     wild: ["[clapping hands, way over the top]", "[cackles]"],
   },
   howSearch: {
     when: "How to play v3, searching",
     classic: "Three rounds. Each round, search the house for evidence cards and scan them with your phone. [short pause] What a card says stays on your phone; the map up here just ticks it off. So compare notes.",
-    adult: "Three rounds. Raid the house like a fed: every drawer, every damn fake bookcase. Scan the evidence cards with your phone. [short pause] The dirt stays on your phone; up here, the map just ticks the card off. So compare notes.",
+    adult: "Three rounds. Raid the house like the FBI at a crypto bro's penthouse: every drawer, every damn fake bookcase. Scan the evidence cards with your phone. [short pause] The dirt stays on your phone; up here, the map just ticks the card off. So compare notes.",
     wild: ["[shouting like a carnival barker]", ""],
   },
   howJail2: {
@@ -239,7 +131,7 @@ export const CUES = {
   howWin2: {
     when: "How to play v3, locking in and winning",
     classic: "After round three, lock in who did it, with what, and where. The killer locks in too. [short pause] You win only if more than half of the lock-ins get the killer, more than half get the weapon, and more than half get the room. If not, the killer walks.",
-    adult: "After round three, lock in your bets: who, with what, and where. The killer locks in too. [short pause] You need more than half the lock-ins on the killer, more than half on the weapon, and more than half on the room. Miss one, and the killer walks, and you lose your shirt like a dumbass at Belmont.",
+    adult: "After round three, lock in your bets: who, with what, and where. The killer locks in too. [short pause] You need more than half the lock-ins on the killer, more than half on the weapon, and more than half on the room. Miss one, and the killer walks, and you lose your shirt like a dumbass on a sports-betting app.",
     wild: ["[maniacal laughter]", "[cackles]"],
   },
   // ---- roll call, v2: after How to play ----
@@ -253,19 +145,19 @@ export const CUES = {
   voteJail: {
     when: "The jail vote opens",
     classic: "Time to vote. Who goes to jail? Vote on your phone. You can pick nobody.",
-    adult: "Jail vote. Somebody's going up the river, or nobody is. Vote on your phone.",
+    adult: "Jail vote. Somebody's getting shipped to Rikers, or nobody is. Vote on your phone.",
     wild: ["[banging a gavel, way too hard]", ""],
   },
   voteRelease: {
     when: "The release vote opens (after Round 3, before the lock-in, if anyone is in jail)",
     classic: "Before the lock-in: does our jailbird get out? Vote on your phone.",
-    adult: "The parole board is now in session. That's you. Every one of you is four gins deep. Before the lock-in, vote on your phone: does the jailbird get out?",
+    adult: "The parole board is now in session. That's you. Every one of you is four vodka sodas deep. Before the lock-in, vote on your phone: does the jailbird get out?",
     wild: ["[jingling keys, giggling]", ""],
   },
   voteLastCall: {
     when: "Fifteen seconds left to vote",
     classic: "Fifteen seconds left to vote.",
-    adult: "Fifteen seconds. Get a wiggle on, or the dead guy votes for you. He's been leaning your way.",
+    adult: "Fifteen seconds. Hurry up, or the dead guy votes for you. Lowkey, he's been leaning your way.",
     wild: ["[panicking]", ""],
   },
   voteTally: {
@@ -294,29 +186,23 @@ export const CUES = {
     wild: ["[jangling keys, disappointed]", ""],
   },
   // ---- roll call (before the murder) ----
-  rollCallOpen: {
-    when: "Roll call begins",
-    classic: "[warm, conspiratorial] Before the lights go down, let's meet tonight's guests.",
-    adult: "[warm, conspiratorial] Before somebody ends up dead, let's meet the lowlifes in this room.",
-    wild: ["[way too excited, like a game show host]", "[cackles]"],
-  },
   rollCallClose: {
     when: "Roll call ends",
-    classic: "That's everyone. [short pause] Remember these faces.",
-    adult: "What a sorry-ass lot. [short pause] I've seen classier lineups at the Tombs.",
+    classic: "That's everyone. [short pause] Remember these faces. One of them is lowkey a killer.",
+    adult: "What a sorry-ass lot. [short pause] I've seen classier lineups at Rikers.",
     wild: ["[suddenly sinister]", "[evil laugh]"],
   },
   // ---- intro ----
   intro1: {
     when: "Start: lights down",
-    classic: "[low, gravelly voice] New York City. October, 1929. [long pause]",
-    adult: "[low, gravelly voice] New York City. October, 1929. [long pause]",
+    classic: "[low, gravelly voice] New York City. October 31st, 2026. [long pause]",
+    adult: "[low, gravelly voice] New York City. October 31st, 2026. [long pause]",
     wild: ["[dramatic hushed whisper]", ""],
   },
   intro2: {
     when: "Start: the body",
-    classic: "Tonight, the Velvet Room lost its owner. Don Ray Sanders has been found dead.",
-    adult: "Don Ray Sanders is dead. Tammany Hall registered the poor sap to vote within the hour.",
+    classic: "Tonight, the Velvet Room lost its owner. Don Ray Sanders has been found dead. [short pause] And no, it's not a costume.",
+    adult: "Don Ray Sanders is dead. His landlord listed the apartment within the hour. Forty applications already.",
     wild: ["[suddenly shouting]", "[sobbing dramatically]"],
   },
   intro3: {
@@ -335,7 +221,7 @@ export const CUES = {
   round1: {
     when: "Round 1 begins (all rooms open)",
     classic: "Round one. Search the house. Find the markers. Question everyone.",
-    adult: "Round one. Search the house. Question whoever smells most like gin and bullshit.",
+    adult: "Round one. Search the house. Question whoever smells most like vape smoke and bullshit.",
     wild: ["[shouting like a drill sergeant]", ""],
   },
   round1Waves: {
@@ -347,26 +233,26 @@ export const CUES = {
   oneMinute: {
     when: "One minute left in a round (timer)",
     classic: "One minute left in this round.",
-    adult: "One minute. Get a wiggle on, like the place is on fire and well insured.",
+    adult: "One minute. Hustle, like the place is on fire and well insured.",
     wild: ["[panicking]", "[hyperventilating]"],
   },
   // ---- rounds 2 and 3 ----
   round2: {
     when: "Round 2 begins",
-    classic: "Fresh evidence has come in.",
+    classic: "Fresh evidence just dropped.",
     adult: "Round two. Fresh evidence just came in, still warm. Don't ask.",
     wild: ["[gasps theatrically]", "[cackles]"],
   },
   roomsOpen: {
     when: "More rooms open (waves)",
     classic: "More rooms are open. Get searching.",
-    adult: "More rooms open. Search them like a Bowery pickpocket.",
+    adult: "More rooms open. Search them like you lost your AirPods.",
     wild: ["[squealing with delight]", ""],
   },
   round3: {
     when: "Round 3 begins",
     classic: "The last of the evidence. [short pause] And one final twist.",
-    adult: "Final evidence, and a twist that'll hit you like Black Tuesday, right in the bollocks.",
+    adult: "Final evidence, and a twist that'll hit you like a crypto crash, right in the bollocks.",
     wild: ["[ominous, way too slow]", "[evil laugh]"],
   },
   twist: {
@@ -385,7 +271,7 @@ export const CUES = {
   accuseLastCall: {
     when: "Thirty seconds left (timer)",
     classic: "Thirty seconds. Lock in your accusation.",
-    adult: "Thirty seconds. Get a wiggle on, or I pick. I've had nine bloody gins.",
+    adult: "Thirty seconds. Move it, or I pick. I've had nine bloody espresso martinis.",
     wild: ["[panicked shriek]", ""],
   },
   // ---- reveal ----
@@ -398,7 +284,7 @@ export const CUES = {
   reveal2: {
     when: "Reveal: the killer (if custom lines are off)",
     classic: "…standing right here among you.",
-    adult: "…right here, drinking the dead man's gin.",
+    adult: "…right here, drinking the dead man's tequila.",
     wild: ["[screaming]", "[sobbing]"],
   },
   reveal3: {
@@ -425,23 +311,17 @@ export const CUES = {
     adult: "Not enough of you got the killer, the weapon and the room. The killer walks. The NYPD would like to offer you all jobs.",
     wild: ["[sobbing uncontrollably]", ""],
   },
-  votePrompt: {
-    when: "After the verdict",
-    classic: "Now vote on your phones for Best Dressed. You can't vote for yourself.",
-    adult: "Now vote on your phones for Best Dressed. Bribes accepted at the bar.",
-    wild: ["[sing-song, mocking]", ""],
-  },
   // ---- awards and goodnight ----
   awards: {
     when: "Awards open",
     classic: "And now, the awards.",
-    adult: "The awards. Hollywood started doing these in May. Theirs are rigged too.",
+    adult: "The awards. Fully rigged, like everything else in this city.",
     wild: ["[over-the-top game show host]", ""],
   },
   awardDetective: {
     when: "Before the Best Detective name",
     classic: "Best Detective goes to…",
-    adult: "Best Detective, who'll be a smug pill about this until 1940, goes to…",
+    adult: "Best Detective, who'll be insufferable about this in the group chat until 2030, goes to…",
     wild: ["[building, breathless]", ""],
   },
   awardDressed: {
@@ -449,12 +329,6 @@ export const CUES = {
     classic: "Best Dressed goes to…",
     adult: "Best Dressed, for now, goes to…",
     wild: ["[swooning]", ""],
-  },
-  awardLiar: {
-    when: "Before the Best Liar name (voted among the innocents only)",
-    classic: "And Best Liar, the innocent guest who lied best about their own secret, goes to…",
-    adult: "And Best Liar. Innocents only: the killer lies for a living. This one lied for fun. It goes to…",
-    wild: ["[whispers, scandalized]", ""],
   },
   // Oct 17 (D11, D6): the innocent everyone blamed, and the killer who walked. Only played when someone won them.
   awardPrimeSuspect: {
@@ -509,24 +383,16 @@ export const CUE_KEYS = Object.keys(CUES) as CueKey[];
  */
 export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
   doors: [
-    "[warm, smoky voice] Welcome to the Velvet Room. I'm {host}. The gin was made today in a bathtub on the Bowery. Somebody's uncle was still in the tub. He says it's damn delicious, and he'd know.",
-    "[warm, smoky voice] Welcome to the Velvet Room. I'm {host}. The lights are low, the drinks are strong, and the coat check girl will hold anything you hand her. [short pause] She's handled bigger.",
+    "[warm, smoky voice] Welcome to the Velvet Room. I'm {host}. The espresso martinis were mixed today in a bathtub in Bushwick. Somebody's uncle was still in the tub. He says they slap, no cap, and he'd know.",
+    "[warm, smoky voice] Welcome to the Velvet Room. I'm {host}. The lights are low, the drinks are strong, and the coat check guy will hold anything you hand him. [short pause] He's handled bigger.",
   ],
   doorsReminder: [
     "Check in on your phone, or I tell the whole room you moved to Hoboken on purpose.",
-    "Not checked in yet? The bouncer's been told you're a fed. He's thrilled.",
-  ],
-  howKiller: [
-    "[warm, conspiratorial] Here's how tonight works. One of you killed the Don. [short pause] The rest of you are suspects, witnesses and, frankly, a fire hazard.",
-    "[warm, conspiratorial] The rules are simple. One of you is a killer. Everyone else has to figure out who, while drinking. [short pause] Mostly while drinking.",
+    "Not checked in yet? The bouncer's been told you're a narc. He's thrilled.",
   ],
   howAccomplice: [
     "There's an accomplice tonight. They didn't do it. They just know who did and lie about it, which in this city makes them a civil servant with a pension. [short pause] Guess them when you lock in.",
     "Tonight the killer brought a plus-one: someone who didn't do it, knows who did, and will lie to your face with a mouthful of your shrimp, the rat. [short pause] Guess them when you lock in.",
-  ],
-  howRoles: [
-    "After the roll call, your phone shows your secret role. Press and hold to read it. Keep it to yourself, the way you keep everything else to yourself. Poorly.",
-    "After the roll call, check your phone for your secret role. Press and hold to read it. If someone leans over to look, lean back. Harder.",
   ],
   howWeapons: [
     "From the Don's insurers, Lloyd's of London: tonight's weapons were drawn by the house. No guest brought one, and no guest owns one. [short pause] One of them is about to do the job. Lloyd's would like it known that none of you are covered anyway.",
@@ -537,87 +403,47 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
     "Jail vote, on your phone. Pick a guest, or pick nobody. Spite is a perfectly good reason.",
   ],
   voteRelease: [
-    "Release vote. Whoever's in that cell might be innocent. They might also owe you nine dollars and a hat, the deadbeat. Vote on your phone.",
+    "Release vote. Whoever's in that cell might be innocent. They might also owe you nine dollars on Venmo, the deadbeat. Vote on your phone.",
     "Before the lock-in, our jailbird gets one shot at freedom. Vote on your phone. They might be innocent. They've also been licking the damn bars.",
   ],
   voteLastCall: [
-    "Fifteen seconds. Get a wiggle on, before some Tammany jackass throws the ballot box in the East River.",
+    "Fifteen seconds. Move it, before some city council jackass throws the ballot box in the East River.",
     "Fifteen seconds. People died for your right to vote, mostly in Chicago, mostly Tuesday. Vote.",
   ],
   voteTally: [
-    "The votes are in. No secret ballot. Sorry, chumps.",
+    "The votes are in. No secret ballot. Sorry, besties.",
     "The votes are in. Not anonymous. Start apologizing, jackasses.",
   ],
   jailNobody: [
     "Nobody goes to jail. The jail is very disappointed. It cleaned. It bought flowers. It wrote a card.",
-    "Not enough votes. Nobody goes to jail. Democracy is a beautiful thing, and a total flat tire.",
+    "Not enough votes. Nobody goes to jail. Democracy is a beautiful thing, and also so mid.",
   ],
   releaseNobody: [
     "Release denied. Somebody bring them a sandwich. A crap one.",
     "Nobody gets out. Shit happens, and tonight it happened to them.",
   ],
   releaseCleared: [
-    "No vote needed. The evidence says our jailbird is clean. Applesauce, but fine.",
+    "No vote needed. The evidence says our jailbird is innocent. Sus, but fine.",
     "Put the ballots away. The evidence cleared the jailbird, so open the damn cell.",
   ],
-  howTo4: [
-    "Then search the house. Evidence markers are hidden in every room on the map. Feel around under things. Nobody here is a stranger to feeling around under things. Scan every one you find.",
-    "Then search the house. Every room on the map has markers stashed in it. Open drawers, check under cushions, and if you find something that isn't a marker, put it back and never speak of it. Scan every marker you find.",
-  ],
-  howTo4Waves: [
-    "Then search the house. Markers are hidden in the rooms on the map, and the sealed rooms open a few at a time. A closed door means no. This should not be a new concept for anyone here.",
-    "Then search the house. The rooms on the map open a few at a time. Until a room opens, stay out of it. A locked door is not a challenge. It's a door.",
-  ],
-  howTo6: [
-    "When you've searched enough, tap Ready. Once most of you are ready, fresh evidence lands on this screen. The last round has a twist. Pace yourselves.",
-    "Tap Ready when you're done snooping. Nothing happens until most of you are ready, which is also how this party got started. The last round brings a twist.",
-  ],
-  howTo6Timer: [
-    "Each round runs on the clock. When it hits zero, fresh evidence lands on this screen, ready or not. The last round has a twist.",
-    "Every round is timed, like a parking meter. When time's up, new evidence lands here whether you're done or not. The last round brings a twist.",
-  ],
-  howJail: [
-    "After Round 2, you can vote someone into jail. More than half of you have to agree, or nobody goes. [short pause] The jailbird can talk and bribe, but can't search, vote or lock in. Bring chips. Bring a lot of chips.",
-    "After Round 2 there's a jail vote. It takes more than half of you to lock someone up, which, in this crowd, is the hard part. [short pause] The jailbird can talk and bribe, but can't search, vote or lock in.",
-  ],
-  howRelease: [
-    "After Round 3, before the lock-in, you can spring the jailbird. Same rule: more than half of you. The cell has a revolving door, and it squeaks.",
-    "After Round 3, before the lock-in, you can let the jailbird out. It takes more than half of you. Bribe the judge. The judge is all of you.",
-  ],
-  howTo7: [
-    "Talk to everybody. Lie about your own secrets. It's encouraged. [short pause] Only the guilty may lie about the murder. Everyone else, tell the truth about that one thing, just this once.",
-    "You may lie about your own secrets. Most of you have been practicing for years. [short pause] Only the guilty get to lie about the murder.",
-  ],
-  howTo7Acc: [
-    "Talk to everybody. Lie about your own secrets. It's encouraged. [short pause] Only the killer and the accomplice may lie about the murder. Everyone else, tell the truth about that one thing, just this once.",
-    "You may lie about your own secrets. Most of you have been practicing for years. [short pause] Only the killer and their accomplice get to lie about the murder.",
-  ],
-  howLockIn: [
-    "After the last round, everyone who's free locks in: who did it, with which weapon, and in which room. Jailbirds sit this one out and watch, which, for some of you, is how you like it.",
-    "After the last round, if you're not in jail, you lock in on your phone: who, with what, and where. Commit. Some of you have never committed to anything, and tonight is a good night to start.",
-  ],
-  howWin: [
-    "To win, more than half the lock-ins need the right killer, more than half the right weapon, and more than half the right room. The killer locks in too. Half is not more than half. We checked with an accountant. [short pause] Then we vote for Best Dressed and Best Liar.",
-    "More than half the lock-ins have to get the killer, more than half the weapon, and more than half the room. The killer locks in too. Miss one, and the killer walks out a free and very smug individual. [short pause] Then we vote for Best Dressed and Best Liar.",
-  ],
   howCase: [
-    "[warm, conspiratorial] House rules. Any minute now, Don Ray Sanders is going to die, and one of you will have done it. Your phone will tell you if it was you. That's how half of Tammany Hall found out. [short pause] Only the guilty may lie. The rest of you tell the truth. It's still bloody New York, but rules are rules.",
+    "[warm, conspiratorial] House rules. Any minute now, Don Ray Sanders is going to die, and one of you will have done it. Your phone will tell you if it was you. That's how half of City Hall found out. [short pause] Only the guilty may lie. The rest of you tell the truth. It's still bloody New York, but rules are rules.",
     "[warm, conspiratorial] Everybody, raise your right hand. Any minute now, Don Ray Sanders becomes a corpse, and one of you will have made him one. Your phone will tell you if it was you. [short pause] Do you swear that only the guilty will lie, and everyone else will tell the truth? Lovely. Nobody meant it.",
   ],
   howSearch: [
     "Three rounds. Search for evidence cards and scan them with your phone. What a card says stays on your phone; the map up here just ticks it off, so talk. [short pause] Anything else in a nightstand, put it back.",
-    "Three rounds. Search the house for evidence cards and scan them. The dirt lands on your phone, not up here; the map just ticks the card off. [short pause] So compare notes. Be nosy. Be a real pill about it.",
+    "Three rounds. Search the house for evidence cards and scan them. The dirt lands on your phone, not up here; the map just ticks the card off. [short pause] So compare notes. Be nosy. Be unhinged about it.",
   ],
   howJail2: [
-    "After Round 2, you can vote one of these lovely people into jail. You don't have to; nobody is always an option. It takes more than half of you to agree. [short pause] The jailbird can't search, vote or lock in. They just sit there and stew. After Round 3, you can vote them back out, or leave the poor sap in there till Christmas.",
+    "After Round 2, you can vote one of these lovely people into jail. You don't have to; nobody is always an option. It takes more than half of you to agree. [short pause] The jailbird can't search, vote or lock in. They just sit there and stew. After Round 3, you can vote them back out, or leave the poor NPC in there till Christmas.",
     "After Round 2, there's a jail vote. Lock one guest up, or pick nobody. Either way, more than half of you have to agree, which, in this crowd, is a bloody miracle. [short pause] The jailbird can't search, vote or lock in. After Round 3, you can vote them back out. Bake them a cake with a file in it.",
   ],
   howWin2: [
     "After round three, lock in who, with what, and where. The killer locks in too. [short pause] More than half the lock-ins must get the killer, more than half the weapon, and more than half the room. If not, the killer walks free and opens a nightclub. That's how this shithole started.",
-    "After round three, lock in: who, with what, and where. Yes, the killer locks in too. Tammany Hall would be proud. [short pause] More than half the lock-ins on the killer, more than half on the weapon, more than half on the room, or the killer strolls out waving like Valentino, the smug rat.",
+    "After round three, lock in: who, with what, and where. Yes, the killer locks in too. Very on brand for this city. [short pause] More than half the lock-ins on the killer, more than half on the weapon, more than half on the room, or the killer strolls out waving like a celebrity leaving court, the smug rat.",
   ],
   rollLocked: [
-    "[low, grave] The doors are locked until we know who did it. Nobody leaves. Not for a smoke, not for air, not for that sick aunt in Yonkers you pulled out of your ass. [short pause] Let's meet the suspects.",
+    "[low, grave] The doors are locked until we know who did it. Nobody leaves. Not for a vape, not for air, not for that sick aunt in Yonkers you pulled out of your ass. [short pause] Let's meet the suspects.",
     "[low, grave] The doors are locked until we know which one of you did it. If nature calls, there's a bucket in the kitchen. Do not drink from the bucket. Again. [short pause] Let's meet the suspects.",
   ],
   rollCallClose: [
@@ -625,12 +451,12 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
     "That's the lineup. [short pause] Look hard. The sketch artist is shit-faced.",
   ],
   intro1: [
-    "[low, gravelly voice] New York City. October, 1929. Gin is illegal. [short pause] Bollocks. [long pause]",
-    "[low, gravelly voice] New York City. October, 1929. [short pause] Wall Street is doing great. [long pause]",
+    "[low, gravelly voice] New York City. October 31st, 2026. A cocktail costs twenty-six dollars. [short pause] Bollocks. [long pause]",
+    "[low, gravelly voice] New York City. October 31st, 2026. [short pause] Rent is reasonable. [long pause]",
   ],
   intro2: [
-    "News bulletin: Don Ray Sanders is dead. Police are baffled. The parrot isn't talking.",
-    "Don Ray Sanders is dead. In lieu of flowers, send cash. Small bills. Get a wiggle on.",
+    "Breaking news: Don Ray Sanders is dead. Police are baffled. The parrot isn't talking.",
+    "Don Ray Sanders is dead. In lieu of flowers, Venmo the club. Small amounts. Lots of them.",
   ],
   intro3: [
     "[whispers] One of you did it. [short pause] Wipe that smile off your face. Yes, you, jackass.",
@@ -638,7 +464,7 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
   ],
   intro4: [
     "Check your phone. Press and hold your card. Keep it to yourself, like the clap.",
-    "Phones out. Press and hold your card, and hide it like a dirty postcard from Coney Island.",
+    "Phones out. Press and hold your card, and hide it like your weekly screen time report.",
   ],
   round1: [
     "Round one. Find the markers. Question everyone. Grab lapels if you must. Not lower.",
@@ -654,7 +480,7 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
   ],
   round2: [
     "Round two. New evidence, and somebody in here just quietly shit themselves.",
-    "Round two. New evidence. Try reading it this time, dipshit.",
+    "Round two. New evidence. Try reading it this time, dumbass.",
   ],
   roomsOpen: [
     "More rooms are open. Go root around, you nosy jackasses.",
@@ -670,11 +496,11 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
   ],
   accuse: [
     "Lock it in. Be right, or at least be a loud jackass about it.",
-    "Lock it in, gumshoes. Guess wrong and you're a jackass for life.",
+    "Lock it in, true-crime podcasters. Guess wrong and you're a jackass for life.",
   ],
   accuseLastCall: [
     "Thirty seconds. Lock it in. Commit, for once, you wankers.",
-    "Thirty seconds. Get a wiggle on. The Don died faster than you decide.",
+    "Thirty seconds. Move it. The Don died faster than you decide.",
   ],
   reveal1: [
     "[long pause] The one who killed the Don, then went back for seconds, is…",
@@ -698,11 +524,7 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
   ],
   verdictKiller: [
     "Killer, weapon, room: you needed more than half on every one, and you didn't get there. The killer walks, and you investigated like a sack of drunk-ass ferrets.",
-    "Not enough of you got the killer, the weapon and the room. The killer hails a cab and sticks you with the fare. What a bunch of chumps.",
-  ],
-  votePrompt: [
-    "Phones out: Best Dressed. The only honest thing you jackasses will do tonight.",
-    "Vote on your phones for Best Dressed. You can't vote for yourself. Some of you just tried. Sad as hell.",
+    "Not enough of you got the killer, the weapon and the room. The killer calls an Uber and sticks you with the surge pricing. What a bunch of NPCs.",
   ],
   awards: [
     "Now, the awards. Every trophy here was stolen. Act surprised. You're good at that.",
@@ -713,25 +535,21 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
     "Best Detective, who did all that work for free, like a sucker, goes to…",
   ],
   awardDressed: [
-    "The best-dressed crook in the joint is…",
+    "The best-dressed crook in the building is…",
     "Best Dressed, first one we'd rob, goes to…",
-  ],
-  awardLiar: [
-    "And Best Liar, innocent of murder and guilty of pure baloney, goes to…",
-    "Best Liar, for the innocent who fed you horsefeathers about their own secret all night, goes to…",
   ],
   // Oct 17 drafts (in the script doc for Heston's OK).
   awardPrimeSuspect: [
     "The Prime Suspect award. The police would like to apologize to the winner. The police are lying. It goes to…",
-    "Prime Suspect, for the innocent sap you pointed at the most, goes to…",
+    "Prime Suspect, for the innocent bestie you pointed at the most, goes to…",
   ],
   awardGotAway: [
-    "Got Away With It, for the killer who lied to every one of you saps and walked, goes to…",
-    "And the Got Away With It award. Tammany Hall was nominated, but this one earned it. It goes to…",
+    "Got Away With It, for the killer who lied to every one of you clowns and walked, goes to…",
+    "And the Got Away With It award. City Hall was nominated, but this one earned it. It goes to…",
   ],
   goodnight: [
     "We're closed. Staying over? The couch has seen worse.",
-    "The Velvet Room is closed. Go chase yourselves home, the lot of you.",
+    "The Velvet Room is closed. Go home and touch grass, the lot of you.",
   ],
   paused: [
     "Hold everything. Something came up. [short pause] Not like that, perverts.",
@@ -746,19 +564,19 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
     "Sound check. If you can hear this, the TV works. Smartest guest here.",
   ],
   howRound: [
-    "Done searching? Tap Ready on your phone. Once most of you are ready, the round ends. Majority rules, like at Tammany Hall, except your votes count.",
-    "Tap Ready on your phone when you're done searching. The round ends when most of you are ready. Get a wiggle on, chumps.",
+    "Done searching? Tap Ready on your phone. Once most of you are ready, the round ends. Majority rules, like at City Council, except your votes count.",
+    "Tap Ready on your phone when you're done searching. The round ends when most of you are ready. Move it. It's giving DMV line.",
   ],
   howRoundTimer: [
     "Every round is timed, like a parking meter on Fifth Avenue. When the clock runs out, the round's over. No appeals.",
-    "The round ends when the clock runs out. The clock doesn't care if you're done. Neither do I. Get a wiggle on.",
+    "The round ends when the clock runs out. The clock doesn't care if you're done. Neither do I. Move it.",
   ],
   howRoundAll: [
-    "All the cards are out from Round 1, so tear the joint apart. Tap Ready on your phone when you're done; the round ends when most of you are. Rounds 2 and 3 bring new evidence up here.",
-    "Every card is out from Round 1. Find them, then tap Ready; the round ends when most of you are ready. Rounds 2 and 3 bring new evidence on this screen. Don't be a flat tire about it.",
+    "All the cards are out from Round 1, so tear the place apart. Tap Ready on your phone when you're done; the round ends when most of you are. Rounds 2 and 3 bring new evidence up here.",
+    "Every card is out from Round 1. Find them, then tap Ready; the round ends when most of you are ready. Rounds 2 and 3 bring new evidence on this screen. Don't be mid about it.",
   ],
   howRoundTimerAll: [
-    "All the cards are out from Round 1, so tear the joint apart. Each round ends when the clock runs out. Rounds 2 and 3 bring new evidence up here. Get a wiggle on.",
+    "All the cards are out from Round 1, so tear the place apart. Each round ends when the clock runs out. Rounds 2 and 3 bring new evidence up here. Move it.",
     "Every card is out from Round 1. The clock ends each round, and it doesn't care about your feelings. Rounds 2 and 3 bring new evidence on this screen.",
   ],
 };
@@ -786,19 +604,15 @@ const hashOf = (s: string) => {
 export const NOISY: Record<Tone, Partial<Record<CueKey, string>>> = {
   classic: {
     doors: "[warm, smoky voice] Welcome to the Velvet Room. I'm {host}, your host tonight. [hiccups] Drinks are on the house. [short pause] Mostly.",
-    howKiller: "[warm, conspiratorial] Here's how tonight works. One of you is the k- k- killer. [short pause] Everyone else has to prove it.",
     howWeapons: "Nobody brought a weapon tonight. The house picked them, [hiccups] and here they are. [short pause] One of them is about to do the deed.",
-    howJail: "After Round 2, you can vote one guest into jail. [sneezes] Excuse me. It takes more than half of you, or nobody goes. The jailbird can talk and bribe, but can't search, vote or lock in.",
-    howTo7: "Talk to everyone. You may lie about your own secrets. [clears throat] [short pause] Only the guilty may lie about the murder.",
     rollLocked: "[low, grave] The doors are locked until we figure out who did it. [hiccups] [short pause] Now, let's meet the suspects.",
     rollCallClose: "That's everyone. [short pause] Remember these faces. [hiccups]",
     intro4: "Check your phone. [coughs] Press and hold your card, and keep it to yourself.",
-    round2: "Fresh evidence has come in. [burps] Pardon me.",
+    round2: "Fresh evidence just dropped. [burps] Pardon me.",
     oneMinute: "One minute left in this round. [sneezes] Excuse me. One minute.",
     twist: "[building] And now, the t- t- twist.",
     reveal1: "[long pause] The killer of Don Ray Sanders is… [hiccups] is…",
     verdictDetectives: "The detectives got their killer. [short pause] C- c- confess, you rat.",
-    votePrompt: "Now vote on your phones [hiccups] for Best Dressed. You can't vote for yourself.",
     voteJail: "Time to vote. [clears throat] Who goes to jail? Vote on your phone. You can pick nobody.",
     jailNobody: "Not enough votes. Nobody goes to jail this t- t- time.",
     awards: "And now, the awards. [clears throat]",
@@ -808,13 +622,9 @@ export const NOISY: Record<Tone, Partial<Record<CueKey, string>>> = {
     revealAccomplice: "[short pause] And the a- a- accomplice who helped them is…",
   },
   adult: {
-    doors: "[warm, smoky voice] Welcome to the Velvet Room. I'm {host}. The gin was made in a bathtub this afternoon, [hiccups] and the bathtub did its best.",
-    doorsReminder: "If you haven't opened your link yet, do it now. [burps] The bouncer has been told you're a fed.",
-    howKiller: "[warm, conspiratorial] Here's how this goes. One of you is a k- k- killer. [short pause] The rest of you have to nail them.",
+    doors: "[warm, smoky voice] Welcome to the Velvet Room. I'm {host}. The tequila came from the bodega this afternoon, [hiccups] and the bodega did its best.",
+    doorsReminder: "If you haven't opened your link yet, do it now. [burps] The bouncer has been told you're a narc.",
     howWeapons: "The house picked tonight's weapons, and one of them is about to do the job. [hiccups] [short pause] None of you brought it, so quit looking so damn nervous.",
-    howJail: "After Round 2, you can vote someone into jail. [farts] [short pause] That was the chair. More than half of you have to agree, or nobody goes. The jailbird can talk and bribe, but can't search, vote or lock in.",
-    howTo7: "You may lie about your own secrets. Most of you have been practicing for years. [burps] [short pause] Only the guilty get to lie about the murder.",
-    howWin: "More than half the lock-ins need the right killer, more than half the right weapon, and more than half the right room. The killer locks in too. [sneezes] Excuse me. Exactly half is a tie, and ties go to the killer. [short pause] Then we vote for Best Dressed and Best Liar.",
     rollLocked: "[low, grave] The doors are locked until we figure out which one of you did it. [hiccups] [short pause] Let's meet the suspects.",
     rollCallClose: "And that's the lineup. [short pause] Take a good look. The police sketch artist is drunk. [hiccups]",
     intro3: "[whispers] One of you did it. [short pause] And frankly, we're all a little impressed. [hiccups]",
@@ -824,11 +634,9 @@ export const NOISY: Record<Tone, Partial<Record<CueKey, string>>> = {
     oneMinute: "Sixty seconds. [sneezes] Hurry it up, you overdressed herd of snails.",
     twist: "[building] Hold on to something. [farts] [short pause] Not that.",
     accuseLastCall: "Thirty seconds left. Lock it in. [hiccups] Lock it in.",
-    reveal1: "[long pause] The person who murdered Don Ray Sanders, in his own club, in front of his own gin, is… [hiccups] is…",
-    verdictDetectives: "Justice, for once in New York. [short pause] The killer is c- c- caught, and is welcome to blame the gin.",
-    votePrompt: "Now vote on your phones for Best Dressed. You can't vote for yourself. [snorts] Some of you just checked.",
+    reveal1: "[long pause] The person who murdered Don Ray Sanders, in his own club, in front of his own espresso martini, is… [hiccups] is…",
+    verdictDetectives: "Justice, for once in New York. No cap. [short pause] The killer is c- c- caught, and is welcome to blame the tequila.",
     awards: "And now, the awards. [clears throat] [clears throat again] The trophies are real. The talent is debatable.",
-    awardLiar: "And Best Liar goes to someone who looked every one of you in the eye tonight and l- l- lied. Congratulations to…",
     goodnight: "The Velvet Room is closed. [burps] Settle your debts in chips. If you're staying the night, the couch has seen worse.",
     paused: "Freeze. Nobody move. [farts] [short pause] Nobody say a word, either.",
     voteJail: "Time to vote. Somebody's going to jail, or nobody is. [burps] Pick on your phone.",
@@ -847,20 +655,20 @@ export const NOISY_PCT: Record<Tone, number> = { classic: 25, adult: 20, sailor:
  * joke per line, with noises and swearing together. Plays D_PCT of the time in games that pick their lines at Start.
  */
 export const ADULT_D: Partial<Record<CueKey, string>> = {
-  doors: "[warm, smoky voice] Welcome to the Velvet Room. I'm {host}, your host tonight. A place of glamour, of mystery, of sophis- [hiccups] sophisti- [hiccups] [short pause] oh, bollocks to it. A place with gin.",
-  doorsReminder: "Check in on your phone, dipshits, or so help me [burps] [short pause] I'll do that again. Closer.",
+  doors: "[warm, smoky voice] Welcome to the Velvet Room. I'm {host}, your host tonight. A place of glamour, of mystery, of sophis- [hiccups] sophisti- [hiccups] [short pause] oh, bollocks to it. A place with tequila.",
+  doorsReminder: "Check in on your phone, dumbasses, or so help me [burps] [short pause] I'll do that again. Closer.",
   howCase: "[warm, conspiratorial] Here's how this goes. Any minute now, Don Ray Sanders is going to drop dead, and one of you shifty little rats will have done it. Your phone will tell you if it was you. [short pause] Only the guilty may lie. Everybody else tells the truth. For example: [farts] [short pause] That was me, damnit. See? Honest.",
-  howAccomplice: "Tonight the killer has an accomplice: didn't do it, knows who did, will lie for them. Watch for a wink, a nod, a cough. [coughs] [short pause] No, that's just me. Bloody cigars. Guess them when you lock in.",
+  howAccomplice: "Tonight the killer has an accomplice: didn't do it, knows who did, will lie for them. Watch for a wink, a nod, a cough. [coughs] [short pause] No, that's just me. Bloody vape. Guess them when you lock in.",
   howWeapons: "The house drew tonight's weapons, so none of you brought one. One of them is about to do the job. [short pause] And nobody here owns the m- m- [hiccups] [short pause] murder weapon. Shit. I almost said something else.",
-  howSearch: "Three rounds. Search the house for evidence cards, under every [sneezes] [short pause] bloody hell, nobody's dusted since McKinley. Scan them with your phone. What they say stays on your phone, so compare notes. The map up here just ticks them off.",
+  howSearch: "Three rounds. Search the house for evidence cards, under every [sneezes] [short pause] bloody hell, nobody's dusted since the pandemic. Scan them with your phone. What they say stays on your phone, so compare notes. The map up here just ticks them off.",
   howJail2: "[clears throat] Order. Hear ye. After Round 2, you may vote one guest into jail. You don't have to: voting nobody is a perfectly good verdict. More than half of you must agree. [short pause] The jailbird can't search, vote or lock in. After Round 3, you can vote them back out. [burps] [short pause] This court is adjourned, and shit-faced.",
   howWin2: "After round three, lock in: who, with what, and where. The killer locks in too. [short pause] You need more than half the lock-ins on the killer, more than half on the weapon, and more than half on the room. Miss one, and the killer walks out laughing, like this: [snorts] [short pause] Smug little wanker.",
   rollLocked: "[low, grave] The doors are locked until we figure out which one of you did it. Nobody gets in. Nobody gets out. [farts] [short pause] Oh, hell. That's locked in here with us now, too. Let's meet the suspects.",
   rollCallClose: "That's the lineup. [hiccups] All forty of you. Shit, I'm seeing double.",
-  intro1: "[low, gravelly voice] New York City. [burps] [short pause] Damnit. [short pause] New York City. October, 1929. [long pause]",
+  intro1: "[low, gravelly voice] New York City. [burps] [short pause] Damnit. [short pause] New York City. October 31st, 2026. [long pause]",
   intro2: "Tonight, Don Ray Sanders was found dead. A moment of silence. [long pause] [farts] [short pause] Ah, shit. Moment's over.",
   intro3: "[whispers] One of you did it. [hiccups] [short pause] That was me. [short pause] The hiccup, jackass. Not the murder.",
-  intro4: "Check your phone. Press and hold your card. Keep it to yourself, [burps] [short pause] unlike some of us. Freaking gin.",
+  intro4: "Check your phone. Press and hold your card. Keep it to yourself, [burps] [short pause] unlike some of us. Freaking tequila.",
   round1: "Round one. Find the markers, question everyone. [burps] [short pause] Not about that. That's private, jackass.",
   round1Waves: "Round one. Only some rooms are open. Search those. [farts] [short pause] Not this one. It's the ass end of Hoboken in here now.",
   round2: "Round two. F- f- fr- [hiccups] [short pause] frick it, damnit. New evidence. Just came in.",
@@ -870,7 +678,7 @@ export const ADULT_D: Partial<Record<CueKey, string>> = {
   twist: "[building] And now, the twist. [burps loudly] [short pause] That was the shrimp, damn it all. Here's the twist.",
   accuse: "Make your accusations. [farts] [short pause] Not about that, jackass. The murder, for crying out loud.",
   accuseLastCall: "Thirty seconds. [hiccups] Twenty-nine. [hiccups] Oh, to hell with it. Lock it in.",
-  voteJail: "Who goes to jail? Vote on your phone. You can pick nobody. [burps] [short pause] Or me. I smell like a Bowery crapper.",
+  voteJail: "Who goes to jail? Vote on your phone. You can pick nobody. [burps] [short pause] Or me. I smell like a Port Authority crapper.",
   voteRelease: "Before the lock-in: does our jailbird get out? Vote on your phone. Think of that poor soul in the cell. Cold. Alone. [gasps] Sober. [short pause] Have a damn heart.",
   voteLastCall: "Fifteen seconds to vote. Don't overthink it. I never do, and look at me. [burps] [short pause] Bollocks. Think a little.",
   voteTally: "The votes are in. [snorts] [short pause] Oh, that's cold. Here's how you voted, dumbasses.",
@@ -882,12 +690,10 @@ export const ADULT_D: Partial<Record<CueKey, string>> = {
   revealAccomplice: "And the two-faced little jackass who helped them, [clears throat] allegedly, is…",
   verdictDetectives: "Case closed, detectives. [burps] [short pause] Pardon the court. Confess, you damn dirty rat.",
   verdictKiller: "Not enough of you got the killer, the weapon and the room. The killer walks. Let's hear it for the detectives. [farts] [short pause] That's all you get, dumbasses.",
-  votePrompt: "Vote on your phones for Best Dressed. Me? Sober as a bloody judge. [hiccups] [short pause] Vote me Best Dressed.",
   awards: "The awards. I'd like to thank the Academy, [hiccups] and my liver, which has been through hell.",
   awardDetective: "Best Detective. Sharp eyes, sharp mind, sha- [sneezes] [short pause] shit. Sharp everything. It goes to…",
   awardDressed: "Best Dressed, [burps] [short pause] not me, damnit, goes to…",
-  awardLiar: "And Best Liar, the innocent who lied best about their own secret, [hiccups] [short pause] the sneaky damn thing, goes to…",
-  awardPrimeSuspect: "Prime Suspect, the innocent one you damn near sent up the river, [hiccups] goes to…",
+  awardPrimeSuspect: "Prime Suspect, the innocent one you damn near sent to Rikers, [hiccups] goes to…",
   awardGotAway: "The Got Away With It award goes to someone who [hiccups] [short pause] fooled every damn one of you. It goes to…",
   releaseCleared: "No vote needed. The evidence cleared the jailbird. [burps] [short pause] Open the damn cell.",
   goodnight: "We're closed. Settle up in chips, and [burps] [short pause] get the hell out. Lovingly.",
@@ -905,7 +711,7 @@ export const D_PCT = 10;
 export const SAILOR: Partial<Record<CueKey, string[]>> = {
   doors: [
     "[seething] Shit. Welcome to the Velvet Room. I'm {host}, your host, God help every one of you bastards. [shouting] And if one more son of a bitch asks me where the bathroom is, [suddenly calm] it's down the hall. On the left. Fuck.",
-    "[through gritted teeth, trying to sound warm] Welcome to the Velvet Room. I'm {host}, your fucking host. [shouting] Coats on the hooks, drinks at the bar, and nobody, NOBODY, touches the goddamn piano. [dead serious] The piano knows what it did.",
+    "[through gritted teeth, trying to sound warm] Welcome to the Velvet Room. I'm {host}, your fucking host. [shouting] Coats on the hooks, drinks at the bar, and nobody, NOBODY, touches the goddamn DJ booth. [dead serious] The DJ knows what he did.",
   ],
   doorsReminder: [
     "[seething] Shit. Damn. Hell. Still haven't checked in? [roaring] Open the goddamn link, you Hoboken-ass prick.",
@@ -933,7 +739,7 @@ export const SAILOR: Partial<Record<CueKey, string[]>> = {
   ],
   howWin2: [
     "[dead serious] After round three, you lock in. Who. With what. Where. The killer locks in too. [short pause] More than half of the lock-ins on the killer. More than half on the weapon. More than half on the room. [roaring] Miss one, and the killer walks out that door laughing, and I have to hold it open for the son of a bitch!",
-    "[growling] After round three, you lock in who, with what, and where. The killer locks in too, the lying bastard. No take-backs, no fuckery. [short pause] More than half the lock-ins have to get the killer, more than half the weapon, more than half the room. [dead serious] Otherwise the killer walks, and I lose forty dollars. Bastards.",
+    "[growling] After round three, you lock in who, with what, and where. The killer locks in too, the lying bastard. No take-backs, no fuckery. [short pause] More than half the lock-ins have to get the killer, more than half the weapon, more than half the room. [dead serious] Otherwise the killer walks, and I lose a forty-dollar parlay. Bastards.",
   ],
   rollLocked: [
     "[low, grave, seething] The doors are locked. [shouting] LOCKED! Nobody leaves until we know which one of you sick bastards did it. [dead serious] Bathroom breaks will be supervised by the Don's parrot. [short pause] Let's meet the suspects.",
@@ -941,14 +747,14 @@ export const SAILOR: Partial<Record<CueKey, string[]>> = {
   ],
   rollCallClose: [
     "[through gritted teeth] Shit, bastard, hell. That's everyone. [short pause] Remember these faces.",
-    "[growling] That's the lineup. [short pause] Remember these faces. One of them is a lying sack of shit.",
+    "[growling] That's the lineup. [short pause] Remember these faces. Every one of them is sus as fuck.",
   ],
   intro1: [
-    "[low, gravelly voice, seething] New York City. October, 1929. [long pause] Fuck.",
-    "[low, gravelly voice] Goddamnit. [short pause] New York City. October, 1929. [long pause]",
+    "[low, gravelly voice, seething] New York City. October 31st, 2026. [long pause] Fuck.",
+    "[low, gravelly voice] Goddamnit. [short pause] New York City. October 31st, 2026. [long pause]",
   ],
   intro2: [
-    "[growling] The Velvet Room lost its owner. Don Ray Sanders is dead. [shouting] He owed me eleven dollars, you sons of bitches!",
+    "[growling] The Velvet Room lost its owner. Don Ray Sanders is dead. [shouting] He owed me eleven dollars on Venmo, you sons of bitches!",
     "[dead serious] The Velvet Room lost its owner. Don Ray Sanders is dead. [seething] The parrot saw everything. The parrot won't fucking talk.",
   ],
   intro3: [
@@ -1005,7 +811,7 @@ export const SAILOR: Partial<Record<CueKey, string[]>> = {
   ],
   voteLastCall: [
     "[dead serious] Fifteen seconds left to vote. [short pause] Fourteen. [short pause] [roaring] I'm not counting the whole thing! Vote, goddamnit!",
-    "[seething] Fifteen seconds. Tammany Hall counted faster than this, and they were counting dead people. [growling] Vote, assholes.",
+    "[seething] Fifteen seconds. The DMV moves faster than this, and the DMV is where hope goes to die. [growling] Vote, assholes.",
   ],
   voteTally: [
     "[seething] The votes are in. Here's how you voted, you treacherous sons of bitches.",
@@ -1024,11 +830,11 @@ export const SAILOR: Partial<Record<CueKey, string[]>> = {
     "[dead serious] Not enough votes. Nobody gets out. [whispers, furious] Rot in there. Rot, you bastard.",
   ],
   reveal1: [
-    "[long pause] [barely holding it together] The shit-heeled, gin-stealing bastard who killed Don Ray Sanders is…",
+    "[long pause] [barely holding it together] The shit-heeled, Venmo-dodging bastard who killed Don Ray Sanders is…",
     "[long pause] [growling] The killer of Don Ray Sanders, the rat, the prick, the fucking weasel, is…",
   ],
   reveal2: [
-    "…right here, drinking my fucking gin.",
+    "…right here, drinking my fucking espresso martini.",
     "…standing right here. [roaring] In MY club! Bastard!",
   ],
   reveal3: [
@@ -1045,11 +851,7 @@ export const SAILOR: Partial<Record<CueKey, string[]>> = {
   ],
   verdictKiller: [
     "[seething] Not enough of you got the killer, the weapon and the room. [short pause] The killer walks. [roaring] You had the evidence! You had the cards! You had the fucking MAP!",
-    "[dead serious] Killer, weapon, room. You needed more than half on every one, and you blew it. The killer walks free. [growling] Babe Ruth hit sixty home runs. You lot couldn't hit three. Useless pricks.",
-  ],
-  votePrompt: [
-    "[growling] Best Dressed. Vote on your phones. [roaring] I wore a tie for this, goddamnit! A TIE!",
-    "[through gritted teeth] Phones out. Best Dressed. [furious] And you can't vote for yourself, you vain bastard, so quit looking for your own goddamn face!",
+    "[dead serious] Killer, weapon, room. You needed more than half on every one, and you blew it. The killer walks free. [growling] Aaron Judge hit sixty-two home runs. You lot couldn't hit three. Useless pricks.",
   ],
   awards: [
     "[seething] The awards. I paid for the trophies, so clap, bastards.",
@@ -1069,14 +871,10 @@ export const SAILOR: Partial<Record<CueKey, string[]>> = {
   ],
   awardGotAway: [
     "[seething] The Got Away With It award. [roaring] I've never been so proud or so goddamn sick! [dead serious] It goes to…",
-    "[through gritted teeth] Got Away With It. For the slippery son of a bitch who played every one of you for chumps. [dead serious] It goes to…",
-  ],
-  awardLiar: [
-    "[seething] Best Liar. Innocent, and lied through their teeth about their own damn secret. [growling] That's talent, you sneaky bastard. It goes to…",
-    "[dead serious] Best Liar goes to an innocent. The killer doesn't count. [roaring] Lying about the murder is the killer's job! This one lied for fun, for fuck's sake! [dead serious] It goes to…",
+    "[through gritted teeth] Got Away With It. For the slippery son of a bitch who played every one of you like NPCs. [dead serious] It goes to…",
   ],
   goodnight: [
-    "[roaring] We're closed! Pay your tab and get the hell out! [suddenly tender] Drive safe.",
+    "[roaring] We're closed! Pay your tab and get the hell out! [suddenly tender] Share your location.",
     "[growling] We're closed. Out. Take your coats, your secrets and your shit, and go.",
   ],
   paused: [
@@ -1092,7 +890,7 @@ export const SAILOR: Partial<Record<CueKey, string[]>> = {
     "[dead serious] Sound check. [shouting] Shit! Fuck! Bastard! Bollocks! [calmly] If you heard all that, the TV works. [short pause] Sorry, Ma.",
   ],
   howRound: [
-    "[dead serious] When you're done searching, tap Ready on your phone. [short pause] When most of you are ready, the round ends. [roaring] So get a goddamn wiggle on!",
+    "[dead serious] When you're done searching, tap Ready on your phone. [short pause] When most of you are ready, the round ends. [roaring] So move your goddamn asses!",
     "[growling] Tap Ready on your phone when you're done searching. The round ends when most of you are ready. [shouting] Most! Not all! I'm not waiting on every slow bastard in this room!",
   ],
   howRoundTimer: [
@@ -1223,7 +1021,7 @@ export type CustomKind = "arrival" | "body" | "rooms" | "killer" | "accomplice" 
 /** Adult's per-game lines, in versions (a game picks one of each). {room}, {rooms}, {name}. */
 export const ADULT_CUSTOM: Partial<Record<CustomKind, string[]>> = {
   body: [
-    "They found the poor old sap in {room}.",
+    "They found the poor old guy in {room}. Rest easy, king.",
     "They found him in {room}. Eyes open, wallet gone. One of those is murder. The other one's just New York.",
     "They found him in {room}, face down, shoes off. Nobody knows why the shoes were off, and nobody's asking.",
     "They found him in {room}. The doctor says he died instantly. The doctor also says he's technically a dentist.",
@@ -1245,23 +1043,23 @@ export const ADULT_CUSTOM: Partial<Record<CustomKind, string[]>> = {
   ],
   accomplice: [
     "{name}. Every rat needs a smaller rat.",
-    "{name}. Didn't do it, didn't stop it, and didn't even ask for a cut. What a chump.",
+    "{name}. Didn't do it, didn't stop it, and didn't even ask for a cut. Total NPC behavior.",
     "{name}. Saw everything, said nothing, and smiled at you all night like a choirboy. The sneaky little rat.",
     "{name}, you two-faced jackass. You helped us look for the killer. For an hour.",
     "{name}. Loyal as a dog, and about as much use in court.",
   ],
   jailed: [
-    "{name} is going to the Tombs. Bring a sweater and a good lawyer. Mostly the lawyer.",
-    "{name} is going up the river to Sing Sing. Write if you learn a trade.",
+    "{name} is going to Rikers. Bring a sweater and a good lawyer. Mostly the lawyer.",
+    "{name} is going upstate. Text us if you learn a trade.",
     "{name}, you're going to jail, where you'll search nothing, vote on nothing, and help exactly as much as before.",
     "{name} goes to jail. Sit your ass down and think about what you did.",
     "{name} is locked up. The rest of you, act natural, and stop looking so bloody relieved.",
   ],
   released: [
-    "{name} walks. The judge says you're welcome, and thanks for the envelope.",
+    "{name} walks. The judge says you're welcome, and thanks for the Venmo.",
     "{name} is out, on good behavior, which is a first.",
     "{name} is out. The cell would like an apology and a mop.",
-    "{name} is out already? Christ. Capone's been in a cell in Philadelphia since May, and you did ten minutes.",
+    "{name} is out already? Damn. People wait longer for a table at Carbone, and you did ten minutes.",
     "{name} is free. Don't let the bars hit your ass on the way out.",
   ],
 };
@@ -1282,11 +1080,11 @@ export const SAILOR_CUSTOM: Partial<Record<CustomKind, string[]>> = {
   killer: [
     "{name}. [roaring] You rotten, rat-faced son of a bitch!",
     "{name}. [dead serious] Of course it was. [shouting] Of course it fucking was!",
-    "{name}. [seething] In my club. With my gin in your hand. [screaming] You absolute bastard!",
-    "{name}! [furious] I let you hold my hat, you treacherous prick!",
+    "{name}. [seething] In my club. With my tequila in your hand. [screaming] You absolute bastard!",
+    "{name}! [furious] I let you use my phone charger, you treacherous prick!",
   ],
   accomplice: [
-    "{name}. [growling] The getaway driver, minus the car, minus the brains. Bastard.",
+    "{name}. [growling] The Uber driver, minus the car, minus the five stars. Bastard.",
     "{name}, [seething] who's been nodding along all night like a shit-brained pigeon.",
     "{name}. [dead serious] Loyal. Quiet. [roaring] A rat's rat, you double-crossing dickhead!",
     "{name}. [through gritted teeth] Held the coats, kept the secret, ate my olives. Prick.",
@@ -1385,10 +1183,10 @@ export const INSULTS: Record<InsultKind, Record<Tone, string[]>> = {
     ],
     adult: [
       "{real} is going to jail. Nobody's baking you a cake, {real}.",
-      "Into the can, {real}. You weren't finding anything out here anyway, you sap.",
+      "Into the cell, {real}. You weren't finding anything out here anyway, you NPC.",
       "{real} is locked up. The jail didn't want you either. It's doing us a favor.",
       "{real} is behind bars. Best look you've had all night.",
-      "{real} is going up the river. Don't write.",
+      "{real} is going upstate. Don't text.",
       "{real} is in jail, and the average brain in this room just went up. Damn, that's nice.",
     ],
     sailor: [
@@ -1408,7 +1206,7 @@ export const INSULTS: Record<InsultKind, Record<Tone, string[]>> = {
       "Release denied. {real} stays put, and the room stays quiet. Everybody wins.",
     ],
     adult: [
-      "{real} stays in the can. The parole board is three gins deep and still said no.",
+      "{real} stays in jail. The parole board is three espresso martinis deep and still said no.",
       "Release denied. Get comfy, {real}. The cell likes you. Nobody else does.",
       "{real} stays put. You begged, {real}. It was embarrassing. Still no.",
       "Still in jail, {real}. Tough luck. The key fell in the punch bowl, and nobody's fishing.",
@@ -1428,8 +1226,8 @@ export const INSULTS: Record<InsultKind, Record<Tone, string[]>> = {
       "{real} is released. The bar for good behavior was very low.",
     ],
     adult: [
-      "{real} is out. The judge took the bribe and called you a chump. He was right, {real}.",
-      "{real} walks free. Get a wiggle on, {real}, before we change our damn minds.",
+      "{real} is out. The judge took the bribe and called you mid. He was right, {real}.",
+      "{real} walks free. Move it, {real}, before we change our damn minds.",
       "{real} is out on bail. Nobody paid it. They just wanted the cell back.",
       "{real} is out. The cell is relieved. You snored, {real}.",
     ],
@@ -1443,14 +1241,14 @@ export const INSULTS: Record<InsultKind, Record<Tone, string[]>> = {
   lastLockIn: {
     classic: [
       "Everyone's locked in except {real}. No pressure, {real}. Just everyone, staring.",
-      "{real}, get a wiggle on. It's three taps.",
+      "{real}, any day now. It's literally three taps.",
       "We're all waiting on {real}. As usual.",
       "{real} is still thinking. First time for everything.",
       "{real}: who, what, where. Three taps. The rest of us managed.",
       "Last call for {real}. The rest of us have aged.",
     ],
     adult: [
-      "{real}, get a wiggle on. It's three taps, not the Treaty of Versailles.",
+      "{real}, hurry up. It's three taps, not the terms and conditions.",
       "Everybody's locked in but {real}. For crying out loud, {real}, guess.",
       "Still waiting on {real}. The Don died faster than this.",
       "{real}, lock it in. You've been wrong all night. Why stop now?",
@@ -1462,7 +1260,7 @@ export const INSULTS: Record<InsultKind, Record<Tone, string[]>> = {
       "[seething] {real}. Three taps. Who, what, where. My dead grandmother is faster, goddamnit.",
       "[through gritted teeth] We are all waiting on {real}. All of us. Shit.",
       "[growling] {real}, pick a goddamn name. Any name. Mine. I don't care.",
-      "[dead serious] {real} is still thinking. [flat] {real} hasn't thought all night, the gin-soaked bastard.",
+      "[dead serious] {real} is still thinking. [flat] {real} hasn't thought all night, the tequila-soaked bastard.",
       "[dead serious] Every one of you has locked in. Except {real}. [short pause] For fuck's sake, {real}.",
     ],
   },
@@ -1471,15 +1269,15 @@ export const INSULTS: Record<InsultKind, Record<Tone, string[]>> = {
       "{real}, caught red-handed. Try to look less pleased with yourself.",
       "Case closed. {real} did it, and {real} was the last to know we knew.",
       "{real} is the killer, and a lousy liar.",
-      "{real}, the jig is up. Hand over the gin and come quietly.",
+      "{real}, it's over. Put the phone down and come quietly.",
       "Nice try, {real}. You fooled nobody, with real confidence.",
       "{real} did it. Not well. But {real} did it.",
     ],
     adult: [
-      "Caught, {real}. Your alibi was horsefeathers, and your poker face was a white flag.",
+      "Caught in 4K, {real}. Your alibi was mid, and your poker face was a white flag.",
       "{real}, you did it, and you did it badly.",
       "Got you, {real}. Tell it to the judge. He doesn't believe you either.",
-      "{real}, caught by this crowd. This crowd, {real}. That's like getting outrun by a parked Packard.",
+      "{real}, caught by this crowd. This crowd, {real}. That's like getting outrun by a parked Citi Bike.",
       "{real} killed a man and got caught by people who've been drinking since six. Damn.",
       "{real} is the killer. A dumb one, but still.",
     ],
@@ -1499,13 +1297,13 @@ export const INSULTS: Record<InsultKind, Record<Tone, string[]>> = {
       "Well played, {real}. You lied to every face in here, and they thanked you.",
       "{real} got away with it. The rest of you couldn't catch a cold.",
       "Hats off to {real}, the only person here who did their job tonight.",
-      "{real}: killer, liar, winner. Everyone else: wet blankets.",
+      "{real}: killer, liar, winner. Everyone else: background characters.",
     ],
     adult: [
-      "{real} did it and walked. You had the evidence, and you got played like saps.",
+      "{real} did it and walked. You had the evidence, and you got played like NPCs.",
       "{real} got away with murder in a room full of detectives. Some detectives.",
-      "{real} is free, smug and buying the next round. The rest of you are chumps.",
-      "{real} walks. Somewhere in Chicago, Al Capone feels a little jealous.",
+      "{real} is free, smug and buying the next round. The rest of you got finessed.",
+      "{real} walks. Somewhere, a true-crime podcast just found its next season.",
       "{real} lied to your faces all night, and you bought every word.",
       "{real} got away with it. The rest of you couldn't find your own ass with both hands.",
     ],
@@ -1532,8 +1330,8 @@ export const INSULTS: Record<InsultKind, Record<Tone, string[]>> = {
       "{real} didn't do it. You all piled on anyway. Classy.",
       "{real} is innocent and still looks like they robbed a bank. Damn.",
       "The most accused person tonight, {real}, did absolutely nothing. As usual.",
-      "{real} is innocent. Most of you said otherwise. Most of you are saps.",
-      "Sorry, {real}. You didn't do it. You just have a guilty face, you pill.",
+      "{real} is innocent. Most of you said otherwise. Most of you are delulu.",
+      "Sorry, {real}. You didn't do it. You just have a guilty face. It's giving mugshot.",
     ],
     sailor: [
       "[dead serious] {real} didn't do it. You blind jackasses pinned it on {real} anyway. Shit.",
@@ -1552,10 +1350,10 @@ export const INSULTS: Record<InsultKind, Record<Tone, string[]>> = {
       "Best Detective goes to {real}, who did all the work while the rest of you ate the snacks.",
     ],
     adult: [
-      "{real}, Best Detective. You'll be an insufferable pill about this until Christmas.",
-      "{real} cracked it while the rest of you chumps licked the cheese plate.",
+      "{real}, Best Detective. You'll be insufferable about this until Christmas. Main character behavior.",
+      "{real} cracked it while the rest of you NPCs licked the cheese plate.",
       "Best Detective, {real}. Don't let it go to your head. There's not much room up there.",
-      "{real} solved the murder, which in this crowd is like being the tallest jockey at Belmont.",
+      "{real} solved the murder, which in this crowd is like being the tallest kid at day care.",
     ],
     sailor: [
       "[dead serious] Best Detective, {real}. Congratulations, you smug, sharp-eyed son of a bitch.",
@@ -1574,8 +1372,8 @@ export const INSULTS: Record<InsultKind, Record<Tone, string[]>> = {
     adult: [
       "Best Dressed: {real}. Looks like a million bucks. Investigates like a flat tire.",
       "{real} wins Best Dressed. Looks great, {real}. Shame about the detective work.",
-      "{real}, Best Dressed. The outfit's a ten. The alibi is horsefeathers.",
-      "Best Dressed, {real}, who looks like a Ziegfeld headliner and thinks like a coat rack.",
+      "{real}, Best Dressed. The outfit's a ten. The alibi is a two.",
+      "Best Dressed, {real}, who looks like a Met Gala headliner and thinks like a coat rack.",
     ],
     sailor: [
       "[dead serious] Best Dressed, {real}. You look too goddamn good for this dump.",
@@ -1627,18 +1425,18 @@ export const CAST_INTROS: Record<Tone, string[]> = {
   // Oct 18 (Heston: "need more roll call jokes, enough for each person to have a unique joke made. maybe 16 total
   // jokes, assigned at random per person every game"): 16 a script, dealt so nobody in a game shares one.
   classic: [
-    "Introducing {real}{aka}. Here on a dare, staying for the free gin.",
+    "Introducing {real}{aka}. Here on a dare, staying for the free Wi-Fi.",
     "Next, {real}{aka}, who has already lost their coat-check ticket.",
-    "Say hello to {real}{aka}, who was told this was a church social.",
-    "Please welcome {real}{aka}. The doorman checked twice and let them in anyway.",
+    "Say hello to {real}{aka}, who was told this was a book club.",
+    "Please welcome {real}{aka}. The bouncer checked their ID twice and let them in anyway.",
     "Late, as always: {real}{aka}.",
-    "Here is {real}{aka}, who pays the tab in buttons.",
+    "Here is {real}{aka}, who splits the check to the penny.",
     "Ladies and gentlemen, {real}{aka}. Try not to make any sudden moves.",
     "From the cheap seats: {real}{aka}.",
-    "Fresh off the trolley and still lost: {real}{aka}.",
+    "Fresh off the subway and still lost: {real}{aka}.",
     "Wanted for questioning in three counties: {real}{aka}.",
-    "Here is {real}{aka}. The band has agreed to keep playing anyway.",
-    "Next up, {real}{aka}, who owes everyone in this room a nickel.",
+    "Here is {real}{aka}. The DJ has agreed to keep playing anyway.",
+    "Next up, {real}{aka}, who owes everyone in this room twenty bucks on Venmo.",
     "Somebody's mother made them come: {real}{aka}.",
     "The pride of Hoboken, apparently: {real}{aka}.",
     "Keep one eye on your wallet. Here's {real}{aka}.",
@@ -1650,17 +1448,17 @@ export const CAST_INTROS: Record<Tone, string[]> = {
     "Don't make eye contact. Damnit, too late: {real}{aka}.",
     "Wanted in three boroughs and most of New Jersey: {real}{aka}.",
     "Please hold your applause, and your wallets: {real}{aka}.",
-    "{real}{aka}. Already lying. Tell it to Sweeney.",
+    "{real}{aka}. Already lying. Caught in 4K.",
     "Fished out of the East River, unfortunately: {real}{aka}.",
     "Mugshot number four hundred and twelve: {real}{aka}.",
     "Lock up the silverware: {real}{aka}.",
     "Trouble, party of one: {real}{aka}.",
     "The flat tire of the evening: {real}{aka}.",
-    "Banned from two speakeasies and a bowling alley: {real}{aka}.",
-    "Nobody invited them, and yet, here we are: {real}{aka}.",
-    "Smells like bathtub gin and bad decisions: {real}{aka}.",
-    "The biggest sap in Manhattan, and that's a hell of a competition: {real}{aka}.",
-    "{real}{aka}. Looks innocent. That's what worries the hell out of me.",
+    "Banned from two rooftop bars and a Chuck E. Cheese: {real}{aka}.",
+    "Nobody invited them. Main character energy anyway: {real}{aka}.",
+    "Smells like tequila, vape smoke and bad decisions: {real}{aka}.",
+    "The most delulu person in Manhattan, and that's a hell of a competition: {real}{aka}.",
+    "{real}{aka}. Looks innocent. That's exactly why they're so damn sus.",
   ],
   sailor: [
     "{real}{aka}. [growling] God help us all. Shit. Bastard. Hell.",
@@ -1671,11 +1469,11 @@ export const CAST_INTROS: Record<Tone, string[]> = {
     "[growling] Hide the goddamn silverware: {real}{aka}.",
     "[dead serious] {real}{aka}. [roaring] I owe this one money! Shit!",
     "[growling] Oh, hell no. Not this one. [sighs] {real}{aka}.",
-    "[shouting] Who invited {real}{aka}?! [dead serious] I'm firing the doorman. Goddamnit.",
-    "[seething] {real}{aka}. Banned from my club in 1926. [roaring] And yet, here you fucking are!",
+    "[shouting] Who invited {real}{aka}?! [dead serious] I'm firing the bouncer. Goddamnit.",
+    "[seething] {real}{aka}. Banned from my club in 2019. [roaring] And yet, here you fucking are!",
     "[through gritted teeth] Smile for the mugshot, {real}{aka}. Bastard.",
     "[growling] {real}{aka}. [dead serious] I've seen better faces on a fish. A dead fish. Shit.",
-    "[roaring] Everybody hide your gin! It's {real}{aka}! Damnit!",
+    "[roaring] Everybody hide your tequila! It's {real}{aka}! Damnit!",
     "[dead serious] {real}{aka}. [short pause] No. [shouting] Absolutely fucking not.",
     "[seething] Here's {real}{aka}, dressed for a goddamn funeral.",
     "[growling] Keep your hands where I can see them, {real}{aka}, you shifty son of a bitch.",

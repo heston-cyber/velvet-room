@@ -6,7 +6,7 @@ import { ACCOMPLICE_ON, MAX_ROOMS, MIN_ROOMS, openRoomsIn } from "./engine/build
 import { randomCode, registrationIsOpen, requireHost } from "./lib";
 import { ensureAllCards } from "./cards";
 import { MAX_CARDS, hasJailVote, revealTimes } from "./shared";
-import { WEAPONS, checkWeaponKeys, drawWeapons, recommendedWeapons } from "./weapons";
+import { WEAPONS, checkWeaponKeys, currentWeapon, drawWeapons, recommendedWeapons } from "./weapons";
 import { secure } from "./engine/rng";
 import { levelsOf, narratorOf, scriptOf } from "./voiceLines";
 import { heckleWanted } from "./heckles";
@@ -95,7 +95,7 @@ export const roster = query({
         lookalikes: !!game.lookalikes,
         rooms: game.rooms,
         // The night's weapons (Oct 16: drawn by the game). Empty: drawn at Play, as many as recommendedWeapons says.
-        weapons: game.weaponKeys ?? [],
+        weapons: (game.weaponKeys ?? []).map(currentWeapon),
         pacing: game.pacing,
         tone: game.tone ?? "classic",
         search: game.search ?? "all",

@@ -116,7 +116,7 @@ export const BODY_SECS_EST = 4;
 
 /**
  * The intro (the Don dies), laid out from its lines so no slide changes while the narrator is still talking (Heston,
- * Oct 16: "VO lines need to end before the next slides appear"). Three slides: "New York City · October, 1929" (lights
+ * Oct 16: "VO lines need to end before the next slides appear"). Three slides: "New York City · October 31, 2026" (lights
  * out, the fall, the scream, then the first line), "The Don is dead" (the second line, then where the body was found)
  * and "One of you did it" (the third line, over the weapons). Each slide lasts at least introBeatMs.
  */

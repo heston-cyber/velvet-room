@@ -11,7 +11,7 @@ export default function Landing() {
   return (
     <Shell>
       <div className="screen center">
-        <span className="eyebrow">New York City · 1929</span>
+        <span className="eyebrow">New York City · 2026</span>
         <Deco />
         <h1 className="title-xl">The Velvet Room</h1>
         <p className="lede">A murder mystery party. One of you did it.</p>

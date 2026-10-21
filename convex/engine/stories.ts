@@ -23,7 +23,7 @@ export type Detail = {
   confirm: [string, string];
   /** The deciding card's words when this detail is the killer's cover. Never names a guest. */
   breaks: string;
-  /** Details that can't share a night (a cab strike and a cab ride). */
+  /** Details that can't share a night (the apps down, and an Uber ride). */
   topic?: string;
 };
 
@@ -33,7 +33,7 @@ export type Spot = {
   place: Place;
   /** "out on the fire escape": reads after "you were" and "was". */
   at: string;
-  /** Who saw them there, for the alibis ("the lady across the airshaft"). */
+  /** Who saw them there, for the alibis ("the neighbor across the street"). */
   witness: string;
   details: Detail[];
 };
@@ -43,25 +43,25 @@ export const SPOTS: Spot[] = [
     key: "alley",
     place: "out",
     at: "out in the alley behind the club",
-    witness: "the bootlegger's driver",
+    witness: "the security camera over the back door",
     details: [
       {
-        id: "alley-gin",
-        story: "A bootlegger's truck was unloading crates of gin, and the driver dropped three of them.",
+        id: "alley-kegs",
+        story: "A beer truck was unloading kegs, and the driver dropped one. It rolled halfway down the block.",
         confirm: [
-          "The bootlegger's delivery slip: forty crates of gin unloaded in the alley tonight, three of them broken.",
-          "A dock receipt: the gin truck idled in the alley right when the lights went out, leaking from a broken crate.",
+          "The beer distributor's delivery slip: twelve kegs dropped off in the alley tonight, one of them dented.",
+          "The beer truck's GPS log: parked in the alley behind the club right when the lights went out.",
         ],
-        breaks: "The gin delivery never came tonight. The truck was stopped at the Jersey line and is still in the police lot.",
+        breaks: "The beer delivery never came tonight. The truck broke down on the BQE and got towed.",
       },
       {
-        id: "alley-cat",
-        story: "A stray cat knocked over every ash can in the alley, one after another.",
+        id: "alley-rat",
+        story: "A rat dragged a whole slice of pizza across the alley, like the famous video.",
         confirm: [
-          "The super's complaint to the landlord: a stray cat knocked over every ash can in the alley tonight.",
-          "The garbage man's note: every ash can in the alley tipped over tonight. He blames the cat.",
+          "A video posted tonight: a rat dragging a whole slice of pizza across the alley behind the club. Forty thousand views and counting.",
+          "Half a slice of pizza at the far end of the alley, with tiny teeth marks. The line cook says the rat's back.",
         ],
-        breaks: "The ash cans in the alley were emptied and chained shut at nine. Not one of them could tip over.",
+        breaks: "The city sealed and baited this alley yesterday. There hasn't been a rat back there since.",
       },
     ],
   },
@@ -69,53 +69,52 @@ export const SPOTS: Spot[] = [
     key: "fireEscape",
     place: "out",
     at: "out on the fire escape",
-    witness: "the lady across the airshaft",
+    witness: "the neighbor across the street",
     details: [
       {
         id: "fire-pigeon",
-        story: "A pigeon stole a cigarette right out of the pack and flew off with it.",
+        story: "A pigeon grabbed an AirPod off the railing and flew off with it.",
         confirm: [
-          "A note from the lady across the airshaft: a pigeon on the club's fire escape has been stealing cigarettes all night. She thinks it's hilarious.",
-          "The super found a pigeon's nest on the fire escape tonight, lined with stolen cigarettes.",
+          "A Find My alert from tonight: one AirPod, pinging from a pigeon's nest on the club's fire escape.",
+          "The super found a pigeon's nest on the fire escape tonight, with an AirPod in it. Still charged.",
         ],
-        breaks: "The exterminator netted every pigeon off this block this morning. There isn't a bird left for a mile.",
-        topic: "birds",
+        breaks: "Pest control put spikes and netting all over this fire escape this morning. Not one pigeon can land on it.",
       },
       {
         id: "fire-window",
-        story: "The window back inside stuck shut, and it took ten minutes to jimmy it open.",
+        story: "The window back inside stuck shut, and it took ten minutes to get it open.",
         confirm: [
-          "The super's repair list: \"fire-escape window sticks, jimmied open tonight, latch bent.\"",
+          "The super's repair request in the building app: \"Fire-escape window stuck, pried open tonight, latch bent.\"",
           "Scratch marks on the fire-escape window frame, fresh tonight. Somebody had to pry it open from outside.",
         ],
-        breaks: "The super took the fire-escape window out for repairs this afternoon. There's nothing in that frame but a board.",
+        breaks: "The super took the fire-escape window out for repairs this afternoon. There's nothing in that frame but plywood.",
       },
     ],
   },
   {
     key: "curb",
     place: "out",
-    at: "out at the curb, trying to flag down a cab",
-    witness: "a cabbie parked across the street",
+    at: "out at the curb, waiting on an Uber",
+    witness: "a delivery guy on an e-bike",
     details: [
       {
-        id: "curb-cabs",
-        story: "Not one cab would stop. Three drove straight past, one with a dog in the back seat.",
+        id: "curb-uber",
+        story: "Three drivers canceled in a row, and the app said \"finding your driver\" for twenty minutes.",
         confirm: [
-          "The Checker Cab log: a driver passed up a fare outside the club tonight because his dog didn't like the look of them.",
-          "A cabbie's complaint: three cabs ignored a fare outside this club tonight. His was the one with the dog.",
+          "Uber's records: a pickup outside this club tonight, canceled by three drivers in a row.",
+          "A screenshot from tonight: \"Finding your driver…\" at this address, twenty minutes and counting, right when the lights went out.",
         ],
-        breaks: "The cabbies were on strike tonight. Not one cab drove down this street all evening.",
-        topic: "cabs",
+        breaks: "Uber and Lyft were both down all over Manhattan tonight. Nobody could even open the apps.",
+        topic: "rides",
       },
       {
-        id: "curb-elks",
-        story: "A parade of Elks marched past with a brass band, two hours late.",
+        id: "curb-shreks",
+        story: "A Halloween bar crawl of about thirty Shreks went by, singing.",
         confirm: [
-          "The Elks Lodge confirms: their brass band marched down this street tonight, two hours behind schedule.",
-          "A noise complaint at the precinct: a brass band of Elks marching past the club right when the lights went out.",
+          "A post from tonight: thirty Shreks on a bar crawl, passing right by the club when the lights went out.",
+          "A noise complaint to 311: a bar crawl of singing Shreks outside the club tonight.",
         ],
-        breaks: "The Elks called off tonight's parade for the rain date next Tuesday. No band marched anywhere.",
+        breaks: "The Shrek bar crawl got shut down by the cops at nine, three neighborhoods away. Not one Shrek came down this street.",
       },
     ],
   },
@@ -126,48 +125,48 @@ export const SPOTS: Spot[] = [
     witness: "the super",
     details: [
       {
-        id: "roof-blimp",
-        story: "The Goodyear blimp drifted over, lit up like a Christmas tree.",
+        id: "roof-drones",
+        story: "A drone show over the river made a giant jack-o'-lantern in the sky.",
         confirm: [
-          "Goodyear's flight log: the blimp flew low over this block tonight, every light on.",
-          "A clipping from the late edition: \"BLIMP LIGHTS UP MIDTOWN.\" It passed right over the club.",
+          "The city's event permit: a Halloween drone show over the river tonight, a giant jack-o'-lantern, right when the lights went out.",
+          "A video posted tonight: the drone pumpkin over the river, with the club's roof in the corner of the shot.",
         ],
-        breaks: "Goodyear grounded the blimp tonight for a leak. It never left the hangar.",
+        breaks: "Tonight's drone show got canceled for high winds. Not one drone went up.",
       },
       {
-        id: "roof-laundry",
-        story: "The neighbor's laundry line snapped and dumped a whole wash onto the roof.",
+        id: "roof-yoga",
+        story: "Somebody on the next roof over was doing yoga in a full skeleton costume.",
         confirm: [
-          "The super's notes: the neighbor's laundry line snapped tonight and dumped her whole wash on the club's roof.",
-          "A note pinned to the roof door: \"Whoever has my bloomers, I want them back. — Mrs. Kaplan, next door.\"",
+          "A flyer taped to the roof door: \"Skeleton Yoga, next roof over, Halloween night. Bring a mat.\"",
+          "The building next door's group chat: \"Whoever's doing yoga on the roof in a skeleton suit, it's 11 p.m.\"",
         ],
-        breaks: "Mrs. Kaplan next door took her laundry in at six. There wasn't a sock on that line tonight.",
+        breaks: "The roof next door has been locked for repairs all month. Nobody's been up there, skeleton or not.",
       },
     ],
   },
   {
     key: "cellar",
     place: "cellar",
-    at: "down in the cellar",
-    witness: "the man who runs the still",
+    at: "down in the basement",
+    witness: "the handyman",
     details: [
       {
-        id: "cellar-still",
-        story: "The still in the corner hissed and spat until the valve got turned.",
+        id: "cellar-boiler",
+        story: "The boiler kept clanking and hissing until somebody kicked it.",
         confirm: [
-          "The still man's log: the cellar still boiled over tonight and had to be shut off by hand.",
-          "Scorch marks on the cellar still's valve, fresh tonight. Somebody turned it off in a hurry.",
+          "The handyman's work order: the basement boiler acted up tonight, clanking and hissing, and got kicked back to life.",
+          "A fresh boot scuff on the basement boiler, and a sticky note: \"Kicked it. Works now.\" Dated tonight.",
         ],
-        breaks: "The cellar still was taken apart last week and sold for scrap. There's nothing down there to hiss.",
+        breaks: "The boiler was shut down for an inspection all week. It's stone cold and silent.",
       },
       {
-        id: "cellar-rat",
-        story: "A rat the size of a cat ran across the wine racks.",
+        id: "cellar-roomba",
+        story: "A Roomba was stuck in the corner, bumping into the same wall over and over.",
         confirm: [
-          "The exterminator's bill: one rat \"the size of a cat\" spotted on the cellar wine racks tonight. Still at large.",
-          "Tiny footprints in the dust on the cellar wine racks, fresh tonight. Big ones, for a rat.",
+          "The club's Roomba app: stuck in the basement corner tonight. \"Bumped wall\" 214 times.",
+          "The handyman found the Roomba wedged in the basement corner tonight, battery dead, still facing the wall.",
         ],
-        breaks: "The exterminator gassed the cellar this afternoon. Nothing with legs has been down there since.",
+        breaks: "The club's Roomba has been at the repair shop since Monday. There's no robot in that basement.",
       },
     ],
   },
@@ -178,19 +177,19 @@ export const SPOTS: Spot[] = [
     witness: "a busboy",
     details: [
       {
-        id: "stairs-oysters",
-        story: "A tray of oysters had been left on the landing, and they were not fresh.",
+        id: "stairs-sushi",
+        story: "A sushi platter had been left on the landing, and it was not fresh.",
         confirm: [
-          "A complaint from the cook: a tray of oysters went missing tonight and turned up on the back-stairs landing, ripe.",
-          "The cleaning lady's note: oyster shells all over the back-stairs landing tonight. The smell is still there.",
+          "A complaint from the cook: a sushi platter went missing tonight and turned up on the back-stairs landing, warm.",
+          "The cleaning crew's note: rice and fish all over the back-stairs landing tonight. The smell is still there.",
         ],
-        breaks: "The fish market was closed today. There wasn't an oyster in the building tonight.",
+        breaks: "The sushi order never came tonight. The delivery app shows it canceled at seven.",
       },
       {
         id: "stairs-banister",
         story: "The banister came loose and nearly came off in a hand.",
         confirm: [
-          "The handyman's list: \"back-stairs banister came loose tonight, needs new screws.\"",
+          "The handyman's list: \"Back-stairs banister came loose tonight, needs new screws.\"",
           "Two screws from the back-stairs banister, found on the landing tonight. It's hanging by one.",
         ],
         breaks: "The handyman bolted a brand-new banister to the back stairs this morning. It doesn't budge.",
@@ -204,13 +203,13 @@ export const SPOTS: Spot[] = [
     witness: "the cook",
     details: [
       {
-        id: "kitchen-ruth",
-        story: "The cook's radio had the ball game on, and Babe Ruth hit one out.",
+        id: "kitchen-knicks",
+        story: "The cook had the Knicks game on his phone, and they won at the buzzer.",
         confirm: [
-          "The radio station's log: Babe Ruth homered in the ninth tonight, called live right when the lights went out.",
-          "Tomorrow's sports page, early copy: \"RUTH HOMERS LATE.\" The kitchen radio had it live.",
+          "Tonight's box score: the Knicks won at the buzzer, right when the lights went out.",
+          "A text from the cook to his brother: \"KNICKS AT THE BUZZER!!!\" Sent right when the lights went out.",
         ],
-        breaks: "No ball game on the radio tonight. The Yankees had the day off.",
+        breaks: "The Knicks didn't play tonight. They had the night off.",
       },
       {
         id: "kitchen-soup",
@@ -226,26 +225,26 @@ export const SPOTS: Spot[] = [
   {
     key: "cardTable",
     place: "cards",
-    at: "at the empty card table",
+    at: "at the empty poker table",
     witness: "the dealer on his break",
     details: [
       {
         id: "cards-solitaire",
         story: "A game of solitaire came out on the very first try, which never happens.",
         confirm: [
-          "Found on the card table: a game of solitaire laid out and won, the cards still in their rows.",
+          "Found on the poker table: a game of solitaire laid out and won, the cards still in their rows.",
           "The dealer's note: somebody won a game of solitaire at his table tonight and left it out to brag.",
         ],
-        breaks: "The dealer locked up the card table's only deck at nine tonight. There wasn't a card on that table after that.",
+        breaks: "The dealer locked up the poker table's only deck at nine tonight. There wasn't a card on that table after that.",
       },
       {
         id: "cards-cigar",
         story: "A cigar left burning in an ashtray rolled out and scorched the felt.",
         confirm: [
-          "The manager's list of damages: a cigar burned a hole in the card table's felt tonight.",
-          "A fresh burn in the card table's green felt, cigar-shaped. It happened tonight.",
+          "The manager's list of damages: a cigar burned a hole in the poker table's felt tonight.",
+          "A fresh burn in the poker table's green felt, cigar-shaped. It happened tonight.",
         ],
-        breaks: "The card table got new felt this afternoon, and there isn't a mark on it. Not one burn.",
+        breaks: "The poker table got new felt this afternoon, and there isn't a mark on it. Not one burn.",
       },
     ],
   },
@@ -253,129 +252,129 @@ export const SPOTS: Spot[] = [
     key: "coatCheck",
     place: "front",
     at: "at the coat check",
-    witness: "the coat-check girl",
+    witness: "the coat-check attendant",
     details: [
       {
         id: "coat-ferret",
-        story: "A fur coat in the back row had a live ferret in the pocket.",
+        story: "A puffer jacket in the back row had a live ferret in the pocket.",
         confirm: [
-          "The coat-check girl's book: \"fur coat, row three. Pocket contains one ferret, alive.\"",
-          "Ferret hair all over the back row of the coat check tonight, and one very angry fur coat.",
+          "The coat-check attendant's notes: \"Puffer jacket, row three. Pocket contains one ferret, alive.\"",
+          "Ferret hair all over the back row of the coat check tonight, and one very chewed-up puffer jacket.",
         ],
-        breaks: "The coat-check girl's book: no furs checked tonight. Not one.",
+        breaks: "The coat check's tags: not one puffer jacket checked tonight. Not one.",
       },
       {
-        id: "coat-bill",
-        story: "A hat in the back had a hundred-dollar bill tucked in the band.",
+        id: "coat-goat",
+        story: "A phone in a jacket in the back kept ringing, and the ringtone was a goat screaming.",
         confirm: [
-          "The coat-check girl's note: a hat in the back had a hundred-dollar bill in the band. Nobody's claimed it.",
-          "A hundred-dollar bill in the coat check's lost-and-found box, marked \"from a hatband, tonight.\"",
+          "The coat-check attendant's note: a phone in a jacket in the back rang all night. The ringtone is a screaming goat.",
+          "A complaint from the coat check: a phone in the back row rang eleven times tonight, a screaming goat every time.",
         ],
-        breaks: "The coat-check girl went through every hat at the door tonight. There wasn't a dollar in any of them.",
+        breaks: "The coat-check attendant pats down every pocket at the door. There wasn't a phone in a single coat tonight.",
       },
     ],
   },
   {
-    key: "powderRoom",
+    key: "restroom",
     place: "bath",
-    at: "in the washroom",
-    witness: "the attendant",
+    at: "in the restroom",
+    witness: "the restroom attendant",
     details: [
       {
-        id: "powder-faucet",
-        story: "The faucet stuck on and wouldn't turn off.",
+        id: "restroom-faucet",
+        story: "The automatic faucet turned on and wouldn't turn off.",
         confirm: [
-          "The plumber's bill: the washroom faucet stuck on tonight and ran for twenty minutes.",
-          "A puddle under the washroom sink, and a wrench mark on the faucet. It stuck on tonight.",
+          "The plumber's invoice: the restroom's automatic faucet stuck on tonight and ran for twenty minutes.",
+          "A puddle under the restroom sink, and the sensor on the faucet taped over. It stuck on tonight.",
         ],
-        breaks: "The water to the washroom was shut off all day for new pipes. Not a drop came out of that faucet.",
+        breaks: "The water to the restroom was shut off all day for new pipes. Not a drop came out of that faucet.",
       },
       {
-        id: "powder-mirror",
-        story: "Someone had written a phone number on the mirror in lipstick.",
+        id: "restroom-mirror",
+        story: "Somebody had written an Instagram handle on the mirror in lipstick.",
         confirm: [
-          "The cleaning lady's complaint: a phone number in lipstick on the washroom mirror tonight. Third time this month.",
-          "A lipstick phone number on the washroom mirror: Circle 7-4400. Nobody will say whose.",
+          "The cleaning crew's complaint: an Instagram handle in lipstick on the restroom mirror tonight. Third time this month.",
+          "A lipstick @ on the restroom mirror: @velvetvixen_nyc. Nobody will say whose.",
         ],
-        breaks: "The washroom mirror came down this morning to be resilvered. There's no mirror in there tonight.",
+        breaks: "The restroom mirror came down this morning to be replaced. There's no mirror in there tonight.",
       },
     ],
   },
   {
-    key: "hallPhone",
+    key: "hallway",
     place: "front",
-    at: "on the hall telephone",
-    witness: "the operator",
+    at: "in the hallway, charging a phone",
+    witness: "the security guard",
     details: [
       {
-        id: "phone-nickels",
-        story: "The operator kept cutting in to ask for another nickel.",
+        id: "hall-outlet",
+        story: "The only outlet in the hallway was loose, and the charger kept falling out.",
         confirm: [
-          "The phone company's log: a call from the club's hall phone tonight, cut off twice for more nickels.",
-          "Eleven nickels in the hall phone's coin box, more than any night this month.",
+          "The handyman's list: \"Hallway outlet loose, chargers keep falling out. Fix it tonight.\"",
+          "A phone charger still dangling from the hallway outlet, taped in place. Somebody got desperate tonight.",
         ],
-        breaks: "The phone company cut off the hall telephone yesterday over an unpaid bill. Nobody made a call on it tonight.",
+        breaks: "The hallway outlets were taped over this afternoon for the electrician. Nothing has been plugged in out there tonight.",
       },
       {
-        id: "phone-liver",
-        story: "The line kept crossing with a woman ordering forty pounds of liver.",
+        id: "hall-wings",
+        story: "A man down the hall was on speakerphone, ordering forty pounds of chicken wings.",
         confirm: [
-          "The operator's report: crossed lines on the club's hall phone tonight. One woman kept ordering forty pounds of liver.",
-          "A butcher in the Bronx confirms: a woman ordered forty pounds of liver tonight on a very bad line.",
+          "A wing spot in the Bronx confirms it: forty pounds of wings ordered tonight, by a man on speakerphone at this address.",
+          "The security guard's notes: a man on speakerphone in the hallway tonight, ordering forty pounds of wings. Very loud.",
         ],
-        breaks: "The operator's report: every line on this exchange ran clear tonight. Not one crossed call.",
+        breaks: "The wing spot's records: nobody ordered forty pounds of anything tonight. The biggest order all night was a dozen.",
       },
     ],
   },
   {
-    key: "newsstand",
+    key: "bodega",
     place: "out",
-    at: "across the street at the newsstand",
-    witness: "the newsboy",
+    at: "across the street at the bodega",
+    witness: "the bodega guy",
     details: [
       {
-        id: "news-horse",
-        story: "The late edition came off the truck still wet. The headline: a racehorse bit its jockey.",
+        id: "bodega-cat",
+        story: "The bodega cat was asleep on the bread, and nobody dared to move it.",
         confirm: [
-          "Tonight's late edition, front page: \"HORSE BITES JOCKEY.\" Off the truck right when the lights went out.",
-          "The newsboy's tally: forty copies of the late edition sold tonight, all on account of the horse.",
+          "The bodega's post from tonight: \"Cat's on the bread again. No bread tonight, sorry.\" Posted right when the lights went out.",
+          "Cat hair all over the bodega's bread shelf tonight, and one loaf with a cat-shaped dent in it.",
         ],
-        breaks: "Tonight's late edition never came out: the press broke down. The newsstand sold yesterday's papers all night.",
+        breaks: "The bodega cat is at the vet all week. There's no cat in that store.",
       },
       {
-        id: "news-variety",
-        story: "A man in a bowler hat bought every copy of Variety on the rack.",
+        id: "bodega-scratchers",
+        story: "A guy in a full Spider-Man suit bought every scratch-off ticket they had.",
         confirm: [
-          "The newsboy's note: one customer bought every Variety on the rack tonight and tipped a dime.",
-          "The newsstand's rack: the Variety slot is empty tonight. It sold out to one man in a bowler.",
+          "The bodega's lottery report: every scratch-off in the store sold to one customer tonight. He won four dollars.",
+          "A sign taped to the bodega register: \"Spider-Man bought all the scratch-offs. Out until Monday.\"",
         ],
-        breaks: "Variety didn't come out this week. There wasn't a copy on that rack.",
+        breaks: "The bodega's lottery machine has been broken all week. Not one scratch-off sold tonight.",
       },
     ],
   },
   {
     key: "garage",
     place: "garage",
-    at: "in the garage with the Don's Packard",
-    witness: "the Don's chauffeur",
+    at: "in the garage with the Don's Escalade",
+    witness: "the Don's driver",
     details: [
       {
-        id: "garage-horn",
-        story: "The Packard's horn got stuck and blared for a full minute.",
+        id: "garage-alarm",
+        story: "The Escalade's alarm went off and blared for a full minute.",
         confirm: [
-          "The chauffeur's note: the Packard's horn stuck tonight and blew for a full minute. The neighbors complained.",
-          "A noise complaint from next door: a car horn in the club's garage, blaring for a full minute tonight.",
+          "The driver's note: the Escalade's alarm went off tonight and blared for a full minute. The neighbors complained.",
+          "A noise complaint to 311: a car alarm in the club's garage, blaring for a full minute tonight.",
         ],
-        breaks: "The Packard's horn was disconnected last week after the neighbors complained. It can't make a peep.",
+        breaks: "The Escalade's alarm was disconnected last week after the neighbors complained. It can't make a peep.",
       },
       {
-        id: "garage-gloves",
-        story: "There was a pair of ladies' gloves on the Packard's back seat.",
+        id: "garage-heel",
+        story: "There was one red-bottom high heel on the Escalade's back seat.",
         confirm: [
-          "The chauffeur's report: a pair of ladies' gloves on the Packard's back seat tonight. He's not asking.",
-          "Ladies' gloves, size six, found in the Don's Packard tonight. Now in the lost-and-found.",
+          "The driver's report: one red-bottom heel on the Escalade's back seat tonight. He's not asking.",
+          "One red-bottom heel, size seven, found in the Don's Escalade tonight. Now in the lost-and-found.",
         ],
-        breaks: "The chauffeur cleaned out the Packard at nine tonight. Not so much as a glove left in it.",
+        breaks: "The driver had the Escalade detailed at nine tonight. Not so much as a hair tie left in it.",
       },
     ],
   },
@@ -383,80 +382,79 @@ export const SPOTS: Spot[] = [
     key: "cigarShop",
     place: "out",
     at: "next door at the cigar shop",
-    witness: "the tobacconist",
+    witness: "the cigar shop owner",
     details: [
       {
         id: "cigar-parrot",
-        story: "The tobacconist's parrot kept shouting \"Raid!\" at the customers.",
+        story: "The cigar shop's parrot kept yelling \"Cops!\" at the customers.",
         confirm: [
-          "The tobacconist apologizes: his parrot shouted \"Raid!\" at customers all night again.",
-          "A note on the cigar shop door: \"The parrot is a liar. There is no raid.\"",
+          "The cigar shop owner apologizes: his parrot yelled \"Cops!\" at customers all night again.",
+          "A note on the cigar shop door: \"The parrot is lying. There are no cops.\"",
         ],
-        breaks: "The tobacconist's parrot is at the bird doctor this week. The shop was quiet as a church.",
-        topic: "birds",
+        breaks: "The cigar shop's parrot is at the bird vet this week. The shop was quiet as a church.",
       },
       {
-        id: "cigar-havanas",
-        story: "A box of Havanas fell off the top shelf and burst open.",
+        id: "cigar-cubans",
+        story: "A box of cigars labeled \"definitely not Cuban\" fell off the top shelf and burst open.",
         confirm: [
-          "The tobacconist's books: one box of Havanas dropped and dented tonight. Sold at half price.",
-          "A burst cigar box behind the cigar shop counter, Havanas everywhere. It fell tonight.",
+          "The cigar shop's inventory: one box of \"definitely not Cuban\" cigars dropped and dented tonight. Now half price.",
+          "A burst cigar box behind the cigar shop counter, \"definitely not Cuban\" on the lid, cigars everywhere. It fell tonight.",
         ],
-        breaks: "The tobacconist sold his last box of Havanas at noon. There wasn't one on any shelf tonight.",
-      },
-    ],
-  },
-  {
-    key: "phoneBooth",
-    place: "out",
-    at: "in the phone booth on the corner",
-    witness: "the beat cop",
-    details: [
-      {
-        id: "booth-door",
-        story: "The booth's door jammed shut, and it took a good kick to get out.",
-        confirm: [
-          "The phone company's repair ticket: the booth on the corner jammed shut tonight. Somebody kicked the door open.",
-          "A shoe-shaped dent in the corner phone booth's door. Fresh tonight.",
-        ],
-        breaks: "The phone booth on the corner was hauled away for repairs this morning. There's a hole in the sidewalk where it stood.",
-      },
-      {
-        id: "booth-book",
-        story: "The phone book in the booth was missing every page with an S.",
-        confirm: [
-          "The phone company: the corner booth's phone book is missing every S page, torn out tonight.",
-          "The S pages from a phone book, stuffed in the ash can by the corner booth. All of them.",
-        ],
-        breaks: "The corner booth got a brand-new phone book at nine tonight, every page intact.",
+        breaks: "The cigar shop sold its last box of \"definitely not Cubans\" at noon. There wasn't one on any shelf tonight.",
       },
     ],
   },
   {
-    key: "cab",
+    key: "halalCart",
     place: "out",
-    at: "in a cab, circling the block",
-    witness: "the cabbie",
+    at: "at the halal cart on the corner",
+    witness: "the halal cart guy",
     details: [
       {
-        id: "cab-meter",
-        story: "The meter ran up to two dollars going around the same block.",
+        id: "cart-sauce",
+        story: "The cart guy was giving free extra white sauce to anybody in a costume.",
         confirm: [
-          "The cab company's trip sheet: one fare circled this block for twenty minutes tonight. Two dollars on the meter.",
-          "A cabbie's tip jar: two dollars and a note, \"for going around in circles.\"",
+          "The halal cart's sign tonight: \"Costume = free extra white sauce.\" He ran out right when the lights went out.",
+          "A pile of empty white-sauce bottles by the halal cart, and a sign: \"Halloween special. All gone.\"",
         ],
-        breaks: "The cab company's trip sheets: no cab carried a fare anywhere near this club tonight.",
-        topic: "cabs",
+        breaks: "The halal cart has been out of white sauce since Tuesday. Not a drop tonight, costume or not.",
       },
       {
-        id: "cab-radio",
-        story: "The cabbie's radio had a dance band on, and he sang along, badly.",
+        id: "cart-zombies",
+        story: "The line was twenty people deep, and half of them were dressed as zombies.",
         confirm: [
-          "A complaint at the cab company: a driver sang along to his radio tonight, very badly, circling this very block.",
-          "The cab company's note to a driver: \"No more singing to the fares.\" Dated tonight.",
+          "The halal cart's card reader: forty-two sales tonight, the busiest stretch right when the lights went out.",
+          "A post from tonight: \"the halal cart line is all zombies lol,\" with the corner by the club in the background.",
         ],
-        breaks: "The cab company pulled the radios out of every cab last month. No cab played music tonight.",
-        topic: "cabs",
+        breaks: "The halal cart closed at nine tonight because the guy went home sick. Nobody lined up for anything.",
+      },
+    ],
+  },
+  {
+    key: "rideshare",
+    place: "out",
+    at: "in an Uber, circling the block",
+    witness: "the Uber driver",
+    details: [
+      {
+        id: "ride-fare",
+        story: "The fare hit forty dollars going around the same block.",
+        confirm: [
+          "An Uber receipt from tonight: one ride, twenty minutes circling this block. Forty dollars.",
+          "An Uber driver's note on a rider tonight: \"Made me drive around the same block for twenty minutes.\"",
+        ],
+        breaks: "Uber's records: no ride picked anybody up or dropped anybody off near this club tonight.",
+        topic: "rides",
+      },
+      {
+        id: "ride-singing",
+        story: "The driver had a karaoke playlist on and sang every word, badly.",
+        confirm: [
+          "A complaint to Uber: a driver sang along to his music tonight, very badly, circling this very block.",
+          "Uber's message to a driver: \"Please stop singing to your riders.\" Dated tonight.",
+        ],
+        breaks: "The only Uber near this club tonight had a broken stereo. Not a note of music in that car.",
+        topic: "rides",
       },
     ],
   },
@@ -464,25 +462,25 @@ export const SPOTS: Spot[] = [
     key: "frontSteps",
     place: "out",
     at: "out on the front steps",
-    witness: "the doorman",
+    witness: "the bouncer",
     details: [
       {
         id: "steps-joke",
-        story: "The doorman told the same joke about a duck and a lawyer four times.",
+        story: "The bouncer told the same joke about a duck and a lawyer four times.",
         confirm: [
-          "The doorman admits it: he told his duck-and-lawyer joke to anyone who'd stand still tonight. Four times, at least.",
-          "The manager's note to the doorman: \"Enough with the duck.\" Dated tonight.",
+          "The bouncer admits it: he told his duck-and-lawyer joke to anyone who'd stand still tonight. Four times, at least.",
+          "The manager's text to the bouncer: \"Enough with the duck.\" Sent tonight.",
         ],
-        breaks: "The doorman lost his voice yesterday. He hasn't said a word all night, joke or otherwise.",
+        breaks: "The bouncer lost his voice yesterday. He hasn't said a word all night, joke or otherwise.",
       },
       {
-        id: "steps-ice",
-        story: "The ice man's wagon lost a wheel and a block of ice slid right down the steps.",
+        id: "steps-citibike",
+        story: "A guy on a Citi Bike crashed into the trash cans at the bottom of the steps and rode off yelling \"I'm okay!\"",
         confirm: [
-          "The ice company's report: a wagon lost a wheel outside the club tonight and a block went down the front steps.",
-          "A puddle on the front steps and a dent in the railing. The ice man's wagon, tonight.",
+          "Citi Bike's damage report: a bike banged up outside the club tonight. The rider \"said he was okay.\"",
+          "A dented trash can at the bottom of the front steps and a Citi Bike reflector in the gutter. Tonight.",
         ],
-        breaks: "The ice company doesn't deliver at night. Its wagons were all in the stable by six.",
+        breaks: "The trash cans at the bottom of the front steps were taken in at nine. There was nothing down there to crash into.",
       },
     ],
   },
@@ -579,7 +577,7 @@ export function alibiText(say: (key: string, n: number) => number, tone: "classi
   const many = all.length > 1;
   const tail = (k: string) => {
     const classic = many ? ["Both cleared.", "Both in the clear."] : ["Cleared.", "In the clear."];
-    const adult = many ? ["Both cleared, damn it.", "Both cleared. Boring, but cleared."] : ["Cleared, unfortunately.", "Cleared. Boring, but cleared."];
+    const adult = many ? ["Both cleared, damn it.", "Both cleared. Boring, but legit."] : ["Cleared, unfortunately.", "Cleared. Boring, but legit."];
     const pool = tone === "adult" ? adult : classic;
     const t = pool[say(`at-${k}`, pool.length)];
     return all.length > 2 ? t.replace("Both", "All three") : t;
@@ -634,24 +632,24 @@ export type LateTip = { id: string; aboutId: string; text: string };
  */
 export const TIPS: { classic: ((n: string) => string)[]; adult: ((n: string) => string)[] } = {
   classic: [
-    (n) => `A waiter says ${n} asked twice tonight what time the Don usually turned in.`,
-    (n) => `The cigarette girl says ${n} paid for one pack with a hundred-dollar bill and didn't wait for the change.`,
-    (n) => `The doorman says ${n} came in tonight through the kitchen door instead of the front.`,
+    (n) => `A waiter says ${n} asked twice tonight what time the Don usually heads home.`,
+    (n) => `The cocktail waitress says ${n} paid for one drink with a hundred-dollar bill and didn't wait for the change.`,
+    (n) => `A line cook says ${n} came in tonight through the kitchen door instead of the front.`,
     (n) => `The bartender says ${n} switched to plain water an hour before the lights went out.`,
-    (n) => `Somebody overheard ${n} on a telephone earlier tonight, saying, "It's taken care of."`,
-    (n) => `The coat-check girl says ${n} checked a coat tonight, then came back for it twice.`,
+    (n) => `Somebody saw ${n} send a text earlier tonight that said "It's handled," then delete the whole conversation.`,
+    (n) => `The coat-check attendant says ${n} checked a jacket tonight, then came back for it twice. Kind of sketchy.`,
     (n) => `A busboy says ${n} was asking earlier which doors in the club lock from the inside.`,
-    (n) => `The bandleader says ${n} tipped him five dollars tonight to play the Don's favorite song. Twice.`,
+    (n) => `The DJ says ${n} tipped him fifty bucks tonight to play the Don's favorite song. Twice.`,
   ],
   adult: [
-    (n) => `A waiter says ${n} asked twice tonight what time the Don usually turned in. Creepy as hell.`,
-    (n) => `The cigarette girl says ${n} paid for one pack with a hundred-dollar bill and didn't wait for the change. Nobody's that rich. Nobody honest, anyway.`,
-    (n) => `The doorman says ${n} came in tonight through the kitchen door instead of the front, like a damn raccoon.`,
-    (n) => `The bartender says ${n} switched to plain water an hour before the lights went out. In this joint, that's practically a confession.`,
-    (n) => `Somebody overheard ${n} on a telephone earlier tonight, saying, "It's taken care of." Could be the laundry. Could be.`,
-    (n) => `The coat-check girl says ${n} checked a coat tonight, then came back for it twice. Shifty as hell.`,
-    (n) => `A busboy says ${n} was asking earlier which doors in the club lock from the inside. Normal question. Totally normal.`,
-    (n) => `The bandleader says ${n} tipped him five dollars tonight to play the Don's favorite song. Twice. Sentimental, or guilty.`,
+    (n) => `A waiter says ${n} asked twice tonight what time the Don usually heads home. Creepy as hell, no cap.`,
+    (n) => `The cocktail waitress says ${n} paid for one drink with a hundred-dollar bill and didn't wait for the change. Nobody's that rich. Nobody honest, anyway.`,
+    (n) => `A line cook says ${n} came in tonight through the kitchen door instead of the front, like a damn raccoon. Sus.`,
+    (n) => `The bartender says ${n} switched to plain water an hour before the lights went out. In this place, that's basically a confession.`,
+    (n) => `Somebody saw ${n} text "It's handled" earlier tonight, then delete the whole thread. Could be about laundry. Could be.`,
+    (n) => `The coat-check attendant says ${n} checked a jacket tonight, then came back for it twice. It's giving guilty.`,
+    (n) => `A busboy says ${n} was asking earlier which doors in the club lock from the inside. Normal question. Totally normal. Not sus at all.`,
+    (n) => `The DJ says ${n} tipped him fifty bucks tonight to play the Don's favorite song. Twice. Sentimental, or guilty. Lowkey both.`,
   ],
 };
 
@@ -666,6 +664,6 @@ export function drawTips(rng: Rng, tone: "classic" | "adult", standing: { id: st
 
 /** The chip-stash card: $200 for the first phone to scan it, and an empty envelope for everyone after. */
 export const STASH = {
-  found: "Taped under a drawer: the Don's emergency roll. $200 in chips, finders keepers. Take $200 from the bank.",
+  found: "Taped under a drawer: the Don's emergency stash. $200 in chips, finders keepers. Take $200 from the bank.",
   empty: "Taped under a drawer: an empty envelope. Somebody already cleaned out the Don's stash.",
 };

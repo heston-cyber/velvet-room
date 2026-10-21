@@ -5,9 +5,8 @@ import { howCues } from "../convex/show";
 import { REVEAL } from "../convex/shared";
 import { HECKLE, plan, type Data } from "../src/tv/timeline";
 
-// Lines the v2 night uses (the old lobby How to play and roll call opener are retired).
-const RETIRED: CueKey[] = ["howTo1", "howTo2", "howTo3", "howTo5", "howTo8", "howTo9", "rollCallOpen"];
-const USED = (Object.keys(CUES) as CueKey[]).filter((c) => !RETIRED.includes(c));
+// Lines the night uses (Oct 21: the retired ones, the old How to play, roll call opener, vote prompt and Best Liar, are gone).
+const USED = Object.keys(CUES) as CueKey[];
 
 describe("adult script: several versions of every line, picked per game", () => {
   test("every line the night uses has at least three adult versions; classic keeps one", () => {
@@ -25,7 +24,7 @@ describe("adult script: several versions of every line, picked per game", () => 
     expect(new Set(games.map((g) => g.join(","))).size).toBe(4);
     // Over a few replays, every line is heard in more than one version.
     for (let i = 0; i < USED.length; i++) expect(new Set(["a", "b", "c", "d", "e", "f", "g", "h"].map((s) => cueVariant("adult", USED[i], s))).size, USED[i]).toBeGreaterThan(1);
-    expect(cueVariant("classic", "howJail", "anything")).toBe(0);
+    expect(cueVariant("classic", "howJail2", "anything")).toBe(0);
   });
 
   test("a line that repeats in one game changes each time", () => {
@@ -35,14 +34,16 @@ describe("adult script: several versions of every line, picked per game", () => 
   });
 
   test("each version has its own recording, caption and text", () => {
-    expect(cueFile("howJail", 0)).toBe("howJail");
-    expect(cueFile("howJail", 2)).toBe("howJail.2");
+    expect(cueFile("voteJail", 0)).toBe("voteJail");
+    expect(cueFile("voteJail", 2)).toBe("voteJail.2");
     const adult = cueFiles("adult");
-    expect(adult.filter((f) => f.cue === "howJail").map((f) => f.file)).toEqual(["howJail", "howJail.1", "howJail.2", "howJail.3"]); // .3 is the noisy take
+    const n = cueVersions("voteJail", "adult").length;
+    expect(adult.filter((f) => f.cue === "voteJail").map((f) => f.file)).toEqual(Array.from({ length: n }, (_, v) => cueFile("voteJail", v)));
+    expect(isNoisy("voteJail", "adult", cleanVersions("voteJail", "adult").length)).toBe(true); // the noisy take follows the clean ones
     expect(cueFiles("classic").length).toBe(Object.keys(CUES).length + Object.keys(NOISY.classic).length);
     expect(captionText("intro3", "adult", "ivy", 2)).toBe("One of you did it. My money's on whoever just looked at the door.");
     expect(recordingText("intro3", "adult", "ivy", false, 2)).toContain("[whispers]");
-    expect(captionText("howLockIn", "adult", "ivy")).not.toMatch(/marri/i);
+    expect(captionText("howWin2", "adult", "ivy")).not.toMatch(/marri/i);
   });
 
   test("the reveal and the body come in versions too, the same for every guest in a game", () => {
@@ -178,7 +179,6 @@ describe("heckles in the lulls", () => {
     expect(a.every((e) => !hk.find((h) => h.clip.url === e.clip!.url)!.figure)).toBe(true);
     // Oct 20: Best Dressed is voted in the lobby, so the reveal has no vote prompt and no heckles under it.
     const rev = plan(data({ status: "reveal", revealAt: T0 }, hk), T0 + 1000, secs);
-    expect(rev.events.some((e) => e.cue === "votePrompt")).toBe(false);
     expect(rev.events.filter((e) => e.id.startsWith("heckle:"))).toHaveLength(0);
   });
 

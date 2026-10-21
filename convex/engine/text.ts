@@ -117,52 +117,52 @@ export type Script = {
 
 export const CLASSIC: Script = {
   suspectClear: [
-    { at: ["front"], t: (n) => `The coat-check girl swears ${n} never left her sight while the Don was alone. ${n} is in the clear.` },
-    { at: ["bar"], t: (n) => `A flash photo from the bar shows ${n} mid-toast at the very moment the Don went quiet. Cleared.` },
-    { at: ["cards"], t: (n) => `${n} was losing at cards the whole time. Five sore winners vouch for it. Cleared.` },
-    { at: ["lounge"], t: (n) => `The bandleader says ${n} requested the same song three times running and never left the dance floor. Cleared.` },
-    { at: ["front"], t: (n) => `${n} spent the whole stretch arguing with the doorman about a bar tab. He's sure of it. Cleared.` },
-    { at: ["out"], t: (n) => `A cab driver waited at the curb while ${n} hunted through every pocket for the fare. That took the whole stretch. Cleared.` },
-    { at: ["bath"], t: (n) => `${n} was stuck in the line for the powder room the entire time, and four people in that line will swear to it. Cleared.` },
-    { at: ["out"], t: (n) => `The beat cop on the corner chatted with ${n} on the front steps right through it. A cop's word is good enough. Cleared.` },
-    { at: ["front"], t: (n) => `${n} was on the hall telephone to a sister in Brooklyn the whole stretch, and the operator logged the call. Cleared.` },
+    { at: ["front"], t: (n) => `The coat-check attendant swears ${n} never left their sight while the Don was alone. ${n} is in the clear.` },
+    { at: ["bar"], t: (n) => `A photo on the bar's Instagram story shows ${n} mid-toast at the very moment the Don went quiet. Cleared.` },
+    { at: ["cards"], t: (n) => `${n} was losing at poker the whole time. Five sore winners vouch for it. Cleared.` },
+    { at: ["lounge"], t: (n) => `The DJ says ${n} requested the same song three times in a row and never left the dance floor. Cleared.` },
+    { at: ["front"], t: (n) => `${n} spent the whole stretch arguing with the bouncer about a bar tab. He's sure of it. Cleared.` },
+    { at: ["out"], t: (n) => `An Uber driver waited at the curb while ${n} tried to get Apple Pay to work. That took the whole stretch. Cleared.` },
+    { at: ["bath"], t: (n) => `${n} was stuck in the line for the restroom the entire time, and four people in that line will swear to it. Cleared.` },
+    { at: ["out"], t: (n) => `A cop on the corner chatted with ${n} on the front steps right through it. A cop's word is good enough. Cleared.` },
+    { at: ["front"], t: (n) => `${n} was in the hall on a FaceTime with a sister in Brooklyn the whole stretch, and the call log proves it. Cleared.` },
     { at: ["kitchen"], t: (n) => `The cook says ${n} spent the whole stretch in the kitchen begging for another plate of oysters. Cleared.` },
-    { at: ["out"], t: (n) => `${n} was out on the fire escape getting some air, in plain view of half the street. Cleared.` },
+    { at: ["out"], t: (n) => `${n} was out on the fire escape taking selfies, in plain view of half the street. Cleared.` },
   ],
   suspectPairClear: [
-    { at: ["lounge"], t: (a, b) => `${a} and ${b} were stuck together by the piano all evening, trading insults. The piano player backs them both. Both cleared.` },
+    { at: ["lounge"], t: (a, b) => `${a} and ${b} were stuck together by the DJ booth all evening, roasting each other. The DJ backs them both. Both cleared.` },
     { at: ["bar"], t: (a, b) => `The bartender kept ${a} and ${b} in his sights all night. Neither one left the bar. Both cleared.` },
-    { at: ["out"], t: (a, b) => `${a} and ${b} were caught sneaking a smoke out back together when it happened. Both cleared.` },
-    { at: ["kitchen"], t: (a, b) => `${a} and ${b} played checkers in the kitchen with the dishwasher the whole time. He won every game and remembers them both. Both cleared.` },
-    { at: ["out"], t: (a, b) => `${a} and ${b} were on a liquor run across town and walked back in after the Don was already dead. The cab driver confirms it. Both cleared.` },
-    { at: ["front"], t: (a, b) => `The coat-check girl watched ${a} and ${b} argue over the same fur coat for twenty minutes. Neither won. Both cleared.` },
-    { at: ["out"], t: (a, b) => `${a} and ${b} spent the whole stretch on the front steps arguing about baseball with the doorman. Both cleared.` },
+    { at: ["out"], t: (a, b) => `${a} and ${b} were caught sneaking a vape out back together when it happened. Both cleared.` },
+    { at: ["kitchen"], t: (a, b) => `${a} and ${b} played Uno in the kitchen with the dishwasher the whole time. He won every game and remembers them both. Both cleared.` },
+    { at: ["out"], t: (a, b) => `${a} and ${b} were on an ice run to the bodega and walked back in after the Don was already dead. The bodega's camera has them both. Both cleared.` },
+    { at: ["front"], t: (a, b) => `The coat-check attendant watched ${a} and ${b} argue over the same black puffer jacket for twenty minutes. Neither won. Both cleared.` },
+    { at: ["out"], t: (a, b) => `${a} and ${b} spent the whole stretch on the front steps arguing about the Yankees with the bouncer. Both cleared.` },
   ],
   suspectTrioClear: [
-    { t: (a, b, c) => `${a}, ${b} and ${c} were all in the club photographer's group shot, taken the very minute the Don died. All three cleared.` },
+    { t: (a, b, c) => `${a}, ${b} and ${c} were all in a group selfie, posted the very minute the Don died. All three cleared.` },
     { at: ["cards"], t: (a, b, c) => `${a}, ${b} and ${c} were at the craps table the whole time, and the dealer will swear to it. All three cleared.` },
-    { at: ["lounge"], t: (a, b, c) => `The band saw ${a}, ${b} and ${c} dancing the Charleston, badly, right through it. All three cleared.` },
+    { at: ["lounge"], t: (a, b, c) => `The DJ watched ${a}, ${b} and ${c} try a TikTok dance, badly, right through it. All three cleared.` },
     { at: ["out"], t: (a, b, c) => `${a}, ${b} and ${c} were in the alley helping push a stalled delivery truck, and the driver will swear to it. All three cleared.` },
-    { at: ["out"], t: (a, b, c) => `${a}, ${b} and ${c} were on the front steps serenading a passing streetcar, and half the block heard them. All three cleared.` },
-    { t: (a, b, c) => `A fortune teller had ${a}, ${b} and ${c} at her table the whole stretch, reading three palms very slowly. All three cleared.` },
+    { at: ["out"], t: (a, b, c) => `${a}, ${b} and ${c} were on the front steps serenading a passing double-decker tour bus, and half the block heard them. All three cleared.` },
+    { t: (a, b, c) => `A tarot reader had ${a}, ${b} and ${c} at her table the whole stretch, reading three spreads very slowly. All three cleared.` },
   ],
   witness: (say, sex, cleared) =>
     say("w", [
       sex === "m"
-        ? `The hat-check girl saw the killer slip out the side door: a man, with his hat pulled low. That clears ${list(cleared)}.`
-        : `The hat-check girl saw the killer slip out the side door: a woman, in a long dark coat. That clears ${list(cleared)}.`,
+        ? `The coat-check attendant saw the killer slip out the side door: a man, with his hood pulled up. That clears ${list(cleared)}.`
+        : `The coat-check attendant saw the killer slip out the side door: a woman, in a long dark coat. That clears ${list(cleared)}.`,
       sex === "m"
-        ? `A cabbie parked outside heard a man shouting at the Don just before he died. The killer is a man, so ${list(cleared)} are in the clear.`
-        : `A cabbie parked outside heard a woman shouting at the Don just before he died. The killer is a woman, so ${list(cleared)} are in the clear.`,
+        ? `A delivery guy outside heard a man shouting at the Don just before he died. The killer is a man, so ${list(cleared)} are in the clear.`
+        : `A delivery guy outside heard a woman shouting at the Don just before he died. The killer is a woman, so ${list(cleared)} are in the clear.`,
       sex === "m"
-        ? `Footprints in spilled gin lead away from the body: a man's wingtips. That clears ${list(cleared)}.`
-        : `Footprints in spilled gin lead away from the body: a woman's heels. That clears ${list(cleared)}.`,
+        ? `Footprints in spilled tequila lead away from the body: a man's size-twelve sneakers. That clears ${list(cleared)}.`
+        : `Footprints in spilled tequila lead away from the body: a woman's high heels. That clears ${list(cleared)}.`,
       sex === "m"
-        ? `The cigarette girl brushed past the killer in the dark right after: a man, tall, smelling of cheap cologne. That clears ${list(cleared)}.`
-        : `The cigarette girl brushed past the killer in the dark right after: a woman, smelling of French perfume. That clears ${list(cleared)}.`,
+        ? `A waitress brushed past the killer in the dark right after: a man, tall, drowning in cheap cologne. That clears ${list(cleared)}.`
+        : `A waitress brushed past the killer in the dark right after: a woman, smelling of expensive perfume. That clears ${list(cleared)}.`,
       sex === "m"
-        ? `A newsboy across the street saw someone hurry out a back window right after: a man in a fedora. That clears ${list(cleared)}.`
-        : `A newsboy across the street saw someone hurry out a back window right after: a woman in a cloche hat. That clears ${list(cleared)}.`,
+        ? `A doorbell camera across the street caught someone climbing out a back window right after: a man in a ball cap. That clears ${list(cleared)}.`
+        : `A doorbell camera across the street caught someone climbing out a back window right after: a woman in a long dress. That clears ${list(cleared)}.`,
     ]),
   coroner: (say, kind, positive, weapons) => {
     const out = `That rules out ${theList(weapons)}.`;
@@ -185,54 +185,55 @@ export const CLASSIC: Script = {
     ]);
   },
   exhibitClear: [
-    { at: ["front"], t: (w) => `The ${w} sat in the coat check all night, and the coat-check girl never let anyone near. Not the weapon.` },
+    { at: ["front"], t: (w) => `The ${w} sat in the coat check all night, and the coat-check attendant never let anyone near. Not the weapon.` },
     { t: (w) => `The Don locked the ${w} in his office safe before the party, and only he knew the combination. Not the weapon.` },
     { t: (w) => `The dust around the ${w} hasn't been disturbed all night. Not the weapon.` },
     { t: (w) => `The ${w} spent the whole night in a locked display case, and the only key was in the Don's own pocket. Not the weapon.` },
     { t: (w) => `A bouncer guarded the crate with the ${w} in it all night, and nobody got past him. Not the weapon.` },
-    { at: ["lounge"], t: (w) => `The ${w} sat on the bandstand in plain view of the whole room all night. Not the weapon.` },
-    { t: (w) => `The ${w} came back from the repair shop this morning, still wrapped in brown paper with the string unbroken. Not the weapon.` },
+    { at: ["lounge"], t: (w) => `The ${w} sat next to the DJ booth in plain view of the whole room all night. Not the weapon.` },
+    { t: (w) => `The ${w} arrived in an Amazon box this morning, and the tape on the box is still unbroken. Not the weapon.` },
   ],
   exhibitGunClear: [
     { t: (w) => `The ${w} is still fully loaded and hasn't been fired tonight. Not the weapon.` },
     { t: (w) => `Not a whiff of powder on the ${w}. Nobody fired it tonight. Not the weapon.` },
     { t: (w) => `The ${w} is rusted solid. It couldn't fire tonight if it tried. Not the weapon.` },
-    { t: (w) => `The ${w} is still wrapped in the Don's oilcloth with the knots untouched. Not the weapon.` },
+    { t: (w) => `The ${w} is still zipped inside the Don's locked gun case. Not the weapon.` },
   ],
   exhibitPairClear: [
     { at: ["bar"], t: (a, b) => `The ${a} and the ${b} were behind the bar under the bartender's nose all evening. Neither one was used.` },
     { t: (a, b) => `The Don locked the ${a} and the ${b} in his office safe before the party, and only he knew the combination. Neither is the weapon.` },
-    { at: ["out"], t: (a, b) => `The ${a} and the ${b} were in the trunk of the Don's car, and the chauffeur sat on the bumper all night. Neither is the weapon.` },
+    { at: ["out"], t: (a, b) => `The ${a} and the ${b} were in the trunk of the Don's Escalade, and his driver sat on the bumper all night. Neither is the weapon.` },
     { t: (a, b) => `The ${a} and the ${b} were locked in the supply closet, and the manager has the only key. Neither one was used.` },
   ],
   roomClear: [
     { seal: true, t: (r) => `${r} was locked from the start of the party until the body turned up, and the manager never let go of the key. The Don wasn't killed there.` },
     { seal: true, t: (r) => `Until the body turned up, the dust on the floor of ${mid(r)} hadn't been disturbed all night. Nobody died in there.` },
-    { seal: true, t: (r) => `The staff tied a ribbon across the door of ${mid(r)} before the party, and it was still unbroken when the body turned up. Not there.` },
+    { seal: true, t: (r) => `The staff taped a "Do Not Enter" sign across the door of ${mid(r)} before the party, and the tape was still unbroken when the body turned up. Not there.` },
     { crowd: true, t: (r) => `${r} was full of witnesses all evening. Nobody could have killed the Don there unseen.` },
     { crowd: true, t: (r) => `A card game ran in ${mid(r)} all night, a dozen players and a dealer who never blinked. Nobody was killed in there.` },
-    { crowd: true, t: (r) => `${r} hosted a birthday toast for the bandleader right through the evening. Thirty guests, and not one murder. Not there.` },
+    { crowd: true, t: (r) => `${r} hosted a birthday party for the DJ right through the evening. Thirty guests, and not one murder. Not there.` },
   ],
   twistMoved: (body) =>
     `The twist: the Don wasn't killed in ${mid(body)} at all. Drag marks say someone moved him there after he was dead.`,
   twistStayed: (body) =>
     `The twist: there are no drag marks anywhere. The Don was killed right where he was found, in ${mid(body)}.`,
   herring: [
-    { t: (n) => `A matchbook with ${n}'s name scribbled inside turned up in the Don's coat pocket. Could be nothing. Could be everything.` },
+    { t: (n) => `A cocktail napkin with ${n}'s number on it turned up in the Don's coat pocket. Could be nothing. Could be everything.` },
     { t: (n) => `Earlier tonight, ${n} was heard telling the bartender the Don wouldn't live to see Sunday. Could be talk. Could be a plan.` },
-    { t: (n) => `A note in ${n}'s handwriting, tucked in the Don's hatband: "We need to talk. Tonight." Talking isn't killing. Or is it?` },
-    { t: (n) => `${n} asked the coat-check girl twice tonight where the Don had gone. Curious. Very curious.` },
+    { t: (n) => `A text from ${n} on the Don's lock screen: "We need to talk. Tonight." Talking isn't killing. Or is it?` },
+    { t: (n) => `${n} asked the coat-check attendant twice tonight where the Don had gone. Kind of sketchy.` },
+    { t: (n) => `${n} ghosted the Don's texts all week, then showed up tonight like nothing happened. Could be nothing. Lowkey, could be something.` },
   ],
   flavor: [
-    "An empty bottle of the Don's private gin. Somebody helped themselves. Nothing more.",
-    "A torn betting slip on a long shot that never paid. It tells you nothing about tonight.",
+    "An empty bottle of the Don's private tequila. Somebody helped themselves. Nothing more.",
+    "A screenshot of a losing twelve-leg parlay. It tells you nothing about tonight, except that somebody's broke.",
     "Lipstick on a champagne glass. Half the room wears that shade.",
     "A stack of unpaid tabs with the Don's angry notes in the margins. Everybody owed him.",
-    "A matchbook from a joint across town. Plenty of people here drink there.",
+    "A wristband from a club across town. Plenty of people here party there.",
     "A cold cigar in an ashtray, barely smoked. The Don hated waste. Odd, but it proves nothing.",
-    "A bent hairpin on the stairs. Half the room wears them. It proves nothing.",
+    "A bobby pin on the stairs. Half the room uses them. It proves nothing.",
     "A deck of cards with every ace missing. Somebody's been cheating, just not at murder.",
-    "A torn ticket stub for a picture show nobody here admits to seeing.",
+    "A ticket stub for a Broadway show nobody here admits to seeing.",
     "A rhinestone off somebody's dress, rolled under a radiator. Pretty, and no help at all.",
   ],
   killerLines: (f) => [

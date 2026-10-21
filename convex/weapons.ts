@@ -18,7 +18,7 @@ export const WEAPONS: { key: string; name: string; kind: WeaponKind }[] = [
   { key: "rope", name: "Rope", kind: "cord" },
   { key: "wrench", name: "Wrench", kind: "blunt" },
   { key: "poison", name: "Poison", kind: "other" },
-  { key: "horseshoe", name: "Horseshoe", kind: "blunt" },
+  { key: "champagne", name: "Champagne Bottle", kind: "blunt" }, // Oct 21: replaced the Horseshoe (modern New York)
   { key: "axe", name: "Hatchet", kind: "blade" }, // Heston's list: "Axe / Hatchet"; the drawing is a hatchet
   { key: "trophy", name: "Trophy", kind: "blunt" },
   { key: "dumbbell", name: "Dumbbell", kind: "blunt" },
@@ -30,15 +30,19 @@ export const WEAPONS: { key: string; name: string; kind: WeaponKind }[] = [
   { key: "gnome", name: "Lawn Gnome", kind: "blunt" },
   { key: "bucket", name: "Water Bucket", kind: "other" },
   { key: "shears", name: "Garden Shears", kind: "blade" },
-  { key: "blunderbuss", name: "Blunderbuss", kind: "gun" },
+  { key: "golfclub", name: "Golf Club", kind: "blunt" }, // Oct 21: replaced the Blunderbuss (modern New York)
   { key: "crowbar", name: "Crowbar", kind: "blunt" },
   { key: "gloves", name: "Gloves", kind: "cord" },
 ];
 export const WEAPON_KEYS = WEAPONS.map((w) => w.key);
+/** Oct 21: the old weapons' keys, as a game or a host's Options may still have them saved. */
+const RENAMED: Record<string, string> = { horseshoe: "champagne", blunderbuss: "golfclub" };
+/** A saved weapon key in today's pool (the old Horseshoe is the Champagne Bottle, the Blunderbuss the Golf Club). */
+export const currentWeapon = (k: string) => RENAMED[k] ?? k;
 export const isWeapon = (k: unknown): k is string => typeof k === "string" && WEAPON_KEYS.includes(k);
-export const weaponName = (key: string) => WEAPONS.find((w) => w.key === key)?.name ?? null;
+export const weaponName = (key: string) => WEAPONS.find((w) => w.key === currentWeapon(key))?.name ?? null;
 /** What the weapon does to a body, for the coroner's report (v3 evidence). Gloves strangle; the bucket drowns. */
-export const weaponKind = (key: string | undefined): WeaponKind | undefined => WEAPONS.find((w) => w.key === key)?.kind;
+export const weaponKind = (key: string | undefined): WeaponKind | undefined => (key ? WEAPONS.find((w) => w.key === currentWeapon(key))?.kind : undefined);
 
 /** How many weapons a night plays with: the ledger's number (engine/setup.ts RECOMMENDED). */
 export const recommendedWeapons = (guests: number) => (RECOMMENDED.find((r) => guests <= r.guests[1]) ?? RECOMMENDED[RECOMMENDED.length - 1]).weapons;
@@ -71,7 +75,8 @@ export type GameWeapon = { id: string; key: string | null; name: string; letter:
  * A game that started before that plays the ones its guests picked at sign-up.
  */
 export async function gameWeapons(ctx: QueryCtx, game: Doc<"games">): Promise<GameWeapon[]> {
-  if (game.weaponKeys?.length) return game.weaponKeys.map((k, i) => ({ id: k, key: k, name: weaponName(k) ?? k, letter: LETTERS[i] ?? String(i + 1), kind: weaponKind(k) }));
+  // A weapon's id stays the key it was saved with (the case file uses it); its key, name and picture are today's.
+  if (game.weaponKeys?.length) return game.weaponKeys.map((k, i) => ({ id: k, key: currentWeapon(k), name: weaponName(k) ?? k, letter: LETTERS[i] ?? String(i + 1), kind: weaponKind(k) }));
   if (game.status === "registration" || game.status === "lobby") return [];
   const players = await ctx.db
     .query("players")
@@ -87,6 +92,6 @@ export async function gameWeapons(ctx: QueryCtx, game: Doc<"games">): Promise<Ga
       const p = byId.get(w.playerId);
       return p?.inGame && p.weaponIn && p.exhibitLetter;
     })
-    .map((w) => ({ id: w._id as string, key: w.key ?? null, name: w.name, letter: byId.get(w.playerId)!.exhibitLetter!, kind: weaponKind(w.key) }))
+    .map((w) => ({ id: w._id as string, key: w.key ? currentWeapon(w.key) : null, name: w.name, letter: byId.get(w.playerId)!.exhibitLetter!, kind: weaponKind(w.key) }))
     .sort((a, b) => a.letter.localeCompare(b.letter));
 }

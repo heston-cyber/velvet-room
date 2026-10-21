@@ -20,7 +20,7 @@ export default function MemberCard(props: { charName: string; figure: string | n
     <div className="card">
       <div className="card-head">
         <span>The Velvet Room</span>
-        <span>Member · 1929</span>
+        <span>Member · 2026</span>
       </div>
       <div className="card-who">
         <div className="card-ph">{props.figure ? <img src={faceUrl(props.figure)} alt="" /> : initials(props.charName)}</div>

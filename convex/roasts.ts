@@ -16,7 +16,7 @@ export const ROASTS: Record<Tone, string[]> = {
     "{real} walked in like they own the place. The Don checked. They don't.",
     "{real} has a heart of gold. Stolen, but gold.",
     "{real} insisted on the {weapon}. Said it matched the outfit. Sadly, it does.",
-    "{real} once talked their way out of a speeding ticket. In a horse and buggy.",
+    "{real} once talked their way out of a speeding ticket. On a Citi Bike.",
     "Keep an eye on {real}. Better yet, keep an eye on your wallet.",
     "{real} came dressed to kill. Let's hope that's just a figure of speech.",
     "{real} brought the {weapon} to a party. Bold. Weird. But bold.",
@@ -34,7 +34,7 @@ export const ROASTS: Record<Tone, string[]> = {
     "{real} could sell ice to a penguin. And did. The penguin is still upset.",
     "{real} has a poker face. Unfortunately, it's the face of someone holding a pair of twos.",
     "{real} owes money to half this room and gives advice to the other half.",
-    "Nobody's seen {real} pay for a drink since 1926.",
+    "Nobody's seen {real} pay for a drink since the pandemic.",
     "{real} is the kind of guest who arrives fashionably late and leaves with the silverware.",
     "{real} picked the {weapon} because it was the only one they could spell.",
     "{real} is famous for their memory. They remember every favor you owe them.",
@@ -43,7 +43,7 @@ export const ROASTS: Record<Tone, string[]> = {
     "{real} is a great dancer and a lousy liar. Tonight we find out about the liar part.",
     "{real} says they found the {weapon} in the lost and found. That's what they all say.",
     "If {real} offers you a drink tonight, maybe let them take the first sip.",
-    "{real} is the only person ever thrown out of a speakeasy for looking too suspicious.",
+    "{real} is the only person ever thrown out of a rooftop bar for looking too suspicious.",
     "{real} has been practicing an innocent face in the mirror. It needs work.",
     "{real} keeps a little black book. It's mostly IOUs.",
     "Everyone loves {real}. Everyone also checks their pockets after a hug from {real}.",
@@ -55,15 +55,15 @@ export const ROASTS: Record<Tone, string[]> = {
   // (WEAPON_ROASTS below), so no two roasts in a game can match.
   adult: [
     "{real}'s last employer described {real} as present.",
-    "The Pinkerton Agency keeps a whole drawer on {real}. It's labeled Miscellaneous.",
+    "The NYPD keeps a whole folder on {real}. It's labeled Miscellaneous.",
     "{real}'s character witness is a parrot.",
-    "{real} has a heart of gold. It was reported stolen in 1924.",
+    "{real} has a heart of gold. It was reported stolen in 2019.",
     "{real} is wanted in three states, and only for questioning, which is frankly embarrassing for {real}.",
     "{real}'s mother would like it known that she did her best.",
     "{real} was voted most likely to succeed, in an election {real} ran, by {real}.",
     "Help wanted: one person to vouch for {real}. Excellent pay. Nobody has applied.",
     "{real}'s rap sheet is longer than tonight's guest list, and {real} wrote most of the guest list.",
-    "{real} has been banned from three speakeasies, two churches and one bowling alley.",
+    "{real} has been banned from three rooftop bars, two churches and one bowling alley.",
     "{real} says they've never killed anyone. Sober.",
     "{real} doesn't gamble. {real} just loses money on purpose to the wrong people.",
     "{real}'s alibi is that they were in the bathroom. For forty-five minutes. We have questions.",
@@ -72,7 +72,7 @@ export const ROASTS: Record<Tone, string[]> = {
     "{real} is a cheap date and an expensive mistake.",
     "Let the record show {real} arrived with a date. Let the record also show nobody has seen the date since.",
     "{real} would sell their own grandmother. Has, actually. Twice.",
-    "{real} smells like gin, gunpowder and bad decisions. Same as the rest of you, really.",
+    "{real} smells like tequila, vape smoke and bad decisions. Same as the rest of you, really.",
     "{real} talks a big game for someone who cried at the coat check.",
   ],
 };
@@ -80,7 +80,7 @@ export const ROASTS: Record<Tone, string[]> = {
 /**
  * Adult roasts, one set per weapon (Oct 15). The weapon is the one specific thing every guest has, and each weapon
  * goes to one guest, so these never repeat in a game. Written the Toplyn way: the weapon's associations on one
- * side, the guest and 1929 New York City on the other, linked into the punch line. Played straight. {real} is the
+ * side, the guest and New York City today on the other, linked into the punch line. Played straight. {real} is the
  * guest's first name. A game picks one line per weapon.
  */
 export const WEAPON_ROASTS: Record<string, string[]> = {
@@ -110,14 +110,14 @@ export const WEAPON_ROASTS: Record<string, string[]> = {
   ],
   poison: [
     "{real} chose poison. A coward's weapon. The correct choice.",
-    "Poison goes to {real}, who has been asked not to bring anything to a potluck since 1926.",
+    "Poison goes to {real}, who has been asked not to bring anything to a potluck since 2016.",
   ],
-  horseshoe: [
-    "{real} took the horseshoe. The horse would like it back, and has retained a lawyer.",
-    "{real} picked the horseshoe, for luck. {real} is down forty dollars at Belmont Park this month, so the horseshoe is not working.",
+  champagne: [
+    "{real} took the champagne bottle. Investigators say it's the first bottle {real} has ever held without immediately posting it.",
+    "{real} picked the champagne bottle, which {real} calls a weapon and everyone else calls Tuesday.",
   ],
   axe: [
-    "{real} took the hatchet, in what Lizzie Borden's lawyers are calling a clear case of copying.",
+    "{real} took the hatchet, and has already watched three true-crime documentaries about it.",
     "{real} picked the hatchet. When asked about firewood, {real} said, what firewood.",
   ],
   trophy: [
@@ -129,8 +129,8 @@ export const WEAPON_ROASTS: Record<string, string[]> = {
     "The dumbbell belongs to {real}, who lifts it twice a year, both times in front of a mirror.",
   ],
   bat: [
-    "{real} chose the baseball bat. Babe Ruth hit sixty home runs with one of those. {real} has only ever hit the bar.",
-    "{real} took the bat. {real} says they're a White Sox fan, which, after 1919, is also a crime.",
+    "{real} chose the baseball bat. Aaron Judge hit sixty-two home runs with one of those. {real} has only ever hit the bar.",
+    "{real} took the bat. {real} says they're a Mets fan, which explains the anger.",
   ],
   flaregun: [
     "{real} picked the flare gun, which is a cry for help with a trigger.",
@@ -142,7 +142,7 @@ export const WEAPON_ROASTS: Record<string, string[]> = {
   ],
   hammer: [
     "{real} took the hammer, which {real} has used exactly once, to hang a portrait of {real}.",
-    "The hammer belongs to {real}, who built one birdhouse in 1922 and has talked about it every day since.",
+    "The hammer belongs to {real}, who built one IKEA dresser in 2021 and has talked about it every day since.",
   ],
   racquet: [
     "{real} took the tennis racquet. {real} doesn't play tennis. {real} just likes holding things that cost more than other people's rent.",
@@ -159,15 +159,15 @@ export const WEAPON_ROASTS: Record<string, string[]> = {
   ],
   shears: [
     "{real} chose the garden shears. {real} says it's for the roses. {real} does not have roses.",
-    "{real} took the garden shears, which is suspicious for a person whose only houseplant died of neglect in 1927.",
+    "{real} took the garden shears, which is suspicious for a person whose only houseplant died of neglect last spring.",
   ],
-  blunderbuss: [
-    "{real} picked the blunderbuss, a gun that went out of fashion in 1780. {real} is sure it's coming back.",
-    "{real} took the blunderbuss, which can hit anything within ten feet, including, statistically, {real}.",
+  golfclub: [
+    "{real} picked the golf club. {real} has never broken a hundred, but tonight {real} is feeling lucky.",
+    "{real} took the golf club, which {real} mostly uses to get out of family dinners.",
   ],
   crowbar: [
     "{real} chose the crowbar, the tool of a burglar, and would like everyone to know it's just for the trunk.",
-    "{real} took the crowbar. Three hardware stores on the Bowery have {real}'s picture behind the counter.",
+    "{real} took the crowbar. Three hardware stores in Queens have {real}'s picture behind the counter.",
   ],
   gloves: [
     "{real} picked the gloves. Not a weapon. Just a person who doesn't want to leave fingerprints, which is worse.",
