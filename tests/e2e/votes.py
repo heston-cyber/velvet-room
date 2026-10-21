@@ -107,7 +107,8 @@ with sync_playwright() as p:
     ok(wait_for(lambda: roster()["game"]["round"] == 2, 15), "Round 1 ends straight into Round 2, no vote")
     ok(roster()["game"].get("vote") is None, "no vote after Round 1")
     host_step("End Round 2")
-    ok(wait_for(lambda: host.get_by_text("Who goes to jail?").count() == 1, 10), "Round 2 ends in the jail vote")
+    # Phase 4 (Oct 21): the late tips come first (20 seconds), then the jail vote.
+    ok(wait_for(lambda: host.get_by_text("Who goes to jail?").count() == 1, 40), "Round 2 ends in the late tips, then the jail vote")
     ok(wait_for(lambda: a.get_by_role("radio", name="Nobody").count() == 1, 10), "the phone shows the vote")
     host.wait_for_timeout(1500)
     shot(host, "01-tv-jail-vote.png")

@@ -103,30 +103,26 @@ with sync_playwright() as p:
         ok(host.get_by_role("button", name="Pause the game").count() == 0, "no pause button during the show")
         btn.click()
 
-    # Step through: the weapons card and the jail card.
+    # Step through to the jail card. (Phase 6, Oct 21: the weapons card is gone; the weapons stay across the top.)
     seen = set()
     end = time.time() + 120
-    while time.time() < end and not {"weapons", "bars"} <= seen:
+    while time.time() < end and "bars" not in seen:
         if host.locator(".tv-wfan").count():
-            if "weapons" not in seen:
-                host.wait_for_timeout(1000)
-                shot(host, "04-how-weapons.png")
             seen.add("weapons")
         if host.locator(".tv-jailed").count():
-            if "bars" not in seen:
-                host.wait_for_timeout(1000)
-                shot(host, "05-how-jail.png")
-                ok("don't have to" in host.locator(".tv-how").inner_text().lower() or "nobody" in host.locator(".tv-how").inner_text().lower(), "the jail card says you don't have to jail anyone")
+            host.wait_for_timeout(1000)
+            shot(host, "05-how-jail.png")
+            ok("don't have to" in host.locator(".tv-how").inner_text().lower() or "nobody" in host.locator(".tv-how").inner_text().lower(), "the jail card says you don't have to jail anyone")
+            ok(host.locator(".tv-jailed img.bars").count() == 1, "the bars sit over the drawing")
             seen.add("bars")
         time.sleep(0.4)
-    ok("weapons" in seen, "the weapons card shows a fan of weapons")
+    ok("weapons" not in seen, "no weapons card in How to play (Phase 6)")
     ok("bars" in seen, "the jail card shows a guest behind bars")
-    ok(host.locator(".tv-jailed img.bars").count() == 1, "the bars sit over the drawing")
 
     # The Don dies.
-    if host.get_by_text("New York City · October 31, 1929").count() == 0:
+    if host.get_by_text("New York City · October 31, 2026").count() == 0:
         skip("Skip to the murder")
-    ok(wait_for(lambda: host.get_by_text("New York City · October 31, 1929").count() == 1, 15), "then the Don dies: New York City, 1929")
+    ok(wait_for(lambda: host.get_by_text("New York City · October 31, 2026").count() == 1, 15), "then the Don dies: New York City, 2026")
     ok(wait_for(lambda: host.get_by_text("The Don is dead.").count() == 1, 40), "the second slide: the Don is dead")
     ok(wait_for(lambda: host.locator(".tv-wrow .tv-wcard").count() == 6, 40), "the third slide shows the 6 weapons in play")
     host.wait_for_timeout(2500)
@@ -163,18 +159,22 @@ with sync_playwright() as p:
     shot(host, "09-round1.png")
     # A heckle in the lull, about a minute and a half in (convex/heckles.ts).
     # (Skipping through the show can reach Round 1 before the last heckles finish recording.)
+    # The heckle and roll call voices are made by ElevenLabs on the backend: only checked with VOICES=1 (the dev
+    # deployment has no ElevenLabs key unless one is set for a voice test).
     hk = []
     def heckles_ready():
         hk[:] = [c for c in cx("voice:clipsOf", {"slug": SLUG}) if c["purpose"].startswith("heckle:")]
         return len(hk) >= 14 and all(c["status"] == "ready" for c in hk)
-    ok(wait_for(heckles_ready, 90), f"the night's heckles are recorded ({len(hk)})")
+    if os.environ.get("VOICES"):
+        ok(wait_for(heckles_ready, 90), f"the night's heckles are recorded ({len(hk)})")
     ok(wait_for(lambda: host.locator(".tv-caption").count() == 1 and "round one" not in host.locator(".tv-caption").inner_text().lower(), 110), "a heckle plays in the lull")
     host.wait_for_timeout(1500)
     shot(host, "10-heckle.png")
     print("heckle:", host.locator(".tv-caption .line").inner_text())
-    clips = cx("voice:clipsOf", {"slug": SLUG})
-    roll = [c for c in clips if c["purpose"].startswith("roll:")]
-    ok(len(roll) == 6, f"a roll call voice for each guest ({len(roll)}; ready: {sum(1 for c in roll if c['status'] == 'ready')})")
+    if os.environ.get("VOICES"):
+        clips = cx("voice:clipsOf", {"slug": SLUG})
+        roll = [c for c in clips if c["purpose"].startswith("roll:")]
+        ok(len(roll) == 6, f"a roll call voice for each guest ({len(roll)}; ready: {sum(1 for c in roll if c['status'] == 'ready')})")
     ok(not errors, f"no page errors {errors[:2]}")
     browser.close()
 
