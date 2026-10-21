@@ -156,6 +156,14 @@ export default defineSchema({
     ),
     /** Phase 3: who scanned the Don's stash first ($200 in chips), and when. */
     stash: v.optional(v.object({ playerId: v.id("players"), at: v.number() })),
+    /**
+     * Phase 4 (Oct 21): the killer's frame, picked in Round 2's "pick one" prompt (no target: they chose nobody). It
+     * can change until the late tips land, which is when it becomes the plant.
+     */
+    frame: v.optional(v.object({ targetId: v.optional(v.id("players")), at: v.number() })),
+    /** Phase 4: the two late tips, as they landed at the end of Round 2 (plant: the killer's; secret until the reveal). */
+    lateTips: v.optional(v.array(v.object({ aboutId: v.id("players"), text: v.string(), plant: v.boolean() }))),
+    lateTipsAt: v.optional(v.number()),
     levels: v.optional(v.object({ voice: v.number(), music: v.number(), sfx: v.number() })),
     // Play again: game 2 is a fresh game with the same house setup. The old game points at it.
     gameNumber: v.optional(v.number()),
@@ -201,6 +209,11 @@ export default defineSchema({
     // v2 jail: voted in after a round, voted out at a release vote. Jailed guests can talk and bribe, nothing else.
     jailed: v.optional(v.boolean()),
     jailedAt: v.optional(v.number()),
+    // Phase 4 (Oct 21): this guest's heat tag (one each, anonymous), when it last moved, and the round whose "pick one"
+    // prompt they answered (Round 2).
+    tag: v.optional(v.id("players")),
+    tagAt: v.optional(v.number()),
+    picked: v.optional(v.number()),
     // Solo test mode (Oct 20): a bot guest, and how it plays (sharp bots reason from what they've seen).
     bot: v.optional(v.object({ style: v.union(v.literal("sharp"), v.literal("careless")) })),
     createdAt: v.number(),

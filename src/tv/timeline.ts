@@ -25,6 +25,8 @@ export type Ev = {
   v?: number;
   clip?: { url: string; caption: string };
   sfx?: SfxKey;
+  /** A quieter sound effect (the heat). */
+  gain?: number;
   /** Roll-call clips: the guest's card already shows the line. */
   quiet?: boolean;
   /** A heckle: plays only in a gap it fits (see sequence). */
@@ -339,6 +341,8 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
           out.twistAt = c;
         }
       }
+      // Phase 4 (Oct 21): a quiet sound when someone's heat turns on (three tags); no narration.
+      for (const h of d.heat ?? []) if (h.since >= t) events.push({ id: `heat:${h.id}:${h.since}`, at: h.since, secs: 0, sfx: "heat", gain: 0.5 });
       // A guest tiptoes past as the round opens, and again every few minutes.
       const first = walkers[round % walkers.length];
       cameo({ id: `r${round}:${t}:creep`, char: first, anim: round === 2 ? "creepBack" : "creep", at: out.holdUntil + 1.5 * S, until: out.holdUntil + 10.5 * S, on: `r${round}` });

@@ -33,6 +33,8 @@ import {
   voteOf,
 } from "./game";
 import { caseFor } from "./caseFile";
+import { applyPick, pickOpen, setTag } from "./heat";
+import { publiclyCleared } from "./engine/heat";
 import { BET_AMOUNTS } from "./book";
 import { charKeyOf, randomCode, requireHost } from "./lib";
 import { takenFigures } from "./figures";
@@ -187,6 +189,30 @@ async function act(ctx: MutationCtx, gameAtStart: Doc<"games">, chance: number) 
       if ((await ballotsOf(ctx, game._id, vt.at)).length >= vt.voters.length) await closeVote(ctx, (await ctx.db.get(game._id))!);
       return;
     }
+    // Phase 4 (Oct 21): Round 2's pick, then heat tags now and then. The killer bot frames someone still standing about
+    // 8 times in 10 and keeps its tag on them; the others tag whoever their evidence hasn't cleared (careless ones guess).
+    const ids = (await caseInput(ctx, game)).suspects.map((x) => x.id);
+    const cleared = publiclyCleared(cf, round);
+    if (pickOpen(game)) {
+      for (const b of bots) {
+        if (b.picked === 2 || rng() >= chance) continue;
+        const killer = b._id === cf.solution.killerId;
+        const standing = ids.filter((id) => id !== b._id && !cleared.has(id));
+        const target = killer
+          ? rng() < 0.8 ? standing[Math.floor(rng() * standing.length)] : undefined
+          : rng() < 0.7 ? chooseSuspect(rng, who(b), ids, knownElims(cf, round, await scannedBy(ctx, b._id))) : undefined;
+        await applyPick(ctx, game, b, (target as Id<"players"> | undefined) ?? null);
+      }
+      game = (await ctx.db.get(game._id))!;
+    }
+    for (const b of bots) {
+      const fresh = (await ctx.db.get(b._id))!;
+      const dropped = !!fresh.tag && cleared.has(fresh.tag);
+      if ((fresh.tag && !dropped) || rng() >= chance * 0.3) continue;
+      const framed = b._id === cf.solution.killerId ? game.frame?.targetId : undefined;
+      const target = framed && !cleared.has(framed) ? framed : chooseSuspect(rng, who(b), ids.filter((id) => !cleared.has(id)), knownElims(cf, round, await scannedBy(ctx, b._id)));
+      if (target) await setTag(ctx, fresh, target as Id<"players">);
+    }
     // Searching: scan cards in the open rooms, then tap Ready.
     const markers = await ctx.db
       .query("markers")
@@ -199,7 +225,6 @@ async function act(ctx: MutationCtx, gameAtStart: Doc<"games">, chance: number) 
     // haven't cleared (the killer bot bets as cover).
     if (bookOdds(game) !== null) {
       const bets = await betsOf(ctx, game._id);
-      const ids = (await caseInput(ctx, game)).suspects.map((x) => x.id);
       for (const b of bots) {
         if (b.jailed || bets.some((x) => x.playerId === b._id) || !betsAtAll(b._id) || rng() >= chance * 0.25) continue;
         const target = chooseSuspect(rng, who(b), ids, knownElims(cf, round, await scannedBy(ctx, b._id)));

@@ -24,6 +24,8 @@ import { scheduleRecording } from "./voice";
 import { ensureRoomCode } from "./join";
 import { castMember, castName, fakeGuestPool, shortName, standIns, takenFigures } from "./figures";
 import { MIN_WEAPONS, drawWeapons, gameWeapons, recommendedWeapons } from "./weapons";
+import { heatNow, landTips, myTag, pickOpen, plantReveal, publicTips } from "./heat";
+import { debtLines, heatShows } from "./engine/heat";
 import { clipMatches, guestNames, laterWanted, levelsOf, narratorOf, scriptOf, startWanted, variantOf, voiceOf, type GameLines, type Wanted } from "./voiceLines";
 
 // ---------- shared helpers ----------
@@ -109,7 +111,8 @@ async function scheduleTimer(ctx: MutationCtx, gameId: Id<"games">, round: numbe
  * step closes the open vote, the one after skips the verdict; then the next round (after Round 3, the lock-in); then
  * the reveal.
  */
-async function advance(ctx: MutationCtx, game: Doc<"games">) {
+async function advance(ctx: MutationCtx, gameNow: Doc<"games">) {
+  let game = gameNow;
   if (!isPlaying(game)) return;
   const round = game.round ?? 1;
   // The runoff (Oct 21): the host's Next cuts the last words short and opens the vote; once it's open, closes it.
@@ -124,6 +127,11 @@ async function advance(ctx: MutationCtx, game: Doc<"games">) {
   if (round >= 4) return nextRound(ctx, game);
   const v = voteOf(game);
   if (!v) {
+    // Phase 4 (Oct 21): Round 2 ends with the late tips (the killer's plant swapped in), then the jail vote.
+    if (round === 2 && !game.lateTipsAt) {
+      await landTips(ctx, game);
+      game = (await ctx.db.get(game._id))!;
+    }
     const playing = playingOf(await playersOf(ctx, game._id));
     // Oct 20: one jail vote, after Round 2; no release vote (jail lasts one round).
     const kind = voteAfterRound(round, playing.some((p) => p.jailed), playing.length);
@@ -1009,6 +1017,26 @@ export const phone = query({
           : null,
       // Phase 3: where you were when the lights went out (the killer's cover reads exactly the same). Once the roles are out.
       story: brief && cf && rolesOut ? cf.stories?.find((s) => s.playerId === player._id)?.text ?? null : null,
+      // Phase 4 (Oct 21): who owes whom (always true, the killer's too), the heat, Round 2's pick and the late tips.
+      debts: brief && cf ? debtLines(cf.debts ?? [], player._id, (id) => {
+        const p = all.find((x) => x._id === id);
+        return p ? shortName(p) : "someone";
+      }) : [],
+      heat: (() => {
+        const shows = started && heatShows(game.status, round) && rolesOut && !!player.inGame;
+        const mine = shows ? myTag(game, player, cf) : { tag: null, dropped: false };
+        return { shows, on: shows ? heatNow(game, all, cf).map((h) => h.id) : [], mine: mine.tag, dropped: mine.dropped };
+      })(),
+      pick:
+        brief && cf && player.inGame && round === 2
+          ? {
+              open: pickOpen(game),
+              answered: player.picked === 2,
+              mine: (brief.role === "killer" ? game.frame?.targetId ?? null : player.tag ?? null) as string | null,
+              locked: !!game.lateTipsAt,
+            }
+          : null,
+      lateTips: started ? publicTips(game) : [],
       scans: cf
         ? scans
             .sort((a, b) => a.at - b.at)
@@ -1080,6 +1108,8 @@ export const phone = query({
               iWasKiller: cf.solution.killerId === player._id,
               iWasAccomplice: !!cf.solution.accompliceId && cf.solution.accompliceId === player._id,
               myVote: myVote ? { dressed: myVote.dressed ?? null } : null,
+              // Phase 4: who the killer framed with the plant, or no plant tonight.
+              plant: plantReveal(game, all),
             }
           : null,
     };
@@ -1795,6 +1825,8 @@ export const tv = query({
         // Oct 21: after a runoff on who, who named whom in the runoff.
         runoffTally: game.runoff?.who ? await runoffTally(ctx, game, all) : null,
         awards,
+        // Phase 4: who the killer framed with the plant, or no plant tonight (null: an older game without late tips).
+        plant: plantReveal(game, all),
       };
     }
     return {
@@ -1879,6 +1911,15 @@ export const tv = query({
             .map((c) => ({ round: c.round, text: c.text, twist: c.kind === "twist" }))
         : [],
       results,
+      // Phase 4 (Oct 21): who has the heat (3 or more tags) and since when, for the strip and its sound; the late tips.
+      heat: started
+        ? heatNow(game, all, cf).map((h) => {
+            const p = all.find((x) => x._id === h.id);
+            return { id: h.id, name: p ? shortName(p) : "", figure: p?.figure ?? null, since: h.since };
+          })
+        : [],
+      lateTips: started ? publicTips(game) : [],
+      lateTipsAt: game.lateTipsAt ?? null,
       runoff: started && game.runoff ? await runoffPublic(ctx, game, all, input) : null,
       reveal: game.revealPlan ?? revealTimes(started && !!game.hasAccomplice, game.tone ?? "classic"),
       voice: await tvVoice(ctx, game, all, input, cf),

@@ -124,6 +124,16 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
   useEffect(() => {
     if (voteAt) setTab("case");
   }, [voteAt]);
+  // Phase 4 (Oct 21): Round 2's "pick one" takes over every phone at once, until it's answered (or reopened to change).
+  const [pickAgain, setPickAgain] = useState(false);
+  const pickOpen = !!data.pick?.open && game.status === "playing" && !!game.rolesOut && !voting;
+  const picking = pickOpen && (!data.pick!.answered || pickAgain);
+  useEffect(() => {
+    if (picking) setTab("case");
+  }, [picking]);
+  useEffect(() => {
+    if (!pickOpen) setPickAgain(false);
+  }, [pickOpen]);
 
   let body: JSX.Element;
   let showNav = false;
@@ -145,7 +155,19 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
         <VoteScreen token={token} data={data} now={now} />
       );
   }
-  else if (game.status === "playing" && !seen) {
+  else if (picking && seen) {
+    showNav = true;
+    body =
+      tab === "evidence" ? (
+        <Evidence token={token} data={data} />
+      ) : tab === "notebook" ? (
+        <Notebook token={token} data={data} />
+      ) : tab === "book" ? (
+        <Book token={token} data={data} />
+      ) : (
+        <PickScreen token={token} data={data} onDone={() => setPickAgain(false)} />
+      );
+  } else if (game.status === "playing" && !seen) {
     body = (
       <Murder
         data={data}
@@ -160,7 +182,7 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
     showNav = true;
     body =
       tab === "case" ? (
-        game.round >= 4 ? <Accuse token={token} data={data} /> : <CaseFile token={token} data={data} />
+        game.round >= 4 ? <Accuse token={token} data={data} /> : <CaseFile token={token} data={data} onPick={() => setPickAgain(true)} />
       ) : tab === "scan" ? (
         <Scan token={token} data={data} onNotebook={() => setTab("notebook")} />
       ) : tab === "evidence" ? (
@@ -183,17 +205,17 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
         <nav className="tabbar" aria-label="Game">
           {(
             [
-              ["case", voting ? "Vote" : game.round >= 4 ? "Lock in" : "Case"],
-              ...(voting ? [] : [["scan", "Scan"]]),
+              ["case", voting ? "Vote" : picking ? "Pick" : game.round >= 4 ? "Lock in" : "Case"],
+              ...(voting || picking ? [] : [["scan", "Scan"]]),
               ["evidence", "Evidence"],
               ["notebook", "Notebook"],
               ["book", "Betting"],
             ] as [Tab, string][]
           ).map(([k, label]) => {
-            const on = voting ? (k === "case" ? tab !== "evidence" && tab !== "notebook" && tab !== "book" : tab === k) : tab === k;
+            const on = voting || picking ? (k === "case" ? tab !== "evidence" && tab !== "notebook" && tab !== "book" : tab === k) : tab === k;
             return (
               <button key={k} type="button" aria-current={on ? "page" : undefined} onClick={() => setTab(k)}>
-                {k === "case" && (game.round >= 4 || voting) ? ICON.accuse : ICON[k]}
+                {k === "case" && (game.round >= 4 || voting || picking) ? ICON.accuse : ICON[k]}
                 {label}
               </button>
             );
@@ -267,12 +289,14 @@ function todoOf(data: Phone, intro: boolean): string {
   if (vt) return "Watch the TV for the verdict.";
   if (game.status === "playing" && game.round <= 3) {
     if (me.jailed) return "You're in jail this round: no searching or voting. You're back for the lock-in.";
-    return game.pacing.mode === "timer" ? "Search the house and scan every evidence card you find." : "Search the house and scan evidence cards. Tap Ready when you're done.";
+    if (data.pick?.open && !data.pick.answered) return "Everyone picks one now. Pick below.";
+    // Phase 4: the story reminder at every round.
+    return game.pacing.mode === "timer" ? "Ask where everyone was. Search the house and scan every card you find." : "Ask where everyone was. Search, scan the cards, and tap Ready when you're done.";
   }
   if (game.status === "playing") {
     const ro = data.runoff;
     if (ro && !ro.closedAt) return data.myRunoff ? "Runoff vote in. Watch the TV." : Date.now() < ro.voteAt ? "It's a tie. Last words first." : "The runoff: vote on what's tied.";
-    return data.myAccusation ? "You're locked in. Watch the TV." : "Lock in who did it, with what, and where. It's final.";
+    return data.myAccusation ? "You're locked in. Watch the TV." : "Whose story didn't hold up? Lock in who, with what, and where. It's final.";
   }
   if (game.status === "reveal") return "Watch the TV.";
   return "Thanks for playing.";
@@ -667,7 +691,7 @@ function Pacing({ token, data }: { token: string; data: Phone }) {
 }
 
 /** Little line drawings for the role card. */
-type IconName = "search" | "scan" | "mask" | "secret" | "bars" | "lock" | "target" | "trophy";
+type IconName = "search" | "scan" | "mask" | "secret" | "bars" | "lock" | "target" | "trophy" | "chips";
 function RoleIcon({ name }: { name: IconName }) {
   const d: Record<IconName, ReactNode> = {
     search: (
@@ -709,6 +733,13 @@ function RoleIcon({ name }: { name: IconName }) {
         <path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4" />
       </>
     ),
+    // Phase 4 (Oct 21): a stack of chips.
+    chips: (
+      <>
+        <ellipse cx="12" cy="7" rx="7" ry="2.6" />
+        <path d="M5 7v4c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6V7M5 11v4c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6v-4" />
+      </>
+    ),
     trophy: (
       <>
         <path d="M8 4h8v5a4 4 0 0 1-8 0V4z" />
@@ -736,14 +767,16 @@ function RoleCard({ role, card, jail }: { role: string; card: NonNullable<Phone[
           ["mask", "Lie about anything"],
           ["target", card?.herring ? `Point at ${card.herring}` : "Point at someone else"],
           ["bars", "Stay out of jail"],
-          ["lock", "Lock in someone else"],
+          // Phase 4 (fix #6, Oct 20): the chip tip, worded for the role. It takes the lock-in tile's place (the win line
+          // below says it), so the card keeps four tiles and its size.
+          ["chips", "Chips buy votes and silence"],
         ]
       : [
           ["scan", "Search, scan, compare notes"],
           // Oct 18: no secrets. Innocents tell the truth; only the killer lies.
           ["secret", "Tell the truth"],
           ["bars", "Jail vote after Round 2"],
-          ["lock", "Lock in who, what, where"],
+          ["chips", "Chips pay debts. Never lie for them"],
         ]
   ).filter(([icon]) => jail || icon !== "bars") as [IconName, string][];
   return (
@@ -773,7 +806,7 @@ function RoleCard({ role, card, jail }: { role: string; card: NonNullable<Phone[
   );
 }
 
-function CaseFile({ token, data }: { token: string; data: Phone }) {
+function CaseFile({ token, data, onPick }: { token: string; data: Phone; onPick?: () => void }) {
   const b = data.briefing!;
   const { holding, props } = useHold();
   // One layout for every guest. The role sits behind press-and-hold in a card of fixed size,
@@ -806,8 +839,25 @@ function CaseFile({ token, data }: { token: string; data: Phone }) {
         <div className="file story-file">
           <span className="eyebrow">Where you were</span>
           <p className="story-text">{data.story}</p>
-          <span className="help">Everyone has one. Ask around, and check stories against the cards.</span>
+          <span className="help">Everyone has one. Ask where everyone was, and check stories against the cards.</span>
         </div>
+      )}
+      {/* Phase 4 (Oct 21): debts, always true; settle them in chips. */}
+      {data.debts.length > 0 && (
+        <div className="file debts-file">
+          <span className="eyebrow">Debts</span>
+          <ul className="debts">
+            {data.debts.map((d) => (
+              <li key={d}>{d}</li>
+            ))}
+          </ul>
+          <span className="help">Settle up in chips, tonight or never.</span>
+        </div>
+      )}
+      <PickRow data={data} onChange={onPick} />
+      {/* Phase 4: the heat, taught with one quick line at Round 1 (no How to play card). */}
+      {data.game.round === 1 && data.heat.shows && (
+        <p className="help heat-line">Suspect someone? Tag them in your Notebook. Three tags on one guest puts the heat on them, on the TV.</p>
       )}
       <Pacing token={token} data={data} />
     </div>
@@ -1027,6 +1077,20 @@ function Evidence({ token, data }: { token: string; data: Phone }) {
   return (
     <div className="screen">
       <h1 className="title-lg">Evidence</h1>
+      {/* Phase 4: the two late tips, as they landed on the TV at the end of Round 2. */}
+      {data.lateTips.length > 0 && (
+        <section className="ev-sec">
+          <span className="ev-h">Late tips · on the TV</span>
+          <ul className="ev">
+            {data.lateTips.map((t) => (
+              <li key={t}>
+                <small>Late tip</small>
+                {t}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {[3, 2].map((r) =>
         byRound(r).length ? (
           <section key={r} className="ev-sec">
@@ -1064,6 +1128,129 @@ function Evidence({ token, data }: { token: string; data: Phone }) {
   );
 }
 
+/**
+ * Phase 4 (Oct 21): Round 2's "pick one", on every phone at the same moment, in one layout (fix #6, Oct 20): innocents
+ * move their heat tag ("Who's feeling the heat?"); the killer may frame someone ("Who takes the fall?"). Same faces,
+ * same buttons, so a glance at the killer's phone shows what everyone else's shows.
+ */
+function PickScreen({ token, data, onDone }: { token: string; data: Phone; onDone: () => void }) {
+  const pick = useMutation(api.heat.pick);
+  const killer = data.briefing?.role === "killer";
+  const [sel, setSel] = useState<string | null>(data.pick?.mine ?? null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const others = data.board!.suspects.filter((x) => x.id !== data.me.id);
+  async function send(target: string | null) {
+    setBusy(true);
+    setErr(null);
+    try {
+      await pick({ token, targetId: target as Id<"players"> | null });
+      onDone();
+    } catch (e) {
+      setErr(friendlyError(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="screen pick-screen">
+      <span className="eyebrow">Round 2 · everyone picks one</span>
+      <h1 className="title-lg">{killer ? "Who takes the fall?" : "Who's feeling the heat?"}</h1>
+      <p className="help">
+        {killer ? "A tip about whoever you pick lands on the TV when Round 2 ends. Skip for no one." : "Your heat tag moves to whoever you pick. Skip to leave it where it is."}
+      </p>
+      <div className="pick">
+        <div className="opts">
+          {others.map((x) => (
+            <button key={x.id} type="button" className="who-opt" aria-pressed={sel === x.id} onClick={() => setSel(x.id)}>
+              {avatarSrc(x.photoUrl, x.figure) ? <img src={avatarSrc(x.photoUrl, x.figure)!} alt="" /> : <span className="av">{initials(x.name)}</span>}
+              {firstName(x.name)}
+            </button>
+          ))}
+        </div>
+      </div>
+      {err && <p className="err">{err}</p>}
+      <div className="actions wide">
+        <button type="button" className="primary" disabled={!sel || busy} onClick={() => send(sel)}>
+          {sel ? `Pick ${firstName(others.find((x) => x.id === sel)?.name ?? "")}` : "Pick someone"}
+        </button>
+        <button type="button" className="ghost-btn" disabled={busy} onClick={() => send(null)}>
+          Skip
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** After Round 2's pick: what you picked, and Change until the late tips land. The same row on every phone. */
+function PickRow({ data, onChange }: { data: Phone; onChange?: () => void }) {
+  const p = data.pick;
+  if (!p || !p.answered) return null;
+  const who = p.mine ? data.board?.suspects.find((x) => x.id === p.mine)?.name : null;
+  return (
+    <div className="file pick-row">
+      <span className="eyebrow">Your Round 2 pick</span>
+      <div className="pick-row-line">
+        <span>{who ? firstName(who) : "Nobody"}</span>
+        {p.open && onChange && (
+          <button type="button" className="ghost-btn" onClick={onChange}>
+            Change
+          </button>
+        )}
+      </div>
+      {!p.open && <span className="help">Locked in when Round 2 ended.</span>}
+    </div>
+  );
+}
+
+/**
+ * Phase 4: the heat tag, on the Notebook's suspect list (Heston, Oct 20). One tag each, anonymous; three or more on
+ * someone puts the heat on them on the TV. A tag on someone the evidence cleared drops.
+ */
+function HeatTags({ token, data }: { token: string; data: Phone }) {
+  const tag = useMutation(api.heat.tag);
+  const [err, setErr] = useState<string | null>(null);
+  if (!data.heat.shows || !data.board) return null;
+  const hot = new Set(data.heat.on);
+  const others = data.board.suspects.filter((x) => x.id !== data.me.id);
+  async function set(id: string | null) {
+    setErr(null);
+    try {
+      await tag({ token, targetId: id as Id<"players"> | null });
+    } catch (e) {
+      setErr(friendlyError(e));
+    }
+  }
+  return (
+    <section className="heat-tags">
+      <h3>The heat</h3>
+      <p className="help">
+        Tag the one guest you suspect most. Three tags on someone puts the heat on them, on the TV. Nobody sees whose tag is whose.
+      </p>
+      {data.heat.dropped && <p className="help strong">The evidence cleared the guest you tagged, so your tag came off. Tag someone else if you like.</p>}
+      <div className="pick">
+        <div className="opts">
+          {others.map((x) => (
+            <button key={x.id} type="button" className={hot.has(x.id) ? "hot" : ""} aria-pressed={data.heat.mine === x.id} onClick={() => set(data.heat.mine === x.id ? null : x.id)}>
+              {hot.has(x.id) && <Flame />}
+              {firstName(x.name)}
+            </button>
+          ))}
+        </div>
+      </div>
+      {err && <p className="err">{err}</p>}
+    </section>
+  );
+}
+
+function Flame() {
+  return (
+    <svg viewBox="0 0 24 24" className="flame" aria-label="has the heat">
+      <path d="M12 2c1 4-3 5.5-3 9.5A3 3 0 0 0 12 15a3 3 0 0 0 3-3.5c2 1.5 3 3.4 3 5.5a6 6 0 0 1-12 0C6 11 11 8 12 2z" />
+    </svg>
+  );
+}
+
 function Notebook({ token, data }: { token: string; data: Phone }) {
   const save = useMutation(api.game.saveNotebook);
   const [crossed, setCrossed] = useState<Set<string>>(() => new Set(data.me.notebook));
@@ -1091,6 +1278,7 @@ function Notebook({ token, data }: { token: string; data: Phone }) {
       <p className="help">Tap anything you've ruled out. Only you see this.</p>
       <h3>Suspects</h3>
       <div className="nb-grid">{board.suspects.map((s) => cell(`s:${s.id}`, s.name, s.signature))}</div>
+      <HeatTags token={token} data={data} />
       <h3>Weapons</h3>
       <div className="nb-grid">{board.exhibits.map((e) => cell(`e:${e.id}`, e.name))}</div>
       <h3>Rooms</h3>

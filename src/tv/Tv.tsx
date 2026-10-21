@@ -148,7 +148,10 @@ function TvInner({ slug, tvKey, onNext, overlay, bare }: { slug: string; tvKey: 
     for (const e of due(p, now, fired.current)) {
       fired.current.add(e.id);
       if (!engine.unlocked) continue;
-      if (e.sfx) void engine.sfx(e.sfx);
+      // The heat's sound is skipped while the narrator talks (Oct 20).
+      if (e.sfx) {
+        if (e.sfx !== "heat" || !engine.talkingNow) void engine.sfx(e.sfx, e.gain ?? 1);
+      }
       else if (e.clip) void engine.voice(e.clip.url, 0.9);
       // Oct 21: only a recording that says the line's current words (in the manifest); otherwise the caption alone.
       else if (e.cue && engine.narrationSecs(voice, tone, cueFile(e.cue, e.v)) !== null) void engine.voice(engine.narrationUrl(voice, tone, cueFile(e.cue, e.v)));
@@ -462,11 +465,11 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
           node: (
             <div className="tv-scene top">
               <RoundBar d={d} now={now} label="Search the house" />
-              <Fit className="split" watch={`${d.weapons.length}`}>
+              <Fit className="split" watch={`${d.weapons.length}:${d.heat.length}`}>
               <div className="tv-split">
                 <div className="tv-left">
                   <h2 className="tv-h2" style={{ fontSize: "5cqw", marginTop: "1cqw" }}>Find the evidence cards.</h2>
-                  <p className="tv-sub">Scan them with your phone. Question everyone.</p>
+                  <p className="tv-sub">Scan them with your phone. Ask where everyone was when the lights went out.</p>
                   <p className="tv-sub small">The body was found in {mid(g.bodyRoom)}.</p>
                   {/* Oct 21 (Heston: "I like ... the small text caption"): the Betting tab, mentioned once, at Round 1. */}
                   <p className="tv-sub small book-note">The book is open on your phones.</p>
@@ -486,7 +489,8 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
       const plain = cards.filter((c) => !c.twist);
       const twist = cards.filter((c) => c.twist);
       const twistIn = p.twistAt === null || now >= p.twistAt;
-      const total = plain.length + twist.length;
+      const tipsHere = round === 3 && !d.game.jailVote ? d.lateTips : [];
+      const total = plain.length + twist.length + tipsHere.length;
       const size = total <= 4 ? "l" : total <= 8 ? "m" : "s";
       return {
         scene: {
@@ -494,9 +498,16 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
           node: (
             <div className="tv-scene top">
               <RoundBar d={d} now={now} label={round === 2 ? "Fresh evidence" : "Last evidence"} />
-              <Fit className="split" watch={`${total}:${twistIn}`}>
+              <Fit className="split" watch={`${total}:${twistIn}:${d.heat.length}`}>
               <div className="tv-split">
               <div className={`tv-cards ${size === "l" ? "l" : "s"}`}>
+                {/* Phase 4: without a jail vote, the late tips land with Round 3's evidence. */}
+                {tipsHere.map((t, i) => (
+                  <div className="tv-ev fade tip" style={{ animationDelay: `${i * 0.35}s` }} key={`tip${i}`}>
+                    <small>Late tip</small>
+                    {t}
+                  </div>
+                ))}
                 {plain.map((c, i) => (
                   <div className="tv-ev fade" style={{ animationDelay: `${i * 0.35}s` }} key={`p${i}`}>
                     <small>New evidence</small>
@@ -510,7 +521,7 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
                       {c.text}
                     </div>
                   ))}
-                {!cards.length && <p className="tv-sub">No new evidence this round. Keep digging.</p>}
+                {!cards.length && !tipsHere.length && <p className="tv-sub">No new evidence this round. Keep digging.</p>}
               </div>
               {houseMap}
               </div>
@@ -532,7 +543,8 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
               <Fit className="scene" watch={d.guests.length}>
               <span className="tv-kick">The lock-in</span>
               <h2 className="tv-h2" style={{ fontSize: "5.4cqw" }}>Who killed the Don?</h2>
-              <p className="tv-sub">Lock in who, with which weapon, and where, on your phone. Everyone locks in, jailbirds too.</p>
+              {/* Phase 4: the story reminder at the lock-in. */}
+              <p className="tv-sub">Whose story didn't hold up? Lock in who, with which weapon, and where, on your phone.</p>
               <Guests guests={d.guests} mark="accused" />
               </Fit>
             </div>
@@ -576,6 +588,12 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
           </div>
         )}
         <h3 className="tv-h3 fade" style={{ animationDelay: "1.4s" }}>in {mid(r.room)}</h3>
+        {/* Phase 4: the plant, or none. */}
+        {r.plant && (
+          <p className="tv-sub fade" style={{ animationDelay: "2.6s" }}>
+            {r.plant.planted ? `And the planted tip: the one about ${r.plant.about}.` : "No plant tonight. Both late tips were true."}
+          </p>
+        )}
       </div>,
       ...(r.accomplice
         ? [
@@ -784,6 +802,18 @@ function RoundBar({ d, now, label }: { d: Data; now: number; label: string }) {
         {timed ? <span className="tv-clock">{clock(left)}</span> : <span className="tv-ready">{waitingLine(d)}</span>}
       </div>
       <div className="tv-meter">{!timed && <i style={{ width: `${pct}%` }} />}</div>
+      {/* Phase 4 (Oct 21): who has the heat (three or more anonymous tags). Rounds 1 to 3 only. */}
+      {g.round <= 3 && d.heat.length > 0 && (
+        <div className="tv-heat" aria-label="The heat">
+          <span className="lab">The heat</span>
+          {d.heat.map((h) => (
+            <span className="who fade" key={h.id}>
+              <span className="tv-av sm hot">{h.figure ? <img src={faceUrl(h.figure)} alt="" /> : initials(h.name)}</span>
+              {h.name}
+            </span>
+          ))}
+        </div>
+      )}
     </>
   );
 }
@@ -897,6 +927,9 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
 type Vote = NonNullable<Data["vote"]>;
 
 /** The jail and release votes: the candidates while it's open, then who voted for whom, then the verdict. */
+/** How long the late tips hold the screen before the jail vote shows (Phase 4). */
+const LATE_TIPS_MS = 20_000;
+
 function voteScene(d: Data, vt: Vote, now: number): Scene {
   const jail = vt.kind === "jail";
   if (vt.auto && vt.target) {
@@ -914,6 +947,30 @@ function voteScene(d: Data, vt: Vote, now: number): Scene {
               <p className="tv-sub fade" style={{ animationDelay: ".6s" }}>No vote needed. Back in the game: they can lock in.</p>
             </div>
           </div>
+        </div>
+      ),
+    };
+  }
+  // Phase 4 (Oct 21): the two late tips land as the jail vote opens, on their own for a moment (the plant among them,
+  // if the killer framed someone).
+  if (!vt.closedAt && jail && d.lateTips.length && d.lateTipsAt && now < d.lateTipsAt + LATE_TIPS_MS) {
+    return {
+      key: `vote-tips-${vt.at}`,
+      node: (
+        <div className="tv-scene">
+          <Fit className="scene" watch={d.lateTips.join("|")}>
+          <span className="tv-kick fade">Late tips</span>
+          <h2 className="tv-h2 fade" style={{ fontSize: "5cqw" }}>Word just came in.</h2>
+          <div className="tv-cards l">
+            {d.lateTips.map((t, i) => (
+              <div className="tv-ev fade tip" style={{ animationDelay: `${0.4 + i * 0.6}s` }} key={i}>
+                <small>Late tip</small>
+                {t}
+              </div>
+            ))}
+          </div>
+          <p className="tv-sub fade" style={{ animationDelay: "1.8s" }}>Then the jail vote, on your phones.</p>
+          </Fit>
         </div>
       ),
     };

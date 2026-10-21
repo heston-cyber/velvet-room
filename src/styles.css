@@ -433,3 +433,16 @@ img { max-width: 100%; }
 /* Five tabs (Oct 21): smaller, tighter labels so NOTEBOOK and EVIDENCE fit a small phone's fifth of the width. */
 .tabbar button { letter-spacing: .02em; min-width: 0; font-size: 11px; padding-left: 2px; padding-right: 2px; }
 @media (min-width: 420px) { .tabbar button { font-size: 12px; letter-spacing: .05em; } }
+
+/* Phase 4 (Oct 21): debts, Round 2's pick, the heat tags. */
+.debts-file { display: grid; gap: 8px; }
+.debts { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.debts li { font-size: 17px; line-height: 1.4; color: var(--paper); }
+.pick-row { display: grid; gap: 6px; }
+.pick-row-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 18px; color: var(--paper); }
+.pick-screen .pick .opts { gap: 8px; }
+.heat-tags { display: grid; gap: 6px; }
+.heat-tags .help.strong, .help.strong { color: var(--paper); }
+.pick .opts button.hot { border-color: #e8743b; }
+.pick .opts button .flame { width: 15px; height: 15px; margin: 0 5px -2px 0; fill: #e8743b; }
+.pick .opts button[aria-pressed="true"] .flame { fill: var(--ink); }

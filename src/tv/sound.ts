@@ -31,9 +31,11 @@ export type SfxKey =
   | "gavel"
   | "keys"
   | "jailSlam"
-  | "revealHit";
+  | "revealHit"
+  // Phase 4 (Oct 21): someone's heat turns on (3 tags). No narration, just this, quietly (Heston, Oct 20).
+  | "heat";
 /** A sound that isn't on the site yet plays its stand-in. */
-export const FALLBACK: Partial<Record<SfxKey, SfxKey>> = { gavel: "stamp", keys: "creak", jailSlam: "thunder", revealHit: "thunder" };
+export const FALLBACK: Partial<Record<SfxKey, SfxKey>> = { gavel: "stamp", keys: "creak", jailSlam: "thunder", revealHit: "thunder", heat: "heartbeat" };
 export type MusicKey = "lobby" | "intro" | "rounds" | "awards";
 export type Levels = { voice: number; music: number; sfx: number };
 
@@ -60,6 +62,10 @@ export class SoundEngine {
   private bed: { key: MusicKey; src: AudioBufferSourceNode; gain: GainNode } | null = null;
   private bedWant: MusicKey | null = null;
   private talking = 0;
+  /** Whether the narrator (or a guest's clip) is talking right now. */
+  get talkingNow() {
+    return this.talking > 0;
+  }
   private levels: Levels = { voice: 100, music: 70, sfx: 80 };
   private dimmed = false;
   ready: Promise<void>;
