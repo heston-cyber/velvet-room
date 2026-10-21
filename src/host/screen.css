@@ -65,6 +65,8 @@
 @media (prefers-reduced-motion: reduce) { .hs-cover, .hs-pause { animation: none; } }
 /* The host's Menu button sits top right: the TV's top-right corner moves down to clear it. */
 .tv-stage:has(.hs-menu-btn) .tv-corner.tr { top: 4.6cqw; }
+/* Oct 21: in a timed game the round clock sits just under Menu; it moves left to clear the button. */
+.tv-stage:has(.hs-menu-btn) .tv-roundbar:has(.tv-clock) { padding-right: 4.5cqw; }
 
 /* /host with no game open (Oct 16: anyone can host). */
 .hs-lobby-pick { width: min(760px, 100%); justify-items: center; text-align: center; gap: 18px; }

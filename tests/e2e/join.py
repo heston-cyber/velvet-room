@@ -60,7 +60,9 @@ def free_figure():
     """A drawing no fake guest has taken yet (each drawing belongs to one guest)."""
     sets = cx("registration:figures", {"slug": SLUG})
     return next(f["key"] for s in sets for f in s["figures"] if not f["taken"])
-me = cx("registration:register", {"slug": SLUG, "realName": "Heston Test", "charName": "Velma Kowalski", "killerOk": True, "figure": free_figure(), "lastName": "Test"})
+before = {p["charName"] for p in cx("host:roster", {"slug": SLUG, "hostKey": KEY})["players"]}
+# Oct 18: a party-cast drawing gives its own name (a mystery one, the typed first name): the test uses whatever it gets.
+me = cx("registration:register", {"slug": SLUG, "realName": "Heston Test", "charName": "Velma", "firstName": "Velma", "killerOk": True, "figure": free_figure(), "lastName": "Test"})
 roster = cx("host:roster", {"slug": SLUG, "hostKey": KEY})
 ok(roster["game"]["roomCode"] is None, "no room code while sign-ups run")
 cx("game:openDoors", {"slug": SLUG, "hostKey": KEY})
@@ -68,7 +70,9 @@ roster = cx("host:roster", {"slug": SLUG, "hostKey": KEY})
 CODE = roster["game"]["roomCode"]
 ok(bool(re.fullmatch(r"[BCDFGHJKLMNPQRSTVWXZ]{4}", CODE or "")), f"opening the doors makes a room code ({CODE})")
 TVKEY = roster["game"]["tvKey"]
-VELMA = next(p for p in roster["players"] if p["charName"] == "Velma Kowalski")
+VELMA = next(p for p in roster["players"] if p["charName"] not in before)
+NAME = VELMA["charName"]
+print("signed up as", NAME)
 TV = f"{BASE}/tv?game={SLUG}&key={TVKEY}"
 HOST = f"{BASE}/host?game={SLUG}&key={KEY}"
 
@@ -99,10 +103,10 @@ with sync_playwright() as p:
     a.locator("#roomcode").fill(CODE.lower())
     a.get_by_role("heading", name="Tap your name").wait_for(timeout=15000)
     names = a.locator(".join-list .nm").all_inner_texts()
-    ok("Velma Kowalski" in names and len(names) == 6, f"the room lists every guest ({len(names)})")
+    ok(NAME in names and len(names) == 6, f"the room lists every guest ({len(names)})")
     ok("code=" + CODE in a.url, "the code goes in the address so a reload lands back here")
     shot(a, "03-join-list.png")
-    a.get_by_role("button", name="Join as Velma Kowalski").click()
+    a.get_by_role("button", name=f"Join as {NAME}").click()
     ok(has(a.inner_text("body"), "Only pick your own name"), "it asks before claiming the name")
     a.wait_for_timeout(700)
     shot(a, "04-join-confirm.png")
@@ -113,14 +117,14 @@ with sync_playwright() as p:
     shot(a, "05-joined-phone.png")
 
     # ---------- the TV announces it ----------
-    ok(wait_for(lambda: tv.locator(".tv-toast").count() > 0 and has(tv.inner_text(".tv-toast"), "Velma Kowalski joined on a phone")), "the TV announces the claim")
+    ok(wait_for(lambda: tv.locator(".tv-toast").count() > 0 and has(tv.inner_text(".tv-toast"), f"{NAME} joined on a phone")), "the TV announces the claim")
     shot(tv, "06-tv-toast.png")
 
     # ---------- phone B: the name is taken ----------
     bph = phone("phoneB")
     bph.goto(f"{BASE}/join?code={CODE}")
     bph.get_by_role("heading", name="Tap your name").wait_for(timeout=15000)
-    taken = bph.get_by_role("button", name="Velma Kowalski, taken")
+    taken = bph.get_by_role("button", name=f"{NAME}, taken")
     ok(taken.count() == 1 and taken.is_disabled(), "a second phone sees Velma taken and can't tap it")
     shot(bph, "07-join-taken.png")
 
@@ -150,8 +154,8 @@ with sync_playwright() as p:
     shot(host, "10-host-live.png")
     res = cx("host:rescuePhone", {"slug": SLUG, "hostKey": KEY, "playerId": VELMA["id"]})
     ok(res["token"] != me["token"], "a rescue makes Velma a new link")
-    ok(wait_for(lambda: bph.get_by_role("button", name="Join as Velma Kowalski").count() == 1), "after the rescue Velma's name is free again (live)")
-    bph.get_by_role("button", name="Join as Velma Kowalski").click()
+    ok(wait_for(lambda: bph.get_by_role("button", name=f"Join as {NAME}").count() == 1), "after the rescue Velma's name is free again (live)")
+    bph.get_by_role("button", name=f"Join as {NAME}").click()
     bph.get_by_role("button", name="Yes, that's me").click()
     bph.wait_for_url(re.compile(r"/p/"), timeout=15000)
     ok(bph.url.endswith("/p/" + res["token"]), "the guest rejoins on the new link")
