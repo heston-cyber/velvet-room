@@ -25,15 +25,21 @@ try: convex("admin:deleteTestGame", {"slug": SLUG})
 except Exception: pass
 hk = convex("admin:createGame", {"slug": SLUG, "title": "Fixes test", "isTest": True, "makeActive": False, "registrationClosesAt": int((time.time()+86400)*1000), "deadlineLabel": "x"})["hostKey"]
 convex("game:seedFakeCast", {"slug": SLUG, "guests": 5, "markers": 6, "seed": 5, "checkIn": True})
-# v2: the doors open, the game starts, and the show is skipped so the roles go out (as on party night). Every room
-# open, so marker 1 can be scanned in Round 1.
-convex("host:updateSettings", {"slug": SLUG, "hostKey": hk, "search": "all"})
+# v2: the doors open, the game starts, and the show is skipped so the roles go out (as on party night).
 convex("game:openDoors", {"slug": SLUG, "hostKey": hk})
 convex("game:startGame", {"slug": SLUG, "hostKey": hk})
 convex("game:skipIntro", {"slug": SLUG, "hostKey": hk})
 gid = next(g["_id"] for g in data("games") if g["slug"] == SLUG)
 token = next(p["token"] for p in data("players") if p["gameId"] == gid)
-marker = sorted([m for m in data("markers") if m["gameId"] == gid], key=lambda m: m["number"])[0]
+# Rooms open in waves (Oct 18): find a card that's in a Round 1 room by trying them with another guest.
+other = [p["token"] for p in data("players") if p["gameId"] == gid and p["token"] != token][0]
+def scannable(m):
+    try:
+        convex("game:scanMarker", {"token": other, "code": m["code"]})
+        return True
+    except Exception:
+        return False
+marker = next(m for m in sorted([m for m in data("markers") if m["gameId"] == gid], key=lambda m: m["number"]) if scannable(m))
 
 # a fake camera feed showing marker 1's QR card
 img = qrcode.make(f"https://velvetroom.wranglerportal.com/m/{marker['code']}", box_size=8, border=10).convert("RGB").resize((480, 480))
