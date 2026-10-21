@@ -9,7 +9,9 @@ import { castMember, shortName } from "./figures";
 export type Narrator = { host: HostKey; unstable: boolean; /** Sailor mode (Oct 16): Joel, furious, his own filthy script. */ sailor?: boolean };
 export type Levels = { voice: number; music: number; sfx: number };
 
-export const DEFAULT_NARRATOR: Narrator = { host: "ivy", unstable: false };
+// Oct 21 (Heston: "Duke for now"): Duke is the only voice recorded for the new and modernized lines, so a game that
+// never picked a narrator gets Duke. The others get recorded after the play test if the scripts hold.
+export const DEFAULT_NARRATOR: Narrator = { host: "duke", unstable: false };
 export const DEFAULT_LEVELS: Levels = { voice: 100, music: 70, sfx: 80 };
 
 export const narratorOf = (g: { narrator?: Narrator }): Narrator => g.narrator ?? DEFAULT_NARRATOR;

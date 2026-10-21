@@ -110,11 +110,11 @@ function TvInner({ slug, tvKey, onNext, overlay, bare }: { slug: string; tvKey: 
   }, [enableSound]);
 
   const g = data?.game;
-  const voice = data?.voice.voice ?? "ivy";
+  const voice = data?.voice.voice ?? "duke";
   // The script the narrator reads: Classic, Adult, or Sailor mode's own.
   const tone = g?.script ?? g?.tone ?? "classic";
   const linePicks = g?.lines ? { picks: g.lines.picks, d: true } : undefined;
-  const host = g?.narrator.host ?? "ivy";
+  const host = g?.narrator.host ?? "duke";
   const secs = useCallback(
     (cue: CueKey, v = 0) => engine.narrationSecs(voice, tone, cueFile(cue, v)) ?? captionText(cue, tone, host, v).length / 14 + 0.4,
     // eslint-disable-next-line react-hooks/exhaustive-deps

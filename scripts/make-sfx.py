@@ -30,6 +30,9 @@ SFX = {
     "keys": ("A big ring of old iron jail keys jangling, then a heavy cell lock turning and clanking open, no voices, no music", 2.5, -18),
     "jailSlam": ("A heavy iron jail cell door slamming shut with a loud metallic clang, rattling bars and an echo down a stone corridor, no music", 2.5, -15),
     "revealHit": ("A dramatic orchestral horror stinger: a huge low boom with a sharp string screech, film trailer hit, short tail, no voices", 2.5, -16),
+    # Oct 21 (Heston picked option C of four: "a sound that happens like a spotlight is shown on someone, like an
+    # audible exclamation point"): the heat turning on someone. Its take is in public/audio/sfx/heat.mp3.
+    "heat": ("A sharp spotlight click followed by one punchy dramatic piano and timpani accent, like a surprised gasp, short and clean, no voices", 1.2, -18),
 }
 
 spec = importlib.util.spec_from_file_location("prep", os.path.join(ROOT, "scripts", "prepare-audio.py"))

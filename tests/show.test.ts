@@ -31,8 +31,8 @@ async function started(guests = 6) {
   const tvKey = await t.run(async (ctx) => (await ctx.db.query("games").first())!.tvKey!);
   return { t, hostKey, players, tvKey };
 }
-/** "Check your phone", then time to read the role (ivy, classic). */
-const PHONES_MS = Math.max(SHOW.phonesHold, cueSecs("ivy", "classic", "ivy", "intro4") * 1000 + 8000);
+/** "Check your phone", then time to read the role (Duke, the default narrator since Oct 21; Classic). */
+const PHONES_MS = Math.max(SHOW.phonesHold, cueSecs("duke", "classic", "duke", "intro4") * 1000 + 8000);
 const game = (t: ReturnType<typeof convexTest>) => t.run(async (ctx) => (await ctx.db.query("games").first())!);
 
 describe("the show (Oct 16): Start → How to play → the Don dies → roll call → check your phones → Round 1", () => {
@@ -43,7 +43,7 @@ describe("the show (Oct 16): Start → How to play → the Don dies → roll cal
     const s = g.show!;
     // Heston, Oct 16: "1. rules 2. don dies 3. Roll call"
     expect(s.howAt).toBe(g.startedAt!);
-    const secs = (c: Parameters<typeof cueSecs>[3]) => cueSecs("ivy", "classic", "ivy", c);
+    const secs = (c: Parameters<typeof cueSecs>[3]) => cueSecs("duke", "classic", "duke", c);
     expect(s.introAt).toBe(howLayout(s.howAt, howCues({ search: "waves", pacing: g.pacing }), secs).end);
     expect(s.rollAt).toBe(introLayout(s.introAt!, secs).end);
     expect(s.rollAt - s.introAt!).toBeGreaterThanOrEqual(SHOW.introMs - 10_000);

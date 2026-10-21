@@ -35,7 +35,7 @@ export type SfxKey =
   // Phase 4 (Oct 21): someone's heat turns on (3 tags). No narration, just this, quietly (Heston, Oct 20).
   | "heat";
 /** A sound that isn't on the site yet plays its stand-in. */
-export const FALLBACK: Partial<Record<SfxKey, SfxKey>> = { gavel: "stamp", keys: "creak", jailSlam: "thunder", revealHit: "thunder", heat: "heartbeat" };
+export const FALLBACK: Partial<Record<SfxKey, SfxKey>> = { gavel: "stamp", keys: "creak", jailSlam: "thunder", revealHit: "thunder" };
 export type MusicKey = "lobby" | "intro" | "rounds" | "awards";
 export type Levels = { voice: number; music: number; sfx: number };
 
