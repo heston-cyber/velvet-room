@@ -633,6 +633,8 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
         key: "awards",
         node: (
           <div className="tv-scene">
+            {/* Oct 21: shrinks to fit between the host's buttons and the caption, however many awards and winners. */}
+            <Fit className="scene" watch={list.map((a) => a.winners.length).join()}>
             <span className="tv-kick">The Velvet Room awards</span>
             <h2 className="tv-h2" style={{ fontSize: "5cqw" }}>To the winners</h2>
             <div className={`tv-awards${list.length > 3 ? " many" : ""}`} style={{ "--n": list.length } as CSSProperties}>
@@ -648,14 +650,15 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
                         </span>
                       ))}
                     </span>
-                    {/* First names: a shared award with full names wouldn't fit the card. */}
-                    <span className="n">{shown ? a.winners.map((w) => w.short).join(" & ") : "…"}</span>
+                    {/* First names: a shared award with full names wouldn't fit the card. Oct 21: three at most, then how many more. */}
+                    <span className="n">{shown ? (a.winners.length > 3 ? `${a.winners.slice(0, 3).map((w) => w.short).join(", ")} and ${a.winners.length - 3} more` : a.winners.map((w) => w.short).join(" & ")) : "…"}</span>
                     <span className="sub">{shown ? a.sub : " "}</span>
                   </div>
                 );
               })}
             </div>
             <p className="tv-sub">The bar is open. Settle your debts in chips.</p>
+            </Fit>
           </div>
         ),
       },

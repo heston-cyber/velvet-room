@@ -179,7 +179,11 @@ with sync_playwright() as p:
         except RuntimeError as e:
             print("skip", g["charName"], str(e)[-90:])
     ok(wait_for(lambda: roster()["game"]["status"] == "reveal", 25), "everyone locked in: the reveal")
-    ok(wait_for(lambda: host.get_by_text("named the killer").count() == 1, 60), "the verdict")
+    # Oct 21: a tie goes to a runoff first; the verdict gives the most votes.
+    if wait_for(lambda: roster()["game"].get("runoff") is not None and roster()["game"]["status"] != "reveal", 3):
+        cx("game:advanceRound", {"slug": SLUG, "hostKey": KEY})
+        cx("game:advanceRound", {"slug": SLUG, "hostKey": KEY})
+    ok(wait_for(lambda: host.get_by_text("The most votes:", exact=False).count() == 1, 60), "the verdict")
     ok(host.locator(".tv-reveal-acc").count() == 0 and not mentions(host), f"the reveal never names an accomplice {mentions(host)[:2]}")
     host.wait_for_timeout(800)
     shot(host, "06-tv-verdict.png")

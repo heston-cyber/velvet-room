@@ -443,8 +443,11 @@
 
 /* Oct 18: the roll call reads each guest's motive out; the card shows it too. */
 
-/* Oct 20 (Heston: "things arent covering up other elements"): the award cards sit between the two drawings standing at the sides. */
-.tv-stage[data-scene="awards"] .tv-scene { padding-inline: 15cqw; }
+/* Oct 20 (Heston: "things arent covering up other elements"): the award cards sit between the two drawings standing at
+   the sides, and (Oct 21) below the host's buttons. */
+.tv-stage[data-scene="awards"] .tv-fit.scene { top: 6cqw; left: 15cqw; right: 15cqw; }
+.tv-awards.many .tv-award .faces .tv-av, .tv-awards.many .tv-award .faces:has(.tv-av:nth-child(2)) .tv-av { width: 4.6cqw; height: 4.6cqw; font-size: 1.8cqw; }
+.tv-awards.many .tv-award .faces:not(:has(.tv-av:nth-child(2))) .tv-av { width: 6.4cqw; height: 6.4cqw; }
 
 /* The runoff (Oct 21): the last words' clock. */
 .tv-mini-clock.big { font-size: 3.4cqw; padding: .4cqw 1.2cqw; justify-self: start; }
