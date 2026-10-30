@@ -555,8 +555,16 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
               <span>
                 <b>{d.counts.accused}</b> of {d.counts.playing} in
               </span>
-              {/* F12 (Oct 17): the lock-in always has a clock. */}
-              {g.roundEndsAt !== null && <span className="tv-mini-clock">{clock(g.roundEndsAt < 0 ? -g.roundEndsAt : g.roundEndsAt - now)}</span>}
+              {/* F12 (Oct 17): the lock-in always has a clock. Oct 29: a 3-minute countdown, big, red for the last 10 seconds. */}
+              {g.roundEndsAt !== null && (() => {
+                const ms = Math.max(0, g.roundEndsAt < 0 ? -g.roundEndsAt : g.roundEndsAt - now);
+                return (
+                  <span className={`tv-countdown${ms <= 10_000 ? " urgent" : ""}`} aria-label="Time left to lock in">
+                    {clock(ms)}
+                    <small>left to lock in</small>
+                  </span>
+                );
+              })()}
             </div>
           </>
         ),

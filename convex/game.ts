@@ -13,7 +13,7 @@ import { charKeyOf, randomCode, registrationIsOpen, requireHost, requireTv } fro
 import { seal } from "./seal";
 import { caseFor } from "./caseFile";
 import { ensureAllCards, markerForCode } from "./cards";
-import { ACCUSE_MAX_MINUTES, LOCKED_UP_MS, MAX_CARDS, hasJailVote, revealTimes, roundMinutesFor, VOTE, voteAfterRound } from "./shared";
+import { LOCK_IN_MS, LOCKED_UP_MS, MAX_CARDS, hasJailVote, revealTimes, roundMinutesFor, VOTE, voteAfterRound } from "./shared";
 import { SHOW, cueSecs, howCues, howLayout, introLayout, revealLayout, rollLayout, showParts } from "./show";
 import { inOrder, rollGuests, slotsFor } from "./rollCall";
 import { heckleWanted } from "./heckles";
@@ -199,10 +199,10 @@ async function nextRound(ctx: MutationCtx, game: Doc<"games">) {
     return;
   }
   const next = round + 1;
-  // Oct 20: only timed games have clocks (the lock-in: 5 minutes at most). Untimed, the host's Next covers a dead phone.
+  // Oct 20: only timed games have clocks in the rounds. Untimed, the host's Next covers a dead phone. Oct 29: the lock-in
+  // always runs a 3-minute countdown (LOCK_IN_MS).
   const timed = isTimed(game);
-  const minutes = next === 4 ? Math.min(game.pacing.roundMinutes, ACCUSE_MAX_MINUTES) : roundMinutesFor(game.pacing.roundMinutes, next);
-  const endsAt = timed ? Date.now() + minutes * 60_000 : undefined;
+  const endsAt = next === 4 ? Date.now() + LOCK_IN_MS : timed ? Date.now() + roundMinutesFor(game.pacing.roundMinutes, next) * 60_000 : undefined;
   // Oct 20 (Heston: jail lasts one round): the jailbird sat out Round 3's search and rejoins for the lock-in.
   if (next === 4) for (const p of (await playersOf(ctx, game._id)).filter((x) => x.jailed)) await ctx.db.patch(p._id, { jailed: false });
   // Skipping ahead also cuts the intro short.

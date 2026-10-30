@@ -4,7 +4,7 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
-import { ACCUSE_MAX_MINUTES, VOTE } from "../convex/shared";
+import { LOCK_IN_MS, VOTE } from "../convex/shared";
 import { nextRound } from "./steps";
 
 const modules = import.meta.glob("../convex/**/*.ts");
@@ -82,29 +82,27 @@ describe("host fixes (Oct 17)", () => {
     await expect(t.mutation(api.host.setHere, { slug: SLUG, hostKey, playerId: players[0]._id, here: true })).rejects.toThrow(/started/);
   });
 
-  test("the lock-in (Oct 20): timed games give it a clock that starts the reveal; untimed ones wait for everyone (or the host)", async () => {
+  test("the lock-in (Oct 29): every game, timed or not, gets a 3-minute countdown that starts the reveal", async () => {
     vi.useFakeTimers();
-    const timed = await made({ timed: true });
-    for (let i = 0; i < 3; i++) await nextRound(timed.t, SLUG, timed.hostKey);
-    let g = await game(timed.t);
-    expect(g.round).toBe(4);
-    expect(g.roundEndsAt! - Date.now()).toBeGreaterThan(ACCUSE_MAX_MINUTES * 60_000 - 2000);
-    vi.advanceTimersByTime(ACCUSE_MAX_MINUTES * 60_000 + 1000);
-    await timed.t.finishInProgressScheduledFunctions();
-    expect((await game(timed.t)).status).toBe("reveal");
-    // F7: the host's roster knows when the verdict shows.
-    const roster = await timed.t.query(api.host.roster, { slug: SLUG, hostKey: timed.hostKey });
-    expect(roster.game.verdictAt).toBeGreaterThan((await game(timed.t)).revealAt!);
-    expect(roster.counts).toMatchObject({ awardVotes: 0, inGameAll: 6 });
-    const untimed = await made();
-    for (let i = 0; i < 3; i++) await nextRound(untimed.t, SLUG, untimed.hostKey);
-    g = await game(untimed.t);
-    expect(g.round).toBe(4);
-    expect(g.roundEndsAt).toBeUndefined();
-    vi.advanceTimersByTime(ACCUSE_MAX_MINUTES * 60_000 * 3);
-    await untimed.t.finishInProgressScheduledFunctions();
-    expect((await game(untimed.t)).status).toBe("playing");
-    await untimed.t.mutation(api.game.advanceRound, { slug: SLUG, hostKey: untimed.hostKey });
-    expect((await game(untimed.t)).status).toBe("reveal");
+    for (const timed of [true, false]) {
+      const g0 = await made({ timed });
+      for (let i = 0; i < 3; i++) await nextRound(g0.t, SLUG, g0.hostKey);
+      const g = await game(g0.t);
+      expect(g.round).toBe(4);
+      expect(g.roundEndsAt! - Date.now()).toBeGreaterThan(LOCK_IN_MS - 2000);
+      expect(g.roundEndsAt! - Date.now()).toBeLessThanOrEqual(LOCK_IN_MS);
+      vi.advanceTimersByTime(LOCK_IN_MS - 5000);
+      await g0.t.finishInProgressScheduledFunctions();
+      expect((await game(g0.t)).status).toBe("playing");
+      vi.advanceTimersByTime(6000);
+      await g0.t.finishInProgressScheduledFunctions();
+      expect((await game(g0.t)).status).toBe("reveal");
+      if (timed) {
+        // F7: the host's roster knows when the verdict shows.
+        const roster = await g0.t.query(api.host.roster, { slug: SLUG, hostKey: g0.hostKey });
+        expect(roster.game.verdictAt).toBeGreaterThan((await game(g0.t)).revealAt!);
+        expect(roster.counts).toMatchObject({ awardVotes: 0, inGameAll: 6 });
+      }
+    }
   });
 });

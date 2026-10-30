@@ -55,6 +55,13 @@ export const LAST_CALL_MS = 30_000;
 
 /** Timed games: the lock-in gets a shorter clock than the evidence rounds. */
 export const ACCUSE_MAX_MINUTES = 5;
+/**
+ * Oct 29 (Heston, after his test night: "we need a countdown at the lockin not a drum roll continuously"; picked
+ * "3 minutes, then it closes"): every lock-in, timed or not, runs a 3-minute countdown on the TV and the phones, and
+ * closes at zero with the lock-ins it has. Anyone who hasn't locked in doesn't count. Everyone in before then closes it
+ * early, as before.
+ */
+export const LOCK_IN_MS = 3 * 60_000;
 
 /**
  * I5 (Oct 17): in timer games Round 3 is shorter (most of the house has been searched by then): three quarters of the

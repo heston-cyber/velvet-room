@@ -423,7 +423,9 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
       card("lastcall", lc + 0.2 * S);
       fx(`acc:${t}:bell`, "lastCall", lc + 0.3 * S);
     }
-    if (now > t + 4 * S && (waitingOnFew || (timed && left <= 30 * S))) out.ambience = ["drumroll"];
+    // Oct 29 (Heston: "a countdown at the lockin not a drum roll continuously"): the 3-minute countdown ticks through its
+    // last 30 seconds. No drumroll here any more (it stays for the reveal).
+    if (timed && left > 0 && left <= 30 * S) out.ambience = ["clockTick"];
     return out;
   }
 

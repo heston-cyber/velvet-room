@@ -263,7 +263,9 @@ function TopLine({ data, rules }: { data: Phone; rules: { open: boolean; toggle:
     right = timed || intro ? left : game.paused ? "Paused" : `${counts.ready} of ${counts.inGame} ready`;
   } else if (game.status === "playing") {
     chip = "Lock-in";
-    right = game.paused ? "Paused" : `${counts.accused} of ${counts.inGame} in`;
+    // Oct 29: the lock-in's 3-minute countdown, on every phone too.
+    const s = game.roundEndsAt && game.roundEndsAt > 0 ? Math.max(0, Math.round((game.roundEndsAt - now) / 1000)) : null;
+    right = game.paused ? "Paused" : s !== null ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")} left` : `${counts.accused} of ${counts.inGame} in`;
   } else if (game.status === "reveal") {
     chip = "The reveal";
     right = "";
@@ -311,7 +313,7 @@ function todoOf(data: Phone, intro: boolean): string {
   if (game.status === "playing") {
     const ro = data.runoff;
     if (ro && !ro.closedAt) return data.myRunoff ? "Runoff vote in. Watch the TV." : Date.now() < ro.voteAt ? "It's a tie. Last words first." : "The runoff: vote on what's tied.";
-    return data.myAccusation ? "You're locked in. Watch the TV." : "Whose story didn't hold up? Lock in who, with what, and where. It's final.";
+    return data.myAccusation ? "You're locked in. Watch the TV." : "Lock in below: who did it, with what, and where. You have 3 minutes, and it's final.";
   }
   if (game.status === "reveal") return "Watch the TV.";
   return "Thanks for playing.";
@@ -1201,7 +1203,7 @@ function Rulebook({ data, onClose }: { data: Phone; onClose: () => void }) {
         <p>Chips buy drinks, pay debts and place bets (the Betting tab has the details). Someone may try to buy your vote or your silence; that's allowed. You can stay quiet. You can never lie, chips or no chips.</p>
       </S>
       <S h="Locking in">
-        <p>After Round 3, everyone locks in on their phone: who did it, with which weapon, and in which room. Everyone locks in, the killer too. Once you lock in, it's final.</p>
+        <p>After Round 3, everyone locks in on their phone: who did it, with which weapon, and in which room. Everyone locks in, the killer too. There's a 3-minute countdown; anyone not locked in when it hits zero doesn't count. Once you lock in, it's final.</p>
         <p>The most votes wins on each of the three. If the most votes are on the killer, the weapon and the room, everyone innocent wins. Miss any one, and the killer wins.</p>
       </S>
       <S h="Ties">
