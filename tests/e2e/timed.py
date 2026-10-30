@@ -1,6 +1,6 @@
 """A timed night end-to-end (Phase 8, Oct 21), against the dev backend: a game on the clock (3-minute rounds) where
 nobody taps Ready, nobody votes in jail and only some guests lock in, so only the clock moves it on: Round 1 to 3 end on
-time, the late tips land, the jail vote closes on its clock, the lock-in closes on its clock with the votes it has, and
+time, the late tips land (Oct 29: no jail vote), the lock-in's 3-minute countdown closes it with the votes it has, and
 the reveal runs. The TV is checked for overlaps at every step.
   BASE=http://localhost:4174 python3 tests/e2e/timed.py
 Screenshots go to $OUT (default ./e2e-out/timed). Takes about 15 minutes.
@@ -93,16 +93,12 @@ with sync_playwright() as p:
         mins = MINUTES if rnd != 3 else max(3, round(MINUTES * 0.75))
         ok(wait_for(lambda: game()["round"] != rnd or game().get("vote"), mins * 60 + 90, 5), f"Round {rnd} ends on its clock")
         if rnd == 2:
+            # Oct 29: no jail vote. Round 3 opens on the late tips, on their own for a moment.
             ok(wait_for(lambda: tv.get_by_text("Late tips", exact=True).count() >= 1, 30, 1), "the late tips land")
-            tv.wait_for_timeout(7000)
+            tv.wait_for_timeout(5000)
             shot(tv, "02b-late-tips.png")
             audit(tv, "the late tips")
-            ok(wait_for(lambda: (game().get("vote") or {}).get("kind") == "jail", 60), "the jail vote opens")
-            tv.wait_for_timeout(3000)
-            shot(tv, "02c-jail-vote.png")
-            audit(tv, "the jail vote")
-            # Nobody votes: the vote closes on its clock (90 seconds) and Round 3 starts.
-            ok(wait_for(lambda: game()["round"] == 3 and not game().get("vote"), 240, 5), "the jail vote closes on its clock")
+            ok(game()["round"] == 3 and not game().get("vote"), "straight on to Round 3, no jail vote")
 
     # The lock-in: half the guests lock in, the rest never do; the clock closes it.
     ok(wait_for(lambda: game()["round"] == 4, 120), "the lock-in opens")
@@ -117,7 +113,9 @@ with sync_playwright() as p:
     tv.wait_for_timeout(2000)
     shot(tv, "04-lock-in.png")
     audit(tv, "the lock-in")
-    ok(wait_for(lambda: game()["status"] in ("reveal", "done") or game().get("runoff"), 6 * 60 + 60, 5), "the lock-in closes on its clock")
+    # Oct 29: the 3-minute countdown, big in the corner.
+    ok(tv.locator(".tv-countdown").count() == 1, "the lock-in shows its countdown")
+    ok(wait_for(lambda: game()["status"] in ("reveal", "done") or game().get("runoff"), 3 * 60 + 60, 5), "the lock-in closes on its 3-minute clock")
     if game().get("runoff"):
         print("(a runoff)", flush=True)
         ok(wait_for(lambda: game()["status"] in ("reveal", "done"), 5 * 60, 5), "the runoff closes on its clock")
