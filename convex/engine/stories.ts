@@ -38,6 +38,7 @@ export type Spot = {
   details: Detail[];
 };
 
+// Oct 29 (Heston, after his test night: "no one knows what a halal cart is, get rid of it"): the halal cart is gone.
 export const SPOTS: Spot[] = [
   {
     key: "alley",
@@ -401,32 +402,6 @@ export const SPOTS: Spot[] = [
           "A burst cigar box behind the cigar shop counter, \"definitely not Cuban\" on the lid, cigars everywhere. It fell tonight.",
         ],
         breaks: "The cigar shop sold its last box of \"definitely not Cubans\" at noon. There wasn't one on any shelf tonight.",
-      },
-    ],
-  },
-  {
-    key: "halalCart",
-    place: "out",
-    at: "at the halal cart on the corner",
-    witness: "the halal cart guy",
-    details: [
-      {
-        id: "cart-sauce",
-        story: "The cart guy was giving free extra white sauce to anybody in a costume.",
-        confirm: [
-          "The halal cart's sign tonight: \"Costume = free extra white sauce.\" He ran out right when the lights went out.",
-          "A pile of empty white-sauce bottles by the halal cart, and a sign: \"Halloween special. All gone.\"",
-        ],
-        breaks: "The halal cart has been out of white sauce since Tuesday. Not a drop tonight, costume or not.",
-      },
-      {
-        id: "cart-zombies",
-        story: "The line was twenty people deep, and half of them were dressed as zombies.",
-        confirm: [
-          "The halal cart's card reader: forty-two sales tonight, the busiest stretch right when the lights went out.",
-          "A post from tonight: \"the halal cart line is all zombies lol,\" with the corner by the club in the background.",
-        ],
-        breaks: "The halal cart closed at nine tonight because the guy went home sick. Nobody lined up for anything.",
       },
     ],
   },
