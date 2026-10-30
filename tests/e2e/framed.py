@@ -138,7 +138,8 @@ with sync_playwright() as p:
 
     # Round 2 ends: the late tips land, the plant about y among them.
     cx("game:advanceRound", {"slug": SLUG, "hostKey": KEY})
-    ok(wait_for(lambda: host.get_by_text("Late tips", exact=True).count() >= 1, 15), "the TV shows the late tips")
+    # Oct 29: no jail vote, so the late tips land with Round 3's evidence.
+    ok(wait_for(lambda: host.locator(".tv-ev.tip").count() >= 1, 20), "the TV shows the late tips")
     host.wait_for_timeout(7000)
     shot(host, "06-tv-late-tips.png")
     issues = host.evaluate(AUDIT, "top")
