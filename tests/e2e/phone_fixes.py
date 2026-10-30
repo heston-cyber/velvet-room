@@ -70,6 +70,7 @@ with sync_playwright() as p:
     expect(pg.get_by_role("button", name="Open my case file")).to_be_visible()
     check("case file opens after the first hold", True)
     pg.get_by_role("button", name="Open my case file").click()
+    pg.get_by_role("button", name="Skip the tour").click(timeout=10000)  # Oct 29: the phone tour
     pg.get_by_role("button", name="Scan", exact=True).click()
     pg.get_by_role("button", name="Scan a card").click()
     try:

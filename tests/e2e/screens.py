@@ -269,13 +269,14 @@ with sync_playwright() as p:
         host.wait_for_timeout(9000)
         audit(f"r{rnd}-{kind}-verdict", 0)
 
-    # Round 1 ends with no vote; Round 2 in the jail vote; Round 3 goes straight to the lock-in (Oct 20).
+    # Round 1 ends with no vote; Oct 29: no jail vote either. Round 2 ends in the late tips (they open Round 3); Round 3
+    # goes straight to the lock-in.
     mut("game:advanceRound", {"slug": SLUG, "hostKey": KEY})
     wait_for(lambda: roster()["game"]["round"] == 2, 25)
     audit("round-2", 6000)
     mut("game:advanceRound", {"slug": SLUG, "hostKey": KEY})
-    vote_round(2, "jail", guests[5]["id"])
     wait_for(lambda: roster()["game"]["round"] == 3, 30)
+    audit("round-3-late-tips", 7000)
     audit("round-3", 6000)
     audit("round-3-twist", 9000)
     mut("game:advanceRound", {"slug": SLUG, "hostKey": KEY})

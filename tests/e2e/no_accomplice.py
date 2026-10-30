@@ -107,17 +107,17 @@ with sync_playwright() as p:
     if host.locator(".tv-how").count() == 0:
         skip("Skip to How to play")
     # W14 (Oct 17): a sixth card says how a round ends.
-    ok(wait_for(lambda: "how to play · 1 of 6" in host.locator(".tv-how").inner_text().lower(), 10), "six How to play cards")
+    ok(wait_for(lambda: "how to play · 1 of 7" in host.locator(".tv-how").inner_text().lower(), 10), "seven How to play cards (Oct 29: the phone card)")
     seen, pair = [], False
     end = time.time() + 90
     while time.time() < end and host.locator(".tv-how").count():
         t = host.locator(".tv-how").inner_text().lower()
         seen.append(t)
         pair = pair or host.locator(".tv-how-pair").count() > 0
-        if "6 of 6" in t:
+        if "7 of 7" in t:
             break
         host.wait_for_timeout(1000)
-    ok(any("6 of 6" in t for t in seen), "How to play reached its last card")
+    ok(any("7 of 7" in t for t in seen), "How to play reached its last card")
     ok(not pair and not any("accomplice" in t for t in seen), "How to play never shows or mentions an accomplice")
     shot(host, "03-how.png")
 
@@ -142,6 +142,7 @@ with sync_playwright() as p:
     kp.wait_for_timeout(400)
     kp.get_by_label("Press and hold to see your role").dispatch_event("pointerup")
     kp.get_by_role("button", name="Open my case file").click(timeout=10000)
+    kp.get_by_role("button", name="Skip the tour").click(timeout=10000)  # Oct 29: the phone tour
     lines = kp.get_by_label("Press and hold to read your role")
     lines.dispatch_event("pointerdown")
     kp.wait_for_timeout(500)
@@ -165,6 +166,7 @@ with sync_playwright() as p:
     ip.wait_for_timeout(300)
     ip.get_by_label("Press and hold to see your role").dispatch_event("pointerup")
     ip.get_by_role("button", name="Open my case file").click(timeout=10000)
+    ip.get_by_role("button", name="Skip the tour").click(timeout=10000)  # Oct 29: the phone tour
     if ip.get_by_role("button", name="Lock in").count():
         ip.get_by_role("button", name="Lock in").click()
     ok(wait_for(lambda: ip.locator(".pick").count() >= 3, 10), "the lock-in is open")

@@ -89,6 +89,7 @@ with sync_playwright() as p:
         pg.wait_for_timeout(400)
         pg.get_by_label("Press and hold to see your role").dispatch_event("pointerup")
         pg.get_by_role("button", name="Open my case file").click(timeout=10000)
+        pg.get_by_role("button", name="Skip the tour").click(timeout=10000)  # Oct 29: the phone tour
 
     # Round 1: the heat tags live on the Notebook.
     ip.get_by_role("button", name="Notebook", exact=True).click()

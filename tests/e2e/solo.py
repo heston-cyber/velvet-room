@@ -125,6 +125,7 @@ with sync_playwright() as p:
     phone.wait_for_timeout(700)
     phone.get_by_label("Press and hold to see your role").dispatch_event("pointerup")
     phone.get_by_role("button", name="Open my case file").click(timeout=10000)
+    phone.get_by_role("button", name="Skip the tour").click(timeout=10000)  # Oct 29: the phone tour
     # Phase 3: the case file says where you were when the lights went out.
     ok(wait_for(lambda: phone.locator(".story-file").count() == 1, 10), "the case file has Where you were")
     ok(phone.locator(".story-file .story-text").inner_text().startswith("When the lights went out, you were"), "with the guest's story")

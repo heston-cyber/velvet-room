@@ -151,6 +151,11 @@ with sync_playwright() as p:
     for _, pg in pages:
         pg.get_by_label("Press and hold to see your role").dispatch_event("pointerup")
         pg.get_by_role("button", name="Open my case file").click(timeout=10000)
+    # Oct 29: the phone tour, card by card.
+    for k in range(7):
+        look(pages, f"09t-tour-{k + 1}")
+        for _, pg in pages:
+            pg.get_by_role("button", name="Next" if k < 6 else "Open my case file", exact=True).click(timeout=10000)
     look(pages, "10-r1-case")
     # Phase 6 (Oct 21): the "? How to play" rulebook, from the top of the phone.
     look(pages, "10b-rulebook", lambda pg: pg.get_by_role("button", name="How to play").click(timeout=5000))
