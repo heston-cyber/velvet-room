@@ -166,7 +166,10 @@ with sync_playwright() as p:
     ip.wait_for_timeout(300)
     ip.get_by_label("Press and hold to see your role").dispatch_event("pointerup")
     ip.get_by_role("button", name="Open my case file").click(timeout=10000)
-    ip.get_by_role("button", name="Skip the tour").click(timeout=10000)  # Oct 29: the phone tour
+    # Oct 29: the phone tour runs in Rounds 1 to 3 only; this phone opens at the lock-in.
+    ip.wait_for_timeout(600)
+    if ip.get_by_role("button", name="Skip the tour").count():
+        ip.get_by_role("button", name="Skip the tour").click()
     if ip.get_by_role("button", name="Lock in").count():
         ip.get_by_role("button", name="Lock in").click()
     ok(wait_for(lambda: ip.locator(".pick").count() >= 3, 10), "the lock-in is open")
