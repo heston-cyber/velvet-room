@@ -488,6 +488,32 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
         },
       };
     }
+    // Oct 29 (no jail vote): the late tips get their own moment as Round 3 starts, then the round's screen (where they
+    // stay with the evidence).
+    if (round === 3 && !d.game.jailVote && d.lateTips.length && d.lateTipsAt && now < d.lateTipsAt + LATE_TIPS_MS) {
+      return {
+        scene: {
+          key: `tips-${d.lateTipsAt}`,
+          node: (
+            <div className="tv-scene">
+              <Fit className="scene" watch={d.lateTips.join("|")}>
+              <span className="tv-kick fade">Late tips</span>
+              <h2 className="tv-h2 fade" style={{ fontSize: "5cqw" }}>Word just came in.</h2>
+              <div className="tv-cards l">
+                {d.lateTips.map((t, i) => (
+                  <div className="tv-ev fade tip" style={{ animationDelay: `${0.4 + i * 0.6}s` }} key={i}>
+                    <small>Late tip</small>
+                    {t}
+                  </div>
+                ))}
+              </div>
+              <p className="tv-sub fade" style={{ animationDelay: "1.8s" }}>One of them might be planted. Round 3 starts now.</p>
+              </Fit>
+            </div>
+          ),
+        },
+      };
+    }
     if (round === 2 || round === 3) {
       const cards = d.evidence.filter((e) => e.round === round);
       const plain = cards.filter((c) => !c.twist);
