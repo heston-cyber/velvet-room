@@ -1370,12 +1370,13 @@ function HowRound({ faces, timer }: { faces: string[]; timer: boolean }) {
     <div className="tv-how-round enter">
       <div className="faces">
         {faces.map((f, i) => (
-          <span key={f} className={`tv-av ${i < 3 ? "ready" : ""}`} style={{ animationDelay: `${0.4 + i * 0.35}s` }}>
+          <span key={f} className="tv-av ready" style={{ animationDelay: `${0.4 + i * 0.35}s` }}>
             <img src={faceUrl(f)} alt="" />
           </span>
         ))}
       </div>
-      <span className="lab">3 of {faces.length} ready: 30 seconds, then the round ends</span>
+      {/* Oct 30: a round waits for everyone (since Oct 20); the old "3 of 5 ready: 30 seconds" was out of date. */}
+      <span className="lab">Everyone's done: next round</span>
     </div>
   );
 }
