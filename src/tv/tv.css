@@ -10,7 +10,8 @@
     var(--felt);
   color: var(--paper); font-family: var(--body);
 }
-.tv-scene { position: absolute; inset: 0; padding: 4cqw 5cqw 9cqw; display: grid; align-content: center; justify-items: center; text-align: center; gap: 1.5cqw; }
+/* Oct 29: one column that never grows past the screen (a long line in it used to widen it and push the map off the edge). */
+.tv-scene { position: absolute; inset: 0; padding: 4cqw 5cqw 9cqw; display: grid; grid-template-columns: minmax(0, 1fr); align-content: center; justify-items: center; text-align: center; gap: 1.5cqw; }
 .tv-scene.top { align-content: start; }
 .tv-scene.dark { background: transparent; }
 .tv-h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 7cqw; line-height: .95; color: var(--paper); text-wrap: balance; }
@@ -422,8 +423,10 @@
 /* Whole words only (never "CANDLEST-ICK"): a two-word name may take two short lines, a long word never breaks. */
 .tv-topweapons .nm { max-width: 100%; font-family: var(--label); font-size: min(.8cqw, calc(var(--slot) * .15)); font-weight: 700; letter-spacing: .02em; color: var(--paper); text-align: center;
   line-height: 1.05; overflow-wrap: normal; word-break: keep-all; }
-/* The round chip and the ready count keep to one line; the weapons take what's between them. */
-.tv-roundbar .chip, .tv-roundbar .tv-ready, .tv-roundbar .tv-clock { flex: none; white-space: nowrap; }
+/* The round chip and the clock keep to one line; the weapons take what's between them. Oct 29: "Waiting on …" wraps
+   onto a second line instead of pushing the screen wider (Heston's test: the map ran off the right edge). */
+.tv-roundbar .chip, .tv-roundbar .tv-clock { flex: none; white-space: nowrap; }
+.tv-roundbar .tv-ready { flex: 0 1 auto; max-width: 24cqw; text-align: right; line-height: 1.25; overflow-wrap: normal; }
 @media (prefers-reduced-motion: reduce) { .tv-topweapons { animation: none; } }
 /* I1 (Oct 17): who named whom at the reveal, smaller than the jail tally. */
 .tv-tally.lockins { gap: 1.2cqw; margin-top: .8cqw; }

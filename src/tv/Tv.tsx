@@ -786,7 +786,8 @@ function runoffScene(d: Data, now: number): { key: string; node: ReactNode } {
 function waitingLine(d: Data): string {
   const left = d.guests.filter((x) => x.here && !x.jailed && !x.ready).map((x) => splitName(x.short ?? x.charName).main);
   if (!d.counts.playing || d.counts.ready * 2 < d.counts.playing || !left.length) return `${d.counts.ready} of ${d.counts.playing} ready`;
-  const names = left.length > 3 ? `${left.slice(0, 3).join(", ")} and ${left.length - 3} more` : left.length === 1 ? left[0] : `${left.slice(0, -1).join(", ")} and ${left[left.length - 1]}`;
+  // Oct 29: at most three names, so the line stays short enough for the round bar.
+  const names = left.length > 3 ? `${left.slice(0, 2).join(", ")} and ${left.length - 2} more` : left.length === 1 ? left[0] : `${left.slice(0, -1).join(", ")} and ${left[left.length - 1]}`;
   return `Waiting on ${names}`;
 }
 
