@@ -103,21 +103,27 @@ with sync_playwright() as p:
         ok(host.get_by_role("button", name="Pause the game").count() == 0, "no pause button during the show")
         btn.click()
 
-    # Step through to the jail card. (Phase 6, Oct 21: the weapons card is gone; the weapons stay across the top.)
+    # Step through: the phone card (Oct 29) and the late-tips card (Oct 29: no jail vote, so no jail card).
     seen = set()
-    end = time.time() + 120
-    while time.time() < end and "bars" not in seen:
+    end = time.time() + 150
+    while time.time() < end and not {"phone", "tips"} <= seen:
         if host.locator(".tv-wfan").count():
             seen.add("weapons")
         if host.locator(".tv-jailed").count():
-            host.wait_for_timeout(1000)
-            shot(host, "05-how-jail.png")
-            ok("don't have to" in host.locator(".tv-how").inner_text().lower() or "nobody" in host.locator(".tv-how").inner_text().lower(), "the jail card says you don't have to jail anyone")
-            ok(host.locator(".tv-jailed img.bars").count() == 1, "the bars sit over the drawing")
             seen.add("bars")
+        if host.locator(".tv-how-phone").count() and "phone" not in seen:
+            host.wait_for_timeout(1500)
+            shot(host, "04-how-phone.png")
+            seen.add("phone")
+        if host.locator(".tv-how-tips").count() and "tips" not in seen:
+            host.wait_for_timeout(1000)
+            shot(host, "05-how-tips.png")
+            seen.add("tips")
         time.sleep(0.4)
     ok("weapons" not in seen, "no weapons card in How to play (Phase 6)")
-    ok("bars" in seen, "the jail card shows a guest behind bars")
+    ok("bars" not in seen, "no jail card (Oct 29)")
+    ok("phone" in seen, "How to play has the phone card (Oct 29)")
+    ok("tips" in seen, "and the late-tips card")
 
     # The Don dies.
     if host.get_by_text("New York City · October 31, 2026").count() == 0:
