@@ -94,6 +94,8 @@ with sync_playwright() as p:
                 issues = pg.evaluate(AUDIT, "top")
                 small = w < 1920 and [i for i in issues if i.startswith(("small button", "tiny text"))]
                 issues = [i for i in issues if not (small and i in small)]
+                # The "?" sits on the masked killer's face on purpose (screens.py's TV check counts the face as one piece).
+                issues = [i for i in issues if i != 'img over text: img "" / b "?"']
                 ok(not off and not issues, f"{title} at {w}x{h}: on screen and laid out cleanly {(off + issues)[:3]}")
         time.sleep(0.3)
     ok(len(titles) == 12, f"12 cards seen: {titles}")
