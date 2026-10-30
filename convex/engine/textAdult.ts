@@ -37,11 +37,11 @@ export const ADULT: Script = {
         ? `The coat-check attendant saw the killer sneak out the side door: a man, hoodie up like a cartoon villain. That clears ${list(cleared)}.`
         : `The coat-check attendant saw the killer sneak out the side door: a woman in a long coat, cool as hell. That clears ${list(cleared)}.`,
       sex === "m"
-        ? `A drunk guy in the alley heard a man chewing the Don out right before he died. The killer's a man, so ${list(cleared)} are off the hook.`
-        : `A drunk guy in the alley heard a woman chewing the Don out right before he died. The killer's a woman, so ${list(cleared)} are off the hook.`,
+        ? `A neighbor taking out the trash heard a man chewing the Don out right before he died. The killer's a man, so ${list(cleared)} are off the hook.`
+        : `A neighbor taking out the trash heard a woman chewing the Don out right before he died. The killer's a woman, so ${list(cleared)} are off the hook.`,
       sex === "m"
-        ? `Footprints in the spilled tequila lead away from the body: a man's size-twelve sneakers. That clears ${list(cleared)}, and somebody owes the club a mop.`
-        : `Footprints in the spilled tequila lead away from the body: a woman's heels. That clears ${list(cleared)}, and somebody owes the club a mop.`,
+        ? `Footprints in the spilled tequila lead away from the body: a man's size-twelve sneakers. That clears ${list(cleared)}, and somebody owes the house a mop.`
+        : `Footprints in the spilled tequila lead away from the body: a woman's heels. That clears ${list(cleared)}, and somebody owes the house a mop.`,
       sex === "m"
         ? `A waitress bumped into the killer in the dark right after: a man, reeking of cheap cologne. Like, really cheap. That clears ${list(cleared)}.`
         : `A waitress bumped into the killer in the dark right after: a woman, drowning in expensive perfume. That clears ${list(cleared)}.`,

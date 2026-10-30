@@ -18,25 +18,21 @@ function standingAfter(input: CaseInput, cf: CaseFile, round: number) {
   return out;
 }
 
-/** Spots that can't be in a game with a room of this kind (by the room's name). */
+/** Spots that can't be in a game with a room of this kind (by the room's name). Oct 29: the house spots. */
+const BATH = /bath|powder|wash|restroom|lavatory/i;
 const ROOM_WORDS: Record<string, RegExp> = {
+  restroom: BATH,
+  masterBath: BATH,
+  frontPorch: /coat|cloak|foyer|entry|entrance|front|hall/i,
   kitchen: /kitchen|pantry/i,
-  cardTable: /\bcards?\b|gaming|casino|poker|craps/i,
-  coatCheck: /coat|cloak|foyer|entry|entrance|front|hall/i,
-  hallway: /coat|cloak|foyer|entry|entrance|front|hall/i,
-  restroom: /bath|powder|wash|restroom|lavatory/i,
-  cellar: /cellar|basement/i,
-  backStairs: /stair/i,
-  roof: /roof|terrace/i,
   garage: /garage|carriage/i,
+  laundry: /laundry|utility|mud ?room/i,
+  masterBedroom: /bed ?room|master/i,
 };
 
-/** Details whose deciding card would contradict another detail's story (written apart from the engine's topics). */
-const CLASHES: [string, string][] = [
-  ["curb-uber", "ride-fare"],
-  ["curb-uber", "ride-singing"],
-  ["ride-fare", "ride-singing"],
-];
+/** Details whose deciding card would contradict another detail's story (written apart from the engine's topics). None
+ *  among the house spots: every deciding card is about its own spot. */
+const CLASHES: [string, string][] = [];
 
 type Read = { id: string; spotKey: string; partner: string | null; detail: string };
 

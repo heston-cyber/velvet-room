@@ -280,6 +280,9 @@ const PLACE_WORDS: Record<Place, RegExp | null> = {
   stairs: /stair/i,
   roof: /roof|terrace/i,
   garage: /garage|carriage/i,
+  // Oct 29: the house spots.
+  laundry: /laundry|utility|mud ?room/i,
+  bedroom: /bed ?room|master/i,
 };
 
 /** The room of the house a place is, if any (by the room's name: "The Bar" is the bar). */
