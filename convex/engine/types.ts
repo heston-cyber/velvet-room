@@ -34,7 +34,7 @@ export type Room = { key: string; label: string };
  * Oct 18: a place a clue says someone (or a watched weapon) was while the Don was killed. Each matches a room of the
  * house by its name ("The Bar" is the bar); "out" (the alley, the street, out back) is never a room.
  */
-export type Place = "bar" | "office" | "lounge" | "cards" | "front" | "kitchen" | "bath" | "out" | "cellar" | "stairs" | "roof" | "garage" | "laundry" | "bedroom";
+export type Place = "bar" | "office" | "lounge" | "cards" | "front" | "kitchen" | "bath" | "out" | "cellar" | "stairs" | "roof" | "garage";
 
 /** What a placed clue claims about the night (Oct 18), checked against everything else before a game starts. */
 export type ClueFacts = {

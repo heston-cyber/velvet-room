@@ -17,9 +17,9 @@ const NIGHTS: { guests: number; seed: number; tone: "classic" | "adult" }[] = [
 
 const out: string[] = [];
 const say = (s = "") => out.push(s);
-say("# Velvet Room: the house stories, 3 sample nights (Oct 29)");
+say("# Velvet Room: sample stories from 3 simulated nights (Phase 3)");
 say();
-say("Your test-night notes, Oct 29: every story now happens somewhere in your house or right outside it, from your list (restroom, master bathroom, front porch, back porch, kitchen, garage, laundry room, driveway, curb, a walk around the neighborhood, a car on the street, master bedroom), never in one of the 5 search rooms. The halal cart, the bodega, the rideshare and the rest of the New York spots are gone, and the late tips are about the party at the house. Built on dev with the party cast's first names, your 5 rooms and the recommended cards. Each night: what every phone says, every card and TV drop by round, the late tips, the debts, and how a table that finds every card gets to the killer. No jail vote any more.");
+say("Built by the new stories engine on dev, with the party cast's first names, your house's 5 rooms (Lounge, Bar, Back Office, Private Room, Conservatory) and the recommended cards. Each night: what every phone says, every card and TV drop by round, the late tips, the debts, and how a table that finds every card gets to the killer.");
 say();
 say("**Spoilers for these three made-up nights only.** Real games draw everything fresh at Start.");
 
@@ -71,11 +71,11 @@ for (const [i, n] of NIGHTS.entries()) {
     }
   }
   say();
-  say("### Late tips (land on the TV when Round 2 ends)");
+  say("### Late tips (land on the TV when the jail vote opens, in Phase 4)");
   say();
   for (const t of cf.lateTips!) say(`- ${t.text}`);
   say();
-  say("### Debts (on the phones)");
+  say("### Debts (on the phones in Phase 4)");
   say();
   for (const d of cf.debts!) say(`- ${name(d.fromId)} owes ${name(d.toId)} $${d.amount}.`);
   say();
