@@ -473,6 +473,8 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
                   <h2 className="tv-h2" style={{ fontSize: "5cqw", marginTop: "1cqw" }}>Find the evidence cards.</h2>
                   <p className="tv-sub">Scan them with your phone. Ask where everyone was when the lights went out.</p>
                   <p className="tv-sub small">The body was found in {mid(g.bodyRoom)}.</p>
+                  {/* Oct 29 (Heston: "at every step we need to be told what to do"). */}
+                  <p className="tv-do">{g.pacing.mode === "timer" ? "The round ends when the clock runs out." : "Done? Tap Done searching on your phone."}</p>
                   {/* Oct 21 (Heston: "I like ... the small text caption"): the Betting tab, mentioned once, at Round 1. */}
                   <p className="tv-sub small book-note">The book is open on your phones.</p>
                   {/* Oct 16: the weapons in play sit along the top of the screen through every round. */}
@@ -502,6 +504,7 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
               <RoundBar d={d} now={now} label={round === 2 ? "Fresh evidence" : "Last evidence"} />
               <Fit className="split" watch={`${total}:${twistIn}:${d.heat.length}`}>
               <div className="tv-split">
+              <div className="tv-left">
               <div className={`tv-cards ${size === "l" ? "l" : "s"}`}>
                 {/* Phase 4: without a jail vote, the late tips land with Round 3's evidence. */}
                 {tipsHere.map((t, i) => (
@@ -524,6 +527,13 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
                     </div>
                   ))}
                 {!cards.length && !tipsHere.length && <p className="tv-sub">No new evidence this round. Keep digging.</p>}
+              </div>
+              {/* Oct 29 (Heston: "at every step we need to be told what to do"): what this round wants, in order. */}
+              <p className="tv-do">
+                {round === 2
+                  ? `Answer the pick on your phone, then search the rooms that just opened. ${g.pacing.mode === "timer" ? "The round ends when the clock runs out." : "Done? Tap Done searching."}`
+                  : `Compare stories and search what's left. ${g.pacing.mode === "timer" ? "The lock-in starts when the clock runs out." : "Then tap Ready to lock in."}`}
+              </p>
               </div>
               {houseMap}
               </div>
@@ -937,7 +947,8 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
         <div className="tv-scene dark">
           <span className="tv-kick fade">Check your phone</span>
           <h2 className="tv-h2 fade" style={{ fontSize: "5.4cqw" }}>Press and hold your card.</h2>
-          <p className="tv-sub fade">Keep your screen to yourself. Round 1 starts in a moment.</p>
+          {/* Oct 29: then the phone tour. */}
+          <p className="tv-sub fade">Keep your screen to yourself. Then your phone shows you around. Round 1 starts in a moment.</p>
         </div>
       ),
     };

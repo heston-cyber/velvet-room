@@ -508,3 +508,6 @@
 .tv-how-phone .tabs i { font-style: normal; font-family: var(--label); font-size: .72cqw; font-weight: 700; letter-spacing: .02em; color: var(--muted); text-align: center; padding: .8cqw 0; animation: tabOn 1s ease both; }
 @keyframes tabOn { 0% { color: var(--muted); } 50% { color: var(--brass); } 100% { color: var(--paper); } }
 @media (prefers-reduced-motion: reduce) { .tv-how-phone .tabs i { animation: none; } }
+
+/* Oct 29: the line that says what to do now, on every round screen. */
+.tv-do { margin: .4cqw 0 0; font-family: var(--label); font-size: 1.35cqw; font-weight: 700; letter-spacing: .06em; color: var(--brass); text-align: left; text-wrap: balance; }

@@ -105,9 +105,9 @@ with sync_playwright() as p:
     ok(wait_for(lambda: str(BOTS + 1) in laptop.locator(".hs-count").inner_text()), f"the TV counts {BOTS + 1} guests in")
     shot(laptop, "03-lobby.png")
     # Oct 20: Best Dressed is a prompt in the lobby.
-    ok(wait_for(lambda: phone.get_by_text("While we wait: vote Best Dressed").count() == 1, 15), "the lobby asks for a Best Dressed vote")
+    ok(wait_for(lambda: phone.get_by_text("Vote Best Dressed").count() == 1, 15), "the lobby asks for a Best Dressed vote")
     phone.locator(".best-dressed .opts button").first.click()
-    ok(wait_for(lambda: phone.get_by_text("Saved. You can change it until the game starts.").count() == 1, 10), "the vote is saved")
+    ok(wait_for(lambda: phone.get_by_text("Vote saved ✓").count() == 1, 10), "the vote is saved")
     shot(phone, "03b-best-dressed.png")
     ok(wait_for(lambda: len([1 for x in roster()["players"] if x["bot"]]) == BOTS, 5), "the bots are all here")
 

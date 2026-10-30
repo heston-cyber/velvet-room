@@ -328,7 +328,7 @@ function todoOf(data: Phone, intro: boolean): string {
   const { game, me } = data;
   const vt = data.vote && game.status === "playing" && data.vote.round === game.round ? data.vote : null;
   if (game.paused) return "The host paused the game. Hang tight.";
-  if (game.status === "lobby") return "You're in. Wait for the host to start the show.";
+  if (game.status === "lobby") return "You're in. Vote Best Dressed below while everyone arrives. The show starts on the TV.";
   if (intro) return "Watch the TV. Your role arrives here after the roll call.";
   if (vt && !vt.closedAt) {
     if (me.jailed) return "You're in jail, so you can't vote. Bribe someone who can: chips for their vote.";
@@ -339,8 +339,13 @@ function todoOf(data: Phone, intro: boolean): string {
   if (game.status === "playing" && game.round <= 3) {
     if (me.jailed) return "You're in jail this round: no searching or voting. You're back for the lock-in.";
     if (data.pick?.open && !data.pick.answered) return "Everyone picks one now. Pick below.";
-    // Phase 4: the story reminder at every round.
-    return game.pacing.mode === "timer" ? "Ask where everyone was. Search the house and scan every card you find." : "Ask where everyone was. Search, scan the cards, and tap Ready when you're done.";
+    // Oct 29 (Heston: "at every step we need to be told what to do"): what this round wants, in order.
+    const timer = game.pacing.mode === "timer";
+    // Oct 29, later (Heston: "theres to much explaining text in the app"): one short line.
+    if (!timer && me.ready) return "You're done. Waiting on the others.";
+    if (game.round === 1) return "Search the open rooms, scan the cards, and ask where everyone was.";
+    if (game.round === 2) return "New evidence is on the TV. Search the rooms that just opened.";
+    return "Last round. Read the late tips on the TV and compare stories.";
   }
   if (game.status === "playing") {
     const ro = data.runoff;
@@ -380,7 +385,6 @@ function Arrive({ token, name }: { token: string; name: string }) {
           {busy ? "Letting you in…" : "I'm here"}
         </button>
       </div>
-      <p className="help">Not there yet? Leave this page and tap it when you arrive.</p>
     </div>
   );
 }
@@ -402,7 +406,6 @@ function WifiCard({ data }: { data: Phone }) {
           " · no password"
         )}
       </p>
-      <span className="help">Or scan the code on the TV.</span>
     </div>
   );
 }
@@ -423,7 +426,6 @@ function Lobby({ data, token }: { data: Phone; token: string }) {
           </li>
         ))}
       </ul>
-      <p className="help">Faded guests aren't in yet. Anyone who arrives after the lights drop watches instead.</p>
       <WifiCard data={data} />
     </div>
   );
@@ -452,7 +454,7 @@ function BestDressed({ token, data }: { token: string; data: Phone }) {
   }
   return (
     <div className="pick best-dressed">
-      <span className="eyebrow">While we wait: vote Best Dressed</span>
+      <span className="eyebrow">Vote Best Dressed</span>
       <div className="opts">
         {others.map((p) => (
           <button key={p.id} type="button" className="who-opt" aria-pressed={mine === p.id} onClick={() => void pick(p.id)}>
@@ -461,7 +463,7 @@ function BestDressed({ token, data }: { token: string; data: Phone }) {
           </button>
         ))}
       </div>
-      <span className="help">{mine ? "Saved. You can change it until the game starts." : "Tap a name to vote. The award comes at the end of the night."}</span>
+      {mine && <span className="help">Vote saved ✓</span>}
       {error && <div className="errbox">{error}</div>}
     </div>
   );
@@ -634,33 +636,13 @@ function VoteScreen({ token, data, now }: { token: string; data: Phone; now: num
  * only (nothing recorded). Skip goes straight to the case file; the "? How to play" button has the full rules.
  */
 const TOUR: { icon: keyof typeof ICON | null; title: string; body: string }[] = [
-  { icon: null, title: "How your phone works", body: "Everything you do tonight happens on this phone, in the five tabs along the bottom. Here's what each one is for. It takes 30 seconds." },
-  {
-    icon: "case",
-    title: "Case",
-    body: "Your secret role (press and hold to read it), where you were when the lights went out, and any debts. Your Ready button is here too: tap it when you're done searching a round. At the end, this is where you lock in.",
-  },
-  {
-    icon: "scan",
-    title: "Scan",
-    body: "Evidence cards are hidden in the rooms that are open. Found one? Tap Scan and point your camera at its QR code. Its clue is yours, and you decide who to tell.",
-  },
-  {
-    icon: "evidence",
-    title: "Evidence",
-    body: "Every card you've scanned, plus all the evidence and tips that come up on the TV. Check people's stories against it.",
-  },
-  {
-    icon: "notebook",
-    title: "Notebook",
-    body: "Cross off the suspects, weapons and rooms the evidence rules out. Tag the one guest you suspect most: three tags on someone puts the heat on them, on the TV.",
-  },
-  { icon: "book", title: "Betting", body: "Optional. Bet chips on who did it. The earlier you bet, the more it pays." },
-  {
-    icon: null,
-    title: "Always know what to do",
-    body: "The line at the top of the screen always says what to do right now. Stuck on a rule? Tap \u201c? How to play\u201d up there.",
-  },
+  { icon: null, title: "Your phone", body: "Five tabs along the bottom. Here's what each one does." },
+  { icon: "case", title: "Case", body: "Your secret role, where you were, your debts, and the Done searching button." },
+  { icon: "scan", title: "Scan", body: "Found an evidence card? Scan its QR code." },
+  { icon: "evidence", title: "Evidence", body: "Every card you've scanned, and everything shown on the TV." },
+  { icon: "notebook", title: "Notebook", body: "Cross off what's ruled out. Tag who you suspect most." },
+  { icon: "book", title: "Betting", body: "Optional: bet chips on who did it." },
+  { icon: null, title: "What to do now", body: "The line at the top always tells you. Rules: \u201c? How to play\u201d." },
 ];
 
 function PhoneTour({ data, onDone }: { data: Phone; onDone: () => void }) {
@@ -770,38 +752,38 @@ function Pacing({ token, data }: { token: string; data: Phone }) {
           : "the late tips on the TV, then Round 3"
         : "the lock-in";
   // Oct 20: a timed round ends on its clock (or once everyone's ready); an untimed one waits for everyone.
+  // Oct 29 (Heston: "buttons on the phone need to be more clear ... just let buttons be what they are labeled"): one
+  // plain button, no explaining.
+  void next;
+  const label = game.round === 3 ? "Ready to lock in" : "Done searching";
   if (game.pacing.mode === "timer") return (
     <div className="ready">
-      <button type="button" className="ghost-btn full" aria-pressed={me.ready} onClick={() => setReady({ token, ready: !me.ready })}>
+      <button type="button" className={`${me.ready ? "ghost-btn" : "primary"} full`} aria-pressed={me.ready} onClick={() => setReady({ token, ready: !me.ready })}>
         <Swap show={me.ready ? 1 : 0}>
-          <span>{game.round === 3 ? "Ready for the lock-in" : "Ready to end the round"}</span>
-          <span>You're ready ✓</span>
+          <span>{label}</span>
+          <span>Done ✓ (tap to undo)</span>
         </Swap>
       </button>
-      <span className="help">When the clock runs out, or everyone's ready: {next}.</span>
     </div>
   );
   return (
     <div className="ready">
       <button
         type="button"
-        className="ghost-btn full"
+        className={`${me.ready ? "ghost-btn" : "primary"} full`}
         aria-pressed={me.ready}
         onClick={() => setReady({ token, ready: !me.ready })}
       >
         <Swap show={me.ready ? 1 : 0}>
-          <span>{game.round === 3 ? "Ready for the lock-in" : "Ready to end the round"}</span>
-          <span>You're ready ✓</span>
+          <span>{label}</span>
+          <span>Done ✓ (tap to undo)</span>
         </Swap>
       </button>
       <div className="meter" aria-hidden="true">
         <i style={{ width: `${(counts.ready / Math.max(1, counts.inGame)) * 100}%` }} />
       </div>
       <span className="help">
-        {counts.ready} of {counts.inGame} ready.{" "}
-        {/* Oct 20: Round 2 ends in the jail vote; no release vote. The round waits for everyone. */}
-        {`Once ${game.jailVote && counts.inGame < data.counts.registered ? "everyone who's free" : "everyone"} is ready: ${next}.`}
-        {game.round === 2 && game.jailVote ? " Jailing anyone is optional." : ""}
+        {counts.ready} of {counts.inGame} ready
       </span>
     </div>
   );
@@ -956,7 +938,6 @@ function CaseFile({ token, data, onPick }: { token: string; data: Phone; onPick?
         <div className="file story-file">
           <span className="eyebrow">Where you were</span>
           <p className="story-text">{data.story}</p>
-          <span className="help">Everyone has one. Ask where everyone was, and check stories against the cards.</span>
         </div>
       )}
       {/* Phase 4 (Oct 21): debts, always true; settle them in chips. */}
@@ -968,7 +949,6 @@ function CaseFile({ token, data, onPick }: { token: string; data: Phone; onPick?
               <li key={d}>{d}</li>
             ))}
           </ul>
-          <span className="help">Settle up in chips, tonight or never.</span>
         </div>
       )}
       <PickRow data={data} onChange={onPick} />
@@ -1079,7 +1059,7 @@ function Scanner({ token, data, onNotebook }: { token: string; data: Phone; onNo
           <span className="no">Evidence card no. {clue.number}</span>
           <p>{clue.text}</p>
         </div>
-        <p className="help">Saved to your evidence. Anyone who finds this card reads the same thing.</p>
+        <p className="help">Saved to Evidence ✓</p>
         <button
           type="button"
           className="primary"
@@ -1103,13 +1083,12 @@ function Scanner({ token, data, onNotebook }: { token: string; data: Phone; onNo
         <CameraScanner onCode={read} onClose={() => setCamera(false)} />
       ) : (
         <>
-          <p className="lede">Evidence cards are hidden around the house. When you find one, scan its QR code.</p>
           <button type="button" className="primary" onClick={() => setCamera(true)}>
             Scan a card
           </button>
         </>
       )}
-      <span className="help">Camera won't read it? Type the code printed under the QR.</span>
+      <span className="help">Or type the code under the QR:</span>
       <form
         className="code"
         onSubmit={(e) => {
@@ -1142,11 +1121,6 @@ function Scanner({ token, data, onNotebook }: { token: string; data: Phone; onNo
         <div className="file">
           <span className="lab">Open for searching</span>
           <p>{data.game.openRooms.join(", ")}</p>
-          <span className="help">
-            {data.game.openRooms.length < data.board.rooms.length
-              ? "The other rooms are sealed. More open each round."
-              : "Every room is open now."}
-          </span>
         </div>
       )}
     </div>
@@ -1164,7 +1138,6 @@ function TestCards(props: { token: string; data: Phone; onClue: (c: { number: nu
   return (
     <div className="file test-cards">
       <span className="lab">Test game: find a card</span>
-      <span className="help">No printed cards needed. Tap one to find it.</span>
       <div className="tc-grid">
         {open.map((c) => (
           <button
@@ -1351,9 +1324,6 @@ function PickScreen({ token, data, onDone }: { token: string; data: Phone; onDon
     <div className="screen pick-screen">
       <span className="eyebrow">Round 2 · everyone picks one</span>
       <h1 className="title-lg">{killer ? "Who takes the fall?" : "Who's feeling the heat?"}</h1>
-      <p className="help">
-        {killer ? "A tip about whoever you pick lands on the TV when Round 2 ends. Skip for no one." : "Your heat tag moves to whoever you pick. Skip to leave it where it is."}
-      </p>
       <div className="pick">
         <div className="opts">
           {others.map((x) => (
@@ -1418,11 +1388,8 @@ function HeatTags({ token, data }: { token: string; data: Phone }) {
   }
   return (
     <section className="heat-tags">
-      <h3>The heat</h3>
-      <p className="help">
-        Tag the one guest you suspect most. Three tags on someone puts the heat on them, on the TV. Nobody sees whose tag is whose.
-      </p>
-      {data.heat.dropped && <p className="help strong">The evidence cleared the guest you tagged, so your tag came off. Tag someone else if you like.</p>}
+      <h3>Who do you suspect most?</h3>
+      {data.heat.dropped && <p className="help strong">The evidence cleared them, so your tag came off.</p>}
       <div className="pick">
         <div className="opts">
           {others.map((x) => (
@@ -1470,14 +1437,14 @@ function Notebook({ token, data }: { token: string; data: Phone }) {
   return (
     <div className="screen nb">
       <h1 className="title-lg">Notebook</h1>
-      <p className="help">Tap anything you've ruled out. Only you see this.</p>
-      <h3>Suspects</h3>
+      {/* Oct 29 (Heston): no explaining; the heat goes after the lists, never between the names and the weapons. */}
+      <h3>Suspects · tap to cross off</h3>
       <div className="nb-grid">{board.suspects.map((s) => cell(`s:${s.id}`, s.name, s.signature))}</div>
-      <HeatTags token={token} data={data} />
       <h3>Weapons</h3>
       <div className="nb-grid">{board.exhibits.map((e) => cell(`e:${e.id}`, e.name))}</div>
       <h3>Rooms</h3>
       <div className="nb-grid">{board.rooms.map((r) => cell(`r:${r.key}`, r.label))}</div>
+      <HeatTags token={token} data={data} />
       {data.game.bots && <AskBots token={token} data={data} />}
     </div>
   );
@@ -1575,7 +1542,7 @@ function Book({ token, data }: { token: string; data: Phone }) {
   return (
     <div className="screen book">
       <div className="book-head">
-        <h1 className="title-lg">The book</h1>
+        <h1 className="title-lg">Betting</h1>
         <button type="button" className="book-q" aria-expanded={rules} onClick={() => setRules(!rules)}>
           ?<span className="sr-only"> How betting works</span>
         </button>
@@ -1587,7 +1554,7 @@ function Book({ token, data }: { token: string; data: Phone }) {
           <p>When you bet, set your chips on the TV stand.</p>
           <p>The earlier you bet, the better it pays: Round 1 pays 4 to 1, Round 2 3 to 1, Round 3 2 to 1.</p>
           <p>Right: your chips back, plus your winnings from the bank. Wrong: your chips go to the killer.</p>
-          <p>Betting closes when the lock-in starts. Jailbirds can't bet. Results show here after the reveal.</p>
+          <p>Betting closes when the lock-in starts. Results show here after the reveal.</p>
         </div>
       )}
       <p className="pot">
@@ -1601,7 +1568,7 @@ function Book({ token, data }: { token: string; data: Phone }) {
             ${book.mine.amount} on <b>{book.mine.name}</b> at {book.mine.odds} to 1.
           </p>
           <span className="help">
-            If {splitFirst(book.mine.name)} did it: ${book.mine.amount * book.mine.odds} from the bank, plus your ${book.mine.amount} back. If not, your chips go to the killer.
+            Right: ${book.mine.amount * book.mine.odds} plus your ${book.mine.amount} back. Wrong: your chips go to the killer.
           </span>
         </div>
       ) : data.me.jailed ? (
@@ -1633,7 +1600,7 @@ function Book({ token, data }: { token: string; data: Phone }) {
               ))}
             </div>
           </div>
-          {who && amount > 0 && <p className="help">Pays ${amount * odds} plus your ${amount} back if you're right.</p>}
+          {who && amount > 0 && <p className="help">Right: ${amount * odds} plus your ${amount} back.</p>}
           {error && <div className="errbox">{error}</div>}
           <button type="button" className={`primary ${armed ? "armed" : ""}`} disabled={!who || !amount} onClick={bet}>
             <Swap show={armed ? 1 : 0}>
@@ -1825,7 +1792,7 @@ function LockIn({ token, data }: { token: string; data: Phone }) {
         </p>
         {weapon?.key && <img className="locked-weapon" src={weaponUrl(weapon.key)} alt="" />}
         {data.game.hasAccomplice && <p className="help">Accomplice: {helper || "no guess"}.</p>}
-        <p className="help">No changes now. The reveal starts once everyone has locked in.</p>
+        <p className="help">Watch the TV.</p>
       </div>
     );
   }
@@ -1854,7 +1821,6 @@ function LockIn({ token, data }: { token: string; data: Phone }) {
   return (
     <div className="screen">
       <h1 className="title-lg">Lock it in</h1>
-      <p className="lede">Who killed the Don, with which weapon, and where? Once you lock in, that's final.</p>
       <div className="pick">
         <span className="eyebrow">Who</span>
         {/* I1 (Oct 17): faces, not just names. */}
@@ -1879,7 +1845,6 @@ function LockIn({ token, data }: { token: string; data: Phone }) {
         <div className="pick">
           <span className="eyebrow">The accomplice (optional)</span>
           <div className="opts">{board.suspects.filter((s) => s.id !== data.me.id && s.id !== pick.s).map((s) => opt("a", s.id, s.name))}</div>
-          <span className="help">A guess. It doesn't change who wins, but it can win you Best Detective. Tap again to clear it.</span>
         </div>
       )}
       {error && <div className="errbox">{error}</div>}
@@ -1889,7 +1854,6 @@ function LockIn({ token, data }: { token: string; data: Phone }) {
           <span>Tap again: this is final</span>
         </Swap>
       </button>
-      <span className="help">The most votes wins each part: who, the weapon and the room. The group wins if all three are right. A tie for the most goes to a runoff.</span>
     </div>
   );
 }

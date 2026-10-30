@@ -191,18 +191,14 @@ with sync_playwright() as p:
     cx("game:advanceRound", {"slug": slug, "hostKey": key})
     wait_for(lambda: round_now()[0] == 2, 30)
     first.wait_for_timeout(3000)
-    look(pages, "15-r2-case", tab("Case"))
+    # Round 2 opens on the pick (Phase 4); skip it, then the case file.
+    look(pages, "15-r2-pick")
+    for _, pg in pages:
+        pg.get_by_role("button", name="Skip", exact=True).click(timeout=10000)
+    look(pages, "15b-r2-case", tab("Case"))
     look(pages, "16-r2-evidence", tab("Evidence"))
-    for _ in range(4):
-        rnd, vote = round_now()
-        if rnd == 2 and vote:
-            break
-        cx("game:advanceRound", {"slug": slug, "hostKey": key})
-        time.sleep(1)
-    look(pages, "17-jail-vote")
-    first.locator("button.nobody").click()
-    wait_for(lambda: (cx("game:phone", {"token": token}) or {}).get("vote", {}).get("closedAt"), 120)
-    look(pages, "18-jail-verdict")
+    # Oct 29: no jail vote. Round 2 ends in the late tips, then Round 3.
+    cx("game:advanceRound", {"slug": slug, "hostKey": key})
     wait_for(lambda: round_now()[0] == 3, 60)
     first.wait_for_timeout(3000)
     look(pages, "19-r3-case", tab("Case"))
