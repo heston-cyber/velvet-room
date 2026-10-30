@@ -721,7 +721,7 @@ function Murder({ data, onDone }: { data: Phone; onDone: () => void }) {
           <>
             <span className="eyebrow">Your role</span>
             <span className="hold-hint">Press and hold to read it.</span>
-            <span className="help">Let go and it hides again. Keep your screen to yourself.</span>
+            <span className="help">Let go to hide it.</span>
           </>
         )}
       </div>
@@ -929,7 +929,7 @@ function CaseFile({ token, data, onPick }: { token: string; data: Phone; onPick?
           <>
             <span className="eyebrow">Your role</span>
             <span className="hold-hint">Press and hold to read it.</span>
-            <span className="help">Let go and it hides again. Keep your screen to yourself.</span>
+            <span className="help">Let go to hide it.</span>
           </>
         )}
       </div>
@@ -952,10 +952,7 @@ function CaseFile({ token, data, onPick }: { token: string; data: Phone; onPick?
         </div>
       )}
       <PickRow data={data} onChange={onPick} />
-      {/* Phase 4: the heat, taught with one quick line at Round 1 (no How to play card). */}
-      {data.game.round === 1 && data.heat.shows && (
-        <p className="help heat-line">Suspect someone? Tag them in your Notebook. Three tags on one guest puts the heat on them, on the TV.</p>
-      )}
+      {/* Oct 29 (Heston: too much explaining): the heat line is gone; the tour and the Notebook cover it. */}
       <Pacing token={token} data={data} />
     </div>
   );
