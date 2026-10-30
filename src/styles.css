@@ -459,3 +459,16 @@ img { max-width: 100%; }
 .rb-sec p { margin: 0; font-size: 16px; line-height: 1.5; color: var(--paper); }
 .topline-sub { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .topline-sub .todo { flex: 1; min-width: 0; }
+
+/* Oct 29: the phone tour, right after the role card (what each tab is for). */
+.phone-app .screen.tour { min-height: 70dvh; align-content: center; justify-items: center; text-align: center; gap: 18px; }
+.tour-card { display: grid; gap: 12px; justify-items: center; max-width: 34ch; animation: tourIn .35s ease both; }
+@keyframes tourIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.tour-card .lede { margin: 0; }
+.tour-icon { width: 64px; height: 64px; display: grid; place-items: center; border: 1px solid var(--brass); color: var(--brass); background: var(--well); }
+.tour-icon svg { width: 34px; height: 34px; stroke: currentColor; fill: none; stroke-width: 1.4; }
+.tour-dots { display: flex; gap: 8px; }
+.tour-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--rule); }
+.tour-dots i.on { background: var(--brass); }
+.screen.tour .actions { display: grid; gap: 10px; width: 100%; }
+@media (prefers-reduced-motion: reduce) { .tour-card { animation: none; } }

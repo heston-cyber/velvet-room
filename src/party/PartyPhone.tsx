@@ -36,6 +36,22 @@ function markSeen(slug: string) {
     /* fine */
   }
 }
+// Oct 29: the phone tour, once per game on each phone (a reload doesn't repeat it).
+const tourKey = (slug: string) => `velvet-room:tour:${slug}`;
+function tourDone(slug: string) {
+  try {
+    return localStorage.getItem(tourKey(slug)) === "1";
+  } catch {
+    return false;
+  }
+}
+function markTour(slug: string) {
+  try {
+    localStorage.setItem(tourKey(slug), "1");
+  } catch {
+    /* fine */
+  }
+}
 
 function useNow(active: boolean) {
   const [now, setNow] = useState(Date.now());
@@ -135,6 +151,11 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
     if (!pickOpen) setPickAgain(false);
   }, [pickOpen]);
 
+  // Oct 29 (Heston, after his test night: "Need to add a section that really explains the app well at the beginning
+  // and how to use it"): right after the role, a short tour of the phone's tabs, once. Not at the lock-in.
+  const [toured, setToured] = useState(() => tourDone(game.slug));
+  const touring = seen && !toured && game.round <= 3;
+
   // Phase 6 (Oct 21): the "? How to play" rulebook, from the top of the phone.
   const [rulesOpen, setRulesOpen] = useState(false);
   const rulesShown = rulesOpen && me.checkedIn && game.status !== "registration";
@@ -178,6 +199,17 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
         onDone={() => {
           markSeen(game.slug);
           setSeen(true);
+          setTab("case");
+        }}
+      />
+    );
+  } else if (game.status === "playing" && touring) {
+    body = (
+      <PhoneTour
+        data={data}
+        onDone={() => {
+          markTour(game.slug);
+          setToured(true);
           setTab("case");
         }}
       />
@@ -593,6 +625,74 @@ function VoteScreen({ token, data, now }: { token: string; data: Phone; now: num
         {b.voted ? "Your vote is in. " : ""}
         {vt.voted} of {vt.voters} voted{vt.endsAt > 0 ? ` · ${clockOf(vt.left ?? vt.endsAt - now)} left` : ""}
       </p>
+    </div>
+  );
+}
+
+/**
+ * Oct 29: the phone tour. Right after the role card, a few cards on what each tab is for, then the case file. Words
+ * only (nothing recorded). Skip goes straight to the case file; the "? How to play" button has the full rules.
+ */
+const TOUR: { icon: keyof typeof ICON | null; title: string; body: string }[] = [
+  { icon: null, title: "How your phone works", body: "Everything you do tonight happens on this phone, in the five tabs along the bottom. Here's what each one is for. It takes 30 seconds." },
+  {
+    icon: "case",
+    title: "Case",
+    body: "Your secret role (press and hold to read it), where you were when the lights went out, and any debts. Your Ready button is here too: tap it when you're done searching a round. At the end, this is where you lock in.",
+  },
+  {
+    icon: "scan",
+    title: "Scan",
+    body: "Evidence cards are hidden in the rooms that are open. Found one? Tap Scan and point your camera at its QR code. Its clue is yours, and you decide who to tell.",
+  },
+  {
+    icon: "evidence",
+    title: "Evidence",
+    body: "Every card you've scanned, plus all the evidence and tips that come up on the TV. Check people's stories against it.",
+  },
+  {
+    icon: "notebook",
+    title: "Notebook",
+    body: "Cross off the suspects, weapons and rooms the evidence rules out. Tag the one guest you suspect most: three tags on someone puts the heat on them, on the TV.",
+  },
+  { icon: "book", title: "Betting", body: "Optional. Bet chips on who did it. The earlier you bet, the more it pays." },
+  {
+    icon: null,
+    title: "Always know what to do",
+    body: "The line at the top of the screen always says what to do right now. Stuck on a rule? Tap \u201c? How to play\u201d up there.",
+  },
+];
+
+function PhoneTour({ data, onDone }: { data: Phone; onDone: () => void }) {
+  const [i, setI] = useState(0);
+  const step = TOUR[i];
+  const last = i === TOUR.length - 1;
+  void data;
+  return (
+    <div className="screen tour" aria-live="polite">
+      <span className="eyebrow">
+        Your phone · {i + 1} of {TOUR.length}
+      </span>
+      <div className="tour-card" key={i}>
+        {step.icon && <span className="tour-icon">{ICON[step.icon]}</span>}
+        <h1 className="title-lg">{step.title}</h1>
+        <p className="lede">{step.body}</p>
+      </div>
+      <div className="tour-dots" aria-hidden="true">
+        {TOUR.map((_, k) => (
+          <i key={k} className={k === i ? "on" : ""} />
+        ))}
+      </div>
+      <div className="actions wide">
+        <button type="button" className="primary" onClick={() => (last ? onDone() : setI(i + 1))}>
+          {last ? "Open my case file" : "Next"}
+        </button>
+        {!last && (
+          <button type="button" className="ghost-btn" onClick={onDone}>
+            Skip the tour
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -1485,7 +1585,7 @@ function Book({ token, data }: { token: string; data: Phone }) {
         <div className="file book-rules">
           <p>One bet a game, on who the killer is: $100 to $500. It's separate from your lock-in.</p>
           <p>When you bet, set your chips on the TV stand.</p>
-          <p>The earlier you bet, the better it pays: Round 1 pays 4 to 1, Round 2 (the jail vote too) 3 to 1, Round 3 2 to 1.</p>
+          <p>The earlier you bet, the better it pays: Round 1 pays 4 to 1, Round 2 3 to 1, Round 3 2 to 1.</p>
           <p>Right: your chips back, plus your winnings from the bank. Wrong: your chips go to the killer.</p>
           <p>Betting closes when the lock-in starts. Jailbirds can't bet. Results show here after the reveal.</p>
         </div>

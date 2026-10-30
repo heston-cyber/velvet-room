@@ -52,6 +52,8 @@ export function howCues(g: { search: "all" | "waves"; pacing: { mode: "ready" | 
   return [
     ["howCase", "suspects"],
     ...(g.accomplice ? [["howAccomplice", "pair"] as [CueKey, HowArt]] : []),
+    // Oct 29: what the phone is for, before the rules that use it.
+    ["howPhone", "phone"],
     ["howStory", "story"],
     [roundCue(g), "search"],
     // Oct 17 (D5): games with fewer than 5 guests have no jail vote; the late tips still land.
@@ -80,6 +82,7 @@ export const HOW_TITLE: Partial<Record<CueKey, string>> = {
   howJail2: "Late tips and jail",
   howTips: "Late tips",
   howChips: "Chips",
+  howPhone: "Your phone",
   howWin2: "Lock it in",
 };
 

@@ -892,6 +892,8 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
                 <HowTips />
               ) : step.art === "chips" ? (
                 <HowChips />
+              ) : step.art === "phone" ? (
+                <HowPhone />
               ) : step.art === "pair" ? (
                 // The accomplice: the masked killer, with someone at their shoulder.
                 <div className="tv-how-pair">
@@ -1271,6 +1273,26 @@ function HowChips() {
         ))}
       </svg>
       <span className="lab">Votes and silence: yes. Lies: never.</span>
+    </div>
+  );
+}
+
+/** Oct 29, How to play: the phone and its five tabs. */
+function HowPhone() {
+  const tabs = ["Case", "Scan", "Evidence", "Notebook", "Betting"];
+  return (
+    <div className="tv-how-phone enter" aria-hidden="true">
+      <div className="ph">
+        <span className="top">What to do now</span>
+        <span className="card">Your case file</span>
+        <span className="tabs">
+          {tabs.map((t, i) => (
+            <i key={t} style={{ animationDelay: `${0.4 + i * 0.25}s` }}>
+              {t}
+            </i>
+          ))}
+        </span>
+      </div>
     </div>
   );
 }

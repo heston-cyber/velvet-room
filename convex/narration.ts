@@ -106,6 +106,14 @@ export const CUES = {
     adult: "When Round 2 ends, two late tips come in. One might be a plant: the killer gets one shot at framing somebody. Choose your enemies wisely.",
     wild: ["[conspiratorial whisper]", "[evil laugh]"],
   },
+  // Oct 29 (Heston, after his test night: "Need to add a section that really explains the app well at the beginning
+  // and how to use it"): the phone, on the TV. Words on screen only until it's recorded.
+  howPhone: {
+    when: "How to play, your phone (Oct 29)",
+    classic: "Your phone runs the game. When your role arrives, press and hold to read it. Then your phone walks you through its five tabs: your case file, Scan, Evidence, the Notebook and Betting. The line at the top always says what to do next.",
+    adult: "Your phone runs this whole thing. When your role shows up, press and hold to read it, then your phone gives you the tour: case file, Scan, Evidence, Notebook, Betting. The line at the top always tells you what to do next, so no excuses.",
+    wild: ["", ""],
+  },
   // Phase 6 (Oct 21): new.
   howChips: {
     when: "How to play, chips",
@@ -450,6 +458,8 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
   verdictKiller: ["Close, but no. The most votes missed the killer, the weapon or the room. The killer calls an Uber and sticks you with the surge pricing. What a bunch of NPCs."],
   howStory: ["Everyone's phone says where they were when the lights went out, with one detail you can check. The killer's is a lie dressed up as the truth, like every dating profile in Brooklyn. [short pause] Never show your phone. Ask around, and check the stories against the cards."],
   howTips: ["End of Round 2: two late tips hit this screen. One of them might be the killer's handiwork. Trust nothing. Especially the juicy one."],
+  // Oct 29: the phone card.
+  howPhone: ["Your phone is the whole game. When your role shows up, hold the card to read it, then follow the little tour: case file, Scan, Evidence, Notebook, Betting. Lost? Read the line at the top. It's right there. It's always right there."],
   howChips: ["Chips are money: drinks, debts, bets, and the occasional bribe. Somebody may pay you for your vote or your silence. [short pause] Keeping quiet is allowed. Lying is not. Rules are rules, even in this city."],
   askAround: ["Where was everybody when the lights went out? Ask. One of them is lying through their veneers."],
   lateTips: ["Late tips, hot off the group chat. One might be planted. Trust nobody, especially about yourself."],

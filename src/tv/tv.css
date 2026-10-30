@@ -499,3 +499,12 @@
 /* Phase 6 look-over: clear the room-code chip in the bottom corner. */
 .tv-caption.above-foot { bottom: 3.6cqw; }
 .tv-stage.with-strip .tv-caption.above-foot { bottom: 9.8cqw; }
+/* Oct 29, How to play: the phone and its five tabs, lighting up one by one. */
+.tv-how-phone { display: grid; justify-items: center; }
+.tv-how-phone .ph { width: 16cqw; aspect-ratio: 9 / 17; border: .25cqw solid var(--brass); border-radius: 1.6cqw; background: rgba(18, 5, 10, .85); display: grid; grid-template-rows: auto 1fr auto; overflow: hidden; }
+.tv-how-phone .top { font-family: var(--label); font-size: .85cqw; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); background: var(--brass); padding: .6cqw .8cqw; }
+.tv-how-phone .card { margin: 1cqw; border: 1px dashed var(--brass); display: grid; place-items: center; font-family: var(--display); font-size: 1.3cqw; color: var(--paper); }
+.tv-how-phone .tabs { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--rule); }
+.tv-how-phone .tabs i { font-style: normal; font-family: var(--label); font-size: .72cqw; font-weight: 700; letter-spacing: .02em; color: var(--muted); text-align: center; padding: .8cqw 0; animation: tabOn 1s ease both; }
+@keyframes tabOn { 0% { color: var(--muted); } 50% { color: var(--brass); } 100% { color: var(--paper); } }
+@media (prefers-reduced-motion: reduce) { .tv-how-phone .tabs i { animation: none; } }
