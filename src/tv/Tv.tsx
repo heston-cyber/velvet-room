@@ -896,7 +896,7 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
     const n = p.rules.steps.length;
     const i = Math.max(0, p.rules.steps.findIndex((st) => now < st.until));
     const step = p.rules.steps[i];
-    const wide = step.art === "search" || step.art === "win";
+    const wide = step.art === "search" || step.art === "win" || step.art === "map";
     const stand = d.standIns?.length ? d.standIns : ALL_FIGURE_KEYS;
     return {
       key: `how${i}`,
@@ -911,6 +911,11 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
                   <HouseMap map={demoMap(d.map, step.at)} round={1} now={now} />
                   <ScanPhone />
                 </div>
+              ) : step.art === "scan" ? (
+                <HowScan />
+              ) : step.art === "map" ? (
+                // Oct 30: Round 1's open rooms and the sealed ones, no cards found yet.
+                <HouseMap map={{ rooms: d.map.rooms, markers: d.map.markers.map((m) => ({ ...m, foundAt: null })) }} round={1} now={now} />
               ) : step.art === "weapons" ? (
                 <WeaponFan weapons={d.weapons} />
               ) : step.art === "jail" ? (
@@ -1246,6 +1251,22 @@ function ScanPhone() {
         </g>
         <rect x="10" y="44" width="40" height="1.6" className="beam" />
       </svg>
+    </div>
+  );
+}
+
+/** How to play v5 (Oct 30), find the cards: a printed evidence card, and a phone scanning it. */
+function HowScan() {
+  return (
+    <div className="tv-how-scan" aria-hidden="true">
+      <div className="card enter">
+        <span className="k">Evidence card</span>
+        <b>7</b>
+        <svg viewBox="0 0 34 34" className="qr">
+          {[0, 1, 2, 3, 4].flatMap((r) => [0, 1, 2, 3, 4].map((c) => ((r * 7 + c * 3) % 5 < 3 || (r % 4 === 0 && c % 4 === 0) ? <rect key={`${r}${c}`} x={1 + c * 6.6} y={1 + r * 6.6} width="5.6" height="5.6" /> : null)))}
+        </svg>
+      </div>
+      <ScanPhone />
     </div>
   );
 }

@@ -96,8 +96,9 @@ describe("TV timeline", () => {
     // Phase 6 (Oct 21): six cards: one of you did it, your story, search (how a round ends folded in), the late tips and
     // jail, chips, locking in.
     // Oct 29: the phone card comes second.
-    const cards = ["howCase", "howPhone", "howStory", "howRoundTimer", "howJail2", "howChips", "howWin2"];
-    const arts = ["suspects", "phone", "story", "search", "jail", "chips", "win"];
+    // Oct 30 (v5, "explains the game like it would to a 2 year old"): the whole night in order, one idea a card.
+    const cards = ["playDies", "playPhone", "playLie", "playStory", "playCards", "playRooms", "playRoundsTimer", "playHeat", "playTips", "playChips", "playLock", "playWin"];
+    const arts = ["don", "phone", "suspects", "story", "scan", "map", "round", "detective", "tips", "chips", "win", "killer"];
     const n = p.rules!.steps.length;
     expect(n).toBeGreaterThanOrEqual(5);
     expect(p.rules!.steps.map((s) => s.cue)).toEqual(cards.slice(0, n));

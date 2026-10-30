@@ -24,7 +24,9 @@ describe("adult script: several versions of every line, picked per game", () => 
     const games = ["velvet-2026", "velvet-2026-2", "velvet-2026-3", "device-test-2"].map(pick);
     expect(new Set(games.map((g) => g.join(","))).size).toBe(4);
     // Over a few replays, every line is heard in more than one version.
-    for (let i = 0; i < USED.length; i++) expect(new Set(["a", "b", "c", "d", "e", "f", "g", "h"].map((s) => cueVariant("adult", USED[i], s))).size, USED[i]).toBeGreaterThan(1);
+    // (Oct 30: 16 replays; with only two versions, 8 can land on the same one by chance.)
+    const replays = Array.from({ length: 16 }, (_, k) => `replay-${k}`);
+    for (let i = 0; i < USED.length; i++) expect(new Set(replays.map((s) => cueVariant("adult", USED[i], s))).size, USED[i]).toBeGreaterThan(1);
     expect(cueVariant("classic", "howJail2", "anything")).toBe(0);
   });
 
@@ -76,7 +78,8 @@ describe("noises: an extra bank, played now and then", () => {
       let heard = 0;
       let noisy = 0;
       for (let g = 0; g < 400; g++) {
-        for (const cue of USED) {
+        // Oct 30: How to play v5 has no noisy takes (it has to be clear in a loud room), so it's left out of the count.
+        for (const cue of USED.filter((c) => !c.startsWith("play"))) {
           heard++;
           if (isNoisy(cue, tone, cueVariant(tone, cue, `game-${g}`))) noisy++;
         }

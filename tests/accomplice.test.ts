@@ -10,7 +10,7 @@ import { seeded } from "../convex/engine/rng";
 import { CLASSIC, mid } from "../convex/engine/text";
 import { ADULT } from "../convex/engine/textAdult";
 import type { CaseFile } from "../convex/engine/types";
-import { captionText, cueVersions } from "../convex/narration";
+import { captionText, cueVersions, plain } from "../convex/narration";
 import schema from "../convex/schema";
 import { REVEAL, revealTimes } from "../convex/shared";
 import { howCues } from "../convex/show";
@@ -101,17 +101,18 @@ describe("the engine, with an accomplice", () => {
     const base = { search: "all" as const, pacing: { mode: "ready" as const } };
     const one = howCues(base).map(([c]) => c);
     const two = howCues({ ...base, accomplice: true }).map(([c]) => c);
-    expect(one).not.toContain("howAccomplice");
-    expect(two.slice(0, 2)).toEqual(["howCase", "howAccomplice"]);
+    expect(one).not.toContain("playAccomplice");
+    // Oct 30 (v5): the helper card right after "someone dies"; it says the helper lies for the killer.
+    expect(two.slice(0, 2)).toEqual(["playDies", "playAccomplice"]);
     expect(two.length).toBe(one.length + 1);
-    // "only the guilty may lie about the murder" covers the accomplice too
-    expect(captionText("howCase", "classic", "ivy")).toMatch(/only the guilty/i);
-    expect(howCues({ ...base, accomplice: true }).find(([c]) => c === "howAccomplice")![1]).toBe("pair");
+    for (const tone of ["classic", "adult"] as const) for (const t of cueVersions("playAccomplice", tone)) expect(plain(t)).toMatch(/lies for the killer/i);
+    expect(howCues({ ...base, accomplice: true }).find(([c]) => c === "playAccomplice")![1]).toBe("pair");
     // every adult line has three clean versions, plus the noisy take
-    for (const cue of ["howAccomplice", "revealAccomplice"] as const) {
-      expect(cueVersions(cue, "adult").length).toBeGreaterThanOrEqual(3);
-      expect(captionText(cue, "classic", "ivy")).toMatch(/accomplice/i);
-    }
+    expect(cueVersions("revealAccomplice", "adult").length).toBeGreaterThanOrEqual(3);
+    expect(captionText("revealAccomplice", "classic", "ivy")).toMatch(/accomplice/i);
+    // How to play v5 calls the accomplice "the helper": two Adult versions, like every line.
+    expect(cueVersions("playAccomplice", "adult").length).toBeGreaterThanOrEqual(2);
+    expect(captionText("playAccomplice", "classic", "ivy")).toMatch(/helper/i);
   });
 
   test("the reveal clips: an accomplice line for every guest, only in accomplice games", () => {
@@ -163,7 +164,7 @@ describe("the accomplice is off", () => {
     const tv = await t.query(api.game.tv, { slug: SLUG, tvKey });
     expect(tv.game.accomplice).toBe(false);
     expect(tv.reveal).toEqual(REVEAL);
-    expect(howCues({ search: "all", pacing: { mode: "ready" }, accomplice: tv.game.accomplice }).map(([c]) => c)).not.toContain("howAccomplice");
+    expect(howCues({ search: "all", pacing: { mode: "ready" }, accomplice: tv.game.accomplice }).map(([c]) => c)).not.toContain("playAccomplice");
     for (const [, role] of roles) expect(role).not.toBe("accomplice");
     const roster = await t.query(api.host.roster, { slug: SLUG, hostKey });
     expect(roster!.game.accomplice).toBe(false);

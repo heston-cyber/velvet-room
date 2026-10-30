@@ -39,51 +39,51 @@ export function cueSecs(voice: string, tone: Tone, host: HostKey, cue: CueKey, v
 
 /** What each How to play card shows: "suspects" (the guests' faces with the masked killer among them), "pair" (the
  *  killer and the accomplice), "weapons" (a fan of the weapons in play), "search" (the map and a scan), "jail" (a guest
- *  behind bars and the vote), "win" (who + with what + where), "round" (Ready faces, or the clock). */
+ *  behind bars and the vote), "win" (who + with what + where), "round" (Ready faces, or the clock); Oct 30: "scan" (an
+ *  evidence card and a phone scanning it), "map" (the house map with Round 1's open rooms and the sealed ones), and any
+ *  drawing by name ("don", "killer", "detective"). */
 export type HowArt = string;
 
 /**
- * How to play, v4 (Phase 6, Oct 21; the rebuild plan's six cards): one of you did it; your story; search (how a round
- * ends folded in, for this game's pacing and search); the late tips and the jail vote (the late tips alone in a game
- * too small for a jail vote); chips; locking in. Each card has a picture of the rule. The weapons card is gone (the
- * weapons stay across the top of the TV). A killer + accomplice game adds the accomplice card after the first.
+ * How to play, v5 (Oct 30, Heston: "explains the game like it would to a 2 year old. This is a roudy party and needs to
+ * be simple"): the whole night in order, one small idea per card. Someone dies · (the helper) · your phone · only the
+ * killer lies · where were you · find the cards · (open rooms only, when rooms open in waves) · three rounds (Done
+ * searching, or the clock) · point the finger · late tips · chips · pick who did it · who wins. `jailVote` is kept for
+ * old callers; there's no jail vote since Oct 29.
  */
 export function howCues(g: { search: "all" | "waves"; pacing: { mode: "ready" | "timer" }; accomplice?: boolean; jailVote?: boolean }): [CueKey, HowArt][] {
-  return [
-    ["howCase", "suspects"],
-    ...(g.accomplice ? [["howAccomplice", "pair"] as [CueKey, HowArt]] : []),
-    // Oct 29: what the phone is for, before the rules that use it.
-    ["howPhone", "phone"],
-    ["howStory", "story"],
-    [roundCue(g), "search"],
-    // Oct 17 (D5): games with fewer than 5 guests have no jail vote; the late tips still land.
-    g.jailVote === false ? ["howTips", "tips"] : ["howJail2", "jail"],
-    ["howChips", "chips"],
-    ["howWin2", "win"],
-  ];
+  const waves = g.search === "waves";
+  const cues: [CueKey, HowArt][] = [["playDies", "don"]];
+  if (g.accomplice) cues.push(["playAccomplice", "pair"]);
+  cues.push(["playPhone", "phone"], ["playLie", "suspects"], ["playStory", "story"], ["playCards", waves ? "scan" : "search"]);
+  if (waves) cues.push(["playRooms", "map"]);
+  cues.push(
+    [g.pacing.mode === "timer" ? "playRoundsTimer" : "playRounds", "round"],
+    ["playHeat", "detective"],
+    ["playTips", "tips"],
+    ["playChips", "chips"],
+    ["playLock", "win"],
+    ["playWin", "killer"],
+  );
+  return cues;
 }
 
-/** W14 (Oct 17): the How to play card that says how a round ends: Ready or the clock, rooms in waves or all open. */
-export function roundCue(g: { search: "all" | "waves"; pacing: { mode: "ready" | "timer" } }): CueKey {
-  const timer = g.pacing.mode === "timer";
-  if (g.search === "waves") return timer ? "howRoundTimer" : "howRound";
-  return timer ? "howRoundTimerAll" : "howRoundAll";
-}
-
-/** The headline on each How to play card. */
+/** The headline on each How to play card: a few words, big enough to read across a loud room. */
 export const HOW_TITLE: Partial<Record<CueKey, string>> = {
-  howCase: "One of you did it",
-  howAccomplice: "The accomplice",
-  howStory: "Where you were",
-  howRound: "Search and scan",
-  howRoundTimer: "Search and scan",
-  howRoundAll: "Search and scan",
-  howRoundTimerAll: "Search and scan",
-  howJail2: "Late tips and jail",
-  howTips: "Late tips",
-  howChips: "Chips",
-  howPhone: "Your phone",
-  howWin2: "Lock it in",
+  playDies: "Someone dies",
+  playAccomplice: "The helper",
+  playPhone: "Your phone",
+  playLie: "Only the killer lies",
+  playStory: "Where were you?",
+  playCards: "Find the cards",
+  playRooms: "Open rooms only",
+  playRounds: "Three rounds",
+  playRoundsTimer: "Three rounds",
+  playHeat: "Point the finger",
+  playTips: "Late tips",
+  playChips: "Chips",
+  playLock: "Pick who did it",
+  playWin: "Who wins",
 };
 
 export function howLayout(at: number, cues: [CueKey, HowArt][], secs: (c: CueKey) => number) {

@@ -370,6 +370,15 @@
 .tv-how-search { position: relative; width: 100%; }
 .tv-scan { position: absolute; right: -2cqw; bottom: -2cqw; width: 9cqw; filter: drop-shadow(0 .8cqw 1.4cqw rgba(0, 0, 0, .6)); animation: howin .9s .5s cubic-bezier(.2, .8, .2, 1) both; }
 .tv-scan svg { display: block; width: 100%; }
+/* How to play v5 (Oct 30), find the cards: the printed card, tilted, with the phone scanning it. */
+.tv-how-scan { position: relative; width: 100%; height: 100%; display: grid; place-items: center; }
+.tv-how-scan .card { width: 20cqw; aspect-ratio: 1; background: #fffdf8; border: .5cqw double #5e1020; display: grid; justify-items: center; align-content: center; gap: .3cqw;
+  color: #1b0a0e; transform: rotate(-6deg); box-shadow: 0 1cqw 2.4cqw rgba(0, 0, 0, .5); animation: howin .9s cubic-bezier(.2, .8, .2, 1) both; }
+.tv-how-scan .card .k { font-family: var(--label); font-weight: 700; font-size: .9cqw; letter-spacing: .2em; text-transform: uppercase; color: #5e1020; }
+.tv-how-scan .card b { font-family: var(--display); font-weight: 400; font-size: 4cqw; line-height: 1; }
+.tv-how-scan .card .qr { width: 9cqw; }
+.tv-how-scan .card .qr rect { fill: #1b0a0e; }
+.tv-how-scan .tv-scan { right: 0; bottom: 2cqw; width: 11cqw; }
 .tv-scan .body { fill: #1c1014; stroke: var(--brass); stroke-width: 1.4; }
 .tv-scan .screen { fill: #f4ead5; }
 .tv-scan .qr rect { fill: #1c1014; }

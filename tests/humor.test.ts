@@ -44,6 +44,18 @@ describe("the new adult script", () => {
     }
   });
 
+  test("How to play v5 (Oct 30): the simple cards still say the key rules, in every version", () => {
+    const all = (cue: CueKey) => [...cleanVersions(cue, "classic"), ...cleanVersions(cue, "adult")].map(plain);
+    for (const t of all("playLie")) expect(t).toMatch(/killer can lie/i);
+    for (const t of all("playLock")) expect(t).toMatch(/Round 3/);
+    for (const t of all("playLock")) expect(t).toMatch(/three minutes/i);
+    for (const t of all("playWin")) expect(t).toMatch(/most votes/i);
+    for (const t of all("playTips")) expect(t).toMatch(/Round 2/);
+    for (const t of all("playRounds")) expect(t).toMatch(/Done searching/);
+    // No noisy or Adult D takes on these: they have to be heard clearly.
+    for (const [cue] of howCues({ search: "waves", pacing: { mode: "timer" }, accomplice: true })) expect(cueVersions(cue, "adult"), cue).toEqual(cleanVersions(cue, "adult"));
+  });
+
   test("How to play: every card has a Classic line and at least two Adult versions", () => {
     for (const jailVote of [true, false])
       for (const [cue] of howCues({ search: "waves", pacing: { mode: "ready" }, accomplice: true, jailVote })) {

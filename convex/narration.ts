@@ -434,6 +434,94 @@ export const CUES = {
     adult: "Sound check. Testing, one, two. If this is too loud, drink faster.",
     wild: ["[tapping the microphone, way too close]", "[cackles]"],
   },
+  // ---- How to play, v5 (Oct 30, Heston: "we need even more in depth explaination of the game and how it works. rework
+  // the whole opening rules sesction to be a 'how to play' and it explains the game like it would to a 2 year old.
+  // This is a roudy party and needs to be simple."): the whole night in order, one small idea per card, short words.
+  // Replaces the v4 cards (howCase, howPhone, howStory, howRound…, howTips, howChips, howWin2). ----
+  playDies: {
+    when: "How to play v5, someone dies",
+    classic: "[warm, conspiratorial] Here's the game. In a minute, the lights go out and Don Ray Sanders dies. One of you did it. Your job: find out who.",
+    adult: "[warm, conspiratorial] Here's the game. In a minute, the lights go out and Don Ray Sanders drops dead. One of you did it. Find out who. That's it. That's the whole game.",
+    wild: ["[clapping hands, way over the top]", "[cackles]"],
+  },
+  playAccomplice: {
+    when: "How to play v5, the helper (killer + accomplice games only)",
+    classic: "Tonight the killer has a helper. The helper didn't do it, but lies for the killer. [short pause] Guess the helper too when you lock in.",
+    adult: "Tonight the killer brought a helper. The helper didn't do it, but lies for the killer like a little rat. [short pause] Guess the helper when you lock in.",
+    wild: ["[conspiratorial whisper]", "[giggles]"],
+  },
+  playPhone: {
+    when: "How to play v5, your phone",
+    classic: "Your phone tells you if you're the killer. Hold the card to read it. Don't show anyone. [short pause] Stuck? The top of your phone always says what to do.",
+    adult: "Your phone tells you if you're the killer. Hold the card to read it, and don't show anybody. [short pause] Lost? The top of your phone always tells you what to do. Read it.",
+    wild: ["", ""],
+  },
+  playLie: {
+    when: "How to play v5, only the killer lies",
+    classic: "Only the killer can lie. Everyone else tells the truth. [short pause] You can stay quiet. You can't lie.",
+    adult: "Only the killer can lie. Everybody else tells the truth. [short pause] You can keep your mouth shut. You just can't lie.",
+    wild: ["[dead serious]", ""],
+  },
+  playStory: {
+    when: "How to play v5, where were you",
+    classic: "Your phone says where you were when he died. Tell people. Ask people. [short pause] The killer's story is fake. Catch it.",
+    adult: "Your phone says where you were when he died. Tell people. Grill people. [short pause] The killer's story is fake. Catch the liar.",
+    wild: ["[conspiratorial whisper]", ""],
+  },
+  playCards: {
+    when: "How to play v5, find the cards",
+    classic: "Evidence cards are hidden around the house. Find one. Scan it with your phone. Leave it there. [short pause] Then tell people what it said.",
+    adult: "Evidence cards are hidden around the house. Find one, scan it, put it back. [short pause] Then run your mouth about what it said.",
+    wild: ["", ""],
+  },
+  playRooms: {
+    when: "How to play v5, open rooms only (rooms open in waves)",
+    classic: "Only search rooms that are open. The TV shows which ones. More rooms open every round.",
+    adult: "Only search the open rooms. The TV shows which ones. Closed means closed. More rooms open every round.",
+    wild: ["", ""],
+  },
+  playRounds: {
+    when: "How to play v5, three rounds (untimed)",
+    classic: "There are three rounds. When you're done searching, tap Done searching. When everyone's done, the next round starts.",
+    adult: "Three rounds. Done searching? Tap Done searching. When everybody's done, next round. [short pause] Don't be the one we're all waiting on.",
+    wild: ["[impatient, tapping a watch]", ""],
+  },
+  playRoundsTimer: {
+    when: "How to play v5, three rounds (on the clock)",
+    classic: "There are three rounds, each with a clock. When the clock hits zero, the next round starts.",
+    adult: "Three rounds, each on a clock. Clock hits zero, next round. Ready or not.",
+    wild: ["[impatient, tapping a watch]", ""],
+  },
+  playHeat: {
+    when: "How to play v5, point the finger (the heat)",
+    classic: "Think you know who did it? Tag them in your Notebook. If three of you tag the same person, the TV puts the heat on them.",
+    adult: "Got a hunch? Tag them in your Notebook. Three tags on the same person, and the TV puts them on blast.",
+    wild: ["", ""],
+  },
+  playTips: {
+    when: "How to play v5, the late tips",
+    classic: "After Round 2, two tips pop up on the TV. One of them might be a lie from the killer.",
+    adult: "After Round 2, two tips hit the TV. One might be a lie the killer planted. Trust nobody.",
+    wild: ["[conspiratorial whisper]", "[evil laugh]"],
+  },
+  playChips: {
+    when: "How to play v5, chips",
+    classic: "Chips are money. Buy drinks, pay what you owe, and bet on who did it. [short pause] Someone may pay you to stay quiet. That's allowed. Lying isn't.",
+    adult: "Chips are money. Drinks, debts, bets. [short pause] Somebody might pay you to keep quiet. Take the money. Just don't lie.",
+    wild: ["[counting money, way too excited]", ""],
+  },
+  playLock: {
+    when: "How to play v5, pick who did it (the lock-in)",
+    classic: "After Round 3, everyone picks three things: who did it, with what, and where. You get three minutes. Then it's locked.",
+    adult: "After Round 3, everybody picks: who did it, with what, and where. Three minutes. Then it's locked. No take-backs.",
+    wild: ["", ""],
+  },
+  playWin: {
+    when: "How to play v5, who wins",
+    classic: "Most votes wins. Get all three right, and the good guys win. Miss one, and the killer wins. [short pause] A tie? Vote again.",
+    adult: "Most votes wins. Get all three right, and the good guys win. Miss one, and the killer walks. [short pause] A tie? Vote again.",
+    wild: ["[maniacal laughter]", "[cackles]"],
+  },
 } satisfies Record<string, Cue>;
 
 export type CueKey = keyof typeof CUES;
@@ -629,6 +717,22 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
     "Sound check. If you can hear this, so can the feds. Hello, boys. Kiss my ass.",
     "Sound check. If you can hear this, the TV works. Smartest guest here.",
   ],
+  // How to play v5 (Oct 30): a second Adult version of each card, same simple words (Heston's rule: two Adult versions
+  // of every line, so replays sound different).
+  playDies: ["[warm, conspiratorial] Okay, listen up. In a minute, the lights go out and Don Ray Sanders kicks the bucket. One of you did it. Your job: find the rat."],
+  playAccomplice: ["Tonight the killer has a sidekick. The sidekick didn't do it, but lies for the killer. [short pause] Name the sidekick when you lock in."],
+  playPhone: ["Your phone tells you if you're the killer. Hold the card to read it. Hide it like your search history. [short pause] Lost? Read the top of your phone."],
+  playLie: ["The killer can lie. Nobody else can. [short pause] Don't want to answer? Fine. Shut up. But no lying."],
+  playStory: ["Your phone says where you were when he died. Say it out loud. Make everyone else say theirs. [short pause] One story is fake. Find it."],
+  playCards: ["Cards with QR codes are hidden around the house. Find one. Scan it. Leave it where it was. [short pause] Then tell everyone what it said."],
+  playRooms: ["Some rooms are closed. The TV shows which ones are open. Stay out of the closed ones. More open every round."],
+  playRounds: ["Three rounds. When you're done looking, tap Done searching. The next round starts when everybody taps. [short pause] Yes, everybody. Even you."],
+  playRoundsTimer: ["Three rounds. Each one has a clock. When it runs out, we move on. Nobody waits for you."],
+  playHeat: ["Suspect someone? Tag them in your Notebook. If three of you pick the same person, the TV puts the heat on them. Enjoy the sweat."],
+  playTips: ["When Round 2 ends, two tips show up on the TV. One could be a lie the killer made up. Don't buy everything."],
+  playChips: ["Chips are money. Spend them on drinks, debts and bets. [short pause] Want someone quiet? Pay them. Lying is still off the table."],
+  playLock: ["After Round 3, you pick who did it, with what, and where. You've got three minutes. Once it's in, it's in."],
+  playWin: ["The answer with the most votes wins. All three right? Good guys win. One wrong? Killer wins. [short pause] A tie? Vote again."],
 };
 
 /** FNV-1a with a final mix, so small differences in a game's seed spread across the versions. */

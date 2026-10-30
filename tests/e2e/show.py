@@ -91,8 +91,11 @@ with sync_playwright() as p:
     g = roster()["game"]
     show = g["show"]
     ok(show and show["howAt"] <= show["introAt"] < show["rollAt"], f"How to play, then the intro, then the roll call ({show})")
-    # W14 (Oct 17): a sixth card says how a round ends.
-    ok(wait_for(lambda: "how to play · 1 of 7" in host.locator(".tv-how").inner_text().lower(), 10), "seven How to play cards (Oct 29: the phone card)")
+    # Oct 30 (v5, "explains the game like it would to a 2 year old"): twelve short cards, the whole night in order
+    # (rooms open in waves and the game is untimed, so "Open rooms only" and the Done searching card).
+    TITLES = ["Someone dies", "Your phone", "Only the killer lies", "Where were you?", "Find the cards", "Open rooms only", "Three rounds",
+              "Point the finger", "Late tips", "Chips", "Pick who did it", "Who wins"]
+    ok(wait_for(lambda: f"how to play · 1 of {len(TITLES)}" in host.locator(".tv-how").inner_text().lower(), 10), f"{len(TITLES)} How to play cards")
     host.wait_for_timeout(1200)
     shot(host, "03-how-1.png")
 
@@ -103,27 +106,25 @@ with sync_playwright() as p:
         ok(host.get_by_role("button", name="Pause the game").count() == 0, "no pause button during the show")
         btn.click()
 
-    # Step through: the phone card (Oct 29) and the late-tips card (Oct 29: no jail vote, so no jail card).
-    seen = set()
-    end = time.time() + 150
-    while time.time() < end and not {"phone", "tips"} <= seen:
-        if host.locator(".tv-wfan").count():
-            seen.add("weapons")
-        if host.locator(".tv-jailed").count():
-            seen.add("bars")
-        if host.locator(".tv-how-phone").count() and "phone" not in seen:
-            host.wait_for_timeout(1500)
-            shot(host, "04-how-phone.png")
-            seen.add("phone")
-        if host.locator(".tv-how-tips").count() and "tips" not in seen:
-            host.wait_for_timeout(1000)
-            shot(host, "05-how-tips.png")
-            seen.add("tips")
-        time.sleep(0.4)
-    ok("weapons" not in seen, "no weapons card in How to play (Phase 6)")
-    ok("bars" not in seen, "no jail card (Oct 29)")
-    ok("phone" in seen, "How to play has the phone card (Oct 29)")
-    ok("tips" in seen, "and the late-tips card")
+    # Step through every card: each title, in order, with its picture.
+    seen = []
+    end = time.time() + 240
+    while time.time() < end and len(seen) < len(TITLES):
+        t = host.locator(".tv-how-title")
+        if t.count():
+            title = t.inner_text().strip()
+            if not seen or seen[-1] != title:
+                seen.append(title)
+                host.wait_for_timeout(1500)
+                shot(host, f"03-how-{len(seen):02d}.png")
+                if title == "Find the cards":
+                    ok(host.locator(".tv-how-scan").count() == 1, "Find the cards shows a card being scanned")
+                if title == "Open rooms only":
+                    ok(host.locator(".tv-how .tv-map").count() == 1 and host.locator(".tv-how .room.sealed").count() >= 1, "Open rooms only shows the map with sealed rooms")
+        if host.locator(".tv-jailed").count() or host.locator(".tv-wfan").count():
+            seen.append("(jail or weapons)")
+        time.sleep(0.3)
+    ok(seen == TITLES, f"the cards in order {seen}")
 
     # The Don dies.
     if host.get_by_text("New York City · October 31, 2026").count() == 0:
