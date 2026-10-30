@@ -154,19 +154,18 @@ with sync_playwright() as p:
     phone.locator(".bot-answer").scroll_into_view_if_needed()
     shot(phone, "06-ask-a-bot.png")
 
-    # On to Round 2's jail vote: the bots vote.
+    # On to Round 2; Oct 29: no jail vote, so Round 2 ends in the late tips and Round 3 starts.
     def round_now():
         g = roster()["game"]
         return g["round"], g["vote"]
     for _ in range(4):
-        rnd, vote = round_now()
-        if rnd == 2 and vote:
+        if round_now()[0] >= 3:
             break
         cx("game:advanceRound", {"slug": slug, "hostKey": key})
         time.sleep(1)
-    ok(round_now()[1] and round_now()[1]["kind"] == "jail", "the jail vote opens after Round 2")
-    ok(wait_for(lambda: (cx("game:phone", {"token": token}) or {}).get("vote", {}).get("voted", 0) >= BOTS - 1, 90), "the bots vote")
-    shot(laptop, "07-jail-vote.png")
+    ok(round_now() == (3, None), "Round 2 ends straight into Round 3, with no jail vote")
+    ok(wait_for(lambda: laptop.get_by_text("Late tip", exact=False).count() >= 1, 20), "the late tips land on the TV")
+    shot(laptop, "07-late-tips.png")
 
     # To the lock-in: the bots lock in; then the host does, and the reveal starts.
     for _ in range(10):
