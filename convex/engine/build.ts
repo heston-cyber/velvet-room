@@ -776,8 +776,9 @@ function tryBuild(input: CaseInput, rng: Rng, sol: Solution, plan: Open = { susp
   const herringClue = placed.find((c) => c.kind === "herring");
   const herringAt = herringClue?.pointsAt;
   const accompliceName = sol.accompliceId ? name.get(sol.accompliceId) : undefined;
-  // Oct 17 (D5): a game too small for a jail vote doesn't mention jail.
-  const noJail = (lines: string[]) => (hasJailVote(input.suspects.length) ? lines : lines.filter((l) => !/\bjail/i.test(l)));
+  // Oct 17 (D5): a game too small for a jail vote doesn't mention jail. (Oct 29: no game has one; the lines no longer
+  // mention it, so the lines come through as they are.)
+  const noJail = (lines: string[]) => (hasJailVote(input.suspects.length) || !lines.some((l) => /\bjail/i.test(l)) ? lines : lines.filter((l) => !/\bjail/i.test(l)));
   const briefings: Briefing[] = input.suspects.map((s) => {
     if (s.id === sol.killerId) {
       const lines = S.killerLines({

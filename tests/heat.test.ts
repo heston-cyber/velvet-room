@@ -157,10 +157,11 @@ describe("a night with the heat and a frame", () => {
     expect(after.find((p) => p._id === innocents[2]._id)!.tag).toBe(innocents[3]._id);
     expect(after.find((p) => p._id === innocents[3]._id)!.tag).toBeUndefined();
     expect((await game(t)).frame?.targetId).toBe(y._id);
-    // Round 2 ends: the tips land, the jail vote opens.
+    // Round 2 ends: the tips land, and Round 3 starts (Oct 29: no jail vote).
     await t.mutation(api.game.advanceRound, { slug: SLUG, hostKey });
     const g = await game(t);
-    expect(g.vote?.kind).toBe("jail");
+    expect(g.vote).toBeUndefined();
+    expect(g.round).toBe(3);
     expect(g.lateTips).toHaveLength(2);
     const plant = g.lateTips!.filter((tp) => tp.plant);
     expect(plant).toHaveLength(1);

@@ -40,7 +40,7 @@ export function useNextStep(data: Roster, slug: string, hostKey: string, now: nu
             ? ` ${c.killerPool} of the ${c.checkedIn} checked in can be drawn as the killer (the rest opted out).`
             : " Everyone checked in opted out of being the killer, so anyone can be drawn."
           : ""
-      }${c.checkedIn && !g.jailVote ? " Under 5 guests: no jail vote tonight." : ""}`,
+      }`,
       run: () => startGame({ ...args, ...heardForStart(scriptOf(g)) }),
     };
   if (intro && g.show) {
@@ -68,8 +68,8 @@ export function useNextStep(data: Roster, slug: string, hostKey: string, now: nu
             : g.round === 2
               ? g.jailVote
                 ? "Ends the round in the jail vote."
-                : "On to Round 3. Under 5 guests, there's no jail vote."
-              : "On to the lock-in. Anyone in jail is let out for it.",
+                : "Ends Round 2: the late tips land on the TV, then Round 3."
+              : "On to the lock-in.",
         run: () => advance(args),
       };
     // The runoff (Oct 21): the host can cut the last words short, then close the vote.

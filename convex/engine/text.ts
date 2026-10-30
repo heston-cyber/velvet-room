@@ -245,7 +245,7 @@ export const CLASSIC: Script = {
     ...(f.herringName ? [`One clue points at ${f.herringName}. Lean on it.`] : []),
     f.accompliceName ? `You may lie about anything tonight, and so may ${f.accompliceName}. Everyone else has to tell the truth.` : "You may lie about anything tonight. Everyone else has to tell the truth.",
     ...(f.accompliceName ? [`If the heat gets too close, you can try pinning it on ${f.accompliceName}. Loyalty only goes so far.`] : []),
-    "Stay out of jail: the jailbird sits out Round 3. Getting someone else jailed is fair game.",
+    "In Round 2 your phone lets you frame someone: one of the late tips will point at them. Pick wisely, or pick nobody.",
     f.accompliceName
       ? "You and your accomplice win unless the most lock-in votes land on you, the weapon and the room."
       : "You win unless the most lock-in votes land on you, the weapon and the room.",
@@ -254,7 +254,7 @@ export const CLASSIC: Script = {
     "You're innocent. You didn't kill the Don.",
     "Tell the truth. Only the killer may lie.",
     "Find the evidence cards, compare notes, and work out who did it, with which weapon, and where.",
-    "After Round 2 you can vote someone into jail, if more than half of you agree. The jailbird sits out Round 3 and is back for the lock-in.",
+    "When Round 2 ends, two late tips land on the TV. One of them might be planted by the killer.",
   ],
   accompliceLines: (f) => [
     `You're the accomplice. You didn't kill the Don, but you know who did: ${f.killerName}.`,
@@ -268,13 +268,13 @@ export const CLASSIC: Script = {
         : []),
     "You may lie about anything tonight, just like the killer. Everyone else has to tell the truth.",
     `You didn't do it, so the evidence can't prove you did, and sooner or later it will clear you. Careful: if things get hot, ${f.killerName} may try to pin it on you.`,
-    "Stay out of jail: the jailbird sits out Round 3. You win if the killer wins.",
+    "You win if the killer wins.",
   ],
   innocentLinesAcc: [
     "You're innocent. You didn't kill the Don.",
     "Tonight the killer has an accomplice: someone who didn't do it, knows who did, and will lie to protect them.",
     "Tell the truth. Only the killer and the accomplice may lie.",
     "Find the evidence cards, compare notes, and work out who did it, with which weapon, and where. When you lock in, you can guess the accomplice too.",
-    "After Round 2, vote someone into jail if more than half of you agree. The jailbird sits out Round 3 and is back for the lock-in.",
+    "When Round 2 ends, two late tips land on the TV. One of them might be planted by the killer.",
   ],
 };

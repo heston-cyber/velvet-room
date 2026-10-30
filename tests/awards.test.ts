@@ -1,5 +1,5 @@
-// Oct 17 (Heston): Best Detective goes to the most accurate guesses among those who named the killer (a tie to whoever
-// voted to jail the killer, else shared); Best Dressed is voted (Best Liar gone Oct 18); the killer who walks gets "Got Away
+// Oct 17 (Heston): Best Detective goes to the most accurate guesses among those who named the killer (a tie is shared;
+// the jail-vote tie-break went with the jail vote, Oct 29); Best Dressed is voted (Best Liar gone Oct 18); the killer who walks gets "Got Away
 // With It"; Prime Suspect is the innocent the most lock-ins and jail votes pointed at; and only awards someone won are
 // shown.
 import { convexTest } from "convex-test";
@@ -23,7 +23,7 @@ beforeAll(() => {
 type T = ReturnType<typeof convexTest>;
 const game = (t: T) => t.run(async (ctx) => (await ctx.db.query("games").first())!);
 
-async function toTheJailVote(guests = 6) {
+async function toRound3(guests = 6) {
   const t = convexTest(schema, modules);
   const { hostKey } = await t.mutation(internal.admin.createGame, {
     slug: SLUG, title: "Awards test", isTest: true, makeActive: false, registrationClosesAt: FUTURE, deadlineLabel: "Sat, Oct 24",
@@ -34,7 +34,7 @@ async function toTheJailVote(guests = 6) {
   await t.mutation(api.game.startGame, { slug: SLUG, hostKey });
   await t.mutation(api.game.skipIntro, { slug: SLUG, hostKey });
   await t.mutation(api.game.advanceRound, { slug: SLUG, hostKey }); // → Round 2
-  await t.mutation(api.game.advanceRound, { slug: SLUG, hostKey }); // → the jail vote
+  await t.mutation(api.game.advanceRound, { slug: SLUG, hostKey }); // → Round 3 (Oct 29: no jail vote; the late tips land)
   const players = await t.run((ctx) => ctx.db.query("players").collect());
   const sol = await t.run(async (ctx) => (await caseFor(ctx, (await ctx.db.query("games").first())!))!.solution);
   const board = (await t.query(api.game.phone, { token: players[0].token }))!.board!;
@@ -52,14 +52,11 @@ const finish = async (t: T, hostKey: string) => {
 };
 
 describe("awards (Oct 17)", () => {
-  test("the killer walks: Best Detective by most right and the jail-vote tie-break, Prime Suspect, Best Dressed, Got Away With It (no Best Liar since Oct 18)", async () => {
-    const { t, hostKey, killer, innocents: [a, b, c, d, e], right, wrong, tvKey } = await toTheJailVote(6);
-    // The jail vote: a votes to jail the killer, c and d vote to jail e. Not a majority: nobody goes to jail.
-    await t.mutation(api.game.castVote, { token: a.token, targetId: killer._id });
-    await t.mutation(api.game.castVote, { token: c.token, targetId: e._id });
-    await t.mutation(api.game.castVote, { token: d.token, targetId: e._id });
-    await nextRound(t, SLUG, hostKey); // close it, skip the verdict → Round 3
-    await nextRound(t, SLUG, hostKey); // → the lock-in (nobody in jail)
+  test("the killer walks: Best Detective by most right (a tie is shared since the jail vote went, Oct 29), Prime Suspect, Best Dressed, Got Away With It", async () => {
+    const { t, hostKey, killer, innocents: [a, b, c, d, e], right, wrong, tvKey } = await toRound3(6);
+    expect((await game(t)).round).toBe(3);
+    expect((await game(t)).vote).toBeUndefined();
+    await nextRound(t, SLUG, hostKey); // → the lock-in
     expect((await game(t)).round).toBe(4);
     const lock = (p: { token: string }, suspectId: string, w: typeof right) => t.mutation(api.game.accuse, { token: p.token, suspectId, ...w });
     // a and b get all three, c the killer and nothing else; d and the killer blame e; e blames d.
@@ -83,12 +80,12 @@ describe("awards (Oct 17)", () => {
     const awards = await finish(t, hostKey);
     expect(awards.map((x) => x.key)).toEqual(["detective", "prime", "dressed", "gotAway"]);
     const of = (k: string) => awards.find((x) => x.key === k)!;
-    // a and b tie on 3 of 3; a voted to jail the killer.
-    expect(of("detective").names).toEqual([a.charName]);
+    // a and b tie on 3 of 3, and nothing breaks it now: they share it.
+    expect(of("detective").names.sort()).toEqual([a.charName, b.charName].sort());
     expect(of("detective").sub).toBe("3 of 3 right");
-    // e: two lock-ins (d, the killer) and two jail votes (c, d).
+    // e: two lock-ins (d, the killer).
     expect(of("prime").names).toEqual([e.charName]);
-    expect(of("prime").sub).toMatch(/4 times/);
+    expect(of("prime").sub).toMatch(/2 times/);
     expect(of("dressed").names).toEqual([c.charName]);
     expect(of("gotAway").names).toEqual([killer.charName]);
     // The TV gets the same list, with the winners' drawings, and a recorded name for each winner when there is one.
@@ -99,8 +96,7 @@ describe("awards (Oct 17)", () => {
   });
 
   test("the detectives win: no Got Away With It; an award nobody won isn't shown; a tie nobody can break is shared", async () => {
-    const { t, hostKey, killer, innocents: [a, b, c, d, e], right, wrong } = await toTheJailVote(6);
-    await nextRound(t, SLUG, hostKey); // nobody votes: nobody jailed → Round 3
+    const { t, hostKey, killer, innocents: [a, b, c, d, e], right, wrong } = await toRound3(6);
     await nextRound(t, SLUG, hostKey); // → the lock-in
     const lock = (p: { token: string }, suspectId: string, w: typeof right) => t.mutation(api.game.accuse, { token: p.token, suspectId, ...w });
     for (const p of [a, b, c, d]) await lock(p, killer._id, right);
@@ -114,8 +110,7 @@ describe("awards (Oct 17)", () => {
   });
 
   test("Best Detective needs the killer: right weapon and room alone don't win it", async () => {
-    const { t, hostKey, killer, innocents: [a, b, c, d, e], right, wrong } = await toTheJailVote(6);
-    await nextRound(t, SLUG, hostKey);
+    const { t, hostKey, killer, innocents: [a, b, c, d, e], right, wrong } = await toRound3(6);
     await nextRound(t, SLUG, hostKey);
     const lock = (p: { token: string }, suspectId: string, w: typeof right) => t.mutation(api.game.accuse, { token: p.token, suspectId, ...w });
     await lock(a, b._id, right); // 2 of 3, but not the killer

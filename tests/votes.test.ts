@@ -50,7 +50,28 @@ const unclearedIdx = async (t: ReturnType<typeof convexTest>, players: { _id: st
 
 // Oct 16 (Heston): "jail vote only can happen on round 2, no votes to release. round 3 no voting to put anyone in
 // jail, but we can vote to release." Round 1 ends with no vote; Round 3's release vote only if someone's in jail.
-describe("the jail vote", () => {
+describe("no jail vote (Oct 29)", () => {
+  // Heston, Oct 29: "I think we get rid of the jail thing altogether, it doesnt actually do anything in the game."
+  test("at any size, Round 2 ends in the late tips and goes straight to Round 3; How to play has the late-tips card", async () => {
+    for (const n of [4, 6, 10]) {
+      const { t, hostKey, tvKey, token } = await started(n);
+      await endRound(t, hostKey); // → Round 2
+      await endRound(t, hostKey); // Round 2 ends: the late tips, then Round 3
+      const g = await game(t);
+      expect(g.round).toBe(3);
+      expect(g.vote).toBeUndefined();
+      expect(g.lateTipsAt).toBeTruthy();
+      const tv = await t.query(api.game.tv, { slug: SLUG, tvKey });
+      expect(tv.game.jailVote).toBe(false);
+      expect((await t.query(api.game.phone, { token: token(0) }))!.game.jailVote).toBe(false);
+      await endRound(t, hostKey); // → the lock-in
+      expect((await game(t)).round).toBe(4);
+    }
+  });
+});
+
+// The jail vote as it was (Oct 16 to 28). No game opens it since Oct 29; the code stays, unreachable, so these are skipped.
+describe.skip("the jail vote", () => {
   test("Round 1 ends with no vote; Round 2 ends in the jail vote: more than half on one guest jails them; ballots stay secret until it closes", async () => {
     const { t, hostKey, token, id, tvKey } = await started(6);
     await endRound(t, hostKey);

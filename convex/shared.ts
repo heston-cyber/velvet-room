@@ -33,7 +33,12 @@ export const VOTE = { ms: 90_000, lastCallMs: 15_000, tallyMs: 0, verdictAtMs: 7
 
 /** The fewest guests in the game for a jail vote (Heston, Oct 17, D5: "no jail vote under 5 guests"). */
 export const MIN_JAIL_VOTE = 5;
-export const hasJailVote = (guests: number) => guests >= MIN_JAIL_VOTE;
+/**
+ * Oct 29 (Heston, after his test night: "I think we get rid of the jail thing altogether, it doesnt actually do anything
+ * in the game"): no jail vote at any size. Every game takes the path small games always took: the late tips land at
+ * the end of Round 2, then straight on to Round 3.
+ */
+export const hasJailVote = (_guests: number) => false;
 
 /**
  * Which vote ends a round. Oct 20 (Heston: jail lasts one round, no release vote): Round 2 ends in the jail vote (games

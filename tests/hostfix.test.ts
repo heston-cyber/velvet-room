@@ -38,7 +38,8 @@ async function made(o: { guests?: number; start?: boolean; timed?: boolean } = {
 }
 
 describe("host fixes (Oct 17)", () => {
-  test("F8 (timed games): pausing holds an open vote's clock; votes wait; resuming gives the time back", async () => {
+  // Oct 29: no jail vote, so no game opens this kind of vote any more (the code stays, unreachable).
+  test.skip("F8 (timed games): pausing holds an open vote's clock; votes wait; resuming gives the time back", async () => {
     vi.useFakeTimers();
     const { t, hostKey, players } = await made({ timed: true });
     await nextRound(t, SLUG, hostKey); // → Round 2

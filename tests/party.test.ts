@@ -73,11 +73,10 @@ describe("party night", () => {
     expect(phone!.me.ready).toBe(false); // a new round starts fresh
     for (const token of tokens) await t.mutation(api.game.setReady, { token, ready: true });
     g = await game(t);
-    expect(g.round).toBe(2);
-    // The jail vote has no clock in an untimed game.
-    expect(g.vote).toMatchObject({ kind: "jail", round: 2, endsAt: 0 });
-    await nextRound(t, SLUG, hostKey);
-    expect((await game(t)).round).toBe(3);
+    // Oct 29: no jail vote. Round 2 ends in the late tips and Round 3 starts.
+    expect(g.round).toBe(3);
+    expect(g.vote).toBeUndefined();
+    expect(g.lateTipsAt).toBeTruthy();
   });
 
   test("timer pacing: rounds end on their own (then the vote runs its clock), pausing keeps the time left", async () => {
@@ -95,13 +94,8 @@ describe("party night", () => {
       expect((await game(t)).vote).toBeUndefined();
       vi.advanceTimersByTime(10 * 60_000 + 1000);
       await t.finishInProgressScheduledFunctions();
-      expect((await game(t)).vote?.kind).toBe("jail");
-      // nobody votes: it closes on its clock, the verdict shows, then Round 3
-      vi.advanceTimersByTime(VOTE.ms + 100);
-      await t.finishInProgressScheduledFunctions();
-      expect((await game(t)).vote?.outcome).toBe("nobody");
-      vi.advanceTimersByTime(VOTE.nextMs + 100);
-      await t.finishInProgressScheduledFunctions();
+      // Oct 29: no jail vote; Round 2's clock runs out straight into Round 3.
+      expect((await game(t)).vote).toBeUndefined();
       expect((await game(t)).round).toBe(3);
       await t.mutation(api.game.setPaused, { slug: SLUG, hostKey, paused: true });
       vi.advanceTimersByTime(30 * 60_000);

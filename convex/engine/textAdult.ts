@@ -129,7 +129,7 @@ export const ADULT: Script = {
     ...(f.herringName ? [`One clue points at ${f.herringName}. Throw them under the bus.`] : []),
     f.accompliceName ? `You can lie about anything tonight, and so can ${f.accompliceName}. Everyone else has to tell the truth, the suckers.` : "You can lie about anything tonight. Everyone else has to tell the truth, the suckers.",
     ...(f.accompliceName ? [`If the cops get close, pin it on ${f.accompliceName}. That's what accomplices are for. It's in the brochure.`] : []),
-    "Stay out of jail: the jailbird sits out Round 3. Getting some other sucker jailed is fair game.",
+    "In Round 2 your phone lets you frame some poor sucker: one of the late tips will point their way. Or frame nobody, if you're feeling generous.",
     f.accompliceName
       ? "You and your accomplice win unless the most votes from these clowns land on you, the weapon and the room."
       : "You win unless the most votes from these clowns land on you, the weapon and the room.",
@@ -138,14 +138,14 @@ export const ADULT: Script = {
     "You're innocent. You didn't kill the Don, for once in your life.",
     "Tell the truth. Only the killer gets to lie tonight.",
     "Find the evidence cards, compare notes, and figure out who did it, with what, and where.",
-    "After Round 2 you can vote somebody into jail, if more than half of you agree. The jailbird sits out Round 3 and is back for the lock-in.",
+    "When Round 2 ends, two late tips hit the TV. One might be planted by the killer, so don't swallow everything.",
   ],
   // Accomplice games (v2), with Heston's comedy notes: deadpan, specific, the swearing rationed.
   accompliceLines: (f) => [
     `You're the accomplice. You didn't kill the Don. You just know who did: ${f.killerName}.`,
     `${f.killerName} did it with the ${f.weapon.toLowerCase()} in ${mid(f.room)}. You were not consulted.`,
     ...(f.ownWeapon ? [`The ${f.weapon.toLowerCase()} is the weapon you brought, so people are going to have questions. Have answers.`] : []),
-    `Your job: keep ${f.killerName} out of jail. Point fingers, muddy the water, and look innocent, which for you will take practice.`,
+    `Your job: keep ${f.killerName} from getting caught. Point fingers, muddy the water, and look innocent, which for you will take practice.`,
     ...(f.herringIsMe
       ? [`One clue points at you. Good. Every minute they waste on you is a minute they're not spending on ${f.killerName}.`]
       : f.herringName
@@ -153,13 +153,13 @@ export const ADULT: Script = {
         : []),
     "You can lie about anything tonight, same as the killer. Everybody else has to tell the truth.",
     `You didn't do it, so the evidence can't prove you did. Sooner or later it'll clear you. Watch your back: if it gets hot, ${f.killerName} will throw you under a bus without slowing down.`,
-    "Stay out of jail. If the killer walks, you walk with them.",
+    "If the killer walks, you walk with them.",
   ],
   innocentLinesAcc: [
     "You're innocent. You didn't kill the Don, for once in your life.",
     "Tonight the killer brought a friend: an accomplice who didn't do it, knows who did, and will lie through their teeth about it.",
     "Tell the truth. Only the killer and the accomplice get to lie tonight.",
     "Find the evidence cards, compare notes, and figure out who did it, with what, and where. When you lock in, take a guess at the accomplice too.",
-    "After Round 2, vote somebody into jail if more than half of you agree. The jailbird sits out Round 3 and is back for the lock-in.",
+    "When Round 2 ends, two late tips hit the TV. One might be planted by the killer, so don't swallow everything.",
   ],
 };

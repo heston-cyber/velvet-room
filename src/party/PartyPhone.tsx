@@ -665,7 +665,7 @@ function Pacing({ token, data }: { token: string; data: Phone }) {
       : game.round === 2
         ? game.jailVote
           ? "the jail vote, then Round 3"
-          : "Round 3 and its evidence"
+          : "the late tips on the TV, then Round 3"
         : "the lock-in";
   // Oct 20: a timed round ends on its clock (or once everyone's ready); an untimed one waits for everyone.
   if (game.pacing.mode === "timer") return (
@@ -1197,21 +1197,11 @@ function Rulebook({ data, onClose }: { data: Phone; onClose: () => void }) {
         <p>In Round 2, every phone asks everyone to pick one guest at the same moment. For innocents, the pick moves your heat tag. You can skip.</p>
         <p>When Round 2 ends, two late tips land on the TV. The killer may plant evidence once, so one of them might not be true.</p>
       </S>
-      {g.jailVote ? (
-        <S h="The jail vote">
-          <p>After the late tips, everyone who's free votes on their phone: who goes to jail? You can vote for nobody. It takes more than half of the voters on one guest, or nobody goes. The TV shows who voted for whom.</p>
-          <p>The jailbird sits out Round 3: no searching, voting or betting. They can still talk, bribe and tag. They're back for the lock-in.</p>
-        </S>
-      ) : (
-        <S h="The jail vote">
-          <p>Tonight's game is too small for a jail vote (it takes 5 guests).</p>
-        </S>
-      )}
       <S h="Chips">
         <p>Chips buy drinks, pay debts and place bets (the Betting tab has the details). Someone may try to buy your vote or your silence; that's allowed. You can stay quiet. You can never lie, chips or no chips.</p>
       </S>
       <S h="Locking in">
-        <p>After Round 3, everyone locks in on their phone: who did it, with which weapon, and in which room. Everyone locks in, the jailbird and the killer too. Once you lock in, it's final.</p>
+        <p>After Round 3, everyone locks in on their phone: who did it, with which weapon, and in which room. Everyone locks in, the killer too. Once you lock in, it's final.</p>
         <p>The most votes wins on each of the three. If the most votes are on the killer, the weapon and the room, everyone innocent wins. Miss any one, and the killer wins.</p>
       </S>
       <S h="Ties">

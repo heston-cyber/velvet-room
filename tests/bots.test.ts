@@ -181,12 +181,11 @@ describe("a test game with bots", () => {
       expect([100, 200, 300, 400, 500]).toContain(b.amount);
       expect(b.suspectId).not.toBe(b.playerId);
     }
-    // On to Round 2's jail vote: the bots vote.
-    if (!(await gameOf(t, slug)).vote) await t.mutation(api.game.advanceRound, { slug, hostKey }); // Round 2 ends: the jail vote opens
-    expect((await gameOf(t, slug)).vote?.kind).toBe("jail");
-    await beats(t, slug, 25);
-    const ballots = await t.run((ctx) => ctx.db.query("ballots").collect());
-    expect(ballots.length).toBeGreaterThanOrEqual(5);
+    // Round 2 ends (Oct 29: no jail vote): the late tips land and Round 3 starts.
+    await t.mutation(api.game.advanceRound, { slug, hostKey });
+    expect((await gameOf(t, slug)).vote).toBeUndefined();
+    expect((await gameOf(t, slug)).round).toBe(3);
+    expect((await gameOf(t, slug)).lateTipsAt).toBeTruthy();
     // To the lock-in.
     for (let i = 0; i < 8 && (await gameOf(t, slug)).round! < 4; i++) await t.mutation(api.game.advanceRound, { slug, hostKey });
     expect((await gameOf(t, slug)).round).toBe(4);
