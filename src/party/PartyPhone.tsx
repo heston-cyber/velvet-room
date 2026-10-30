@@ -350,7 +350,7 @@ function todoOf(data: Phone, intro: boolean): string {
   if (game.status === "playing") {
     const ro = data.runoff;
     if (ro && !ro.closedAt) return data.myRunoff ? "Runoff vote in. Watch the TV." : Date.now() < ro.voteAt ? "It's a tie. Last words first." : "The runoff: vote on what's tied.";
-    return data.myAccusation ? "You're locked in. Watch the TV." : "Lock in below: who did it, with what, and where. You have 3 minutes, and it's final.";
+    return data.myAccusation ? "You're locked in. Watch the TV." : "Lock in below: who, with what, and where. It's final.";
   }
   if (game.status === "reveal") return "Watch the TV.";
   return "Thanks for playing.";
