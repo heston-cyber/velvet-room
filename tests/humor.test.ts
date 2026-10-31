@@ -56,12 +56,27 @@ describe("the new adult script", () => {
     for (const [cue] of howCues({ search: "waves", pacing: { mode: "timer" }, accomplice: true })) expect(cueVersions(cue, "adult"), cue).toEqual(cleanVersions(cue, "adult"));
   });
 
-  test("How to play: every card has a Classic line and at least two Adult versions", () => {
+  // Oct 31 (Heston: "we need to keep the rules and gameplay sections the same every adult game without changing the
+  // script. its important to convey the information clearly every time"): one Adult version of each card.
+  test("How to play and Gameplay: every card has one Classic line and one Adult line, the same every game", () => {
     for (const jailVote of [true, false])
       for (const [cue] of howCues({ search: "waves", pacing: { mode: "ready" }, accomplice: true, jailVote })) {
         expect(cleanVersions(cue, "classic"), cue).toHaveLength(1);
-        expect(cleanVersions(cue, "adult").length, cue).toBeGreaterThanOrEqual(2);
+        expect(cueVersions(cue, "adult"), cue).toHaveLength(1);
       }
+  });
+
+  test("Gameplay (Oct 31): the night round by round, then the phone's five tabs, after How to play", () => {
+    const cues = howCues({ search: "waves", pacing: { mode: "ready" } }).map(([c]) => c);
+    expect(cues.slice(-9)).toEqual(["nightR1", "nightR2", "nightR3", "nightLock", "tourCase", "tourScan", "tourEvidence", "tourNotebook", "tourBetting"]);
+    expect(cues.indexOf("playWin")).toBe(cues.length - 10);
+    const all = (cue: CueKey) => [...cleanVersions(cue, "classic"), ...cleanVersions(cue, "adult")].map(plain);
+    for (const t of all("nightR1")) expect(t).toMatch(/Done searching/);
+    for (const t of all("tourCase")) expect(t).toMatch(/Case/);
+    for (const [cue, tab] of [["tourScan", "Scan"], ["tourEvidence", "Evidence"], ["tourNotebook", "Notebook"], ["tourBetting", "Betting"]] as const)
+      for (const t of all(cue)) expect(t).toMatch(new RegExp(tab));
+    // After the murder, the first card can't say the Don is about to die.
+    for (const t of all("playDies")) expect(t).not.toMatch(/in a minute/i);
   });
 });
 

@@ -14,7 +14,7 @@ import { seal } from "./seal";
 import { caseFor } from "./caseFile";
 import { ensureAllCards, markerForCode } from "./cards";
 import { LOCK_IN_MS, LOCKED_UP_MS, MAX_CARDS, hasJailVote, revealTimes, roundMinutesFor, VOTE, voteAfterRound } from "./shared";
-import { SHOW, cueSecs, howCues, howLayout, introLayout, revealLayout, rollLayout, showParts } from "./show";
+import { SHOW, cueSecs, howAfterRoll, howCues, howLayout, introLayout, revealLayout, rollLayout, showParts } from "./show";
 import { inOrder, rollGuests, slotsFor } from "./rollCall";
 import { heckleWanted } from "./heckles";
 import { finalAnswer, finalParts, hasTie, RUNOFF_VOTE_MS, runoffVoteAt, tiedParts, type Tied } from "./lockin";
@@ -1335,11 +1335,11 @@ export const startGame = mutation({
     // This game's lines, picked so this laptop hears the jokes it heard least lately (layouts below time them).
     const lines = linesFor(game, heard, gag, order.map(String));
     const picked = { ...game, lines };
-    // Oct 16 (Heston): How to play first, then the Don dies, then the roll call.
-    const howAt = now;
-    const introAt = howLayout(howAt, howCues({ search: game.search ?? "all", pacing: game.pacing, accomplice: !!input.accomplice, jailVote: hasJailVote(input.suspects.length) }), showSecs(picked)).end;
+    // Oct 31 (Heston): the Don dies, the roll call, then How to play and Gameplay right before "check your phone".
+    const introAt = now;
     const rollAt = introLayout(introAt, showSecs(picked)).end;
-    const est = await rollPlan(ctx, picked, rollAt, order, file as CaseFile);
+    const est = await rollPlan(ctx, { ...picked, hasAccomplice: !!input.accomplice }, rollAt, order, file as CaseFile, true);
+    const howAt = est.howAt;
     const introEndsAt = est.end;
     const timed = game.pacing.mode === "timer";
     const endsAt = timed ? introEndsAt + game.pacing.roundMinutes * 60_000 : undefined;
@@ -1410,11 +1410,16 @@ async function clipSeconds(ctx: QueryCtx, gameId: Id<"games">): Promise<(w: Want
   };
 }
 
-/** The roll call's turns, and when "check your phones" and Round 1 follow, for a roll call starting at rollAt. */
-async function rollPlan(ctx: QueryCtx, game: Doc<"games">, rollAt: number, order: Id<"players">[], cf: CaseFile | null) {
+/** How long How to play and Gameplay run for this game (they follow the roll call since Oct 31). */
+const howMsOf = (game: Doc<"games">) =>
+  howLayout(0, howCues({ search: game.search ?? "all", pacing: game.pacing, accomplice: !!game.hasAccomplice }), showSecs(game)).end;
+
+/** The roll call's turns, and when How to play (howAfter: games from Oct 31), "check your phones" and Round 1 follow,
+ *  for a roll call starting at rollAt. */
+async function rollPlan(ctx: QueryCtx, game: Doc<"games">, rollAt: number, order: Id<"players">[], cf: CaseFile | null, howAfter: boolean) {
   const guests = inOrder(await rollGuests(ctx, game, cf), order);
   const slots = slotsFor(guests, await clipSeconds(ctx, game._id));
-  return { slots, ...rollLayout(rollAt, slots, showSecs(game)) };
+  return { slots, ...rollLayout(rollAt, slots, showSecs(game), howAfter ? howMsOf(game) : 0) };
 }
 
 /** Moves the end of the show, and Round 1's clock with it. */
@@ -1432,8 +1437,9 @@ const inShow = (game: Doc<"games">, now: number) =>
 async function freezeRoll(ctx: MutationCtx, game: Doc<"games">) {
   const s = game.show;
   if (!s || s.roll || !inShow(game, Date.now())) return;
-  const plan = await rollPlan(ctx, game, s.rollAt, s.order, await caseFor(ctx, game));
-  await setShowEnd(ctx, game, plan.end, { show: { ...s, roll: plan.slots, phonesAt: plan.phonesAt } });
+  const after = howAfterRoll(s);
+  const plan = await rollPlan(ctx, game, s.rollAt, s.order, await caseFor(ctx, game), after);
+  await setShowEnd(ctx, game, plan.end, { show: { ...s, roll: plan.slots, phonesAt: plan.phonesAt, ...(after ? { howAt: plan.howAt } : {}) } });
   if (plan.phonesAt <= Date.now()) await ctx.db.patch(game._id, { rolesOut: true });
   else await ctx.scheduler.runAt(plan.phonesAt, internal.game.releaseRoles, { gameId: game._id });
 }
@@ -1467,7 +1473,15 @@ export const skipShow = mutation({
     const parts = showParts(s, game.startedAt ?? now);
     const i = parts.reduce((k, x, j) => (now >= x.at ? j : k), 0);
     const next = parts[i + 1];
-    if (next && next.part !== "roll") {
+    if (next?.part === "how" && howAfterRoll(s)) {
+      // Oct 31 order: from the roll call straight to How to play; "check your phones" moves up with it.
+      if (!s.roll) await freezeRoll(ctx, game);
+      const g = (await ctx.db.get(game._id))!;
+      const d = g.show!.howAt - now;
+      const phonesAt = g.show!.phonesAt! - d;
+      await setShowEnd(ctx, g, g.introEndsAt! - d, { show: { ...g.show!, howAt: now, phonesAt } });
+      await ctx.scheduler.runAt(phonesAt, internal.game.releaseRoles, { gameId: game._id });
+    } else if (next && next.part !== "roll") {
       // Pull the next part (and everything after it) forward to now.
       const d = next.at - now;
       const field = next.part === "intro" ? "introAt" : "howAt";

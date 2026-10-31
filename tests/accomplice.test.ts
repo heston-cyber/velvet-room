@@ -110,8 +110,8 @@ describe("the engine, with an accomplice", () => {
     // every adult line has three clean versions, plus the noisy take
     expect(cueVersions("revealAccomplice", "adult").length).toBeGreaterThanOrEqual(3);
     expect(captionText("revealAccomplice", "classic", "ivy")).toMatch(/accomplice/i);
-    // How to play v5 calls the accomplice "the helper": two Adult versions, like every line.
-    expect(cueVersions("playAccomplice", "adult").length).toBeGreaterThanOrEqual(2);
+    // How to play v5 calls the accomplice "the helper" (Oct 31: one Adult version, the same every game).
+    expect(cueVersions("playAccomplice", "adult")).toHaveLength(1);
     expect(captionText("playAccomplice", "classic", "ivy")).toMatch(/helper/i);
   });
 

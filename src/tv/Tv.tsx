@@ -4,7 +4,7 @@ import { api } from "../../convex/_generated/api";
 import { captionText, cueFile, cueVariant, narratorName, type CueKey } from "../../convex/narration";
 import { VOTE } from "../../convex/shared";
 import { LAST_WORDS_MS, RUNOFF_INTRO_MS, speakingNow } from "../../convex/lockin";
-import { HOW_TITLE, SHOW } from "../../convex/show";
+import { HOW_TITLE, SHOW, howKicker } from "../../convex/show";
 import { Qr, wifiQrText } from "../lib/qr";
 import HouseMap from "./HouseMap";
 import { avatarSrc, faceUrl, faceX, figureUrl } from "../lib/figure";
@@ -893,10 +893,9 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
     return { key: `intro${beat}`, node: frames[beat] };
   }
   if (p.part === "how" && p.rules && p.rules.steps.length) {
-    const n = p.rules.steps.length;
     const i = Math.max(0, p.rules.steps.findIndex((st) => now < st.until));
     const step = p.rules.steps[i];
-    const wide = step.art === "search" || step.art === "win" || step.art === "map";
+    const wide = step.art === "search" || step.art === "win" || step.art === "map" || step.art === "map2";
     const stand = d.standIns?.length ? d.standIns : ALL_FIGURE_KEYS;
     return {
       key: `how${i}`,
@@ -913,9 +912,14 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
                 </div>
               ) : step.art === "scan" ? (
                 <HowScan />
-              ) : step.art === "map" ? (
-                // Oct 30: Round 1's open rooms and the sealed ones, no cards found yet.
-                <HouseMap map={{ rooms: d.map.rooms, markers: d.map.markers.map((m) => ({ ...m, foundAt: null })) }} round={1} now={now} />
+              ) : step.art === "map" || step.art === "map2" ? (
+                // Oct 30: Round 1's open rooms and the sealed ones, no cards found yet (Oct 31: map2 is Round 2's).
+                <HouseMap map={{ rooms: d.map.rooms, markers: d.map.markers.map((m) => ({ ...m, foundAt: null })) }} round={step.art === "map2" ? 2 : 1} now={now} />
+              ) : step.art.startsWith("tab:") ? (
+                // Oct 31, Gameplay: the real phone screen for this tab.
+                <div className="tv-how-tab enter">
+                  <img src={`/img/tour/${step.art.slice(4)}.webp`} alt="" />
+                </div>
               ) : step.art === "weapons" ? (
                 <WeaponFan weapons={d.weapons} />
               ) : step.art === "jail" ? (
@@ -946,7 +950,7 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
               )}
             </div>
             <div className="tv-how-text">
-              <span className="tv-kick fade">How to play · {i + 1} of {n}</span>
+              <span className="tv-kick fade">{howKicker(p.rules.steps.map((st) => st.cue), i)}</span>
               {HOW_TITLE[step.cue] && <h2 className="tv-how-title fade">{HOW_TITLE[step.cue]}</h2>}
               <HowRule text={captionText(step.cue, g.script ?? g.tone, g.narrator.host, step.v)} wide={wide} />
             </div>

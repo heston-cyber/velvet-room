@@ -1,5 +1,5 @@
 """The v2 show end-to-end, against the dev backend: the host presses Play and Everyone is in, then the TV
-(the host screen) runs the intro, How to play, the roll call and "check your phones" before Round 1. Phones
+(the host screen) runs the intro, the roll call, How to play and Gameplay (Oct 31 order) and "check your phones" before Round 1. Phones
 wait on "Eyes on the TV" until the roles are out. The host skips through the parts from the host menu.
   BASE=http://localhost:4174 [TONE=adult] python3 tests/e2e/show.py
 Screenshots go to $OUT (default ./e2e-out/show).
@@ -83,21 +83,18 @@ with sync_playwright() as p:
     host.locator(".hs-lobby button").first.click()  # Oct 17: "Yes, begin" (the QR cards are hidden)
     ok(wait_for(lambda: roster()["game"]["status"] == "playing", 20), "Everyone is in starts the show")
 
-    # Oct 16 (Heston): How to play first, then the Don dies, then the roll call.
-    ok(wait_for(lambda: host.locator(".tv-how").count() == 1, 15), "the show opens on How to play")
+    # Oct 31 (Heston): the Don dies, the roll call, then How to play and Gameplay right before "check your phone".
+    ok(wait_for(lambda: host.get_by_text("New York City · October 31, 2026").count() == 1, 15), "the show opens on the murder: New York City, 2026")
     ok(wait_for(lambda: phone.get_by_text("Eyes on the TV").count() >= 1, 15), "the phone says eyes on the TV, no role yet")
     ok(phone.get_by_text("Press and hold").count() == 0, "no role card on the phone during the show")
     shot(phone, "01-phone-wait.png")
     g = roster()["game"]
     show = g["show"]
-    ok(show and show["howAt"] <= show["introAt"] < show["rollAt"], f"How to play, then the intro, then the roll call ({show})")
-    # Oct 30 (v5, "explains the game like it would to a 2 year old"): twelve short cards, the whole night in order
-    # (rooms open in waves and the game is untimed, so "Open rooms only" and the Done searching card).
-    TITLES = ["Someone dies", "Your phone", "Only the killer lies", "Where were you?", "Find the cards", "Open rooms only", "Three rounds",
-              "Point the finger", "Late tips", "Chips", "Pick who did it", "Who wins"]
-    ok(wait_for(lambda: f"how to play · 1 of {len(TITLES)}" in host.locator(".tv-how").inner_text().lower(), 10), f"{len(TITLES)} How to play cards")
-    host.wait_for_timeout(1200)
-    shot(host, "03-how-1.png")
+    ok(show and show["introAt"] < show["rollAt"] < show["howAt"], f"the intro, then the roll call, then How to play ({show})")
+    ok(wait_for(lambda: host.get_by_text("The Don is dead.").count() == 1, 40), "the second slide: the Don is dead")
+    ok(wait_for(lambda: host.locator(".tv-wrow .tv-wcard").count() == 6, 40), "the third slide shows the 6 weapons in play")
+    host.wait_for_timeout(2500)
+    shot(host, "02-intro-weapons.png")
 
     def skip(label):
         host.locator(".hs-menu-btn").click()
@@ -105,35 +102,6 @@ with sync_playwright() as p:
         ok(btn.count() == 1, f"the host menu offers {label}")
         ok(host.get_by_role("button", name="Pause the game").count() == 0, "no pause button during the show")
         btn.click()
-
-    # Step through every card: each title, in order, with its picture.
-    seen = []
-    end = time.time() + 240
-    while time.time() < end and len(seen) < len(TITLES):
-        t = host.locator(".tv-how-title")
-        if t.count():
-            title = t.inner_text().strip()
-            if not seen or seen[-1] != title:
-                seen.append(title)
-                host.wait_for_timeout(1500)
-                shot(host, f"03-how-{len(seen):02d}.png")
-                if title == "Find the cards":
-                    ok(host.locator(".tv-how-scan").count() == 1, "Find the cards shows a card being scanned")
-                if title == "Open rooms only":
-                    ok(host.locator(".tv-how .tv-map").count() == 1 and host.locator(".tv-how .room.sealed").count() >= 1, "Open rooms only shows the map with sealed rooms")
-        if host.locator(".tv-jailed").count() or host.locator(".tv-wfan").count():
-            seen.append("(jail or weapons)")
-        time.sleep(0.3)
-    ok(seen == TITLES, f"the cards in order {seen}")
-
-    # The Don dies.
-    if host.get_by_text("New York City · October 31, 2026").count() == 0:
-        skip("Skip to the murder")
-    ok(wait_for(lambda: host.get_by_text("New York City · October 31, 2026").count() == 1, 15), "then the Don dies: New York City, 2026")
-    ok(wait_for(lambda: host.get_by_text("The Don is dead.").count() == 1, 40), "the second slide: the Don is dead")
-    ok(wait_for(lambda: host.locator(".tv-wrow .tv-wcard").count() == 6, 40), "the third slide shows the 6 weapons in play")
-    host.wait_for_timeout(2500)
-    shot(host, "02-intro-weapons.png")
 
     # The roll call.
     skip("Skip to the roll call")
@@ -145,13 +113,50 @@ with sync_playwright() as p:
     ok("weapon" not in card and "signature" not in card and "played by" not in card, "the card is the guest's drawing and name (Oct 16)")
     ok("motive" not in card, "and no motive (Oct 20)")
     ok(host.locator(".tv-roast").count() == 0, "no roast on the roll call")
-    ok(phone.get_by_text("Eyes on the TV").count() >= 1, "the phone still waits during the roll call")
+    ok(phone.get_by_text("Press and hold").count() == 0, "the phone still waits during the roll call")
     g = roster()["game"]
     ok(g["show"]["phonesAt"] is not None, "the roll call's turns are fixed once it begins")
+    ok(g["show"]["phonesAt"] > g["show"]["howAt"] > g["show"]["rollAt"], "How to play comes after the roll call, then the roles")
 
-    # Check your phones.
-    skip("Skip to the roles")
-    ok(wait_for(lambda: host.get_by_text("Press and hold your card.").count() == 1, 10), "the TV says check your phone")
+    # How to play, then Gameplay. Oct 30 (v5, "explains the game like it would to a 2 year old"): twelve short cards (rooms
+    # open in waves and the game is untimed); Oct 31: the night round by round, then the phone's tabs.
+    skip("Skip to How to play")
+    HOW = ["Your job", "Your phone", "Only the killer lies", "Where were you?", "Find the cards", "Open rooms only", "Three rounds",
+           "Point the finger", "Late tips", "Chips", "Pick who did it", "Who wins"]
+    NIGHT = ["Round 1", "Round 2", "Round 3", "The lock-in"]
+    TOUR = ["Case", "Scan", "Evidence", "Notebook", "Betting"]
+    TITLES = HOW + NIGHT + TOUR
+    ok(wait_for(lambda: f"how to play · 1 of {len(HOW)}" in host.locator(".tv-how").inner_text().lower(), 10), f"{len(HOW)} How to play cards")
+    host.wait_for_timeout(1200)
+    shot(host, "03-how-1.png")
+    seen = []
+    end = time.time() + 300
+    while time.time() < end and len(seen) < len(TITLES):
+        t = host.locator(".tv-how-title")
+        if t.count():
+            title = t.inner_text().strip()
+            if not seen or seen[-1] != title:
+                seen.append(title)
+                host.wait_for_timeout(1500)
+                shot(host, f"03-how-{len(seen):02d}.png")
+                kick = host.locator(".tv-how .tv-kick").inner_text().lower()
+                if title == "Find the cards":
+                    ok(host.locator(".tv-how-scan").count() == 1, "Find the cards shows a card being scanned")
+                if title == "Open rooms only":
+                    ok(host.locator(".tv-how .tv-map").count() == 1 and host.locator(".tv-how .room.sealed").count() >= 1, "Open rooms only shows the map with sealed rooms")
+                if title == "Round 1":
+                    ok(kick == "how the night goes · 1 of 4", f"Gameplay starts: how the night goes ({kick})")
+                if title == "Round 2":
+                    ok(host.locator(".tv-how .tv-map").count() == 1, "Round 2 shows the map")
+                if title in TOUR:
+                    ok(kick == f"your phone · {TOUR.index(title) + 1} of 5", f"{title}: {kick}")
+                    ok(host.locator(".tv-how-tab img").evaluate("i => i.complete && i.naturalWidth > 0"), f"{title} shows the real phone screen")
+                ok(phone.get_by_text("Press and hold").count() == 0, f"no role on the phone yet ({title})")
+        time.sleep(0.3)
+    ok(seen == TITLES, f"the cards in order {seen}")
+
+    # Check your phones: straight after the last card, on its own.
+    ok(wait_for(lambda: host.get_by_text("Press and hold your card.").count() == 1, 20), "then the TV says check your phone")
     ok(wait_for(lambda: phone.get_by_text("Press and hold to read it.").count() == 1, 15), "the role card arrives on the phone")
     shot(host, "07-phones.png")
     shot(phone, "08-phone-role.png")

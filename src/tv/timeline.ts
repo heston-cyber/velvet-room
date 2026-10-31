@@ -7,7 +7,7 @@ import type { FunctionReturnType } from "convex/server";
 import type { api } from "../../convex/_generated/api";
 import { cueVariant, type CueKey } from "../../convex/narration";
 import { LAST_CALL_MS, VOTE } from "../../convex/shared";
-import { BODY_SECS_EST, howCues, howLayout, introLayout, readSecs, rollLayout, showPartAt, showParts, SHOW, type HowArt, type ShowPart } from "../../convex/show";
+import { BODY_SECS_EST, howAfterRoll, howCues, howLayout, introLayout, readSecs, rollLayout, showPartAt, showParts, SHOW, type HowArt, type ShowPart } from "../../convex/show";
 import { CARD_MS, type CardKey, type LoopKey } from "./media";
 import { CAST_KEYS } from "../../convex/figures";
 import type { MusicKey, SfxKey } from "./sound";
@@ -521,7 +521,8 @@ type Tools = {
 /**
  * Between Start and Round 1. The server fixes when each part starts (convex/show.ts); inside a part the lines
  * are laid out the same way the server laid them out. A skipped part drops whatever it didn't get to.
- * Since Oct 16: How to play → the intro (the Don dies) → the roll call → check your phones (older games: intro first).
+ * Since Oct 31: the intro (the Don dies) → the roll call → How to play and Gameplay → check your phones (Oct 16–30
+ * games: How to play first; older games: the intro, How to play, the roll call).
  */
 /** secs here gives this game's version of each line (cs in plan). */
 function show(d: Data, now: number, secs: (cue: CueKey) => number, out: Plan, { vo, clip, fx, card, cameo, pick }: Tools): Plan {
@@ -536,19 +537,22 @@ function show(d: Data, now: number, secs: (cue: CueKey) => number, out: Plan, { 
   };
   const rollAt = times.rollAt;
   const rc = d.voice.rollCall;
-  const lay = rc ? rollLayout(rollAt, rc.slots, secs) : null;
+  const after = howAfterRoll(times);
+  const howCards = howCues(g);
+  const lay = rc ? rollLayout(rollAt, rc.slots, secs, after ? howLayout(0, howCards, secs).end : 0) : null;
   const phonesAt = Math.min(end, g.show?.phonesAt ?? lay?.phonesAt ?? end);
   const part: ShowPart = showPartAt(times, g.startedAt!, phonesAt, now);
   out.part = part;
 
   // How to play.
   const howAt = times.howAt;
-  const how = howLayout(howAt, howCues(g), secs);
+  const how = howLayout(howAt, howCards, secs);
   for (const st of how.steps) {
     fx(`how:${howAt}:${st.cue}:flip`, st.art === "map" ? "cardFlip" : "whoosh", st.at);
     vo(`how:${howAt}:${st.cue}`, st.cue, st.voiceAt, true);
   }
-  out.rules = { steps: how.steps.filter((st) => st.at < until("how")).map((st) => ({ ...st, art: dress(d, st.art), v: pick(st.cue) })), end: Math.min(how.end, until("how")) };
+  const howUntil = Math.min(until("how"), phonesAt);
+  out.rules = { steps: how.steps.filter((st) => st.at < howUntil).map((st) => ({ ...st, art: dress(d, st.art), v: pick(st.cue) })), end: Math.min(how.end, howUntil) };
 
   // The intro: lights out, the Don falls, the body, "one of you did it". Its slides wait for its lines (introLayout).
   const t = times.introAt ?? g.startedAt!;
@@ -605,7 +609,7 @@ function show(d: Data, now: number, secs: (cue: CueKey) => number, out: Plan, { 
   }
   // Each part keeps only its own moments, so a skip never plays leftovers.
   out.events = out.events.filter((e) =>
-    e.id.startsWith("intro:") ? e.at < until("intro") : e.id.startsWith("how:") ? e.at < until("how") : e.id.startsWith("roll:") ? e.at < phonesAt : e.at < end,
+    e.id.startsWith("intro:") ? e.at < until("intro") : e.id.startsWith("how:") ? e.at < howUntil : e.id.startsWith("roll:") ? e.at < Math.min(until("roll"), phonesAt) : e.at < end,
   );
   return out;
 }

@@ -6,7 +6,11 @@ import { REVEAL } from "../convex/shared";
 import { HECKLE, plan, type Data } from "../src/tv/timeline";
 
 // Lines the night uses (Oct 21: the retired ones, the old How to play, roll call opener, vote prompt and Best Liar, are gone).
-const USED = Object.keys(CUES) as CueKey[];
+const ALL = Object.keys(CUES) as CueKey[];
+// Oct 31 (Heston: "we need to keep the rules and gameplay sections the same every adult game without changing the
+// script"): How to play and Gameplay have one Adult version, so they're left out of the variety rules.
+const FIXED = (c: string) => /^(play|night|tour)/.test(c);
+const USED = ALL.filter((c) => !FIXED(c));
 
 describe("adult script: several versions of every line, picked per game", () => {
   // Phase 6 (Oct 21): new and rewritten lines start with two Adult versions (rebuild plan, section 5).
@@ -28,6 +32,10 @@ describe("adult script: several versions of every line, picked per game", () => 
     const replays = Array.from({ length: 16 }, (_, k) => `replay-${k}`);
     for (let i = 0; i < USED.length; i++) expect(new Set(replays.map((s) => cueVariant("adult", USED[i], s))).size, USED[i]).toBeGreaterThan(1);
     expect(cueVariant("classic", "howJail2", "anything")).toBe(0);
+  });
+
+  test("How to play and Gameplay say the same words every game: one Classic and one Adult version, no noises", () => {
+    for (const cue of ALL.filter(FIXED)) for (const tone of ["classic", "adult"] as const) expect(cueVersions(cue, tone), `${tone} ${cue}`).toHaveLength(1);
   });
 
   test("a line that repeats in one game changes each time", () => {
@@ -78,8 +86,9 @@ describe("noises: an extra bank, played now and then", () => {
       let heard = 0;
       let noisy = 0;
       for (let g = 0; g < 400; g++) {
-        // Oct 30: How to play v5 has no noisy takes (it has to be clear in a loud room), so it's left out of the count.
-        for (const cue of USED.filter((c) => !c.startsWith("play"))) {
+        // Oct 30: How to play v5 has no noisy takes (it has to be clear in a loud room), so it's left out of the count
+        // (Oct 31: Gameplay too).
+        for (const cue of USED) {
           heard++;
           if (isNoisy(cue, tone, cueVariant(tone, cue, `game-${g}`))) noisy++;
         }

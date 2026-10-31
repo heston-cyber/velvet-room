@@ -327,7 +327,7 @@ export default function ProfileForm(props: {
           {progress}
           <h2>Last look</h2>
           <MemberCard charName={fullName || values.charName} figure={values.figure || null} />
-          <p className="help">Your role arrives on your phone after the roll call.</p>
+          <p className="help">Your role arrives on your phone after How to play.</p>
           <label className="optin" htmlFor="f-killer">
             <input type="checkbox" id="f-killer" checked={!values.killerOk} onChange={(e) => set("killerOk", !e.target.checked)} />
             <span>

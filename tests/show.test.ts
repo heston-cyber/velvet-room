@@ -35,21 +35,25 @@ async function started(guests = 6) {
 const PHONES_MS = Math.max(SHOW.phonesHold, cueSecs("duke", "classic", "duke", "intro4") * 1000 + 8000);
 const game = (t: ReturnType<typeof convexTest>) => t.run(async (ctx) => (await ctx.db.query("games").first())!);
 
-describe("the show (Oct 16): Start → How to play → the Don dies → roll call → check your phones → Round 1", () => {
+const secs = (c: Parameters<typeof cueSecs>[3]) => cueSecs("duke", "classic", "duke", c);
+/** How to play and Gameplay for these games (8 or fewer guests: no accomplice; rooms in waves). */
+const howMs = (pacing: { mode: "ready" | "timer" }) => howLayout(0, howCues({ search: "waves", pacing }), secs).end;
+
+describe("the show (Oct 31): Start → the Don dies → roll call → How to play and Gameplay → check your phones → Round 1", () => {
   test("Start fixes when each part begins; Round 1's clock starts after the show; the roles wait", async () => {
     vi.useFakeTimers();
     const { t, players, tvKey } = await started();
     const g = await game(t);
     const s = g.show!;
-    // Heston, Oct 16: "1. rules 2. don dies 3. Roll call"
-    expect(s.howAt).toBe(g.startedAt!);
-    const secs = (c: Parameters<typeof cueSecs>[3]) => cueSecs("duke", "classic", "duke", c);
-    expect(s.introAt).toBe(howLayout(s.howAt, howCues({ search: "waves", pacing: g.pacing, jailVote: false }), secs).end);
+    // Heston, Oct 31: "lets move the rules to after the don dies and the intro so that the rules play right before the
+    // 'press and hold your card'"
+    expect(s.introAt).toBe(g.startedAt!);
     expect(s.rollAt).toBe(introLayout(s.introAt!, secs).end);
     expect(s.rollAt - s.introAt!).toBeGreaterThanOrEqual(SHOW.introMs - 10_000);
     expect([...s.order].sort()).toEqual(players.map((p) => p._id).sort());
     expect(s.roll).toBeUndefined();
-    expect(g.introEndsAt!).toBeGreaterThan(s.rollAt + players.length * SHOW.rollMin);
+    expect(s.howAt).toBeGreaterThan(s.rollAt + players.length * SHOW.rollMin);
+    expect(g.introEndsAt!).toBeGreaterThan(s.howAt + howMs(g.pacing));
     expect(g.roundEndsAt).toBe(g.introEndsAt! + 10 * 60_000);
     expect(g.rolesOut).toBe(false);
     for (const p of players) {
@@ -87,7 +91,8 @@ describe("the show (Oct 16): Start → How to play → the Don dies → roll cal
     const g2 = await game(t);
     expect(g2.show!.roll).toHaveLength(5);
     expect(g2.show!.roll!.every((ms) => ms >= SHOW.rollMin)).toBe(true);
-    expect(g2.show!.phonesAt).toBeGreaterThan(g2.show!.rollAt);
+    expect(g2.show!.howAt).toBeGreaterThan(g2.show!.rollAt);
+    expect(g2.show!.phonesAt).toBe(g2.show!.howAt + howMs(g2.pacing));
     expect(g2.introEndsAt).toBe(g2.show!.phonesAt! + PHONES_MS);
     expect(g2.roundEndsAt).toBe(g2.introEndsAt! + 10 * 60_000);
     vi.advanceTimersByTime(g2.show!.phonesAt! + 50 - Date.now());
@@ -101,21 +106,25 @@ describe("the show (Oct 16): Start → How to play → the Don dies → roll cal
     vi.useFakeTimers();
     const { t, hostKey } = await started(4);
     const skip = () => t.mutation(api.game.skipShow, { slug: SLUG, hostKey });
-    const before = await game(t);
     vi.advanceTimersByTime(5_000);
-    await skip(); // How to play → the Don dies
-    let g = await game(t);
-    expect(g.show!.introAt).toBe(Date.now());
-    expect(g.show!.rollAt - g.show!.introAt!).toBe(before.show!.rollAt - before.show!.introAt!); // the intro keeps its length
-    expect(g.roundEndsAt).toBe(g.introEndsAt! + 10 * 60_000);
-    vi.advanceTimersByTime(3_000);
     await skip(); // the Don dies → the roll call, its turns fixed now
-    g = await game(t);
+    let g = await game(t);
     expect(g.show!.rollAt).toBe(Date.now());
     expect(g.show!.roll).toHaveLength(4);
+    expect(g.show!.howAt).toBeGreaterThan(Date.now());
+    expect(g.show!.phonesAt).toBe(g.show!.howAt + howMs(g.pacing));
+    expect(g.roundEndsAt).toBe(g.introEndsAt! + 10 * 60_000);
     expect(g.rolesOut).toBe(false);
     vi.advanceTimersByTime(3_000);
-    await skip(); // the roll call → check your phones
+    await skip(); // the roll call → How to play; check your phones moves up with it
+    g = await game(t);
+    expect(g.show!.howAt).toBe(Date.now());
+    expect(g.show!.phonesAt).toBe(Date.now() + howMs(g.pacing));
+    expect(g.introEndsAt).toBe(g.show!.phonesAt! + PHONES_MS);
+    expect(g.roundEndsAt).toBe(g.introEndsAt! + 10 * 60_000);
+    expect(g.rolesOut).toBe(false);
+    vi.advanceTimersByTime(3_000);
+    await skip(); // How to play → check your phones
     g = await game(t);
     expect(g.show!.phonesAt).toBe(Date.now());
     expect(g.rolesOut).toBe(true);

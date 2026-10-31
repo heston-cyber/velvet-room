@@ -46,7 +46,7 @@ export function useNextStep(data: Roster, slug: string, hostKey: string, now: nu
   if (intro && g.show) {
     // The show (v2): skip one part at a time.
     const s = g.show;
-    // This game's order (Oct 16: How to play, the Don dies, the roll call).
+    // This game's order (Oct 31: the Don dies, the roll call, How to play; older games their own).
     const nextPart = showParts(s, g.startedAt ?? now).find((x) => x.at > now)?.part;
     const next = nextPart ?? (!s.phonesAt || now < s.phonesAt ? "phones" : "round");
     const label = { how: "Skip to How to play", intro: "Skip to the murder", roll: "Skip to the roll call", phones: "Skip to the roles", round: "Begin Round 1" }[next];

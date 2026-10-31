@@ -439,9 +439,9 @@ export const CUES = {
   // This is a roudy party and needs to be simple."): the whole night in order, one small idea per card, short words.
   // Replaces the v4 cards (howCase, howPhone, howStory, howRound…, howTips, howChips, howWin2). ----
   playDies: {
-    when: "How to play v5, someone dies",
-    classic: "[warm, conspiratorial] Here's the game. In a minute, the lights go out and Don Ray Sanders dies. One of you did it. Your job: find out who.",
-    adult: "[warm, conspiratorial] Here's the game. In a minute, the lights go out and Don Ray Sanders drops dead. One of you did it. Find out who. That's it. That's the whole game.",
+    when: "How to play v5, your job (Oct 31: after the murder and the roll call)",
+    classic: "[warm, conspiratorial] Here's the game. Don Ray Sanders is dead. One of you did it. Your job: find out who.",
+    adult: "[warm, conspiratorial] Here's the game. Don Ray Sanders is dead. One of you did it. Find out who. That's it. That's the whole game.",
     wild: ["[clapping hands, way over the top]", "[cackles]"],
   },
   playAccomplice: {
@@ -521,6 +521,63 @@ export const CUES = {
     classic: "Most votes wins. Get all three right, and the good guys win. Miss one, and the killer wins. [short pause] A tie? Vote again.",
     adult: "Most votes wins. Get all three right, and the good guys win. Miss one, and the killer walks. [short pause] A tie? Vote again.",
     wild: ["[maniacal laughter]", "[cackles]"],
+  },
+  // ---- Gameplay (Oct 31, Heston: "we need also a gameplay section after the rules to explain how the game works and how
+  // to play" → "both the round walkthrough and phone tour"): after How to play, right before "check your phone". The
+  // night round by round, then a tour of the phone's tabs over real phone screens. ----
+  nightR1: {
+    when: "Gameplay, the night: Round 1",
+    classic: "Here's how the night goes. Round one: search the open rooms, scan the cards, and ask where everyone was. Then tap Done searching.",
+    adult: "Here's how the night goes. Round one: search the open rooms, scan the cards, and grill everybody. Then tap Done searching.",
+    wild: ["", ""],
+  },
+  nightR2: {
+    when: "Gameplay, the night: Round 2",
+    classic: "Round two: more rooms open, and new evidence shows up on the TV. Search again.",
+    adult: "Round two: more rooms open, and fresh evidence hits the TV. Back out there. Sober up a little.",
+    wild: ["", ""],
+  },
+  nightR3: {
+    when: "Gameplay, the night: Round 3",
+    classic: "Round three: the last rooms open, and two tips show up on the TV. Compare stories.",
+    adult: "Round three: the last rooms open, and two tips hit the TV. One might be garbage. Compare stories.",
+    wild: ["", ""],
+  },
+  nightLock: {
+    when: "Gameplay, the night: the lock-in",
+    classic: "Then everyone picks who did it, with what, and where. And the TV shows who got it right.",
+    adult: "Then everybody picks who, with what, and where. The TV shows who got it right. [short pause] Somebody's going to be insufferable.",
+    wild: ["[drumroll noises with mouth]", ""],
+  },
+  tourCase: {
+    when: "Gameplay, your phone: the Case tab",
+    classic: "Now, your phone. Case is home. Your secret, your story, and the Done searching button are all here.",
+    adult: "Now, your phone. Case is home base. Your secret, your story, and the Done searching button. Guard it like your browser history.",
+    wild: ["", ""],
+  },
+  tourScan: {
+    when: "Gameplay, your phone: the Scan tab",
+    classic: "Found an evidence card? Tap Scan, and point your camera at the code.",
+    adult: "Found a card? Tap Scan and point your camera at the code. Can't work a QR code? Ask anyone under forty.",
+    wild: ["", ""],
+  },
+  tourEvidence: {
+    when: "Gameplay, your phone: the Evidence tab",
+    classic: "Evidence keeps every card you've scanned, plus everything shown on the TV.",
+    adult: "Evidence keeps every card you've scanned, plus everything on the TV. Your memory's shot. Use it.",
+    wild: ["", ""],
+  },
+  tourNotebook: {
+    when: "Gameplay, your phone: the Notebook tab",
+    classic: "Notebook is for your hunches. Cross off who didn't do it. Tag who did.",
+    adult: "Notebook is for your hunches. Cross off who didn't do it. Tag who did. Grudges welcome.",
+    wild: ["", ""],
+  },
+  tourBetting: {
+    when: "Gameplay, your phone: the Betting tab",
+    classic: "Betting is for your chips. Bet on who did it, if you're feeling lucky.",
+    adult: "Betting is for your chips. Bet on who did it. It's not real money, so go nuts.",
+    wild: ["[counting money, way too excited]", ""],
   },
 } satisfies Record<string, Cue>;
 
@@ -717,22 +774,9 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
     "Sound check. If you can hear this, so can the feds. Hello, boys. Kiss my ass.",
     "Sound check. If you can hear this, the TV works. Smartest guest here.",
   ],
-  // How to play v5 (Oct 30): a second Adult version of each card, same simple words (Heston's rule: two Adult versions
-  // of every line, so replays sound different).
-  playDies: ["[warm, conspiratorial] Okay, listen up. In a minute, the lights go out and Don Ray Sanders kicks the bucket. One of you did it. Your job: find the rat."],
-  playAccomplice: ["Tonight the killer has a sidekick. The sidekick didn't do it, but lies for the killer. [short pause] Name the sidekick when you lock in."],
-  playPhone: ["Your phone tells you if you're the killer. Hold the card to read it. Hide it like your search history. [short pause] Lost? Read the top of your phone."],
-  playLie: ["The killer can lie. Nobody else can. [short pause] Don't want to answer? Fine. Shut up. But no lying."],
-  playStory: ["Your phone says where you were when he died. Say it out loud. Make everyone else say theirs. [short pause] One story is fake. Find it."],
-  playCards: ["Cards with QR codes are hidden around the house. Find one. Scan it. Leave it where it was. [short pause] Then tell everyone what it said."],
-  playRooms: ["Some rooms are closed. The TV shows which ones are open. Stay out of the closed ones. More open every round."],
-  playRounds: ["Three rounds. When you're done looking, tap Done searching. The next round starts when everybody taps. [short pause] Yes, everybody. Even you."],
-  playRoundsTimer: ["Three rounds. Each one has a clock. When it runs out, we move on. Nobody waits for you."],
-  playHeat: ["Suspect someone? Tag them in your Notebook. If three of you pick the same person, the TV puts the heat on them. Enjoy the sweat."],
-  playTips: ["When Round 2 ends, two tips show up on the TV. One could be a lie the killer made up. Don't buy everything."],
-  playChips: ["Chips are money. Spend them on drinks, debts and bets. [short pause] Want someone quiet? Pay them. Lying is still off the table."],
-  playLock: ["After Round 3, you pick who did it, with what, and where. You've got three minutes. Once it's in, it's in."],
-  playWin: ["The answer with the most votes wins. All three right? Good guys win. One wrong? Killer wins. [short pause] A tie? Vote again."],
+  // How to play and Gameplay have one Adult version, never a second (Oct 31, Heston: "we need to keep the rules and
+  // gameplay sections the same every adult game without changing the script. its important to convey the information
+  // clearly every time").
 };
 
 /** FNV-1a with a final mix, so small differences in a game's seed spread across the versions. */

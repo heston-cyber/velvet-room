@@ -1,4 +1,4 @@
-"""How to play v5 (Oct 30) at three TV sizes, against the dev backend: 8 guests, the show starts, and every card is
+"""How to play v5 (Oct 30) and Gameplay (Oct 31) at three TV sizes, against the dev backend: 8 guests, the show starts, and every card is
 checked for overlaps and for anything running off the screen at 1920x1080, 1366x768 and 1280x720.
   BASE=http://localhost:4174 python3 tests/e2e/how_sizes.py
 Screenshots go to $OUT (default ./e2e-out/how_sizes). Takes about 3 minutes.
@@ -48,11 +48,14 @@ cx("game:seedFakeCast", {"slug": SLUG, "guests": 8, "markers": 10, "seed": 30, "
 cx("host:updateSettings", {"slug": SLUG, "hostKey": KEY, "tone": TONE})
 cx("game:openDoors", {"slug": SLUG, "hostKey": KEY})
 cx("game:startGame", {"slug": SLUG, "hostKey": KEY})
+# Oct 31: How to play follows the murder and the roll call; skip straight to it.
+cx("game:skipShow", {"slug": SLUG, "hostKey": KEY})
+cx("game:skipShow", {"slug": SLUG, "hostKey": KEY})
 
 # Anything that runs off the screen (the audit's off-stage check covers the drawings; this covers the cards' parts).
 EDGE = """() => {
   const W = innerWidth, H = innerHeight, out = [];
-  for (const sel of ['.tv-how-art', '.tv-how-text', '.tv-how-title', '.tv-how .tv-rule', '.tv-how .tv-map', '.tv-how-scan']) {
+  for (const sel of ['.tv-how-art', '.tv-how-text', '.tv-how-title', '.tv-how .tv-rule', '.tv-how .tv-map', '.tv-how-scan', '.tv-how-tab img']) {
     for (const el of document.querySelectorAll(sel)) {
       const r = el.getBoundingClientRect();
       if (r.width && (r.right > W + 1 || r.left < -1 || r.bottom > H + 1 || r.top < -1)) out.push(`${sel} runs off the screen (${Math.round(r.left)},${Math.round(r.top)} to ${Math.round(r.right)},${Math.round(r.bottom)} of ${W}x${H})`);
@@ -74,7 +77,7 @@ with sync_playwright() as p:
     for _, pg in pages:
         pg.wait_for_selector(".tv-how", timeout=30000)
     titles = []
-    end = time.time() + 240
+    end = time.time() + 300
     while time.time() < end:
         main = pages[0][1]
         if not main.locator(".tv-how").count():
@@ -98,7 +101,8 @@ with sync_playwright() as p:
                 issues = [i for i in issues if i != 'img over text: img "" / b "?"']
                 ok(not off and not issues, f"{title} at {w}x{h}: on screen and laid out cleanly {(off + issues)[:3]}")
         time.sleep(0.3)
-    ok(len(titles) == 12, f"12 cards seen: {titles}")
+    # Oct 31: 12 How to play cards, then Gameplay's 9.
+    ok(len(titles) == 21, f"21 cards seen: {titles}")
     ok(not errors, f"no page errors {errors[:2]}")
     browser.close()
 

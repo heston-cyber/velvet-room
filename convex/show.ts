@@ -1,7 +1,8 @@
 // The show (v2, Oct 15): what plays on the TV between "Everyone is in" and Round 1.
-//   Since Oct 16 (Heston: "Different order 1. rules 2. don dies 3. Roll call"): How to play → the intro (lights out,
-//   the Don dies, "one of you did it") → the roll call → "check your phones". Games started before then ran the
-//   intro first; showParts() reads either.
+//   Since Oct 31 (Heston: "lets move the rules to after the don dies and the intro so that the rules play right before
+//   the 'press and hold your card'"): the intro (lights out, the Don dies, "one of you did it") → the roll call → How to
+//   play and Gameplay → "check your phones". Oct 16–30 games played How to play first; games before Oct 16 the intro
+//   first. showParts() reads all three from the start times.
 // Pure layout, shared by the server (which fixes the times, so Round 1's clock and the phones agree)
 // and the TV (which lays out the lines inside each part the same way).
 import manifest from "../public/audio/narration/manifest.json";
@@ -65,12 +66,38 @@ export function howCues(g: { search: "all" | "waves"; pacing: { mode: "ready" | 
     ["playLock", "win"],
     ["playWin", "killer"],
   );
-  return cues;
+  return [...cues, ...GAMEPLAY];
+}
+
+/**
+ * Gameplay (Oct 31, Heston: "a gameplay section after the rules to explain how the game works and how to play" → "both
+ * the round walkthrough and phone tour"): the night round by round, then the phone's tabs over real phone screens
+ * (public/img/tour). Plays inside How to play's part, after its cards, with its own headings.
+ */
+export const GAMEPLAY: [CueKey, HowArt][] = [
+  ["nightR1", "map"],
+  ["nightR2", "map2"],
+  ["nightR3", "tips"],
+  ["nightLock", "win"],
+  ["tourCase", "tab:case"],
+  ["tourScan", "tab:scan"],
+  ["tourEvidence", "tab:evidence"],
+  ["tourNotebook", "tab:notebook"],
+  ["tourBetting", "tab:book"],
+];
+const NIGHT: CueKey[] = ["nightR1", "nightR2", "nightR3", "nightLock"];
+
+/** The small heading over a card: which section it's in, and where in that section ("How to play · 3 of 12"). */
+export function howKicker(cues: CueKey[], i: number): string {
+  const group = (c: CueKey) => (NIGHT.includes(c) ? "How the night goes" : c.startsWith("tour") ? "Your phone" : "How to play");
+  const g = group(cues[i]);
+  const mine = cues.filter((c) => group(c) === g);
+  return `${g} · ${mine.indexOf(cues[i]) + 1} of ${mine.length}`;
 }
 
 /** The headline on each How to play card: a few words, big enough to read across a loud room. */
 export const HOW_TITLE: Partial<Record<CueKey, string>> = {
-  playDies: "Someone dies",
+  playDies: "Your job",
   playAccomplice: "The helper",
   playPhone: "Your phone",
   playLie: "Only the killer lies",
@@ -84,6 +111,15 @@ export const HOW_TITLE: Partial<Record<CueKey, string>> = {
   playChips: "Chips",
   playLock: "Pick who did it",
   playWin: "Who wins",
+  nightR1: "Round 1",
+  nightR2: "Round 2",
+  nightR3: "Round 3",
+  nightLock: "The lock-in",
+  tourCase: "Case",
+  tourScan: "Scan",
+  tourEvidence: "Evidence",
+  tourNotebook: "Notebook",
+  tourBetting: "Betting",
 };
 
 export function howLayout(at: number, cues: [CueKey, HowArt][], secs: (c: CueKey) => number) {
@@ -101,8 +137,9 @@ export function howLayout(at: number, cues: [CueKey, HowArt][], secs: (c: CueKey
 /** One guest's turn in the roll call, from the narrator's line length. */
 export const rollSlotMs = (talkSecs: number) => Math.max(SHOW.rollMin, SHOW.rollLead + talkSecs * S + SHOW.rollTail);
 
-/** The roll call from its start: the card, the opener, each guest, the closer, then "check your phone". */
-export function rollLayout(at: number, slots: number[], secs: (c: CueKey) => number) {
+/** The roll call from its start: the card, the opener, each guest, the closer, then (since Oct 31) How to play for
+ *  howMs, then "check your phone". howMs is 0 for games that played How to play before the murder. */
+export function rollLayout(at: number, slots: number[], secs: (c: CueKey) => number, howMs = 0) {
   const openAt = at + SHOW.rollCardMs + 0.3 * S;
   let t = openAt + secs("rollLocked") * S + 0.8 * S;
   const steps = slots.map((ms) => {
@@ -111,9 +148,10 @@ export function rollLayout(at: number, slots: number[], secs: (c: CueKey) => num
     return step;
   });
   const closeAt = t + 0.2 * S;
-  const phonesAt = closeAt + secs("rollCallClose") * S + 0.6 * S;
+  const howAt = closeAt + secs("rollCallClose") * S + 0.6 * S;
+  const phonesAt = howAt + howMs;
   const end = phonesAt + Math.max(SHOW.phonesHold, secs("intro4") * S + 8 * S);
-  return { openAt, steps, closeAt, phonesAt, end };
+  return { openAt, steps, closeAt, howAt, phonesAt, end };
 }
 
 /** Where the body was found: a per-game clip recorded at Start, so its length is estimated until it's in. */
@@ -139,17 +177,27 @@ export function introLayout(at: number, secs: (c: CueKey) => number, bodySecs: n
 /** The show's start times, as the server keeps them (introAt from Oct 16 on). */
 export type ShowTimes = { howAt: number; rollAt: number; introAt?: number | null; phonesAt?: number | null };
 
-/** The parts before "check your phones", in the order this game plays them, each with its start. */
+/** True for games from Oct 31 on: How to play (and Gameplay) after the roll call, right before "check your phones". */
+export const howAfterRoll = (s: ShowTimes) => s.introAt != null && s.howAt > s.rollAt;
+
+/** The parts before "check your phones", in the order this game plays them, each with its start. Before Oct 16 the
+ *  intro came first (at startedAt); Oct 16–30, How to play first; since Oct 31, the intro, the roll call, How to play. */
 export function showParts(s: ShowTimes, startedAt: number): { part: "how" | "intro" | "roll"; at: number }[] {
-  return s.introAt != null
+  if (s.introAt == null)
+    return [
+      { part: "intro", at: startedAt },
+      { part: "how", at: s.howAt },
+      { part: "roll", at: s.rollAt },
+    ];
+  return howAfterRoll(s)
     ? [
-        { part: "how", at: s.howAt },
         { part: "intro", at: s.introAt },
         { part: "roll", at: s.rollAt },
+        { part: "how", at: s.howAt },
       ]
     : [
-        { part: "intro", at: startedAt },
         { part: "how", at: s.howAt },
+        { part: "intro", at: s.introAt },
         { part: "roll", at: s.rollAt },
       ];
 }

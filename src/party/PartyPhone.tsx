@@ -329,7 +329,7 @@ function todoOf(data: Phone, intro: boolean): string {
   const vt = data.vote && game.status === "playing" && data.vote.round === game.round ? data.vote : null;
   if (game.paused) return "The host paused the game. Hang tight.";
   if (game.status === "lobby") return "You're in. Vote Best Dressed below while everyone arrives. The show starts on the TV.";
-  if (intro) return "Watch the TV. Your role arrives here after the roll call.";
+  if (intro) return "Watch the TV. Your role arrives here when the TV says to check your phone.";
   if (vt && !vt.closedAt) {
     if (me.jailed) return "You're in jail, so you can't vote. Bribe someone who can: chips for their vote.";
     if (data.myBallot !== undefined) return "Your vote is in. You can change it until the vote closes.";
@@ -416,7 +416,7 @@ function Lobby({ data, token }: { data: Phone; token: string }) {
     <div className="screen">
       <span className="eyebrow">You're in</span>
       <h1 className="title-lg">Mingle. Stay in costume.</h1>
-      <p className="lede">When everyone's here, the lights drop and the show begins. Your role arrives on this phone after the roll call.</p>
+      <p className="lede">When everyone's here, the lights drop and the show begins. Your role arrives on this phone after How to play.</p>
       <BestDressed token={token} data={data} />
       <ul className="guests">
         {lobby.map((p) => (
@@ -679,7 +679,7 @@ function PhoneTour({ data, onDone }: { data: Phone; onDone: () => void }) {
   );
 }
 
-/** The show (v2): the intro, How to play and the roll call play on the TV. The role arrives after the roll call. */
+/** The show (v2): the intro, the roll call and How to play (Oct 31 order) play on the TV. The role arrives after them. */
 function ShowWait({ data }: { data: Phone }) {
   // W4 (Oct 17): How to play and the murder play on the TV first; the phone only says he's dead once the TV has.
   const rollAt = data.game.rollAt;
@@ -691,7 +691,7 @@ function ShowWait({ data }: { data: Phone }) {
       <h1 className="title-xl">{dead ? "The Don is dead." : "Eyes on the TV."}</h1>
       {dead && data.game.bodyRoom && <p className="lede">Don Ray Sanders has been found in {mid(data.game.bodyRoom)}.</p>}
       <div className="sealed">
-        <p>{dead ? "Your secret role arrives here after the roll call." : "The show is starting. Your secret role arrives here after the roll call."}</p>
+        <p>{dead ? "Your secret role arrives here after How to play." : "The show is starting. Your secret role arrives here after How to play."}</p>
       </div>
     </div>
   );
