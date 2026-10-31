@@ -46,7 +46,9 @@ describe("the new adult script", () => {
 
   test("How to play v5 (Oct 30): the simple cards still say the key rules, in every version", () => {
     const all = (cue: CueKey) => [...cleanVersions(cue, "classic"), ...cleanVersions(cue, "adult")].map(plain);
-    for (const t of all("playLie")) expect(t).toMatch(/killer can lie/i);
+    // Oct 31 (Heston: "Don't need the lines about how innocent players cant lie, its just that the killer should lie"):
+    for (const t of all("playLie")) expect(t).toMatch(/killer is going to lie/i);
+    for (const t of [...all("playLie"), ...all("playChips")]) expect(t).not.toMatch(/can't lie|don't lie|lying is/i);
     for (const t of all("playLock")) expect(t).toMatch(/Round 3/);
     for (const t of all("playLock")) expect(t).toMatch(/three minutes/i);
     for (const t of all("playWin")) expect(t).toMatch(/most votes/i);
@@ -75,8 +77,8 @@ describe("the new adult script", () => {
     for (const t of all("tourCase")) expect(t).toMatch(/Case/);
     for (const [cue, tab] of [["tourScan", "Scan"], ["tourEvidence", "Evidence"], ["tourNotebook", "Notebook"], ["tourBetting", "Betting"]] as const)
       for (const t of all(cue)) expect(t).toMatch(new RegExp(tab));
-    // After the murder, the first card can't say the Don is about to die.
-    for (const t of all("playDies")) expect(t).not.toMatch(/in a minute/i);
+    // Oct 31, 17:30: How to play is back before the murder.
+    for (const t of all("playDies")) expect(t).toMatch(/in a minute/i);
   });
 });
 

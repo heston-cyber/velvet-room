@@ -846,8 +846,8 @@
    "runoffVote": "d3439a7b0b04d832",
    "noPlant": "9fca56f38db4713d",
    "plantReveal": "6e8e7b7a06ae585d",
-   "playLie": "1ab0202ddb300e8e",
-   "playDies": "d4285659e275e6fb",
+   "playLie": "f6d333463711eea7",
+   "playDies": "2cebfdc89f6dea48",
    "playAccomplice": "b47c261e46cf77cd",
    "playPhone": "8768e963485aad44",
    "playCards": "7b4b193d4b4b331c",
@@ -858,7 +858,7 @@
    "playHeat": "6b5f817039dd6846",
    "playTips": "fd119b8954461e7f",
    "playLock": "ebfd01f7fdf11435",
-   "playChips": "9edd67aedc50a73c",
+   "playChips": "5735a88292278a32",
    "playWin": "6f3e6df212b10b45",
    "nightR2": "821e20590d2335a3",
    "nightR3": "3c2da2144ff799e2",
@@ -868,7 +868,8 @@
    "tourEvidence": "24fc2d9ed7a600bd",
    "tourNotebook": "831ce94f810c517c",
    "tourCase": "771c0c0bffed2184",
-   "tourBetting": "2872b44401b548cc"
+   "tourBetting": "2872b44401b548cc",
+   "welcome": "4fc83b66de93045a"
   },
   "adult": {
    "doors": "4477ffa3d562c948",
@@ -1166,13 +1167,13 @@
    "noPlant": "eae0e663d75c1014",
    "plantReveal.1": "9b558c3973471a70",
    "noPlant.1": "f715ee179aaa5816",
-   "playDies": "c49c5ff0de64bd6f",
+   "playDies": "dfbfa9ad825a94e7",
    "playDies.1": "4f865f32f2ad77e6",
    "playAccomplice": "71cbf1d44403d65d",
    "playAccomplice.1": "a4743647e11ff53e",
    "playPhone": "2c5bcea371f377a4",
    "playPhone.1": "8950294ced40148d",
-   "playLie": "faf754277ffaca48",
+   "playLie": "71f7e5b59324c75c",
    "playLie.1": "fb1531755f742d19",
    "playStory": "3bd2ca0b29f67b44",
    "playStory.1": "0167f50cf4317013",
@@ -1188,7 +1189,7 @@
    "playTips": "fc105b4a57d9a309",
    "playHeat.1": "0eb1b1025b0765f5",
    "playTips.1": "d62a4ef9a712ea33",
-   "playChips": "07243dff9cb4b48d",
+   "playChips": "03c129fd5aa0ecf1",
    "playChips.1": "5ed13fb3e3d3e826",
    "playLock": "749a0dfe6e80971b",
    "playLock.1": "83f06b6829b19c99",
@@ -1202,7 +1203,9 @@
    "tourScan": "a8ffce2210f31e84",
    "tourEvidence": "181a8c2f6722f087",
    "tourNotebook": "cd9384b8b931793f",
-   "tourBetting": "9c1be52fdfeb1d6f"
+   "tourBetting": "9c1be52fdfeb1d6f",
+   "welcome.1": "3932539560a27660",
+   "welcome": "d5b2ed83110cc3a7"
   }
  },
  "duke-unstable": {

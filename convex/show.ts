@@ -1,8 +1,9 @@
 // The show (v2, Oct 15): what plays on the TV between "Everyone is in" and Round 1.
-//   Since Oct 31 (Heston: "lets move the rules to after the don dies and the intro so that the rules play right before
-//   the 'press and hold your card'"): the intro (lights out, the Don dies, "one of you did it") → the roll call → How to
-//   play and Gameplay → "check your phones". Oct 16–30 games played How to play first; games before Oct 16 the intro
-//   first. showParts() reads all three from the start times.
+//   Since Oct 31, 17:30 (Heston: "it goes short welcome to the velvet room, soon someone is going to die, but first lets
+//   meet tonights guests: goes into roll call, then how to play, then the don dies and the game starts"): the roll call
+//   (opened by the welcome) → How to play and Gameplay → the intro (lights out, the Don dies, "one of you did it") →
+//   "check your phones". Oct 16–30 games played How to play first; games before Oct 16 the intro first. showParts()
+//   reads every order from the start times.
 // Pure layout, shared by the server (which fixes the times, so Round 1's clock and the phones agree)
 // and the TV (which lays out the lines inside each part the same way).
 import manifest from "../public/audio/narration/manifest.json";
@@ -97,10 +98,10 @@ export function howKicker(cues: CueKey[], i: number): string {
 
 /** The headline on each How to play card: a few words, big enough to read across a loud room. */
 export const HOW_TITLE: Partial<Record<CueKey, string>> = {
-  playDies: "Your job",
+  playDies: "Someone dies",
   playAccomplice: "The helper",
   playPhone: "Your phone",
-  playLie: "Only the killer lies",
+  playLie: "The killer lies",
   playStory: "Where were you?",
   playCards: "Find the cards",
   playRooms: "Open rooms only",
@@ -137,11 +138,12 @@ export function howLayout(at: number, cues: [CueKey, HowArt][], secs: (c: CueKey
 /** One guest's turn in the roll call, from the narrator's line length. */
 export const rollSlotMs = (talkSecs: number) => Math.max(SHOW.rollMin, SHOW.rollLead + talkSecs * S + SHOW.rollTail);
 
-/** The roll call from its start: the card, the opener, each guest, the closer, then (since Oct 31) How to play for
- *  howMs, then "check your phone". howMs is 0 for games that played How to play before the murder. */
-export function rollLayout(at: number, slots: number[], secs: (c: CueKey) => number, howMs = 0) {
+/** The roll call from its start: the card, the opener, each guest, the closer; then afterMs of show (since Oct 31: How
+ *  to play, Gameplay and the murder) before "check your phone". afterMs is 0 for games where the roll call came last.
+ *  howAt: when the roll call is over. opener: the welcome since Oct 31 ("the doors are locked" before). */
+export function rollLayout(at: number, slots: number[], secs: (c: CueKey) => number, afterMs = 0, opener: CueKey = "rollLocked") {
   const openAt = at + SHOW.rollCardMs + 0.3 * S;
-  let t = openAt + secs("rollLocked") * S + 0.8 * S;
+  let t = openAt + secs(opener) * S + 0.8 * S;
   const steps = slots.map((ms) => {
     const step = { at: t, voiceAt: t + SHOW.rollLead, until: t + ms };
     t += ms;
@@ -149,7 +151,7 @@ export function rollLayout(at: number, slots: number[], secs: (c: CueKey) => num
   });
   const closeAt = t + 0.2 * S;
   const howAt = closeAt + secs("rollCallClose") * S + 0.6 * S;
-  const phonesAt = howAt + howMs;
+  const phonesAt = howAt + afterMs;
   const end = phonesAt + Math.max(SHOW.phonesHold, secs("intro4") * S + 8 * S);
   return { openAt, steps, closeAt, howAt, phonesAt, end };
 }
@@ -177,8 +179,12 @@ export function introLayout(at: number, secs: (c: CueKey) => number, bodySecs: n
 /** The show's start times, as the server keeps them (introAt from Oct 16 on). */
 export type ShowTimes = { howAt: number; rollAt: number; introAt?: number | null; phonesAt?: number | null };
 
-/** True for games from Oct 31 on: How to play (and Gameplay) after the roll call, right before "check your phones". */
+/** True for games from Oct 31 on: How to play (and Gameplay) after the roll call. */
 export const howAfterRoll = (s: ShowTimes) => s.introAt != null && s.howAt > s.rollAt;
+/** Since Oct 31, 17:30: the roll call first (with the welcome), How to play, then the murder. */
+export const rollFirst = (s: ShowTimes) => howAfterRoll(s) && s.introAt! > s.howAt;
+/** The intro's length (the Don dies), with the body line's estimated length. */
+export const introMs = (secs: (c: CueKey) => number) => introLayout(0, secs).end;
 
 /** The parts before "check your phones", in the order this game plays them, each with its start. Before Oct 16 the
  *  intro came first (at startedAt); Oct 16–30, How to play first; since Oct 31, the intro, the roll call, How to play. */
@@ -188,6 +194,12 @@ export function showParts(s: ShowTimes, startedAt: number): { part: "how" | "int
       { part: "intro", at: startedAt },
       { part: "how", at: s.howAt },
       { part: "roll", at: s.rollAt },
+    ];
+  if (rollFirst(s))
+    return [
+      { part: "roll", at: s.rollAt },
+      { part: "how", at: s.howAt },
+      { part: "intro", at: s.introAt! },
     ];
   return howAfterRoll(s)
     ? [

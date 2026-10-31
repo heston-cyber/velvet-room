@@ -416,7 +416,7 @@ function Lobby({ data, token }: { data: Phone; token: string }) {
     <div className="screen">
       <span className="eyebrow">You're in</span>
       <h1 className="title-lg">Mingle. Stay in costume.</h1>
-      <p className="lede">When everyone's here, the lights drop and the show begins. Your role arrives on this phone after How to play.</p>
+      <p className="lede">When everyone's here, the lights drop and the show begins. Your role arrives on this phone after the murder.</p>
       <BestDressed token={token} data={data} />
       <ul className="guests">
         {lobby.map((p) => (
@@ -691,7 +691,7 @@ function ShowWait({ data }: { data: Phone }) {
       <h1 className="title-xl">{dead ? "The Don is dead." : "Eyes on the TV."}</h1>
       {dead && data.game.bodyRoom && <p className="lede">Don Ray Sanders has been found in {mid(data.game.bodyRoom)}.</p>}
       <div className="sealed">
-        <p>{dead ? "Your secret role arrives here after How to play." : "The show is starting. Your secret role arrives here after How to play."}</p>
+        <p>{dead ? "Your secret role arrives here in a moment." : "The show is starting. Your secret role arrives here after the murder."}</p>
       </div>
     </div>
   );

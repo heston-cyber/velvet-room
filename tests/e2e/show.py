@@ -83,18 +83,14 @@ with sync_playwright() as p:
     host.locator(".hs-lobby button").first.click()  # Oct 17: "Yes, begin" (the QR cards are hidden)
     ok(wait_for(lambda: roster()["game"]["status"] == "playing", 20), "Everyone is in starts the show")
 
-    # Oct 31 (Heston): the Don dies, the roll call, then How to play and Gameplay right before "check your phone".
-    ok(wait_for(lambda: host.get_by_text("New York City · October 31, 2026").count() == 1, 15), "the show opens on the murder: New York City, 2026")
+    # Oct 31, 17:30 (Heston): the welcome and the roll call, How to play and Gameplay, then the Don dies and the roles.
+    ok(wait_for(lambda: host.get_by_text("Welcome to the Velvet Room.").count() == 1, 15), "the show opens on the welcome")
     ok(wait_for(lambda: phone.get_by_text("Eyes on the TV").count() >= 1, 15), "the phone says eyes on the TV, no role yet")
     ok(phone.get_by_text("Press and hold").count() == 0, "no role card on the phone during the show")
     shot(phone, "01-phone-wait.png")
     g = roster()["game"]
     show = g["show"]
-    ok(show and show["introAt"] < show["rollAt"] < show["howAt"], f"the intro, then the roll call, then How to play ({show})")
-    ok(wait_for(lambda: host.get_by_text("The Don is dead.").count() == 1, 40), "the second slide: the Don is dead")
-    ok(wait_for(lambda: host.locator(".tv-wrow .tv-wcard").count() == 6, 40), "the third slide shows the 6 weapons in play")
-    host.wait_for_timeout(2500)
-    shot(host, "02-intro-weapons.png")
+    ok(show and show["rollAt"] < show["howAt"] < show["introAt"], f"the roll call, then How to play, then the murder ({show})")
 
     def skip(label):
         host.locator(".hs-menu-btn").click()
@@ -103,25 +99,22 @@ with sync_playwright() as p:
         ok(host.get_by_role("button", name="Pause the game").count() == 0, "no pause button during the show")
         btn.click()
 
-    # The roll call.
-    skip("Skip to the roll call")
-    ok(wait_for(lambda: host.get_by_text("The doors are locked.").count() == 1, 12), "the roll call opens: the doors are locked")
-    ok(wait_for(lambda: host.locator(".tv-roll.v2").count() == 1, 25), "the first guest's roll call card")
-    host.wait_for_timeout(9000)
+    ok(wait_for(lambda: host.locator(".tv-roll.v2").count() == 1, 40), "the first guest's roll call card")
+    host.wait_for_timeout(6000)
     shot(host, "06-roll-guest.png")
     card = host.locator(".tv-roll.v2").inner_text().lower()
     ok("weapon" not in card and "signature" not in card and "played by" not in card, "the card is the guest's drawing and name (Oct 16)")
     ok("motive" not in card, "and no motive (Oct 20)")
     ok(host.locator(".tv-roast").count() == 0, "no roast on the roll call")
-    ok(phone.get_by_text("Press and hold").count() == 0, "the phone still waits during the roll call")
+    ok(phone.get_by_text("The Don is dead.").count() == 0, "the phone doesn't say he's dead before the TV does")
     g = roster()["game"]
-    ok(g["show"]["phonesAt"] is not None, "the roll call's turns are fixed once it begins")
-    ok(g["show"]["phonesAt"] > g["show"]["howAt"] > g["show"]["rollAt"], "How to play comes after the roll call, then the roles")
+    ok(g["show"]["phonesAt"] is not None, "the roll call's turns are fixed once the guests come up")
 
     # How to play, then Gameplay. Oct 30 (v5, "explains the game like it would to a 2 year old"): twelve short cards (rooms
     # open in waves and the game is untimed); Oct 31: the night round by round, then the phone's tabs.
     skip("Skip to How to play")
-    HOW = ["Your job", "Your phone", "Only the killer lies", "Where were you?", "Find the cards", "Open rooms only", "Three rounds",
+    ok(wait_for(lambda: roster()["game"]["show"]["howAt"] <= time.time() * 1000 + 1000, 10), "the skip pulls How to play to now")
+    HOW = ["Someone dies", "Your phone", "The killer lies", "Where were you?", "Find the cards", "Open rooms only", "Three rounds",
            "Point the finger", "Late tips", "Chips", "Pick who did it", "Who wins"]
     NIGHT = ["Round 1", "Round 2", "Round 3", "The lock-in"]
     TOUR = ["Case", "Scan", "Evidence", "Notebook", "Betting"]
@@ -155,8 +148,17 @@ with sync_playwright() as p:
         time.sleep(0.3)
     ok(seen == TITLES, f"the cards in order {seen}")
 
-    # Check your phones: straight after the last card, on its own.
-    ok(wait_for(lambda: host.get_by_text("Press and hold your card.").count() == 1, 20), "then the TV says check your phone")
+    # Then the Don dies, on its own after the last card.
+    ok(wait_for(lambda: host.get_by_text("New York City · October 31, 2026").count() == 1, 20), "after Gameplay, the Don dies: New York City, 2026")
+    ok(wait_for(lambda: host.get_by_text("The Don is dead.").count() == 1, 40), "the second slide: the Don is dead")
+    ok(wait_for(lambda: phone.get_by_text("The Don is dead.").count() >= 1, 10), "the phone says he's dead once the TV has")
+    ok(wait_for(lambda: host.locator(".tv-wrow .tv-wcard").count() == 6, 40), "the third slide shows the 6 weapons in play")
+    host.wait_for_timeout(2500)
+    shot(host, "02-intro-weapons.png")
+    ok(phone.get_by_text("Press and hold to read it.").count() == 0, "no role yet during the murder")
+
+    # Check your phones: straight after the murder, on its own.
+    ok(wait_for(lambda: host.get_by_text("Press and hold your card.").count() == 1, 40), "then the TV says check your phone")
     ok(wait_for(lambda: phone.get_by_text("Press and hold to read it.").count() == 1, 15), "the role card arrives on the phone")
     shot(host, "07-phones.png")
     shot(phone, "08-phone-role.png")

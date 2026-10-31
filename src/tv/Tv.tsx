@@ -969,8 +969,9 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
       node: (
         <div className="tv-scene">
           <span className="tv-kick fade">{done ? "Remember these faces" : "The roll call"}</span>
-          <h2 className="tv-h2 fade" style={{ fontSize: "5.4cqw" }}>{done ? "Tonight's suspects" : "The doors are locked."}</h2>
-          {done ? <Guests guests={d.guests} mark="here" /> : <p className="tv-sub fade" style={{ animationDelay: ".6s" }}>Nobody leaves until we know who did it.</p>}
+          {/* Oct 31: the show opens with the welcome, before anyone has died. */}
+          <h2 className="tv-h2 fade" style={{ fontSize: "5.4cqw" }}>{done ? (p.roll.welcome ? "Tonight's guests" : "Tonight's suspects") : p.roll.welcome ? "Welcome to the Velvet Room." : "The doors are locked."}</h2>
+          {done ? <Guests guests={d.guests} mark="here" /> : <p className="tv-sub fade" style={{ animationDelay: ".6s" }}>{p.roll.welcome ? "Soon, someone is going to die. But first, tonight's guests." : "Nobody leaves until we know who did it."}</p>}
         </div>
       ),
     };

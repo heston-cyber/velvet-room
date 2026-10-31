@@ -2,7 +2,7 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../convex/_generated/api";
 import schema from "../convex/schema";
-import { SHOW, cueSecs, howCues, howLayout, introLayout } from "../convex/show";
+import { SHOW, cueSecs, howCues, howLayout, introMs } from "../convex/show";
 import { ROASTS, RUMOR_LEADS, WEAPON_ROASTS, roastIndex, roastFor, rumorLead } from "../convex/roasts";
 import { WEAPON_KEYS, weaponName } from "../convex/weapons";
 import { CAST_INTROS, plain, rollNarration } from "../convex/narration";
@@ -39,21 +39,22 @@ const secs = (c: Parameters<typeof cueSecs>[3]) => cueSecs("duke", "classic", "d
 /** How to play and Gameplay for these games (8 or fewer guests: no accomplice; rooms in waves). */
 const howMs = (pacing: { mode: "ready" | "timer" }) => howLayout(0, howCues({ search: "waves", pacing }), secs).end;
 
-describe("the show (Oct 31): Start → the Don dies → roll call → How to play and Gameplay → check your phones → Round 1", () => {
+const introMsOf = () => introMs(secs);
+
+describe("the show (Oct 31, 17:30): Start → the welcome and roll call → How to play and Gameplay → the Don dies → check your phones → Round 1", () => {
   test("Start fixes when each part begins; Round 1's clock starts after the show; the roles wait", async () => {
     vi.useFakeTimers();
     const { t, players, tvKey } = await started();
     const g = await game(t);
     const s = g.show!;
-    // Heston, Oct 31: "lets move the rules to after the don dies and the intro so that the rules play right before the
-    // 'press and hold your card'"
-    expect(s.introAt).toBe(g.startedAt!);
-    expect(s.rollAt).toBe(introLayout(s.introAt!, secs).end);
-    expect(s.rollAt - s.introAt!).toBeGreaterThanOrEqual(SHOW.introMs - 10_000);
+    // Heston, Oct 31, 17:30: "it goes short welcome to the velvet room, soon someone is going to die, but first lets meet
+    // tonights guests: goes into roll call, then how to play, then the don dies and the game starts"
+    expect(s.rollAt).toBe(g.startedAt!);
     expect([...s.order].sort()).toEqual(players.map((p) => p._id).sort());
     expect(s.roll).toBeUndefined();
     expect(s.howAt).toBeGreaterThan(s.rollAt + players.length * SHOW.rollMin);
-    expect(g.introEndsAt!).toBeGreaterThan(s.howAt + howMs(g.pacing));
+    expect(s.introAt).toBe(s.howAt + howMs(g.pacing));
+    expect(g.introEndsAt!).toBe(s.introAt! + introMsOf() + PHONES_MS);
     expect(g.roundEndsAt).toBe(g.introEndsAt! + 10 * 60_000);
     expect(g.rolesOut).toBe(false);
     for (const p of players) {
@@ -86,13 +87,15 @@ describe("the show (Oct 31): Start → the Don dies → roll call → How to pla
     vi.useFakeTimers();
     const { t, players } = await started(5);
     const g = await game(t);
-    vi.advanceTimersByTime(g.show!.rollAt + 50 - Date.now());
+    // The turns are fixed when the first guest comes up (after the welcome).
+    vi.advanceTimersByTime(g.show!.rollAt + 30_000 - Date.now());
     await t.finishInProgressScheduledFunctions();
     const g2 = await game(t);
     expect(g2.show!.roll).toHaveLength(5);
     expect(g2.show!.roll!.every((ms) => ms >= SHOW.rollMin)).toBe(true);
     expect(g2.show!.howAt).toBeGreaterThan(g2.show!.rollAt);
-    expect(g2.show!.phonesAt).toBe(g2.show!.howAt + howMs(g2.pacing));
+    expect(g2.show!.introAt).toBe(g2.show!.howAt + howMs(g2.pacing));
+    expect(g2.show!.phonesAt).toBe(g2.show!.introAt! + introMsOf());
     expect(g2.introEndsAt).toBe(g2.show!.phonesAt! + PHONES_MS);
     expect(g2.roundEndsAt).toBe(g2.introEndsAt! + 10 * 60_000);
     vi.advanceTimersByTime(g2.show!.phonesAt! + 50 - Date.now());
@@ -107,24 +110,23 @@ describe("the show (Oct 31): Start → the Don dies → roll call → How to pla
     const { t, hostKey } = await started(4);
     const skip = () => t.mutation(api.game.skipShow, { slug: SLUG, hostKey });
     vi.advanceTimersByTime(5_000);
-    await skip(); // the Don dies → the roll call, its turns fixed now
+    await skip(); // the roll call (fixed now) → How to play; the murder and check your phones move up with it
     let g = await game(t);
-    expect(g.show!.rollAt).toBe(Date.now());
     expect(g.show!.roll).toHaveLength(4);
-    expect(g.show!.howAt).toBeGreaterThan(Date.now());
-    expect(g.show!.phonesAt).toBe(g.show!.howAt + howMs(g.pacing));
-    expect(g.roundEndsAt).toBe(g.introEndsAt! + 10 * 60_000);
-    expect(g.rolesOut).toBe(false);
-    vi.advanceTimersByTime(3_000);
-    await skip(); // the roll call → How to play; check your phones moves up with it
-    g = await game(t);
     expect(g.show!.howAt).toBe(Date.now());
-    expect(g.show!.phonesAt).toBe(Date.now() + howMs(g.pacing));
+    expect(g.show!.introAt).toBe(Date.now() + howMs(g.pacing));
+    expect(g.show!.phonesAt).toBe(g.show!.introAt! + introMsOf());
     expect(g.introEndsAt).toBe(g.show!.phonesAt! + PHONES_MS);
     expect(g.roundEndsAt).toBe(g.introEndsAt! + 10 * 60_000);
     expect(g.rolesOut).toBe(false);
     vi.advanceTimersByTime(3_000);
-    await skip(); // How to play → check your phones
+    await skip(); // How to play → the Don dies
+    g = await game(t);
+    expect(g.show!.introAt).toBe(Date.now());
+    expect(g.show!.phonesAt).toBe(Date.now() + introMsOf());
+    expect(g.rolesOut).toBe(false);
+    vi.advanceTimersByTime(3_000);
+    await skip(); // the Don dies → check your phones
     g = await game(t);
     expect(g.show!.phonesAt).toBe(Date.now());
     expect(g.rolesOut).toBe(true);

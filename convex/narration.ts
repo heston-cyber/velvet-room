@@ -151,6 +151,15 @@ export const CUES = {
     adult: "After Round 3, everybody locks in: who, with what, and where. The killer locks in too. [short pause] Most votes wins each one. Nail all three and you win. Miss one, and the killer walks out laughing. A tie? Runoff.",
     wild: ["[maniacal laughter]", "[cackles]"],
   },
+  // ---- the welcome (Oct 31, Heston: "it goes short welcome to the velvet room, soon someone is going to die, but first
+  // lets meet tonights guests: goes into roll call, then how to play, then the don dies and the game starts"): opens the
+  // show, in place of the roll call's "the doors are locked" ----
+  welcome: {
+    when: "Start: the welcome, then the roll call",
+    classic: "Welcome to the Velvet Room. [short pause] Soon, someone is going to die. But first, let's meet tonight's guests.",
+    adult: "Welcome to the Velvet Room. [short pause] Soon, somebody's going to die. Probably from the drinks. But first, let's meet tonight's guests.",
+    wild: ["[warm, theatrical]", ""],
+  },
   // ---- roll call, v2: after How to play ----
   rollLocked: {
     when: "Roll call v2 begins",
@@ -439,9 +448,9 @@ export const CUES = {
   // This is a roudy party and needs to be simple."): the whole night in order, one small idea per card, short words.
   // Replaces the v4 cards (howCase, howPhone, howStory, howRound…, howTips, howChips, howWin2). ----
   playDies: {
-    when: "How to play v5, your job (Oct 31: after the murder and the roll call)",
-    classic: "[warm, conspiratorial] Here's the game. Don Ray Sanders is dead. One of you did it. Your job: find out who.",
-    adult: "[warm, conspiratorial] Here's the game. Don Ray Sanders is dead. One of you did it. Find out who. That's it. That's the whole game.",
+    when: "How to play v5, someone dies (Oct 31, later: before the murder again)",
+    classic: "[warm, conspiratorial] Here's the game. In a minute, the lights go out and Don Ray Sanders dies. One of you did it. Your job: find out who.",
+    adult: "[warm, conspiratorial] Here's the game. In a minute, the lights go out and Don Ray Sanders drops dead. One of you did it. Find out who. That's it. That's the whole game.",
     wild: ["[clapping hands, way over the top]", "[cackles]"],
   },
   playAccomplice: {
@@ -458,8 +467,8 @@ export const CUES = {
   },
   playLie: {
     when: "How to play v5, only the killer lies",
-    classic: "Only the killer can lie. Everyone else tells the truth. [short pause] You can stay quiet. You can't lie.",
-    adult: "Only the killer can lie. Everybody else tells the truth. [short pause] You can keep your mouth shut. You just can't lie.",
+    classic: "The killer is going to lie. That's their job. [short pause] Your job: catch them.",
+    adult: "The killer is going to lie to your face. That's the job. [short pause] Your job: catch them.",
     wild: ["[dead serious]", ""],
   },
   playStory: {
@@ -506,8 +515,8 @@ export const CUES = {
   },
   playChips: {
     when: "How to play v5, chips",
-    classic: "Chips are money. Buy drinks, pay what you owe, and bet on who did it. [short pause] Someone may pay you to stay quiet. That's allowed. Lying isn't.",
-    adult: "Chips are money. Drinks, debts, bets. [short pause] Somebody might pay you to keep quiet. Take the money. Just don't lie.",
+    classic: "Chips are money. Buy drinks, pay what you owe, and bet on who did it. [short pause] Someone may pay you to stay quiet. That's allowed.",
+    adult: "Chips are money. Drinks, debts, bets. [short pause] Somebody might pay you to keep quiet. Take the money.",
     wild: ["[counting money, way too excited]", ""],
   },
   playLock: {
@@ -774,6 +783,7 @@ export const ADULT_MORE: Partial<Record<CueKey, string[]>> = {
     "Sound check. If you can hear this, so can the feds. Hello, boys. Kiss my ass.",
     "Sound check. If you can hear this, the TV works. Smartest guest here.",
   ],
+  welcome: ["Welcome to the Velvet Room. [short pause] Somebody in here won't make it to midnight. But first, let's meet tonight's guests."],
   // How to play and Gameplay have one Adult version, never a second (Oct 31, Heston: "we need to keep the rules and
   // gameplay sections the same every adult game without changing the script. its important to convey the information
   // clearly every time").

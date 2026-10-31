@@ -48,8 +48,7 @@ cx("game:seedFakeCast", {"slug": SLUG, "guests": 8, "markers": 10, "seed": 30, "
 cx("host:updateSettings", {"slug": SLUG, "hostKey": KEY, "tone": TONE})
 cx("game:openDoors", {"slug": SLUG, "hostKey": KEY})
 cx("game:startGame", {"slug": SLUG, "hostKey": KEY})
-# Oct 31: How to play follows the murder and the roll call; skip straight to it.
-cx("game:skipShow", {"slug": SLUG, "hostKey": KEY})
+# Oct 31: How to play follows the welcome and the roll call; skip straight to it.
 cx("game:skipShow", {"slug": SLUG, "hostKey": KEY})
 
 # Anything that runs off the screen (the audit's off-stage check covers the drawings; this covers the cards' parts).

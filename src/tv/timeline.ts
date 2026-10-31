@@ -7,7 +7,7 @@ import type { FunctionReturnType } from "convex/server";
 import type { api } from "../../convex/_generated/api";
 import { cueVariant, type CueKey } from "../../convex/narration";
 import { LAST_CALL_MS, VOTE } from "../../convex/shared";
-import { BODY_SECS_EST, howAfterRoll, howCues, howLayout, introLayout, readSecs, rollLayout, showPartAt, showParts, SHOW, type HowArt, type ShowPart } from "../../convex/show";
+import { BODY_SECS_EST, howAfterRoll, howCues, howLayout, introLayout, introMs, readSecs, rollFirst, rollLayout, showPartAt, showParts, SHOW, type HowArt, type ShowPart } from "../../convex/show";
 import { CARD_MS, type CardKey, type LoopKey } from "./media";
 import { CAST_KEYS } from "../../convex/figures";
 import type { MusicKey, SfxKey } from "./sound";
@@ -53,7 +53,7 @@ export type Plan = {
   /** How to play: one illustrated card per line. */
   rules: { steps: { cue: CueKey; v: number; art: HowArt; at: number; voiceAt: number; until: number }[]; end: number } | null;
   /** The roll call: each guest's turn, then the closer, then "check your phones". */
-  roll: { titleUntil: number; steps: { item: RollItem; at: number; voiceAt: number; until: number; talk: number }[]; closeAt: number; phonesAt: number; end: number } | null;
+  roll: { titleUntil: number; steps: { item: RollItem; at: number; voiceAt: number; until: number; talk: number }[]; closeAt: number; phonesAt: number; end: number; welcome?: boolean } | null;
   /** The drawn characters stepping onto the screen. */
   cameos: Cameo[];
 };
@@ -521,8 +521,8 @@ type Tools = {
 /**
  * Between Start and Round 1. The server fixes when each part starts (convex/show.ts); inside a part the lines
  * are laid out the same way the server laid them out. A skipped part drops whatever it didn't get to.
- * Since Oct 31: the intro (the Don dies) → the roll call → How to play and Gameplay → check your phones (Oct 16–30
- * games: How to play first; older games: the intro, How to play, the roll call).
+ * Since Oct 31, 17:30: the welcome and the roll call → How to play and Gameplay → the intro (the Don dies) → check your
+ * phones (Oct 16–30 games: How to play first; older games: the intro, How to play, the roll call).
  */
 /** secs here gives this game's version of each line (cs in plan). */
 function show(d: Data, now: number, secs: (cue: CueKey) => number, out: Plan, { vo, clip, fx, card, cameo, pick }: Tools): Plan {
@@ -538,8 +538,11 @@ function show(d: Data, now: number, secs: (cue: CueKey) => number, out: Plan, { 
   const rollAt = times.rollAt;
   const rc = d.voice.rollCall;
   const after = howAfterRoll(times);
+  const first = rollFirst(times);
   const howCards = howCues(g);
-  const lay = rc ? rollLayout(rollAt, rc.slots, secs, after ? howLayout(0, howCards, secs).end : 0) : null;
+  const howMs = howLayout(0, howCards, secs).end;
+  const opener = first ? "welcome" : "rollLocked";
+  const lay = rc ? rollLayout(rollAt, rc.slots, secs, first ? howMs + introMs(secs) : after ? howMs : 0, opener) : null;
   const phonesAt = Math.min(end, g.show?.phonesAt ?? lay?.phonesAt ?? end);
   const part: ShowPart = showPartAt(times, g.startedAt!, phonesAt, now);
   out.part = part;
@@ -574,7 +577,7 @@ function show(d: Data, now: number, secs: (cue: CueKey) => number, out: Plan, { 
   let titleUntil = rollAt;
   if (rc && lay) {
     titleUntil = card("rollcall", rollAt);
-    vo(`roll:${rollAt}:open`, "rollLocked", lay.openAt);
+    vo(`roll:${rollAt}:open`, opener, lay.openAt);
     const steps = rc.items.map((item, i) => {
       const st = lay.steps[i];
       fx(`roll:${rollAt}:${item.id}:flip`, "cardFlip", st.at);
@@ -584,7 +587,7 @@ function show(d: Data, now: number, secs: (cue: CueKey) => number, out: Plan, { 
       return { item, at: st.at, voiceAt: st.voiceAt, until: st.until, talk: fits ? item.clip!.seconds : readSecs(item.line) };
     });
     vo(`roll:${rollAt}:close`, "rollCallClose", lay.closeAt);
-    out.roll = { titleUntil, steps, closeAt: lay.closeAt, phonesAt, end };
+    out.roll = { titleUntil, steps, closeAt: lay.closeAt, phonesAt, end, welcome: first };
   }
 
   // Check your phones: the roles are out (the Check Your Phones card, then the line). Round 1 follows.
@@ -609,7 +612,7 @@ function show(d: Data, now: number, secs: (cue: CueKey) => number, out: Plan, { 
   }
   // Each part keeps only its own moments, so a skip never plays leftovers.
   out.events = out.events.filter((e) =>
-    e.id.startsWith("intro:") ? e.at < until("intro") : e.id.startsWith("how:") ? e.at < howUntil : e.id.startsWith("roll:") ? e.at < Math.min(until("roll"), phonesAt) : e.at < end,
+    e.id.startsWith("intro:") ? e.at < Math.min(until("intro"), phonesAt) : e.id.startsWith("how:") ? e.at < howUntil : e.id.startsWith("roll:") ? e.at < Math.min(until("roll"), phonesAt) : e.at < end,
   );
   return out;
 }
