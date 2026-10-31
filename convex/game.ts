@@ -14,7 +14,7 @@ import { seal } from "./seal";
 import { caseFor } from "./caseFile";
 import { ensureAllCards, markerForCode } from "./cards";
 import { LOCK_IN_MS, LOCKED_UP_MS, MAX_CARDS, hasJailVote, revealTimes, roundMinutesFor, VOTE, voteAfterRound } from "./shared";
-import { SHOW, cueSecs, howAfterRoll, howCues, howLayout, introMs, revealLayout, rollFirst, rollLayout, showParts } from "./show";
+import { SHOW, TWIST_CALL_MS, cueSecs, howAfterRoll, howCues, howLayout, introMs, revealLayout, rollFirst, rollLayout, showParts } from "./show";
 import { inOrder, rollGuests, slotsFor } from "./rollCall";
 import { heckleWanted } from "./heckles";
 import { finalAnswer, finalParts, hasTie, RUNOFF_VOTE_MS, runoffVoteAt, tiedParts, type Tied } from "./lockin";
@@ -208,6 +208,12 @@ async function nextRound(ctx: MutationCtx, game: Doc<"games">) {
   // Skipping ahead also cuts the intro short.
   await ctx.db.patch(game._id, { round: next, roundStartedAt: Date.now(), roundEndsAt: endsAt, paused: false, introEndsAt: Math.min(game.introEndsAt ?? 0, Date.now()), rolesOut: true });
   await scheduleTimer(ctx, game._id, next, endsAt);
+  // Oct 31: the Round 3 twist waits for every card to be scanned; a check once the round's opening has played, and
+  // the 10-minute fallback.
+  if (next === 3) {
+    await ctx.scheduler.runAfter(TWIST_FIRST_CHECK_MS, internal.game.twistCheck, { gameId: game._id, force: false });
+    await ctx.scheduler.runAfter(TWIST_FALLBACK_MS, internal.game.twistCheck, { gameId: game._id, force: true });
+  }
   // Oct 17: the lock-in: the killer's lines for the reveal (caught, or the Got Away With It roast).
   if (next === 4) {
     const cfk = await caseFor(ctx, game);
@@ -751,6 +757,8 @@ export const setReady = mutation({
   handler: async (ctx, { token, ready }) => {
     const { player, game } = await requirePlayer(ctx, token);
     if (!isPlaying(game) || !player.inGame || player.jailed || !game.round || game.round > 3) return { ok: false };
+    // Oct 31: Round 3's Ready waits for the twist.
+    if (ready && (await twistPending(ctx, game))) throw new ConvexError("Wait for the twist. It drops once every card is found.");
     await ctx.db.patch(player._id, { readyRound: ready ? game.round : 0 });
     await maybeAdvanceOnReady(ctx, (await ctx.db.get(game._id))!);
     return { ok: true };
@@ -806,6 +814,9 @@ export async function claimStash(ctx: MutationCtx, game: Doc<"games">, clue: Pla
   return { ...game, stash };
 }
 
+/** The twist is public once it dropped, and after Round 3 in any case (older games had no wait). */
+const twistOut = (game: Doc<"games">) => !!game.twistAt || (game.round ?? 0) >= 4 || game.status === "reveal" || game.status === "done";
+
 export async function scanFor(ctx: MutationCtx, game: Doc<"games">, player: Doc<"players">, marker: Doc<"markers">) {
   if (!marker.roomKey) throw new ConvexError(`Card ${marker.number} isn't in play tonight. Keep looking.`);
   if (game.status === "registration" || game.status === "lobby") throw new ConvexError("Nothing here yet. The cards come alive when the game starts.");
@@ -826,9 +837,73 @@ export async function scanFor(ctx: MutationCtx, game: Doc<"games">, player: Doc<
     await ctx.db.insert("scans", { gameId: game._id, playerId: player._id, markerNumber: marker.number, at: Date.now() });
   }
   const now = await claimStash(ctx, game, clue, player._id);
+  // Oct 31: the last card found in Round 3 calls everyone back to the Lounge for the twist.
+  if (isPlaying(game) && game.round === 3 && Date.now() >= (game.roundStartedAt ?? 0) + TWIST_FIRST_CHECK_MS) await maybeCallTwist(ctx, game, false);
   const room = game.rooms.find((r) => r.key === marker.roomKey);
   return { number: marker.number, room: room?.label ?? "", text: cardText(now, clue, player._id) };
 }
+
+// ---------- the Round 3 twist (Oct 31, Heston: "a wait on the twist in round 3 (wait till after all evidence is
+// scanned.) Do a notification on all devices to return to the lounge for the twist once all evidence is scanned. then
+// the twist drops, then players continue talking and guessing to ready for vote"; the host can drop it, and it drops on
+// its own 10 minutes into Round 3) ----------
+
+const TWIST_FIRST_CHECK_MS = 30_000;
+const TWIST_FALLBACK_MS = 10 * 60_000;
+
+const hasTwist = (cf: CaseFile | null) => !!cf?.clues.some((c) => c.kind === "twist");
+
+/** True while Round 3's twist hasn't dropped yet (a game with one). */
+export async function twistPending(ctx: QueryCtx, game: Doc<"games">) {
+  return isPlaying(game) && game.round === 3 && !game.twistAt && hasTwist(await caseFor(ctx, game));
+}
+
+async function allCardsScanned(ctx: QueryCtx, game: Doc<"games">) {
+  const markers = (await ctx.db.query("markers").withIndex("by_game", (q) => q.eq("gameId", game._id)).collect()).filter((m) => !!m.roomKey);
+  if (!markers.length) return true;
+  const scans = await ctx.db.query("scans").withIndex("by_game", (q) => q.eq("gameId", game._id)).collect();
+  const found = new Set(scans.map((s) => s.markerNumber));
+  return markers.every((m) => found.has(m.number));
+}
+
+/** Calls everyone back to the Lounge (force: whether or not every card is found); the twist drops TWIST_CALL_MS later. */
+async function maybeCallTwist(ctx: MutationCtx, game: Doc<"games">, force: boolean) {
+  if (game.twistCallAt || !(await twistPending(ctx, game))) return false;
+  if (!force && !(await allCardsScanned(ctx, game))) return false;
+  const now = Date.now();
+  await ctx.db.patch(game._id, { twistCallAt: now });
+  await ctx.scheduler.runAt(now + TWIST_CALL_MS, internal.game.twistDrop, { gameId: game._id });
+  return true;
+}
+
+export const twistCheck = internalMutation({
+  args: { gameId: v.id("games"), force: v.boolean() },
+  handler: async (ctx, { gameId, force }) => {
+    const game = await ctx.db.get(gameId);
+    if (game) await maybeCallTwist(ctx, game, force);
+  },
+});
+
+export const twistDrop = internalMutation({
+  args: { gameId: v.id("games") },
+  handler: async (ctx, { gameId }) => {
+    const game = await ctx.db.get(gameId);
+    if (!game || game.twistAt || !game.twistCallAt || !isPlaying(game) || game.round !== 3) return;
+    await ctx.db.patch(game._id, { twistAt: Date.now() });
+  },
+});
+
+/** Host: call everyone to the Lounge now (or, once they've been called, drop the twist now). */
+export const dropTwist = mutation({
+  args: { slug: v.string(), hostKey: v.string() },
+  handler: async (ctx, { slug, hostKey }) => {
+    const game = await requireHost(ctx, slug, hostKey);
+    if (!(await twistPending(ctx, game))) return { ok: true };
+    if (!game.twistCallAt) await maybeCallTwist(ctx, game, true);
+    else await ctx.db.patch(game._id, { twistAt: Date.now() });
+    return { ok: true };
+  },
+});
 
 export const saveNotebook = mutation({
   args: { token: v.string(), crossed: v.array(v.string()) },
@@ -965,6 +1040,10 @@ export const phone = query({
         openRooms: started && game.roomOrder ? openRoomsIn(round, game.roomOrder, game.search).map(roomLabel) : [],
         wifi: game.wifi?.name ? game.wifi : null,
         introEndsAt: game.introEndsAt ?? null,
+        // Oct 31: Round 3's twist (see the TV's).
+        twistWait: await twistPending(ctx, game),
+        twistCallAt: game.twistCallAt ?? null,
+        twistAt: game.twistAt ?? null,
         // W4 (Oct 17): when the Don dies on screen; phones don't say he's dead before. (Named for the roll call, which
         // followed the murder until Oct 31; since then the murder comes after How to play.)
         rollAt: game.show ? (rollFirst(game.show) ? game.show.introAt ?? null : game.show.rollAt) : null,
@@ -1079,7 +1158,7 @@ export const phone = query({
           : [],
       evidence: cf
         ? cf.clues
-            .filter((c) => c.channel === "tv" && c.round <= (game.round ?? 0))
+            .filter((c) => c.channel === "tv" && c.round <= (game.round ?? 0) && (c.kind !== "twist" || twistOut(game)))
             .map((c) => ({ round: c.round, text: c.text, twist: c.kind === "twist" }))
         : [],
       board: input
@@ -1169,7 +1248,7 @@ export const evidence = query({
     const cf = await caseFor(ctx, game);
     if (!cf) return [];
     return cf.clues
-      .filter((c) => c.channel === "tv" && c.round <= game.round!)
+      .filter((c) => c.channel === "tv" && c.round <= game.round! && (c.kind !== "twist" || twistOut(game)))
       .map((c) => ({ round: c.round, text: c.text, twist: c.kind === "twist" }));
   },
 });
@@ -1895,6 +1974,10 @@ export const tv = query({
         gameNumber: game.gameNumber ?? 1,
         doorsAt: game.doorsAt ?? null,
         roundStartedAt: game.roundStartedAt ?? null,
+        // Oct 31: Round 3's twist: waiting (every card not found yet), the call back to the Lounge, the drop.
+        twistWait: await twistPending(ctx, game),
+        twistCallAt: game.twistCallAt ?? null,
+        twistAt: game.twistAt ?? null,
         pausedAt: game.pausedAt ?? null,
         resumedAt: game.resumedAt ?? null,
         doneAt: game.doneAt ?? null,
@@ -1954,7 +2037,7 @@ export const tv = query({
       weapons: started ? await weaponsInPlay(ctx, game) : [],
       evidence: cf
         ? cf.clues
-            .filter((c) => c.channel === "tv" && c.round <= Math.min(round, 3))
+            .filter((c) => c.channel === "tv" && c.round <= Math.min(round, 3) && (c.kind !== "twist" || twistOut(game)))
             .map((c) => ({ round: c.round, text: c.text, twist: c.kind === "twist" }))
         : [],
       results,

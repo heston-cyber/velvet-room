@@ -7,7 +7,7 @@ import type { FunctionReturnType } from "convex/server";
 import type { api } from "../../convex/_generated/api";
 import { cueVariant, type CueKey } from "../../convex/narration";
 import { LAST_CALL_MS, VOTE } from "../../convex/shared";
-import { BODY_SECS_EST, howAfterRoll, howCues, howLayout, introLayout, introMs, readSecs, rollFirst, rollLayout, showPartAt, showParts, SHOW, type HowArt, type ShowPart } from "../../convex/show";
+import { BODY_SECS_EST, TWIST_CALL_MS, howAfterRoll, howCues, howLayout, introLayout, introMs, readSecs, rollFirst, rollLayout, showPartAt, showParts, SHOW, type HowArt, type ShowPart } from "../../convex/show";
 import { CARD_MS, type CardKey, type LoopKey } from "./media";
 import { CAST_KEYS } from "../../convex/figures";
 import type { MusicKey, SfxKey } from "./sound";
@@ -45,6 +45,8 @@ export type Plan = {
   /** The scene's own content waits until the title card has finished. */
   holdUntil: number;
   twistAt: number | null;
+  /** Oct 31: everyone back to the Lounge (at), then the twist (drop). */
+  loungeCall: { at: number; drop: number } | null;
   awardsAt: number[];
   /** The show's part right now (v2: between Start and Round 1), else null. */
   part: ShowPart | null;
@@ -167,7 +169,7 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
   const events: Ev[] = [];
   const cards: Plan["cards"] = [];
   const cameos: Cameo[] = [];
-  const out: Plan = { loop: "doors", music: "lobby", ambience: [], cards, events, holdUntil: 0, twistAt: null, awardsAt: [], part: null, rules: null, roll: null, cameos };
+  const out: Plan = { loop: "doors", music: "lobby", ambience: [], cards, events, holdUntil: 0, twistAt: null, loungeCall: null, awardsAt: [], part: null, rules: null, roll: null, cameos };
   const cameo = (c: Cameo) => cameos.push(c);
   // The guests' own drawings: who's here (or in the game), falling back to the stand-ins.
   const withFigure = (list: Data["guests"]) => list.filter((x) => !!x.figure) as (Data["guests"][number] & { figure: string })[];
@@ -342,8 +344,12 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
       if (round >= 2) {
         const cardsIn = d.evidence.filter((c) => c.round === round && !c.twist);
         cardsIn.forEach((_, i) => fx(`r${round}:${t}:ev${i}`, "telegraph", t + CARD_MS.round2 + i * 0.35 * S));
-        if (round === 3 && d.evidence.some((c) => c.round === 3 && c.twist)) {
-          const at = Math.max(e + 1 * S, t + CARD_MS.round3 + cardsIn.length * 0.35 * S + 2.5 * S);
+        // Oct 31: the twist waits until every card is found (or the host, or 10 minutes): everyone back to the Lounge,
+        // then it drops.
+        if (round === 3 && g.twistCallAt) {
+          const at = g.twistAt ?? g.twistCallAt + TWIST_CALL_MS;
+          out.loungeCall = { at: g.twistCallAt, drop: at };
+          fx(`r3:${t}:call`, "lastCall", g.twistCallAt);
           const said = vo(`r3:${t}:twist`, "twist", at);
           const c = card("twist", said + 0.2 * S);
           fx(`r3:${t}:thunder`, "thunder", said + 0.45 * S);

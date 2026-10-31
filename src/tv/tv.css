@@ -527,3 +527,6 @@
 /* Oct 31, Gameplay: a tab's real phone screen in a brass phone frame. */
 .tv-how-tab { display: grid; justify-items: center; }
 .tv-how-tab img { height: 42cqw; width: auto; aspect-ratio: 390 / 844; object-fit: cover; object-position: top; border: .35cqw solid var(--brass); border-radius: 2.2cqw; background: #12050a; box-shadow: 0 1.2cqw 3cqw rgba(0, 0, 0, .55); }
+
+/* Oct 31: the call back to the Lounge covers the round completely. */
+.tv-overlay.lounge { background: rgb(12, 3, 6); z-index: 9; }

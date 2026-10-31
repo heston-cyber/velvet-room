@@ -265,6 +265,14 @@ function TvInner({ slug, tvKey, onNext, overlay, bare }: { slug: string; tvKey: 
                 <p className="tv-sub">{g.pacing.mode === "timer" || g.round >= 4 || !!data.vote ? "The host paused the game. The clock is stopped." : "The host paused the game."}</p>
               </div>
             )}
+            {/* Oct 31: everyone back to the Lounge before Round 3's twist. */}
+            {p.loungeCall && now >= p.loungeCall.at && now < p.loungeCall.drop && !g.paused && (
+              <div className="tv-overlay lounge">
+                <span className="tv-kick">Round 3 · the twist</span>
+                <h2 className="tv-h2">Everyone to the Lounge.</h2>
+                <p className="tv-sub">The twist drops in {Math.max(0, Math.ceil((p.loungeCall.drop - now) / 1000))} seconds.</p>
+              </div>
+            )}
             {g.tvShowAll && g.status === "playing" && <AllEvidence data={data} />}
             {strip && <GuestStrip guests={data.guests} ready={g.pacing.mode === "ready"} />}
             {say && (

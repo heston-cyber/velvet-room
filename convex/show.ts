@@ -222,6 +222,9 @@ export function showPartAt(s: ShowTimes, startedAt: number, phonesAt: number, no
   return part;
 }
 
+/** Oct 31: from "back to the Lounge" to Round 3's twist. */
+export const TWIST_CALL_MS = 30 * S;
+
 /** The parts of the show, by start time. A skip jumps to the next one. */
 export type ShowPart = "intro" | "how" | "roll" | "phones";
 export const PART_LABEL: Record<ShowPart | "round", string> = {

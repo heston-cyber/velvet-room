@@ -5,6 +5,7 @@ import type { QueryCtx } from "./_generated/server";
 import { ACCOMPLICE_ON, MAX_ROOMS, MIN_ROOMS, openRoomsIn } from "./engine/build";
 import { randomCode, registrationIsOpen, requireHost } from "./lib";
 import { ensureAllCards } from "./cards";
+import { caseFor } from "./caseFile";
 import { MAX_CARDS, hasJailVote, revealTimes } from "./shared";
 import { WEAPONS, checkWeaponKeys, currentWeapon, drawWeapons, recommendedWeapons } from "./weapons";
 import { secure } from "./engine/rng";
@@ -131,6 +132,9 @@ export const roster = query({
         // v2: this round's vote, so the host can close it or skip its verdict.
         vote: game.vote && game.vote.round === game.round ? { kind: game.vote.kind, closedAt: game.vote.closedAt ?? null, nextAt: game.vote.nextAt ?? null } : null,
         tvShowAll: !!game.tvShowAll,
+        // Oct 31: Round 3's twist, waiting for every card (the host can call it now).
+        twistWait: game.status === "playing" && round === 3 && !game.twistAt && !!(await caseFor(ctx, game))?.clues.some((c) => c.kind === "twist"),
+        twistCallAt: game.twistCallAt ?? null,
         endedAt: game.endedAt ?? null,
         nextSlug: game.nextSlug ?? null,
         gameNumber: game.gameNumber ?? 1,

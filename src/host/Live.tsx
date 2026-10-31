@@ -21,6 +21,7 @@ export function useNextStep(data: Roster, slug: string, hostKey: string, now: nu
   const skipIntro = useMutation(api.game.skipIntro);
   const skipShow = useMutation(api.game.skipShow);
   const advance = useMutation(api.game.advanceRound);
+  const dropTwist = useMutation(api.game.dropTwist);
   const finish = useMutation(api.game.finish);
   const endNight = useMutation(api.game.endNight);
   const newGame = useMutation(api.replay.newGame);
@@ -58,6 +59,15 @@ export function useNextStep(data: Roster, slug: string, hostKey: string, now: nu
     const vt = g.round <= 3 ? g.vote : null;
     if (vt && !vt.closedAt) return { label: "Close the vote", help: "Counts the votes now. More than half on one guest is needed.", run: () => advance(args) };
     if (vt && vt.closedAt && (vt.nextAt ?? 0) > now) return { label: g.round === 3 ? "On to the lock-in" : `On to Round ${g.round + 1}`, help: "Skips the rest of the verdict.", run: () => advance(args) };
+    // Oct 31: Round 3's twist waits for every card; the host can call it sooner.
+    if (g.round === 3 && g.twistWait)
+      return g.twistCallAt
+        ? { label: "Drop the twist now", help: "Everyone's been called to the Lounge. It drops on its own in a few seconds.", run: () => dropTwist(args) }
+        : {
+            label: "Call everyone for the twist",
+            help: "Every phone says go to the Lounge, and the twist drops 30 seconds later. Or wait: it drops once every card is found, or 10 minutes into Round 3.",
+            run: () => dropTwist(args),
+          };
     if (g.round <= 3)
       return {
         label: `End Round ${g.round}`,

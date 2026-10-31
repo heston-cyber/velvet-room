@@ -111,8 +111,14 @@ describe("the draw, sealed", () => {
       const g = (await ctx.db.query("games").first())!;
       await ctx.db.patch(g._id, { round: 3 });
     });
+    // Oct 31: the twist waits until every card is found (or the host calls it); then it's public.
     const r3 = await t.query(api.game.evidence, { slug: "test-engine" });
-    expect(r3.some((c) => c.twist)).toBe(true);
+    expect(r3.some((c) => c.twist)).toBe(false);
+    await t.run(async (ctx) => {
+      const g = (await ctx.db.query("games").first())!;
+      await ctx.db.patch(g._id, { twistCallAt: Date.now(), twistAt: Date.now() });
+    });
+    expect((await t.query(api.game.evidence, { slug: "test-engine" })).some((c) => c.twist)).toBe(true);
   });
 
   test("the game can't be started twice, or with fewer than 3 guests", async () => {

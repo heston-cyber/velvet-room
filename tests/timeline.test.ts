@@ -195,16 +195,23 @@ describe("TV timeline", () => {
     expect(p.events.some((e) => e.id.startsWith("vote:"))).toBe(false);
   });
 
-  test("round 3: cards land with a telegraph each, then the twist line, the twist card, and the twist", () => {
+  test("round 3: cards land with a telegraph each; the twist waits for the call to the Lounge, then its line and card", () => {
     const t = T0 + 900_000;
     const evidence = [
       { round: 3, text: "a", twist: false },
       { round: 3, text: "b", twist: false },
-      { round: 3, text: "twist", twist: true },
     ];
-    const p = plan(data({ game: { status: "playing", round: 3, startedAt: T0, introEndsAt: T0 + INTRO_MS, roundStartedAt: t }, evidence }), t + 100, secs);
-    expect(cardNow(p, t + 100)?.key).toBe("round3");
-    expect(p.events.filter((e) => e.sfx === "telegraph")).toHaveLength(2);
+    // Oct 31: waiting for every card: no twist yet.
+    const wait = plan(data({ game: { status: "playing", round: 3, startedAt: T0, introEndsAt: T0 + INTRO_MS, roundStartedAt: t, twistWait: true, twistCallAt: null, twistAt: null }, evidence }), t + 100, secs);
+    expect(cardNow(wait, t + 100)?.key).toBe("round3");
+    expect(wait.events.filter((e) => e.sfx === "telegraph")).toHaveLength(2);
+    expect(wait.events.some((e) => e.cue === "twist")).toBe(false);
+    expect(wait.loungeCall).toBeNull();
+    // Everyone's called back to the Lounge; the twist drops 30 seconds later.
+    const call = t + 300_000;
+    const p = plan(data({ game: { status: "playing", round: 3, startedAt: T0, introEndsAt: T0 + INTRO_MS, roundStartedAt: t, twistWait: true, twistCallAt: call, twistAt: null }, evidence: [...evidence, { round: 3, text: "twist", twist: true }] }), call + 100, secs);
+    expect(p.loungeCall).toEqual({ at: call, drop: call + 30_000 });
+    expect(p.events.find((e) => e.cue === "twist")!.at).toBe(call + 30_000);
     const twistLine = p.events.find((e) => e.cue === "twist")!;
     const twistCard = p.cards.find((c) => c.key === "twist")!;
     expect(twistCard.at).toBeGreaterThan(twistLine.at);
@@ -236,7 +243,7 @@ describe("TV timeline", () => {
     expect(cameosNow(p, T0 + 1000, "intro0", true).map((c) => c.anim)).toEqual(["fall"]);
     const t = T0 + 900_000;
     const evidence = [{ round: 3, text: "a", twist: false }, { round: 3, text: "twist", twist: true }];
-    p = plan(data({ game: { status: "playing", round: 3, startedAt: T0, introEndsAt: T0 + INTRO_MS, roundStartedAt: t }, evidence }), t + 100, secs);
+    p = plan(data({ game: { status: "playing", round: 3, startedAt: T0, introEndsAt: T0 + INTRO_MS, roundStartedAt: t, twistCallAt: t + 60_000, twistAt: t + 90_000 }, evidence }), t + 100, secs);
     const peek = p.cameos.find((c) => c.anim === "peek")!;
     expect(peek.char).toBe("killer");
     expect(peek.at).toBeGreaterThan(p.twistAt!);

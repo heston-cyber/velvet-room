@@ -118,6 +118,12 @@ export default function PartyPhone({ token, data }: { token: string; data: Phone
     if (prevStatus.current !== "playing" && game.status === "playing") navigator.vibrate?.([250, 120, 250]);
     prevStatus.current = game.status;
   }, [game.status]);
+  // Oct 31: every phone buzzes when everyone is called back to the Lounge for the twist.
+  const prevCall = useRef(game.twistCallAt);
+  useEffect(() => {
+    if (!prevCall.current && game.twistCallAt) navigator.vibrate?.([500, 150, 500, 150, 500]);
+    prevCall.current = game.twistCallAt;
+  }, [game.twistCallAt]);
   const prevRoles = useRef(game.rolesOut);
   useEffect(() => {
     if (!prevRoles.current && game.rolesOut && game.status === "playing") navigator.vibrate?.([400, 150, 400]);
@@ -345,7 +351,10 @@ function todoOf(data: Phone, intro: boolean): string {
     if (!timer && me.ready) return "You're done. Waiting on the others.";
     if (game.round === 1) return "Search the open rooms, scan the cards, and ask where everyone was.";
     if (game.round === 2) return "New evidence is on the TV. Search the rooms that just opened.";
-    return "Last round. Read the late tips on the TV and compare stories.";
+    // Oct 31: the twist waits for every card; then everyone goes back to the Lounge.
+    if (game.twistCallAt && !game.twistAt) return "🚨 Everyone back to the Lounge! The twist drops in a moment.";
+    if (game.twistWait) return "Last round. Find every card: the twist drops once they're all scanned.";
+    return "The twist is on the TV. Talk it over, then tap Ready to lock in.";
   }
   if (game.status === "playing") {
     const ro = data.runoff;
@@ -756,6 +765,14 @@ function Pacing({ token, data }: { token: string; data: Phone }) {
   // plain button, no explaining.
   void next;
   const label = game.round === 3 ? "Ready to lock in" : "Done searching";
+  // Oct 31: Round 3's Ready waits for the twist.
+  if (game.round === 3 && game.twistWait && !me.ready) return (
+    <div className="ready">
+      <button type="button" className="ghost-btn full" disabled>
+        Ready to lock in · after the twist
+      </button>
+    </div>
+  );
   if (game.pacing.mode === "timer") return (
     <div className="ready">
       <button type="button" className={`${me.ready ? "ghost-btn" : "primary"} full`} aria-pressed={me.ready} onClick={() => setReady({ token, ready: !me.ready })}>

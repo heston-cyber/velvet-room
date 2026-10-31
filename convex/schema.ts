@@ -165,6 +165,10 @@ export default defineSchema({
     /** Phase 4: the two late tips, as they landed at the end of Round 2 (plant: the killer's; secret until the reveal). */
     lateTips: v.optional(v.array(v.object({ aboutId: v.id("players"), text: v.string(), plant: v.boolean() }))),
     lateTipsAt: v.optional(v.number()),
+    /** Oct 31: the Round 3 twist waits until every card is scanned (or the host, or 10 minutes): twistCallAt is when
+     *  every phone and the TV call everyone back to the Lounge; twistAt is when the twist drops. */
+    twistCallAt: v.optional(v.number()),
+    twistAt: v.optional(v.number()),
     levels: v.optional(v.object({ voice: v.number(), music: v.number(), sfx: v.number() })),
     // Play again: game 2 is a fresh game with the same house setup. The old game points at it.
     gameNumber: v.optional(v.number()),
