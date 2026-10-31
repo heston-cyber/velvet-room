@@ -869,13 +869,15 @@ function RoleCard({ role, card, jail }: { role: string; card: NonNullable<Phone[
           // Phase 4 (fix #6, Oct 20): the chip tip, worded for the role. It takes the lock-in tile's place (the win line
           // below says it), so the card keeps four tiles and its size.
           ["chips", "Chips buy votes and silence"],
+          // Oct 31 (Heston: "It needs a note in the killers phone about the evidence plant ... and how to do it").
+          ["secret", "Plant a fake tip: Notebook › 🃏 Secret, before Round 2 ends"],
         ]
       : [
           ["scan", "Search, scan, compare notes"],
-          // Oct 18: no secrets. Innocents tell the truth; only the killer lies.
-          ["secret", "Tell the truth"],
+          // Oct 31 (Heston: "Don't need the lines about how innocent players cant lie, its just that the killer should lie").
+          ["secret", "Catch the liar"],
           ["bars", "Jail vote after Round 2"],
-          ["chips", "Chips pay debts. Never lie for them"],
+          ["chips", "Chips pay debts and buy drinks"],
         ]
   ).filter(([icon]) => jail || icon !== "bars") as [IconName, string][];
   return (
@@ -936,14 +938,14 @@ function CaseFile({ token, data, onPick }: { token: string; data: Phone; onPick?
       {/* Phase 3: where you were when the lights went out. Everyone's reads the same way, the killer's cover too. */}
       {data.story && (
         <div className="file story-file">
-          <span className="eyebrow">Where you were</span>
+          <span className="eyebrow">📍 Where you were</span>
           <p className="story-text">{data.story}</p>
         </div>
       )}
       {/* Phase 4 (Oct 21): debts, always true; settle them in chips. */}
       {data.debts.length > 0 && (
         <div className="file debts-file">
-          <span className="eyebrow">Debts</span>
+          <span className="eyebrow">💸 Debts</span>
           <ul className="debts">
             {data.debts.map((d) => (
               <li key={d}>{d}</li>
@@ -1081,7 +1083,7 @@ function Scanner({ token, data, onNotebook }: { token: string; data: Phone; onNo
       ) : (
         <>
           <button type="button" className="primary" onClick={() => setCamera(true)}>
-            Scan a card
+            📷 Scan a card
           </button>
         </>
       )}
@@ -1167,7 +1169,7 @@ function Evidence({ token, data }: { token: string; data: Phone }) {
       {/* Phase 4: the two late tips, as they landed on the TV at the end of Round 2. */}
       {data.lateTips.length > 0 && (
         <section className="ev-sec">
-          <span className="ev-h">Late tips · on the TV</span>
+          <span className="ev-h">📺 Late tips · on the TV</span>
           <ul className="ev">
             {data.lateTips.map((t) => (
               <li key={t}>
@@ -1181,7 +1183,7 @@ function Evidence({ token, data }: { token: string; data: Phone }) {
       {[3, 2].map((r) =>
         byRound(r).length ? (
           <section key={r} className="ev-sec">
-            <span className="ev-h">Round {r} · on the TV</span>
+            <span className="ev-h">📺 Round {r} · on the TV</span>
             <ul className="ev">
               {byRound(r).map((e) => (
                 <li key={e.text} className={e.twist ? "twist" : ""}>
@@ -1194,7 +1196,7 @@ function Evidence({ token, data }: { token: string; data: Phone }) {
         ) : null,
       )}
       <section className="ev-sec">
-        <span className="ev-h">Cards you found</span>
+        <span className="ev-h">🔎 Cards you found</span>
         {data.scans.length ? (
           <ul className="ev">
             {data.scans.map((s) => (
@@ -1369,6 +1371,58 @@ function PickRow({ data, onChange }: { data: Phone; onChange?: () => void }) {
  * Phase 4: the heat tag, on the Notebook's suspect list (Heston, Oct 20). One tag each, anonymous; three or more on
  * someone puts the heat on them on the TV. A tag on someone the evidence cleared drops.
  */
+/** Oct 31 (Heston: "let the killer choose 3 different plants can be at the bottom of the notebook"): one of three fake
+ *  late tips, or none, until the late tips land at the end of Round 2. */
+/** Every phone has the same closed "Secret" box at the bottom of the Notebook, so a glance never gives the killer away:
+ *  the killer's opens on the plant; everyone else's on "nothing here". */
+function SecretBox({ token, data }: { token: string; data: Phone }) {
+  const [open, setOpen] = useState(false);
+  if (!data.heat.shows) return null;
+  return (
+    <section className="plant">
+      <button type="button" className="ghost-btn full" aria-expanded={open} onClick={() => setOpen(!open)}>
+        {open ? "🃏 Close the secret" : "🃏 Secret · tap to open"}
+      </button>
+      {open && (data.plant ? <PlantPicker token={token} data={data} /> : <p className="help">Nothing secret here. Only the killer can plant evidence.</p>)}
+    </section>
+  );
+}
+
+function PlantPicker({ token, data }: { token: string; data: Phone }) {
+  const choose = useMutation(api.heat.choosePlant);
+  const [err, setErr] = useState<string | null>(null);
+  const p = data.plant;
+  if (!p) return null;
+  async function set(index: number | null) {
+    setErr(null);
+    try {
+      await choose({ token, index });
+    } catch (e) {
+      setErr(friendlyError(e));
+    }
+  }
+  return (
+    <div className="plant-pick">
+      <h3>🃏 Plant evidence · killer only</h3>
+      <p className="help">
+        {p.landed ? "Your plant is set. It's one of the late tips on the TV." : "Pick a fake tip. When Round 2 ends, it shows up on the TV as a late tip, in place of a real one. You can change it until then."}
+      </p>
+      <div className="plant-list">
+        {p.options.map((o, i) => (
+          <button key={i} type="button" className={p.chosen === i ? "on" : ""} aria-pressed={p.chosen === i} disabled={p.landed} onClick={() => set(i)}>
+            <small>Frames {o.name}</small>
+            {o.text}
+          </button>
+        ))}
+        <button type="button" className={p.chosen === -1 ? "on" : ""} aria-pressed={p.chosen === -1} disabled={p.landed} onClick={() => set(null)}>
+          No plant
+        </button>
+      </div>
+      {err && <p className="err">{err}</p>}
+    </div>
+  );
+}
+
 function HeatTags({ token, data }: { token: string; data: Phone }) {
   const tag = useMutation(api.heat.tag);
   const [err, setErr] = useState<string | null>(null);
@@ -1385,7 +1439,7 @@ function HeatTags({ token, data }: { token: string; data: Phone }) {
   }
   return (
     <section className="heat-tags">
-      <h3>Who do you suspect most?</h3>
+      <h3>🔥 Heat · who do you suspect most?</h3>
       {data.heat.dropped && <p className="help strong">The evidence cleared them, so your tag came off.</p>}
       <div className="pick">
         <div className="opts">
@@ -1435,13 +1489,14 @@ function Notebook({ token, data }: { token: string; data: Phone }) {
     <div className="screen nb">
       <h1 className="title-lg">Notebook</h1>
       {/* Oct 29 (Heston): no explaining; the heat goes after the lists, never between the names and the weapons. */}
-      <h3>Suspects · tap to cross off</h3>
+      <h3>🕵️ Suspects · tap to cross off</h3>
       <div className="nb-grid">{board.suspects.map((s) => cell(`s:${s.id}`, s.name, s.signature))}</div>
-      <h3>Weapons</h3>
+      <h3>🔪 Weapons</h3>
       <div className="nb-grid">{board.exhibits.map((e) => cell(`e:${e.id}`, e.name))}</div>
-      <h3>Rooms</h3>
+      <h3>🚪 Rooms</h3>
       <div className="nb-grid">{board.rooms.map((r) => cell(`r:${r.key}`, r.label))}</div>
       <HeatTags token={token} data={data} />
+      <SecretBox token={token} data={data} />
       {data.game.bots && <AskBots token={token} data={data} />}
     </div>
   );
@@ -1575,7 +1630,7 @@ function Book({ token, data }: { token: string; data: Phone }) {
       ) : (
         <>
           <div className="pick">
-            <span className="eyebrow">Who did it?</span>
+            <span className="eyebrow">🕵️ Who did it?</span>
             <div className="opts">
               {data.board.suspects
                 .filter((s) => s.id !== me)
@@ -1588,7 +1643,7 @@ function Book({ token, data }: { token: string; data: Phone }) {
             </div>
           </div>
           <div className="pick">
-            <span className="eyebrow">How much</span>
+            <span className="eyebrow">💰 How much</span>
             <div className="opts amounts">
               {[100, 200, 300, 400, 500].map((n) => (
                 <button key={n} type="button" aria-pressed={amount === n} onClick={() => (setAmount(n), setArmed(false))}>

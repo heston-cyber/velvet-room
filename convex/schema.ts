@@ -160,7 +160,8 @@ export default defineSchema({
      * Phase 4 (Oct 21): the killer's frame, picked in Round 2's "pick one" prompt (no target: they chose nobody). It
      * can change until the late tips land, which is when it becomes the plant.
      */
-    frame: v.optional(v.object({ targetId: v.optional(v.id("players")), at: v.number() })),
+    // Oct 31: text is the ready-made plant the killer picked in their Notebook (its exact words).
+    frame: v.optional(v.object({ targetId: v.optional(v.id("players")), at: v.number(), text: v.optional(v.string()) })),
     /** Phase 4: the two late tips, as they landed at the end of Round 2 (plant: the killer's; secret until the reveal). */
     lateTips: v.optional(v.array(v.object({ aboutId: v.id("players"), text: v.string(), plant: v.boolean() }))),
     lateTipsAt: v.optional(v.number()),

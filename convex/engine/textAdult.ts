@@ -20,7 +20,7 @@ export const ADULT: Script = {
     { at: ["out"], t: (a, b) => `${a} and ${b} were out back sharing a vape and talking crap about the Don's hair plugs when it happened. Both cleared.` },
     { at: ["bar"], t: (a, b) => `The bartender swears ${a} and ${b} never left the bar. He'd know, because neither cheapskate tipped. Both cleared.` },
     { at: ["kitchen"], t: (a, b) => `${a} and ${b} lost every hand of Uno in the kitchen to the dishwasher, who has not shut up about it. Both cleared.` },
-    { at: ["out"], t: (a, b) => `${a} and ${b} were on a bodega run for ice and stumbled back in after the Don was already dead. The bodega's camera has them buying Takis. Both cleared.` },
+    { at: ["out"], t: (a, b) => `${a} and ${b} were on a gas station run for ice and stumbled back in after the Don was already dead. The gas station's camera has them buying Takis. Both cleared.` },
     { at: ["out"], t: (a, b) => `${a} and ${b} spent the whole stretch on the front steps arguing about the Yankees with the bouncer. Nobody won. Both cleared.` },
   ],
   suspectTrioClear: [

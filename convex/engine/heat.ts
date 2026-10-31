@@ -57,7 +57,7 @@ export type ShownTip = { aboutId: string; text: string; plant: boolean };
 export function plantTips(
   real: LateTip[],
   tone: "classic" | "adult",
-  frame: { id: string; name: string } | null,
+  frame: { id: string; name: string; text?: string } | null,
   names: Map<string, string>,
   rng: Rng,
 ): ShownTip[] {
@@ -75,11 +75,31 @@ export function plantTips(
     templates.map((_, i) => i).filter((i) => !used.has(i)),
   );
   const pick = free[0] ?? Math.floor(rng() * templates.length);
-  const plant = { aboutId: frame.id, text: templates[pick](frame.name), plant: true };
+  // Oct 31: the killer picked a ready-made plant from their Notebook, so its words are already fixed.
+  const plant = { aboutId: frame.id, text: frame.text ?? templates[pick](frame.name), plant: true };
   // The plant takes the replaced tip's place, so the order says nothing either.
   const shown = [...keep];
   shown.splice(Math.min(at, shown.length), 0, plant);
   return shown;
+}
+
+/**
+ * The killer's three ready-made plants (Oct 31, Heston: "let the killer choose 3 different plants can be at the bottom of
+ * the notebook"): three different guests, three different tip wordings none of the real late tips use. Fixed for the
+ * game (rng seeded from it), so the Notebook shows the same three all night.
+ */
+export function plantOptions(
+  real: LateTip[],
+  tone: "classic" | "adult",
+  candidates: { id: string; name: string }[],
+  names: Map<string, string>,
+  rng: Rng,
+): { id: string; name: string; text: string }[] {
+  const templates = TIPS[tone];
+  const used = new Set(real.map((t) => templates.findIndex((f) => f(names.get(t.aboutId) ?? "") === t.text)));
+  const free = shuffle(rng, templates.map((_, i) => i).filter((i) => !used.has(i)));
+  const who = shuffle(rng, [...candidates]).slice(0, 3);
+  return who.map((c, i) => ({ id: c.id, name: c.name, text: templates[free[i % Math.max(1, free.length)] ?? i % templates.length](c.name) }));
 }
 
 /** The phone's debt lines for one guest: what they owe and what they're owed. Always true, the killer's too. */

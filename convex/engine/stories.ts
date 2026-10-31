@@ -328,28 +328,30 @@ export const SPOTS: Spot[] = [
     ],
   },
   {
-    key: "bodega",
+    // Oct 31 (Heston: "no one knows what a bodega is get rid of that line and story. create a replacement"): the pizza
+    // place across the street.
+    key: "pizza",
     place: "out",
-    at: "across the street at the bodega",
-    witness: "the bodega guy",
+    at: "across the street at the pizza place",
+    witness: "the pizza guy",
     details: [
       {
-        id: "bodega-cat",
-        story: "The bodega cat was asleep on the bread, and nobody dared to move it.",
+        id: "pizza-sign",
+        story: "The neon slice in the window blew out and threw sparks all over the sidewalk.",
         confirm: [
-          "The bodega's post from tonight: \"Cat's on the bread again. No bread tonight, sorry.\" Posted right when the lights went out.",
-          "Cat hair all over the bodega's bread shelf tonight, and one loaf with a cat-shaped dent in it.",
+          "The pizza place's post from tonight: \"Our neon slice blew up. Still open. Still delicious.\" Posted right when the lights went out.",
+          "An electrician's work order from tonight: the pizza place's neon sign shorted out, sparks and all.",
         ],
-        breaks: "The bodega cat is at the vet all week. There's no cat in that store.",
+        breaks: "The pizza place has been closed all week for repairs. Its sign wasn't even on tonight.",
       },
       {
-        id: "bodega-scratchers",
-        story: "A guy in a full Spider-Man suit bought every scratch-off ticket they had.",
+        id: "pizza-quarters",
+        story: "A guy in a full Spider-Man suit bought thirty slices and paid in quarters.",
         confirm: [
-          "The bodega's lottery report: every scratch-off in the store sold to one customer tonight. He won four dollars.",
-          "A sign taped to the bodega register: \"Spider-Man bought all the scratch-offs. Out until Monday.\"",
+          "The pizza place's receipt from tonight: thirty slices, paid entirely in quarters.",
+          "A note taped to the pizza place's register: \"Spider-Man paid in quarters again. We're out of coin rolls.\"",
         ],
-        breaks: "The bodega's lottery machine has been broken all week. Not one scratch-off sold tonight.",
+        breaks: "The pizza place's card reader shows every order tonight paid by card. Not one coin all night.",
       },
     ],
   },

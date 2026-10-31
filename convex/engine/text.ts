@@ -134,7 +134,7 @@ export const CLASSIC: Script = {
     { at: ["bar"], t: (a, b) => `The bartender kept ${a} and ${b} in his sights all night. Neither one left the bar. Both cleared.` },
     { at: ["out"], t: (a, b) => `${a} and ${b} were caught sneaking a vape out back together when it happened. Both cleared.` },
     { at: ["kitchen"], t: (a, b) => `${a} and ${b} played Uno in the kitchen with the dishwasher the whole time. He won every game and remembers them both. Both cleared.` },
-    { at: ["out"], t: (a, b) => `${a} and ${b} were on an ice run to the bodega and walked back in after the Don was already dead. The bodega's camera has them both. Both cleared.` },
+    { at: ["out"], t: (a, b) => `${a} and ${b} were on an ice run to the gas station and walked back in after the Don was already dead. The gas station's camera has them both. Both cleared.` },
     { at: ["front"], t: (a, b) => `The coat-check attendant watched ${a} and ${b} argue over the same black puffer jacket for twenty minutes. Neither won. Both cleared.` },
     { at: ["out"], t: (a, b) => `${a} and ${b} spent the whole stretch on the front steps arguing about the Yankees with the bouncer. Both cleared.` },
   ],

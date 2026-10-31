@@ -24,7 +24,7 @@ import { scheduleRecording } from "./voice";
 import { ensureRoomCode } from "./join";
 import { castMember, castName, fakeGuestPool, shortName, standIns, takenFigures } from "./figures";
 import { MIN_WEAPONS, drawWeapons, gameWeapons, recommendedWeapons } from "./weapons";
-import { heatNow, landTips, myTag, pickOpen, plantReveal, publicTips } from "./heat";
+import { heatNow, landTips, myTag, pickOpen, plantChoices, plantReveal, publicTips } from "./heat";
 import { debtLines, heatShows } from "./engine/heat";
 import { clipMatches, guestNames, laterWanted, levelsOf, narratorOf, scriptOf, startWanted, variantOf, voiceOf, type GameLines, type Wanted } from "./voiceLines";
 
@@ -1044,6 +1044,19 @@ export const phone = query({
             }
           : null,
       lateTips: started ? publicTips(game) : [],
+      // Oct 31: the killer's three ready-made plants, at the bottom of their Notebook.
+      plant:
+        brief?.role === "killer" && cf && player.inGame && isPlaying(game)
+          ? (() => {
+              const options = plantChoices(game, cf, all);
+              const f = game.frame;
+              return {
+                options: options.map((o) => ({ name: o.name, text: o.text })),
+                chosen: f ? (f.targetId ? options.findIndex((o) => o.id === f.targetId && (!f.text || o.text === f.text)) : -1) : null,
+                landed: !!game.lateTipsAt,
+              };
+            })()
+          : null,
       scans: cf
         ? scans
             .sort((a, b) => a.at - b.at)

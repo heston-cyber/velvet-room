@@ -442,6 +442,14 @@ img { max-width: 100%; }
 .pick-row-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 18px; color: var(--paper); }
 .pick-screen .pick .opts { gap: 8px; }
 .heat-tags { display: grid; gap: 6px; }
+/* Oct 31: the killer's plant, at the bottom of the Notebook. */
+.plant { display: grid; gap: 8px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--rule); }
+.plant-list { display: grid; gap: 8px; }
+.plant-pick { display: grid; gap: 8px; }
+.plant-list button { text-align: left; padding: 12px 14px; border: 1px solid var(--rule); background: rgba(0, 0, 0, .25); color: var(--paper); font: inherit; line-height: 1.35; border-radius: 4px; }
+.plant-list button small { display: block; font-family: var(--label); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--brass); margin-bottom: 4px; }
+.plant-list button.on { border-color: var(--brass); background: rgba(214, 178, 94, .16); box-shadow: inset 0 0 0 1px var(--brass); }
+.plant-list button:disabled { opacity: .6; }
 .heat-tags .help.strong, .help.strong { color: var(--paper); }
 .pick .opts button.hot { border-color: #e8743b; }
 .pick .opts button .flame { width: 15px; height: 15px; margin: 0 5px -2px 0; fill: #e8743b; }

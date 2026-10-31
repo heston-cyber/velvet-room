@@ -829,7 +829,7 @@ export const NOISY: Record<Tone, Partial<Record<CueKey, string>>> = {
     revealAccomplice: "[short pause] And the a- a- accomplice who helped them is…",
   },
   adult: {
-    doors: "[warm, smoky voice] Welcome to the Velvet Room. I'm {host}. The tequila came from the bodega this afternoon, [hiccups] and the bodega did its best.",
+    // Oct 31: the bodega line is gone (Heston: "no one knows what a bodega is").
     doorsReminder: "If you haven't opened your link yet, do it now. [burps] The bouncer has been told you're a narc.",
     rollLocked: "[low, grave] The doors are locked until we figure out which one of you did it. [hiccups] [short pause] Let's meet the suspects.",
     rollCallClose: "And that's the lineup. [short pause] Take a good look. The police sketch artist is drunk. [hiccups]",

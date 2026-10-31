@@ -5,8 +5,8 @@ import { mutation, type MutationCtx, type QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { caseFor } from "./caseFile";
 import { shortName } from "./figures";
-import { heatOn, heatShows, liveTags, plantTips, publiclyCleared, type ShownTip } from "./engine/heat";
-import { secure } from "./engine/rng";
+import { heatOn, heatShows, liveTags, plantOptions, plantTips, publiclyCleared, type ShownTip } from "./engine/heat";
+import { secure, seeded } from "./engine/rng";
 import type { CaseFile } from "./engine/types";
 import { isPlaying, playersOf, requirePlayer, voteOf } from "./game";
 
@@ -52,7 +52,9 @@ export async function setTag(ctx: MutationCtx, player: Doc<"players">, targetId:
 export async function applyPick(ctx: MutationCtx, game: Doc<"games">, player: Doc<"players">, targetId: Id<"players"> | null) {
   const cf = await caseFor(ctx, game);
   const killer = cf?.solution.killerId === player._id;
-  if (killer) await ctx.db.patch(game._id, { frame: { targetId: targetId ?? undefined, at: Date.now() } });
+  // Oct 31: picking the guest the Notebook plant already frames keeps that plant's words.
+  const same = !!game.frame?.text && game.frame.targetId === (targetId ?? undefined);
+  if (killer && !same) await ctx.db.patch(game._id, { frame: { targetId: targetId ?? undefined, at: Date.now() } });
   if (targetId) await setTag(ctx, player, targetId);
   await ctx.db.patch(player._id, { picked: 2 });
 }
@@ -95,12 +97,49 @@ export async function landTips(ctx: MutationCtx, game: Doc<"games">) {
   const all = await playersOf(ctx, game._id);
   const names = new Map(all.map((p) => [p._id as string, shortName(p)]));
   const target = game.frame?.targetId ? all.find((p) => p._id === game.frame!.targetId && p.inGame) : undefined;
-  const shown: ShownTip[] = plantTips(cf.lateTips ?? [], game.tone ?? "classic", target ? { id: target._id, name: shortName(target) } : null, names, secure());
+  const text = target && game.frame?.text ? game.frame.text : undefined;
+  const shown: ShownTip[] = plantTips(cf.lateTips ?? [], game.tone ?? "classic", target ? { id: target._id, name: shortName(target), text } : null, names, secure());
   await ctx.db.patch(game._id, {
     lateTips: shown.map((t) => ({ aboutId: t.aboutId as Id<"players">, text: t.text, plant: t.plant })),
     lateTipsAt: Date.now(),
   });
 }
+
+/** The killer's three ready-made plants for this game (the same all night). */
+export function plantChoices(game: Doc<"games">, cf: CaseFile, all: Doc<"players">[]) {
+  const names = new Map(all.map((p) => [p._id as string, shortName(p)]));
+  const candidates = all
+    .filter((p) => p.inGame && p._id !== cf.solution.killerId && p._id !== cf.solution.accompliceId)
+    .sort((a, b) => (a._id < b._id ? -1 : 1))
+    .map((p) => ({ id: p._id as string, name: shortName(p) }));
+  let h = 2166136261;
+  for (const ch of String(game._id)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  return plantOptions(cf.lateTips ?? [], game.tone === "adult" ? "adult" : "classic", candidates, names, seeded(h >>> 0));
+}
+
+/**
+ * Oct 31 (Heston: "i should be able to choose what evidence to plant. let the killer choose 3 different plants can be at
+ * the bottom of the notebook"): the killer picks one of three ready-made plants (index), or none (null), any time before
+ * the late tips land at the end of Round 2.
+ */
+export const choosePlant = mutation({
+  args: { token: v.string(), index: v.union(v.number(), v.null()) },
+  handler: async (ctx, { token, index }) => {
+    const { player, game } = await requirePlayer(ctx, token);
+    if (!isPlaying(game) || (game.round ?? 0) > 2) throw new ConvexError("The plant can only be picked before Round 2 ends.");
+    if (game.lateTipsAt) throw new ConvexError("The late tips already landed. The plant is set.");
+    const cf = await caseFor(ctx, game);
+    if (!cf || cf.solution.killerId !== player._id) throw new ConvexError("Only the killer can plant evidence.");
+    if (index === null) {
+      await ctx.db.patch(game._id, { frame: { at: Date.now() } });
+      return { ok: true };
+    }
+    const opt = plantChoices(game, cf, await playersOf(ctx, game._id))[index];
+    if (!opt) throw new ConvexError("Pick one of the three plants.");
+    await ctx.db.patch(game._id, { frame: { targetId: opt.id as Id<"players">, at: Date.now(), text: opt.text } });
+    return { ok: true };
+  },
+});
 
 /** What phones and the TV may see of the late tips: the words only, never which is the plant. */
 export const publicTips = (game: Doc<"games">) => (game.lateTips ?? []).map((t) => t.text);

@@ -176,6 +176,29 @@ describe("a night with the heat and a frame", () => {
     expect(JSON.stringify(ph)).not.toContain('"plant":true');
   });
 
+  test("Oct 31: the killer picks one of three ready-made plants in the Notebook; its exact words land", async () => {
+    const { t, hostKey, cf, killer, innocents } = await round2();
+    const kp = (await t.query(api.game.phone, { token: killer.token }))!;
+    expect(kp.plant!.options).toHaveLength(3);
+    expect(new Set(kp.plant!.options.map((o) => o.name)).size).toBe(3);
+    expect(kp.plant!.chosen).toBeNull();
+    // Only the killer sees it, and only the killer can pick.
+    expect((await t.query(api.game.phone, { token: innocents[0].token }))!.plant).toBeNull();
+    await expect(t.mutation(api.heat.choosePlant, { token: innocents[0].token, index: 0 })).rejects.toThrow(/Only the killer/);
+    await t.mutation(api.heat.choosePlant, { token: killer.token, index: 1 });
+    const pick = (await t.query(api.game.phone, { token: killer.token }))!.plant!;
+    expect(pick.chosen).toBe(1);
+    expect(pick.options).toEqual(kp.plant!.options); // the same three all night
+    await t.mutation(api.game.advanceRound, { slug: SLUG, hostKey });
+    const g = await game(t);
+    const plant = g.lateTips!.filter((tp) => tp.plant);
+    expect(plant).toHaveLength(1);
+    expect(plant[0].text).toBe(kp.plant!.options[1].text);
+    expect(cf.solution.killerId).not.toBe(plant[0].aboutId);
+    expect((await t.query(api.game.phone, { token: killer.token }))!.plant!.landed).toBe(true);
+    await expect(t.mutation(api.heat.choosePlant, { token: killer.token, index: 0 })).rejects.toThrow(/landed|before Round 2 ends/);
+  });
+
   test("no frame: both tips are real, and the reveal says there was no plant", async () => {
     const { t, hostKey, killer } = await round2();
     await t.mutation(api.heat.pick, { token: killer.token, targetId: null });
