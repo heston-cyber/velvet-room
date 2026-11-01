@@ -28,6 +28,8 @@ export const CAST: CastMember[] = [
   { key: "sienna", name: "Sienna", sex: "f" },
   { key: "cameron", name: "Cameron", sex: "f" },
   { key: "brendan", name: "Brendan", sex: "m" },
+  // Oct 31 (Heston: "need to add one character to the game: her name is Abby"): drawn from his photo.
+  { key: "abby", name: "Abby", sex: "f" },
 ];
 export const CAST_KEYS = CAST.map((l) => l.key);
 /**
