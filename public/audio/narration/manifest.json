@@ -449,7 +449,7 @@
    "playAccomplice": 7.89,
    "playPhone": 8.83,
    "playLie": 5.49,
-   "playStory": 8.12,
+   "playStory": 8.2,
    "playCards": 8.28,
    "playRooms": 5.88,
    "playRounds": 7.08,
@@ -467,14 +467,15 @@
    "tourScan": 4.21,
    "tourEvidence": 4.68,
    "tourNotebook": 5.07,
-   "tourBetting": 4.28
+   "tourBetting": 4.28,
+   "intro2V": 5.49,
+   "reveal1V": 2.85,
+   "playDiesV": 7.89
   },
   "adult": {
    "doors": 9.17,
    "doors.1": 11.81,
    "doors.2": 9.8,
-   "doors.3": 8.2,
-   "doors.4": 12.43,
    "doorsReminder": 4.6,
    "doorsReminder.1": 4.6,
    "doorsReminder.2": 4.52,
@@ -692,7 +693,7 @@
    "playAccomplice": 8.52,
    "playPhone": 9.95,
    "playLie": 6.03,
-   "playStory": 8.52,
+   "playStory": 8.83,
    "playCards": 7.39,
    "playRooms": 7.31,
    "playRounds": 8.59,
@@ -710,7 +711,10 @@
    "tourScan": 6.84,
    "tourEvidence": 6.61,
    "tourNotebook": 6.27,
-   "tourBetting": 5.33
+   "tourBetting": 5.33,
+   "intro2V": 5.8,
+   "reveal1V": 4.44,
+   "playDiesV": 9.25
   }
  },
  "duke-unstable": {
