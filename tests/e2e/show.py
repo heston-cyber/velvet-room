@@ -106,7 +106,9 @@ with sync_playwright() as p:
     ok("weapon" not in card and "signature" not in card and "played by" not in card, "the card is the guest's drawing and name (Oct 16)")
     ok("motive" not in card, "and no motive (Oct 20)")
     ok(host.locator(".tv-roast").count() == 0, "no roast on the roll call")
-    ok(phone.get_by_text("The Don is dead.").count() == 0, "the phone doesn't say he's dead before the TV does")
+    VICTIM = (roster()["game"].get("victim") or {}).get("name") or "The Don"
+    print("tonight's victim:", VICTIM)
+    ok(phone.get_by_text(f"{VICTIM} is dead.").count() == 0, "the phone doesn't say they're dead before the TV does")
     g = roster()["game"]
     ok(g["show"]["phonesAt"] is not None, "the roll call's turns are fixed once the guests come up")
 
@@ -150,8 +152,9 @@ with sync_playwright() as p:
 
     # Then the Don dies, on its own after the last card.
     ok(wait_for(lambda: host.get_by_text("New York City · October 31, 2026").count() == 1, 20), "after Gameplay, the Don dies: New York City, 2026")
-    ok(wait_for(lambda: host.get_by_text("The Don is dead.").count() == 1, 40), "the second slide: the Don is dead")
-    ok(wait_for(lambda: phone.get_by_text("The Don is dead.").count() >= 1, 10), "the phone says he's dead once the TV has")
+    ok(wait_for(lambda: host.get_by_text(f"{VICTIM} is dead.").count() == 1, 40), f"the second slide: {VICTIM} is dead")
+    ok(wait_for(lambda: phone.get_by_text(f"{VICTIM} is dead.").count() >= 1, 10), "the phone says so once the TV has")
+    ok(VICTIM == "The Don" or host.get_by_text("Don Ray Sanders").count() == 0, "a victim who isn't the Don: the slide doesn't name him")
     ok(wait_for(lambda: host.locator(".tv-wrow .tv-wcard").count() == 6, 40), "the third slide shows the 6 weapons in play")
     host.wait_for_timeout(2500)
     shot(host, "02-intro-weapons.png")

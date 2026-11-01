@@ -589,7 +589,7 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
               {/* Oct 21: with 8 or fewer guests the suspects line up along the bottom (timeline.ts): the grid stays above them. */}
               <Fit className={`scene${d.guests.length <= 8 ? " with-line" : ""}`} watch={d.guests.length}>
               <span className="tv-kick">The lock-in</span>
-              <h2 className="tv-h2" style={{ fontSize: "5.4cqw" }}>Who killed the Don?</h2>
+              <h2 className="tv-h2" style={{ fontSize: "5.4cqw" }}>{victimOf(g) ? `Who killed ${victimOf(g)}?` : "Who killed the Don?"}</h2>
               {/* Phase 4: the story reminder at the lock-in. */}
               <p className="tv-sub">Whose story didn't hold up? Lock in who, with which weapon, and where, on your phone.</p>
               <Guests guests={d.guests} mark="accused" />
@@ -624,7 +624,7 @@ function sceneFor(d: Data, p: Plan, now: number): { scene: Scene } {
     const step = now < t + R.name ? 0 : now < t + R.how ? 1 : accAt !== null && now < accAt ? 2 : now < t + R.verdict ? (accAt !== null ? 3 : 2) : accAt !== null ? 4 : 3;
     const frames = [
       <div className="tv-scene" key="v0">
-        <span className="tv-kick fade">The killer of Don Ray Sanders is</span>
+        <span className="tv-kick fade">The killer of {victimOf(d.game) ?? "Don Ray Sanders"} is</span>
         <h2 className="tv-h2 fade" style={{ fontSize: "9cqw" }}>…</h2>
       </div>,
       <div className="tv-scene" key="v1">
@@ -887,8 +887,9 @@ function showScene(d: Data, p: Plan, now: number): Scene | null {
         <span className="tv-kick fade">New York City · October 31, 2026</span>
       </div>,
       <div className="tv-scene dark" key="i1">
-        <h2 className="tv-h2 fade blood">The Don is dead.</h2>
-        <p className="tv-sub fade">Don Ray Sanders · found in {mid(g.bodyRoom)}</p>
+        {/* Oct 31: tonight's victim (the Don unless someone else died). */}
+        <h2 className="tv-h2 fade blood">{victimOf(g) ? `${victimOf(g)} is dead.` : "The Don is dead."}</h2>
+        <p className="tv-sub fade">{victimOf(g) ?? "Don Ray Sanders"} · found in {mid(g.bodyRoom)}</p>
       </div>,
       <div className="tv-scene dark" key="i2">
         <h2 className="tv-h2 fade">One of you did it.</h2>
@@ -1534,6 +1535,8 @@ function Exhibits({ letters, caption }: { letters: string[]; caption?: string })
 
 const CAST: CharKey[] = ["don", "killer", ...ALL_FIGURE_KEYS];
 const artUrl = (c: CharKey) => `/art/${c}.webp`;
+/** Oct 31: tonight's victim's name, when it isn't the Don (null: the Don). */
+const victimOf = (g: { victim?: { key: string; name: string } | null }) => (g.victim && g.victim.key !== "don" ? g.victim.name : null);
 /** Which way each drawing faces, so walkers face where they're going. */
 const FACES_RIGHT_SET = new Set<CharKey>(FACES_RIGHT);
 // Oct 20 (Heston: "things arent covering up other elements"): the walkers and the heckle peeks pass behind the

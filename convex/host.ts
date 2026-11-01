@@ -135,6 +135,8 @@ export const roster = query({
         // Oct 31: Round 3's twist, waiting for every card (the host can call it now).
         twistWait: game.status === "playing" && round === 3 && !game.twistAt && !!(await caseFor(ctx, game))?.clues.some((c) => c.kind === "twist"),
         twistCallAt: game.twistCallAt ?? null,
+        // Oct 31: who died tonight (null before Start; the Don in games from before).
+        victim: game.victim ?? null,
         endedAt: game.endedAt ?? null,
         nextSlug: game.nextSlug ?? null,
         gameNumber: game.gameNumber ?? 1,

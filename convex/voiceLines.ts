@@ -26,8 +26,11 @@ export const scriptOf = (g: { tone?: GameTone; narrator?: Narrator }): Tone => (
 export type GameLines = { picks: Record<string, number>; gag: boolean; avoid: string[]; gagOn?: string };
 
 /** This game's version of a line (see cueVariant): from its picks if it made them at Start. */
-export const variantOf = (g: { tone?: GameTone; narrator?: Narrator; slug: string; lines?: GameLines }, cue: CueKey, occurrence = "") =>
-  cueVariant(scriptOf(g), cue, g.slug, occurrence, g.lines ? { picks: g.lines.picks, d: true } : undefined);
+export const variantOf = (g: { tone?: GameTone; narrator?: Narrator; slug: string; lines?: GameLines; victim?: { key: string } }, cue: CueKey, occurrence = "") => {
+  // Oct 31: versions about the Don's death are skipped when someone else died tonight.
+  const other = !!g.victim && g.victim.key !== "don";
+  return cueVariant(scriptOf(g), cue, g.slug, occurrence, g.lines ? { picks: g.lines.picks, d: true, victim: other } : other ? { picks: {}, victim: true } : undefined);
+};
 
 /** The name as the narrator should say it: the guest's "say it like" when they gave one. */
 export const spokenName = (p: { charName: string; sayAs?: string }) => p.sayAs?.trim() || p.charName;
@@ -84,6 +87,8 @@ type StartInfo = {
   exhibits: { id: string; letter: string; name: string }[];
   rooms: { key: string; label: string }[];
   bodyRoomKey?: string;
+  /** Oct 31: tonight's victim, when it isn't the Don: the body line names them. */
+  victim?: { key: string; name: string } | null;
   roomOrder?: string[];
   search: "all" | "waves";
   /** The game's seed (its slug): picks this game's versions of the wording. */
@@ -108,7 +113,12 @@ export function startWanted(tone: Tone, n: Narrator, s: StartInfo): Wanted[] {
   const out: Wanted[] = [];
   const nz = { tone, seed: s.seed };
   const pk = (kind: string) => s.picks?.[`custom:${kind}`];
-  if (s.bodyRoomKey) out.push(make("body", customText("body", tone, { room: label(s.bodyRoomKey), seed: s.seed, pick: pk("body") }), n, undefined, nz));
+  if (s.bodyRoomKey) {
+    // Oct 31: a victim who isn't the Don is named here ("Sienna was found in the Conservatory.").
+    const other = s.victim && s.victim.key !== "don" ? s.victim.name : null;
+    const room = label(s.bodyRoomKey);
+    out.push(make("body", other ? `${other} was found in ${room.startsWith("The ") ? "the" + room.slice(3) : room}.` : customText("body", tone, { room, seed: s.seed, pick: pk("body") }), n, undefined, nz));
+  }
   if (s.search === "waves" && s.roomOrder) {
     for (const round of [1, 2, 3]) {
       const fresh = newRoomsIn(round, s.roomOrder, s.search);

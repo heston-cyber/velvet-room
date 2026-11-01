@@ -5,7 +5,7 @@ import schema from "../convex/schema";
 import { SHOW, cueSecs, howCues, howLayout, introMs } from "../convex/show";
 import { ROASTS, RUMOR_LEADS, WEAPON_ROASTS, roastIndex, roastFor, rumorLead } from "../convex/roasts";
 import { WEAPON_KEYS, weaponName } from "../convex/weapons";
-import { CAST_INTROS, plain, rollNarration } from "../convex/narration";
+import { CAST_INTROS, plain, rollNarration, victimCue } from "../convex/narration";
 
 const modules = import.meta.glob("../convex/**/*.ts");
 const FUTURE = Date.now() + 7 * 864e5;
@@ -35,7 +35,8 @@ async function started(guests = 6) {
 const PHONES_MS = Math.max(SHOW.phonesHold, cueSecs("duke", "classic", "duke", "intro4") * 1000 + 8000);
 const game = (t: ReturnType<typeof convexTest>) => t.run(async (ctx) => (await ctx.db.query("games").first())!);
 
-const secs = (c: Parameters<typeof cueSecs>[3]) => cueSecs("duke", "classic", "duke", c);
+// Oct 31: test games have a victim from the cast (nobody plays every drawing), so the victim's versions of the lines.
+const secs = (c: Parameters<typeof cueSecs>[3]) => cueSecs("duke", "classic", "duke", victimCue(c, true));
 /** How to play and Gameplay for these games (8 or fewer guests: no accomplice; rooms in waves). */
 const howMs = (pacing: { mode: "ready" | "timer" }) => howLayout(0, howCues({ search: "waves", pacing }), secs).end;
 

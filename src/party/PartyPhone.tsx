@@ -697,8 +697,8 @@ function ShowWait({ data }: { data: Phone }) {
   return (
     <div className="screen center murder">
       <span className="eyebrow">Lights down</span>
-      <h1 className="title-xl">{dead ? "The Don is dead." : "Eyes on the TV."}</h1>
-      {dead && data.game.bodyRoom && <p className="lede">Don Ray Sanders has been found in {mid(data.game.bodyRoom)}.</p>}
+      <h1 className="title-xl">{dead ? `${victimName(data) ?? "The Don"} is dead.` : "Eyes on the TV."}</h1>
+      {dead && data.game.bodyRoom && <p className="lede">{victimName(data) ?? "Don Ray Sanders"} has been found in {mid(data.game.bodyRoom)}.</p>}
       <div className="sealed">
         <p>{dead ? "Your secret role arrives here in a moment." : "The show is starting. Your secret role arrives here after the murder."}</p>
       </div>
@@ -713,8 +713,8 @@ function Murder({ data, onDone }: { data: Phone; onDone: () => void }) {
   return (
     <div className="screen center murder no-select">
       <span className="eyebrow">Check your phone</span>
-      <h1 className="title-xl">The Don is dead.</h1>
-      <p className="lede">Don Ray Sanders has been found in {mid(data.game.bodyRoom)}.</p>
+      <h1 className="title-xl">{victimName(data) ?? "The Don"} is dead.</h1>
+      <p className="lede">{victimName(data) ?? "Don Ray Sanders"} has been found in {mid(data.game.bodyRoom)}.</p>
       <div {...props} aria-label="Press and hold to see your role" className={`hold-card role-hold no-select${holding ? " showing" : ""}`}>
         {holding ? (
           role === "accomplice" ? (
@@ -724,7 +724,7 @@ function Murder({ data, onDone }: { data: Phone; onDone: () => void }) {
               <p>{b!.lines[0].replace(/^You're the accomplice\. /, "")}</p>
             </>
           ) : (
-            <RoleCard role={role} card={b?.card ?? null} jail={data.game.jailVote} />
+            <RoleCard role={role} card={b?.card ?? null} jail={data.game.jailVote} victim={victimName(data)} />
           )
         ) : (
           <>
@@ -874,7 +874,10 @@ function RoleIcon({ name }: { name: IconName }) {
  * The role card (Oct 16, Heston: "In the role cards, let's use more visuals to explain and less text. More concise
  * information."). Same shape and size for every role, behind press-and-hold, so a glance gives nothing away.
  */
-function RoleCard({ role, card, jail }: { role: string; card: NonNullable<Phone["briefing"]>["card"]; jail: boolean }) {
+/** Oct 31: tonight's victim's name, when it isn't the Don (null: the Don). */
+const victimName = (data: Phone) => (data.game.victim && data.game.victim.key !== "don" ? data.game.victim.name : null);
+
+function RoleCard({ role, card, jail, victim }: { role: string; card: NonNullable<Phone["briefing"]>["card"]; jail: boolean; victim?: string | null }) {
   const killer = role === "killer";
   // D5 (Oct 17): no jail tile in games too small for a jail vote.
   const tiles: [IconName, string][] = (
@@ -903,7 +906,7 @@ function RoleCard({ role, card, jail }: { role: string; card: NonNullable<Phone[
         {killer && card?.weapon.key ? <img src={weaponUrl(card.weapon.key)} alt="" /> : <RoleIcon name={killer ? "mask" : "search"} />}
         <div>
           <span className="big">{killer ? "You did it." : "Innocent."}</span>
-          <span className="sub">{killer ? `With the ${(card?.weapon.name ?? "").toLowerCase()}, in ${mid(card?.room ?? "")}.` : "You didn't kill the Don. Find who did."}</span>
+          <span className="sub">{killer ? `With the ${(card?.weapon.name ?? "").toLowerCase()}, in ${mid(card?.room ?? "")}.` : `You didn't kill ${victim ?? "the Don"}. Find who did.`}</span>
         </div>
       </div>
       <ul className="rc-tiles">
@@ -942,7 +945,7 @@ function CaseFile({ token, data, onPick }: { token: string; data: Phone; onPick?
               ))}
             </ul>
           ) : (
-            <RoleCard role={b.role} card={b.card} jail={data.game.jailVote} />
+            <RoleCard role={b.role} card={b.card} jail={data.game.jailVote} victim={victimName(data)} />
           )
         ) : (
           <>
@@ -1264,7 +1267,7 @@ function Rulebook({ data, onClose }: { data: Phone; onClose: () => void }) {
       </div>
       <p className="help">Every rule, in full. Settle your arguments here.</p>
       <S h="The night">
-        <p>Don Ray Sanders dies at the start of the night, and one of you did it. Work out who did it, with which weapon, and in which room. The killer's job is to keep you from it.</p>
+        <p>Someone dies at the start of the night, and one of you did it. Work out who did it, with which weapon, and in which room. The killer's job is to keep you from it.</p>
       </S>
       <S h="Your role">
         <p>Your phone tells you if you're the killer or innocent. Press and hold your case file to read it; let go and it hides again. Keep it to yourself.</p>

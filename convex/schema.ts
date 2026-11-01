@@ -168,6 +168,8 @@ export default defineSchema({
     /** Oct 31: the Round 3 twist waits until every card is scanned (or the host, or 10 minutes): twistCallAt is when
      *  every phone and the TV call everyone back to the Lounge; twistAt is when the twist drops. */
     twistCallAt: v.optional(v.number()),
+    /** Oct 31: who dies tonight (convex/victim.ts): a cast drawing nobody plays, or the Don. Fixed at Start. */
+    victim: v.optional(v.object({ key: v.string(), name: v.string(), sex: v.union(v.literal("m"), v.literal("f")) })),
     twistAt: v.optional(v.number()),
     levels: v.optional(v.object({ voice: v.number(), music: v.number(), sfx: v.number() })),
     // Play again: game 2 is a fresh game with the same house setup. The old game points at it.

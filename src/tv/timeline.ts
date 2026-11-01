@@ -5,7 +5,7 @@
 import { LAST_WORDS_MS, RUNOFF_INTRO_MS } from "../../convex/lockin";
 import type { FunctionReturnType } from "convex/server";
 import type { api } from "../../convex/_generated/api";
-import { cueVariant, type CueKey } from "../../convex/narration";
+import { cueVariant, victimCue, type CueKey } from "../../convex/narration";
 import { LAST_CALL_MS, VOTE } from "../../convex/shared";
 import { BODY_SECS_EST, TWIST_CALL_MS, howAfterRoll, howCues, howLayout, introLayout, introMs, readSecs, rollFirst, rollLayout, showPartAt, showParts, SHOW, type HowArt, type ShowPart } from "../../convex/show";
 import { CARD_MS, type CardKey, type LoopKey } from "./media";
@@ -188,10 +188,18 @@ function planRaw(d: Data, now: number, secs: Secs): Plan {
   };
 
   // This game's version of each line; a line that repeats in one game passes which time it is.
-  const pick = (cue: CueKey, occurrence = "") => cueVariant(g.script ?? g.tone, cue, g.slug ?? "", occurrence, g.lines ? { picks: g.lines.picks, d: true } : undefined);
-  const cs = (cue: CueKey) => secs(cue, pick(cue));
-  const vo = (id: string, cue: CueKey, at: number, quiet = false, occurrence = "") => {
-    const v = pick(cue, occurrence);
+  // Oct 31: when someone other than the Don died tonight, the lines that name him play their victim versions, and
+  // versions about his death are skipped.
+  const other = !!g.victim && g.victim.key !== "don";
+  const vc = (cue: CueKey) => victimCue(cue, other);
+  const pick = (cue0: CueKey, occurrence = "") => {
+    const cue = vc(cue0);
+    return cueVariant(g.script ?? g.tone, cue, g.slug ?? "", occurrence, g.lines ? { picks: g.lines.picks, d: true, victim: other } : other ? { picks: {}, victim: true } : undefined);
+  };
+  const cs = (cue: CueKey) => secs(vc(cue), pick(cue));
+  const vo = (id: string, cue0: CueKey, at: number, quiet = false, occurrence = "") => {
+    const cue = vc(cue0);
+    const v = pick(cue0, occurrence);
     const s = secs(cue, v);
     events.push({ id, at, secs: s, cue, v, quiet });
     return at + s * S;
@@ -533,6 +541,9 @@ type Tools = {
 /** secs here gives this game's version of each line (cs in plan). */
 function show(d: Data, now: number, secs: (cue: CueKey) => number, out: Plan, { vo, clip, fx, card, cameo, pick }: Tools): Plan {
   const g = d.game;
+  // Oct 31: tonight's victim, when it isn't the Don.
+  const other = !!g.victim && g.victim.key !== "don";
+  const vc = (cue: CueKey) => victimCue(cue, other);
   const end = g.introEndsAt!;
   const times = { howAt: g.show?.howAt ?? end, introAt: g.show?.introAt ?? null, rollAt: g.show?.rollAt ?? end, phonesAt: g.show?.phonesAt ?? null };
   const parts = showParts(times, g.startedAt!);
@@ -561,14 +572,16 @@ function show(d: Data, now: number, secs: (cue: CueKey) => number, out: Plan, { 
     vo(`how:${howAt}:${st.cue}`, st.cue, st.voiceAt, true);
   }
   const howUntil = Math.min(until("how"), phonesAt);
-  out.rules = { steps: how.steps.filter((st) => st.at < howUntil).map((st) => ({ ...st, art: dress(d, st.art), v: pick(st.cue) })), end: Math.min(how.end, howUntil) };
+  // Oct 31: the first card shows tonight's victim (their drawing, and the line that doesn't name the Don).
+  out.rules = { steps: how.steps.filter((st) => st.at < howUntil).map((st) => ({ ...st, cue: vc(st.cue), art: st.art === "don" && other ? g.victim!.key : dress(d, st.art), v: pick(st.cue) })), end: Math.min(how.end, howUntil) };
 
   // The intro: lights out, the Don falls, the body, "one of you did it". Its slides wait for its lines (introLayout).
   const t = times.introAt ?? g.startedAt!;
   const intro = introLayout(t, secs, d.voice.body?.seconds ?? BODY_SECS_EST);
   out.intro = { beats: intro.beats };
   const lightsOff = card("lightsout", t);
-  cameo({ id: `intro:${t}:don`, char: "don", anim: "fall", at: t, until: t + 2.8 * S, over: true });
+  // Oct 31: tonight's victim falls (the Don, unless someone else died).
+  cameo({ id: `intro:${t}:don`, char: other ? g.victim!.key : "don", anim: "fall", at: t, until: t + 2.8 * S, over: true });
   fx(`intro:${t}:scratch`, "needleScratch", t);
   fx(`intro:${t}:switch`, "lightsCut", t + 0.95 * S);
   fx(`intro:${t}:fall`, "bodyFall", t + 1.6 * S);

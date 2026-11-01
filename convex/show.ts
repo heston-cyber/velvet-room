@@ -99,6 +99,7 @@ export function howKicker(cues: CueKey[], i: number): string {
 /** The headline on each How to play card: a few words, big enough to read across a loud room. */
 export const HOW_TITLE: Partial<Record<CueKey, string>> = {
   playDies: "Someone dies",
+  playDiesV: "Someone dies",
   playAccomplice: "The helper",
   playPhone: "Your phone",
   playLie: "The killer lies",

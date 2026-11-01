@@ -473,8 +473,9 @@ export const CUES = {
   },
   playStory: {
     when: "How to play v5, where were you",
-    classic: "Your phone says where you were when he died. Tell people. Ask people. [short pause] The killer's story is fake. Catch it.",
-    adult: "Your phone says where you were when he died. Tell people. Grill people. [short pause] The killer's story is fake. Catch the liar.",
+    // Oct 31: "when the lights went out" (the victim isn't always a he).
+    classic: "Your phone says where you were when the lights went out. Tell people. Ask people. [short pause] The killer's story is fake. Catch it.",
+    adult: "Your phone says where you were when the lights went out. Tell people. Grill people. [short pause] The killer's story is fake. Catch the liar.",
     wild: ["[conspiratorial whisper]", ""],
   },
   playCards: {
@@ -587,6 +588,27 @@ export const CUES = {
     classic: "Betting is for your chips. Bet on who did it, if you're feeling lucky.",
     adult: "Betting is for your chips. Bet on who did it. It's not real money, so go nuts.",
     wild: ["[counting money, way too excited]", ""],
+  },
+  // ---- Oct 31 (Heston: "the game kills a player that is not in the game (uses don ray sanders as a back up if all
+  // players full)"): in a game whose victim isn't the Don, these play in place of the lines that name him (VICTIM_CUE).
+  // The victim's name comes from the per-game body line ("Sienna was found in the Conservatory."). ----
+  intro2V: {
+    when: "Start: the body (a victim who isn't the Don)",
+    classic: "Tonight, the Velvet Room lost one of its own. [short pause] And no, it's not a costume.",
+    adult: "Tonight, somebody at this party stopped breathing. [short pause] And no, it's not the tequila.",
+    wild: ["[suddenly shouting]", "[sobbing dramatically]"],
+  },
+  reveal1V: {
+    when: "The reveal: the killer is… (a victim who isn't the Don)",
+    classic: "[long pause] And the killer is…",
+    adult: "[long pause] The police have been paid. [short pause] And the killer is…",
+    wild: ["[drumroll noises with mouth]", ""],
+  },
+  playDiesV: {
+    when: "How to play v5, someone dies (a victim who isn't the Don)",
+    classic: "[warm, conspiratorial] Here's the game. In a minute, the lights go out and somebody dies. One of you did it. Your job: find out who.",
+    adult: "[warm, conspiratorial] Here's the game. In a minute, the lights go out and somebody drops dead. One of you did it. Find out who. That's it. That's the whole game.",
+    wild: ["[clapping hands, way over the top]", "[cackles]"],
   },
 } satisfies Record<string, Cue>;
 
@@ -1094,7 +1116,15 @@ export type LinePicks = {
   picks: Record<string, number>;
   /** Games that pick their lines also get Adult D now and then. */
   d?: boolean;
+  /** Oct 31: tonight's victim isn't the Don, so versions that talk about the Don's death are skipped. */
+  victim?: boolean;
 };
+
+/** Oct 31: lines that name the Don as the dead man play these instead when tonight's victim is someone else. */
+export const VICTIM_CUE: Partial<Record<CueKey, CueKey>> = { intro2: "intro2V", reveal1: "reveal1V", playDies: "playDiesV" };
+export const victimCue = (cue: CueKey, otherVictim: boolean): CueKey => (otherVictim ? VICTIM_CUE[cue] ?? cue : cue);
+/** A version that talks about the Don as the dead man (or "the dead guy"). */
+export const aboutDeadDon = (text: string) => /Don Ray Sanders|\b[Tt]he Don\b|dead guy|when he died/.test(text);
 
 /** "2" → 2; the empty first time → 0; anything else, a stable number. */
 const occIndex = (occurrence: string) => (occurrence === "" ? 0 : /^\d+$/.test(occurrence) ? Number(occurrence) : hashOf(occurrence));
@@ -1106,6 +1136,18 @@ const occIndex = (occurrence: string) => (occurrence === "" ? 0 : /^\d+$/.test(o
  * picks, so the jokes this laptop heard lately come last.
  */
 export function cueVariant(tone: Tone, cue: CueKey, seed = "", occurrence = "", lines?: LinePicks): number {
+  const v0 = cueVariant0(tone, cue, seed, occurrence, lines);
+  if (!lines?.victim) return v0;
+  // Oct 31: skip versions about the Don's death when someone else died tonight (the next one that isn't).
+  const all = cueVersions(cue, tone);
+  for (let k = 0; k < all.length; k++) {
+    const v = (v0 + k) % all.length;
+    if (!aboutDeadDon(all[v])) return v;
+  }
+  return v0;
+}
+
+function cueVariant0(tone: Tone, cue: CueKey, seed = "", occurrence = "", lines?: LinePicks): number {
   const n = cleanVersions(cue, tone).length;
   const noisyAt = NOISY[tone][cue] ? n : -1;
   // Now and then, the noisy take; in games that pick their lines, now and then Adult D.

@@ -9,7 +9,7 @@ import { HECKLE, plan, type Data } from "../src/tv/timeline";
 const ALL = Object.keys(CUES) as CueKey[];
 // Oct 31 (Heston: "we need to keep the rules and gameplay sections the same every adult game without changing the
 // script"): How to play and Gameplay have one Adult version, so they're left out of the variety rules.
-const FIXED = (c: string) => /^(play|night|tour)/.test(c);
+const FIXED = (c: string) => /^(play|night|tour)/.test(c) || /V$/.test(c);
 const USED = ALL.filter((c) => !FIXED(c));
 
 describe("adult script: several versions of every line, picked per game", () => {

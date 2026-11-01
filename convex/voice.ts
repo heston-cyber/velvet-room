@@ -58,6 +58,7 @@ async function wantedAll(ctx: QueryCtx, game: Doc<"games">, scope: Scope, quiet:
     exhibits,
     rooms: game.rooms,
     bodyRoomKey: game.bodyRoomKey,
+    victim: game.victim ?? null,
     roomOrder: game.roomOrder,
     search: game.search ?? "all",
     seed: game.slug,

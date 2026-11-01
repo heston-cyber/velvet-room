@@ -41,6 +41,7 @@ import type * as rollCall from "../rollCall.js";
 import type * as seal from "../seal.js";
 import type * as shared from "../shared.js";
 import type * as show from "../show.js";
+import type * as victim from "../victim.js";
 import type * as voice from "../voice.js";
 import type * as voiceLines from "../voiceLines.js";
 import type * as weapons from "../weapons.js";
@@ -85,6 +86,7 @@ declare const fullApi: ApiFromModules<{
   seal: typeof seal;
   shared: typeof shared;
   show: typeof show;
+  victim: typeof victim;
   voice: typeof voice;
   voiceLines: typeof voiceLines;
   weapons: typeof weapons;

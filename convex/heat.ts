@@ -7,6 +7,7 @@ import { caseFor } from "./caseFile";
 import { shortName } from "./figures";
 import { heatOn, heatShows, liveTags, plantOptions, plantTips, publiclyCleared, type ShownTip } from "./engine/heat";
 import { secure, seeded } from "./engine/rng";
+import { forVictim } from "./victim";
 import type { CaseFile } from "./engine/types";
 import { isPlaying, playersOf, requirePlayer, voteOf } from "./game";
 
@@ -100,7 +101,8 @@ export async function landTips(ctx: MutationCtx, game: Doc<"games">) {
   const text = target && game.frame?.text ? game.frame.text : undefined;
   const shown: ShownTip[] = plantTips(cf.lateTips ?? [], game.tone ?? "classic", target ? { id: target._id, name: shortName(target), text } : null, names, secure());
   await ctx.db.patch(game._id, {
-    lateTips: shown.map((t) => ({ aboutId: t.aboutId as Id<"players">, text: t.text, plant: t.plant })),
+    // Oct 31: the plant's words name tonight's victim, like the real tips (the case file already does).
+    lateTips: shown.map((t) => ({ aboutId: t.aboutId as Id<"players">, text: forVictim(t.text, game.victim), plant: t.plant })),
     lateTipsAt: Date.now(),
   });
 }
@@ -114,7 +116,7 @@ export function plantChoices(game: Doc<"games">, cf: CaseFile, all: Doc<"players
     .map((p) => ({ id: p._id as string, name: shortName(p) }));
   let h = 2166136261;
   for (const ch of String(game._id)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
-  return plantOptions(cf.lateTips ?? [], game.tone === "adult" ? "adult" : "classic", candidates, names, seeded(h >>> 0));
+  return plantOptions(cf.lateTips ?? [], game.tone === "adult" ? "adult" : "classic", candidates, names, seeded(h >>> 0)).map((o) => ({ ...o, text: forVictim(o.text, game.victim) }));
 }
 
 /**

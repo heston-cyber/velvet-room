@@ -19,10 +19,11 @@ import { inOrder, rollGuests, slotsFor } from "./rollCall";
 import { heckleWanted } from "./heckles";
 import { finalAnswer, finalParts, hasTie, RUNOFF_VOTE_MS, runoffVoteAt, tiedParts, type Tied } from "./lockin";
 import { BET_AMOUNTS, killerTake, oddsFor, pot, settleBet } from "./book";
-import { customCounts, pickLines, type CueKey } from "./narration";
+import { customCounts, pickLines, victimCue, type CueKey } from "./narration";
 import { scheduleRecording } from "./voice";
 import { ensureRoomCode } from "./join";
-import { castMember, castName, fakeGuestPool, shortName, standIns, takenFigures } from "./figures";
+import { CAST, castMember, castName, fakeGuestPool, shortName, standIns, takenFigures } from "./figures";
+import { deepVictim, pickVictim, type Victim } from "./victim";
 import { MIN_WEAPONS, drawWeapons, gameWeapons, recommendedWeapons } from "./weapons";
 import { heatNow, landTips, myTag, pickOpen, plantChoices, plantReveal, publicTips } from "./heat";
 import { debtLines, heatShows } from "./engine/heat";
@@ -1042,6 +1043,8 @@ export const phone = query({
         introEndsAt: game.introEndsAt ?? null,
         // Oct 31: Round 3's twist (see the TV's).
         twistWait: await twistPending(ctx, game),
+        // Oct 31: who dies tonight, once the game has started (null: the Don).
+        victim: game.victim ?? null,
         twistCallAt: game.twistCallAt ?? null,
         twistAt: game.twistAt ?? null,
         // W4 (Oct 17): when the Don dies on screen; phones don't say he's dead before. (Named for the roll call, which
@@ -1413,7 +1416,11 @@ export const startGame = mutation({
       console.error("draw failed", (err as Error).message);
       throw new ConvexError("The draw couldn't build a fair case this time. Press Start again.");
     }
-    const { validation: _v, ...file } = cf as CaseFile & { validation?: unknown };
+    // Oct 31: tonight's victim, a cast drawing nobody plays (the Don if every one is taken); every line about the
+    // death names them.
+    const victim: Victim = pickVictim(CAST, await takenFigures(ctx, game._id), secure()());
+    const { validation: _v, ...drawn } = cf as CaseFile & { validation?: unknown };
+    const file = deepVictim(drawn, victim);
     await ctx.db.insert("sealed", { gameId: game._id, ...(await seal(file)) });
     for (const p of await playersOf(ctx, game._id)) {
       await ctx.db.patch(p._id, { inGame: p.checkedIn, readyRound: 0 });
@@ -1431,7 +1438,7 @@ export const startGame = mutation({
     // Oct 31, 17:30 (Heston): the welcome and the roll call, How to play and Gameplay, then the Don dies and "check your
     // phone".
     const rollAt = now;
-    const g1 = { ...picked, hasAccomplice: !!input.accomplice };
+    const g1 = { ...picked, hasAccomplice: !!input.accomplice, victim };
     const est = await rollPlan(ctx, g1, rollAt, order, file as CaseFile, "rollFirst");
     const howAt = est.howAt;
     const introAt = howAt + howMsOf(g1);
@@ -1452,6 +1459,7 @@ export const startGame = mutation({
       rulesAt: undefined,
       rollCallAt: undefined,
       show: { howAt, introAt, rollAt, order },
+      victim,
       lines,
       rolesOut: false,
       // v2: a killer and an accomplice only with 7+ players; otherwise one killer. (Off since Oct 16: always one.)
@@ -1490,7 +1498,11 @@ const showSecs = (game: Doc<"games">) => {
   const n = narratorOf(game);
   const tone = scriptOf(game);
   // This game's version of each line (adult lines come in several), as the TV will play it.
-  return (cue: CueKey) => cueSecs(voiceOf(n), tone, n.host, cue, variantOf(game, cue));
+  // Oct 31: the victim's versions of the lines that name the Don.
+  return (cue0: CueKey) => {
+    const cue = victimCue(cue0, !!game.victim && game.victim.key !== "don");
+    return cueSecs(voiceOf(n), tone, n.host, cue, variantOf(game, cue));
+  };
 };
 
 /** How long each recorded clip runs (null while it isn't recorded, or no longer says the right thing). */
@@ -1822,6 +1834,7 @@ async function tvVoice(ctx: QueryCtx, game: Doc<"games">, all: Doc<"players">[],
     exhibits: input.exhibits.map((e) => ({ id: e.id, letter: e.letter, name: e.name })),
     rooms: game.rooms,
     bodyRoomKey: game.bodyRoomKey,
+    victim: game.victim ?? null,
     roomOrder: game.roomOrder,
     search: game.search ?? "all",
     seed: game.slug,
@@ -1976,6 +1989,8 @@ export const tv = query({
         roundStartedAt: game.roundStartedAt ?? null,
         // Oct 31: Round 3's twist: waiting (every card not found yet), the call back to the Lounge, the drop.
         twistWait: await twistPending(ctx, game),
+        // Oct 31: who died tonight (null: the Don, in games from before).
+        victim: game.victim ?? null,
         twistCallAt: game.twistCallAt ?? null,
         twistAt: game.twistAt ?? null,
         pausedAt: game.pausedAt ?? null,
@@ -2056,7 +2071,8 @@ export const tv = query({
       map: await tvMap(ctx, game),
       // A cast game's TV dresses How to play, the accomplice card, the awards and empty line-ups in the cast's
       // drawings (this game's guests first) instead of the old ones.
-      standIns: standIns(all.filter((p) => p.figure).sort((a, b) => a.createdAt - b.createdAt).map((p) => p.figure!)),
+      // Oct 31: tonight's victim never walks across the TV.
+      standIns: standIns(all.filter((p) => p.figure).sort((a, b) => a.createdAt - b.createdAt).map((p) => p.figure!)).filter((k) => k !== game.victim?.key),
     };
   },
 });
